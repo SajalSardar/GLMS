@@ -25,11 +25,56 @@ This sub-project does **not** build auth from scratch. It is narrower:
 
 1. Add three portal-specific login endpoints (teacher/student/management).
 2. Migrate tenant isolation from manual per-Policy/per-controller checks to
-   Eloquent global scopes, closing a real gap found during investigation
-   (`TeacherProfileController::update()` was missing its `authorize()`
-   call entirely — exactly the silent-leak failure mode a global scope
-   prevents by construction).
+   Eloquent global scopes.
 3. Map roles to portals and enforce that boundary at login.
+4. Fix a systemic authorization gap found during investigation (see
+   below) — not originally in scope, folded in by decision during
+   brainstorming since it's the same theme and touches the same files.
+
+### Systemic finding: missing `authorize()` calls across all 20 controllers
+
+Investigation (reading every one of the 20 `Api\V1` controllers) found that
+**every** controller calls `$this->authorize(...)` in `destroy()` (and a
+handful of other sensitive single-purpose actions —  `setCurrent`,
+`publish`/`unpublish`, `detachGuardian`) but **`store()` and `update()` —
+and custom mutating actions like `updateSubjects`, `assignRole`,
+`attachGuardian`, `transferSection`, `updatePermissions` — call no
+`authorize()` at all, system-wide.** Right now, any authenticated user,
+regardless of role or permission, can create or update any tenant-owned
+resource for any school. This is a pre-existing bug in code that has not
+shipped yet, not something introduced by this sub-project's other changes
+— but it is squarely in this sub-project's theme and touches the same
+controllers already being edited for the global-scope migration, so it is
+folded in here rather than handled separately (decided during
+brainstorming).
+
+The global-scope migration (item 2 above) closes the *cross-tenant* half
+of this automatically (a foreign-tenant row becomes unreachable via
+Eloquent, including through implicit route-model-binding) but does not
+by itself add a permission check — a same-school user with no
+`{resource}.update` permission could still update their own school's
+data today. Both halves (global scope AND the missing `authorize()`
+calls) are needed together.
+
+**Design decision enabled by the global scope:** every Policy's `create()`
+method currently either takes no extra parameter (7 policies: Division,
+District, Upazila, Subject, Chapter, Role, Guardian) or takes a `School`
+parameter to scope-check against (13 policies: School, User,
+TeacherProfile, StudentProfile, Class, AcademicYear, Classroom,
+ClassRoutine, ClassVersion, Shift, Section, SubjectTeacherAssignment,
+TimetableEntry). Once the global scope is in place, a controller can no
+longer even fetch a foreign-tenant `School` (or any other TenantScoped
+model) to pass into that scope check — so the `School` parameter and its
+`inScope` check become redundant for the same reason `view`/`update`/
+`delete` do. **All 20 policies' `create()` methods collapse to the same
+simple shape: `create(User $user): bool { return
+$user->hasPermission('{resource}.create'); }`** — no second parameter, no
+scope check. Controllers that currently call
+`$this->authorize('create', [X::class, $school])` change to
+`$this->authorize('create', X::class)`; they still fetch the related
+School/ClassVersion/Shift/Section via Eloquent as before for deriving
+`school_id`/`district_id` on the new row — that fetch is what the global
+scope actually protects.
 
 ## Architecture mismatches found and resolved
 
@@ -147,12 +192,12 @@ class TenantScope implements Scope
 }
 ```
 
-**Models that get `TenantScoped`** (direct `school_id`/`district_id`
-column, confirmed against migrations): `User`, `TeacherProfile`,
-`StudentProfile`, `SchoolClass`, `Classroom`, `ClassRoutine`,
-`ClassVersion`, `Shift`, `Section`, `SubjectTeacherAssignment`,
-`TimetableEntry`, `AcademicYear`, and `School` (special case: scoped by
-its own `id`, not a `school_id` column, per the `TenantScope` class above).
+**Models that get `TenantScoped`** (13 total; direct `school_id`/
+`district_id` column, confirmed against migrations): `School` (special
+case: scoped by its own `id`, not a `school_id` column, per the
+`TenantScope` class above), `User`, `TeacherProfile`, `StudentProfile`,
+`SchoolClass`, `Classroom`, `ClassRoutine`, `ClassVersion`, `Shift`,
+`Section`, `SubjectTeacherAssignment`, `TimetableEntry`, `AcademicYear`.
 
 **Models that do NOT get it** (no direct `school_id`/`district_id`
 column — scoped indirectly through a relationship instead): `Guardian`
@@ -166,14 +211,16 @@ reference data, not tenant-owned, and must never get this trait.
 - Implicit route-model-binding (`show(TeacherProfile $teacher_profile)`)
   now 404s automatically for a foreign-tenant ID, before the controller or
   Policy runs.
-- The 19 Policies' `inScope`/`ChecksScope` logic becomes redundant for
-  *fetching* a specific instance (you can no longer load a foreign-tenant
-  row to check it against) — simplify each affected Policy's `view`,
-  `update`, `delete` methods to drop the `inScope` check and keep only the
-  permission check. `viewAny`/`create` are unaffected (no instance to
-  scope).
+- The 13 `ChecksScope`-using Policies' `inScope` logic becomes redundant
+  for *every* ability (`view`, `update`, `delete`, and `create` — see the
+  "systemic finding" section above for why `create` collapses too): you
+  can no longer fetch a foreign-tenant row, or a foreign-tenant `School`
+  to create against, to check it in the first place. Drop `use
+  ChecksScope;` and all `inScope(...)` calls from all 20 Policies, and
+  simplify every `create()` to the single-parameter, permission-only
+  shape described above.
 - The explicit `->visibleTo($request->user())` calls in
-  `StudentProfileController`, `UserController`, `GuardianController`, and
+  `StudentProfileController`, `UserController`, and
   `TeacherProfileController` become redundant for the `TenantScoped`
   models and should be removed from those controllers' `index()` methods
   (the global scope applies automatically to the query). `GuardianController`
@@ -182,13 +229,6 @@ reference data, not tenant-owned, and must never get this trait.
 - The `scopeVisibleTo` local-scope methods already defined on `User`,
   `TeacherProfile`, and `StudentProfile` become dead code once the global
   scope does the same filtering automatically — remove them.
-- Fixes the found gap: `TeacherProfileController::update()` never called
-  `$this->authorize('update', $teacher_profile)`. Once `TeacherProfile` is
-  `TenantScoped`, the model can no longer even be fetched cross-tenant, so
-  the leak is closed structurally — but the missing `authorize()` call
-  should still be added for permission-check completeness (a same-school
-  teacher with no `teacher_profiles.update` permission must still be
-  blocked).
 
 ## Testing
 
@@ -230,20 +270,41 @@ confirm every endpoint 403/404s against School B's data"):
 - No work on `trainer`/`office_staff`/`it_admin`/`auditor`/`parent_guardian`
   portal access — they remain unassigned to any portal.
 
+## Implementation plan structure
+
+This spec is implemented as three sequential plans (decided during
+brainstorming, given the scope found above):
+
+- **Plan A:** `TenantScope`/`TenantScoped` trait, applied to the 13
+  listed models; all 20 Policies simplified (drop `ChecksScope`/`inScope`,
+  collapse `create()` to the single-parameter permission-only shape);
+  remove the three dead `scopeVisibleTo` methods and the three
+  controllers' redundant `->visibleTo()` calls; cross-tenant leakage tests
+  and `TenantScope` unit tests.
+- **Plan B:** add the missing `authorize()` calls across all 20
+  controllers' `store()`/`update()`/custom mutating actions (the
+  systemic finding above), updating each `create()` call site to the new
+  single-parameter form from Plan A.
+- **Plan C:** the three portal login endpoints, the role-to-portal config,
+  their feature tests, and the `docs/API_SPECIFICATION.md`/
+  `docs/ARCHITECTURE.md` updates (bearer-token auth as the real target,
+  global-scope tenant isolation as actually implemented).
+
 ## Definition of done
 
 - Three new login endpoints exist, each resolving its own identifier type,
   enforcing its own role allowlist, and returning the same generic error
   shape on any failure.
-- `TenantScope` + `TenantScoped` trait exist and are applied to the 12
-  listed models (`School` plus the 11 others); `Guardian` and
-  `StudentSectionTransfer` are confirmed untouched; shared reference
-  models are confirmed untouched.
-- The 19 Policies are simplified where applicable (scope check dropped,
-  permission check kept); the four controllers' redundant `->visibleTo()`
-  calls are removed; the three models' dead `scopeVisibleTo` methods are
-  removed; `TeacherProfileController::update()`'s missing `authorize()`
-  call is added.
+- `TenantScope` + `TenantScoped` trait exist and are applied to all 13
+  listed models; `Guardian` and `StudentSectionTransfer` are confirmed
+  untouched; shared reference models are confirmed untouched.
+- All 20 Policies are simplified (scope check dropped, permission check
+  kept, `create()` collapsed to one parameter); the three controllers'
+  redundant `->visibleTo()` calls are removed; the three models' dead
+  `scopeVisibleTo` methods are removed.
+- Every `store()`/`update()`/custom mutating action across all 20
+  controllers has the appropriate `authorize()` call (the systemic gap is
+  closed everywhere, not just the one originally-found instance).
 - The cross-tenant leakage test suite, the `TenantScope` unit/feature
   tests, and the three login endpoints' feature tests all pass.
 - `docs/API_SPECIFICATION.md` and `docs/ARCHITECTURE.md` are updated to
