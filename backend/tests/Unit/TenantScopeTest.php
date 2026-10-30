@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Models\AcademicYear;
 use App\Models\District;
 use App\Models\Division;
 use App\Models\Role;
@@ -84,5 +85,34 @@ class TenantScopeTest extends TestCase
     public function test_unauthenticated_request_is_unrestricted(): void
     {
         $this->assertCount(2, School::all());
+    }
+
+    public function test_school_scoped_actor_sees_only_their_own_school_academic_years(): void
+    {
+        AcademicYear::create([
+            'school_id' => $this->schoolA->id,
+            'district_id' => $this->schoolA->district_id,
+            'name' => 'Year A',
+            'start_date' => '2026-01-01',
+            'end_date' => '2026-12-31',
+        ]);
+
+        AcademicYear::create([
+            'school_id' => $this->schoolB->id,
+            'district_id' => $this->schoolB->district_id,
+            'name' => 'Year B',
+            'start_date' => '2026-01-01',
+            'end_date' => '2026-12-31',
+        ]);
+
+        $role = Role::create(['name' => 'school_admin_ay', 'label' => 'School Admin']);
+        $actor = User::factory()->create(['role_id' => $role->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id]);
+
+        Auth::login($actor);
+
+        $visible = AcademicYear::all();
+
+        $this->assertCount(1, $visible);
+        $this->assertSame('Year A', $visible->first()->name);
     }
 }

@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Builder;
+use App\Models\Concerns\TenantScoped;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class StudentProfile extends Model
 {
-    use SoftDeletes;
+    use SoftDeletes, TenantScoped;
 
     protected $fillable = [
         'user_id',
@@ -77,23 +77,5 @@ class StudentProfile extends Model
         return $this->belongsToMany(Guardian::class, 'student_guardian')
             ->withPivot(['relation', 'is_primary'])
             ->withTimestamps();
-    }
-
-    /**
-     * Restrict a query to profiles within the given actor's scope: a
-     * single school if school-scoped, a whole district if
-     * district-scoped, or unrestricted if unscoped.
-     */
-    public function scopeVisibleTo(Builder $query, User $actor): Builder
-    {
-        if ($actor->school_id !== null) {
-            return $query->where('school_id', $actor->school_id);
-        }
-
-        if ($actor->district_id !== null) {
-            return $query->where('district_id', $actor->district_id);
-        }
-
-        return $query;
     }
 }

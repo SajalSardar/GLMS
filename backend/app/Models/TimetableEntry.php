@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\TenantScoped;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class TimetableEntry extends Model
 {
-    use SoftDeletes;
+    use SoftDeletes, TenantScoped;
 
     public const STATUSES = ['draft', 'published'];
 

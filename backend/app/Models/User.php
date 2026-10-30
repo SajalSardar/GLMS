@@ -3,10 +3,10 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Models\Concerns\TenantScoped;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -20,7 +20,7 @@ use Laravel\Sanctum\HasApiTokens;
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, Notifiable, SoftDeletes;
+    use HasApiTokens, HasFactory, Notifiable, SoftDeletes, TenantScoped;
 
     /**
      * Get the attributes that should be cast.
@@ -73,23 +73,5 @@ class User extends Authenticatable
     public function hasPermission(string $permission): bool
     {
         return $this->role?->loadMissing('permissions')->hasPermission($permission) ?? false;
-    }
-
-    /**
-     * Restrict a query to users within the given actor's scope: a single
-     * school if the actor is school-scoped, a whole district if the actor
-     * is district-scoped, or unrestricted if the actor is unscoped.
-     */
-    public function scopeVisibleTo(Builder $query, User $actor): Builder
-    {
-        if ($actor->school_id !== null) {
-            return $query->where('school_id', $actor->school_id);
-        }
-
-        if ($actor->district_id !== null) {
-            return $query->where('district_id', $actor->district_id);
-        }
-
-        return $query;
     }
 }
