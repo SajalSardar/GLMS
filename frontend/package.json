@@ -3,17 +3,17 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
+    "dev:teacher": "npm run dev --workspace=apps/teacher",
+    "dev:student": "npm run dev --workspace=apps/student",
+    "dev:management": "npm run dev --workspace=apps/management",
+    "build": "npm run build --workspaces --if-present",
     "lint": "oxlint",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "react": "^19.3.1",
-    "react-dom": "^19.3.1",
-    "react-router-dom": "^7.18.4",
-    "vite-plugin-pwa": "^2.0.0"
+    "test": "vitest run"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",
@@ -22,6 +22,8 @@
     "@vitejs/plugin-react": "^6.1.2",
     "oxlint": "^1.88.0",
     "typescript": "~6.0.3",
-    "vite": "^8.3.4"
+    "vite": "^8.3.4",
+    "vite-plugin-pwa": "^2.0.0",
+    "vitest": "^3.2.4"
   }
 }
