@@ -1,0 +1,20 @@
+{
+  "name": "@ttla/app-management",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@ttla/api-client": "*",
+    "@ttla/auth": "*",
+    "@ttla/i18n": "*",
+    "@ttla/ui": "*",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-router-dom": "^7.18.4"
+  }
+}
