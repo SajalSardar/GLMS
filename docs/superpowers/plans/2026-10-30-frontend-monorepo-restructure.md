@@ -573,9 +573,14 @@ No automated test for this task — it's presentational and gets verified visual
 ```json
 {
   "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["vite/client"]
+  },
   "include": ["src"]
 }
 ```
+
+`"types": ["vite/client"]` is required here because `AppShell.tsx` (Step 5) imports `./AppShell.css` — Vite's client types supply the ambient `declare module '*.css'` that makes this resolve under TypeScript, the same way every app's `tsconfig.app.json` already includes it for the same reason.
 
 - [ ] **Step 3: Create `frontend/packages/ui/src/layout/Sidebar.tsx`**
 
