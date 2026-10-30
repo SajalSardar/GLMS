@@ -1,0 +1,6 @@
+{
+  "dashboard.backendStatus": "Backend connection status",
+  "dashboard.statusLoading": "Checking connection...",
+  "dashboard.statusOk": "Connected",
+  "dashboard.statusError": "Backend unreachable"
+}

@@ -1,0 +1,6 @@
+{
+  "dashboard.backendStatus": "ব্যাকএন্ড সংযোগের অবস্থা",
+  "dashboard.statusLoading": "সংযোগ পরীক্ষা করা হচ্ছে...",
+  "dashboard.statusOk": "সংযুক্ত",
+  "dashboard.statusError": "ব্যাকএন্ড সংযোগ করা যায়নি"
+}
