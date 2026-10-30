@@ -2,6 +2,9 @@
 
 namespace App\Providers;
 
+use App\Models\SchoolClass;
+use App\Policies\ClassPolicy;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -19,6 +22,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // SchoolClass -> ClassPolicy doesn't match Laravel's {Model}Policy
+        // auto-discovery convention ("SchoolClassPolicy"), since "Class" is
+        // reserved and can't be the model's own name.
+        Gate::policy(SchoolClass::class, ClassPolicy::class);
     }
 }

@@ -1,0 +1,46 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     *
+     * An arbitrarily-named student group under a shift (not restricted to
+     * A/B/C or I/II/III) — §2.5.
+     */
+    public function up(): void
+    {
+        Schema::create('sections', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('shift_id')->constrained()->cascadeOnDelete();
+            // Denormalized from the shift's school at creation time.
+            $table->foreignId('school_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('district_id')->constrained()->cascadeOnDelete();
+            $table->string('name');
+            $table->string('bn_name')->nullable();
+            $table->string('code')->nullable();
+            $table->unsignedSmallInteger('capacity')->nullable();
+            $table->foreignId('class_teacher_id')->nullable()->constrained('users')->nullOnDelete();
+            // A permanent default room (§4.2); a specific timetable entry
+            // may still override it per period via timetable_entries.classroom_id.
+            $table->foreignId('default_classroom_id')->nullable()->constrained('classrooms')->nullOnDelete();
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+            $table->softDeletes();
+
+            $table->unique(['shift_id', 'name']);
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('sections');
+    }
+};

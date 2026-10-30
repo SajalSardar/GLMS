@@ -1,0 +1,129 @@
+<?php
+
+namespace Database\Seeders;
+
+use App\Models\Permission;
+use Illuminate\Database\Seeder;
+
+class PermissionSeeder extends Seeder
+{
+    /**
+     * Seed the application's database.
+     *
+     * Permission catalog covers every resource the API currently exposes.
+     * New modules (courses, attendance, results, fees, ...) add their own
+     * permissions here as those APIs are built in later phases.
+     */
+    public function run(): void
+    {
+        $permissions = [
+            ['name' => 'divisions.view', 'label' => 'View divisions'],
+            ['name' => 'divisions.create', 'label' => 'Create divisions'],
+            ['name' => 'divisions.update', 'label' => 'Update divisions'],
+            ['name' => 'divisions.delete', 'label' => 'Delete divisions'],
+
+            ['name' => 'districts.view', 'label' => 'View districts'],
+            ['name' => 'districts.create', 'label' => 'Create districts'],
+            ['name' => 'districts.update', 'label' => 'Update districts'],
+            ['name' => 'districts.delete', 'label' => 'Delete districts'],
+
+            ['name' => 'upazilas.view', 'label' => 'View upazilas'],
+            ['name' => 'upazilas.create', 'label' => 'Create upazilas'],
+            ['name' => 'upazilas.update', 'label' => 'Update upazilas'],
+            ['name' => 'upazilas.delete', 'label' => 'Delete upazilas'],
+
+            ['name' => 'schools.view', 'label' => 'View schools'],
+            ['name' => 'schools.create', 'label' => 'Create schools'],
+            ['name' => 'schools.update', 'label' => 'Update schools'],
+            ['name' => 'schools.delete', 'label' => 'Delete schools'],
+
+            ['name' => 'classes.view', 'label' => 'View classes'],
+            ['name' => 'classes.create', 'label' => 'Create classes'],
+            ['name' => 'classes.update', 'label' => 'Update classes'],
+            ['name' => 'classes.delete', 'label' => 'Delete classes'],
+
+            ['name' => 'subjects.view', 'label' => 'View subjects'],
+            ['name' => 'subjects.create', 'label' => 'Create subjects'],
+            ['name' => 'subjects.update', 'label' => 'Update subjects'],
+            ['name' => 'subjects.delete', 'label' => 'Delete subjects'],
+
+            ['name' => 'chapters.view', 'label' => 'View chapters'],
+            ['name' => 'chapters.create', 'label' => 'Create chapters'],
+            ['name' => 'chapters.update', 'label' => 'Update chapters'],
+            ['name' => 'chapters.delete', 'label' => 'Delete chapters'],
+
+            ['name' => 'users.view', 'label' => 'View users'],
+            ['name' => 'users.create', 'label' => 'Create users'],
+            ['name' => 'users.update', 'label' => 'Update users'],
+            ['name' => 'users.delete', 'label' => 'Delete users'],
+
+            ['name' => 'roles.view', 'label' => 'View roles'],
+            ['name' => 'roles.create', 'label' => 'Create roles'],
+            ['name' => 'roles.update', 'label' => 'Update roles'],
+            ['name' => 'roles.delete', 'label' => 'Delete roles'],
+
+            ['name' => 'permissions.view', 'label' => 'View permissions'],
+
+            ['name' => 'teacher_profiles.view', 'label' => 'View teacher profiles'],
+            ['name' => 'teacher_profiles.create', 'label' => 'Create teacher profiles'],
+            ['name' => 'teacher_profiles.update', 'label' => 'Update teacher profiles'],
+            ['name' => 'teacher_profiles.delete', 'label' => 'Delete teacher profiles'],
+
+            ['name' => 'student_profiles.view', 'label' => 'View student profiles'],
+            ['name' => 'student_profiles.create', 'label' => 'Create student profiles'],
+            ['name' => 'student_profiles.update', 'label' => 'Update student profiles'],
+            ['name' => 'student_profiles.delete', 'label' => 'Delete student profiles'],
+
+            ['name' => 'guardians.view', 'label' => 'View guardians'],
+            ['name' => 'guardians.create', 'label' => 'Create guardians'],
+            ['name' => 'guardians.update', 'label' => 'Update guardians'],
+            ['name' => 'guardians.delete', 'label' => 'Delete guardians'],
+
+            ['name' => 'academic_years.view', 'label' => 'View academic years'],
+            ['name' => 'academic_years.create', 'label' => 'Create academic years'],
+            ['name' => 'academic_years.update', 'label' => 'Update academic years'],
+            ['name' => 'academic_years.delete', 'label' => 'Delete academic years'],
+
+            ['name' => 'classrooms.view', 'label' => 'View classrooms'],
+            ['name' => 'classrooms.create', 'label' => 'Create classrooms'],
+            ['name' => 'classrooms.update', 'label' => 'Update classrooms'],
+            ['name' => 'classrooms.delete', 'label' => 'Delete classrooms'],
+
+            ['name' => 'class_routines.view', 'label' => 'View class routines'],
+            ['name' => 'class_routines.create', 'label' => 'Create class routines'],
+            ['name' => 'class_routines.update', 'label' => 'Update class routines'],
+            ['name' => 'class_routines.delete', 'label' => 'Delete class routines'],
+
+            ['name' => 'class_versions.view', 'label' => 'View class versions'],
+            ['name' => 'class_versions.create', 'label' => 'Create class versions'],
+            ['name' => 'class_versions.update', 'label' => 'Update class versions'],
+            ['name' => 'class_versions.delete', 'label' => 'Delete class versions'],
+
+            ['name' => 'shifts.view', 'label' => 'View shifts'],
+            ['name' => 'shifts.create', 'label' => 'Create shifts'],
+            ['name' => 'shifts.update', 'label' => 'Update shifts'],
+            ['name' => 'shifts.delete', 'label' => 'Delete shifts'],
+
+            ['name' => 'sections.view', 'label' => 'View sections'],
+            ['name' => 'sections.create', 'label' => 'Create sections'],
+            ['name' => 'sections.update', 'label' => 'Update sections'],
+            ['name' => 'sections.delete', 'label' => 'Delete sections'],
+            ['name' => 'sections.override_capacity', 'label' => 'Override section capacity on transfer'],
+
+            ['name' => 'subject_teacher_assignments.view', 'label' => 'View subject-teacher assignments'],
+            ['name' => 'subject_teacher_assignments.create', 'label' => 'Create subject-teacher assignments'],
+            ['name' => 'subject_teacher_assignments.update', 'label' => 'Update subject-teacher assignments'],
+            ['name' => 'subject_teacher_assignments.delete', 'label' => 'Delete subject-teacher assignments'],
+
+            ['name' => 'timetable_entries.view', 'label' => 'View timetable entries (including drafts)'],
+            ['name' => 'timetable_entries.create', 'label' => 'Create timetable entries'],
+            ['name' => 'timetable_entries.update', 'label' => 'Update timetable entries'],
+            ['name' => 'timetable_entries.delete', 'label' => 'Delete timetable entries'],
+            ['name' => 'timetable_entries.publish', 'label' => 'Publish or revise published timetable entries'],
+        ];
+
+        foreach ($permissions as $permission) {
+            Permission::updateOrCreate(['name' => $permission['name']], $permission);
+        }
+    }
+}
