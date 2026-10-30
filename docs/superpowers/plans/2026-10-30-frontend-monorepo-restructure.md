@@ -789,7 +789,7 @@ git commit -m "Add shared ui package"
 - Create: `frontend/apps/teacher/src/pages/DashboardPlaceholder.tsx`
 
 **Interfaces:**
-- Consumes: `getHealth` from `@ttla/api-client` (Task 2), `getCommonStrings` from `@ttla/i18n` (Task 4), `AppShell`/`SidebarItem` from `@ttla/ui` (Task 5)
+- Consumes: `getHealth` from `@ttla/api-client` (Task 2), `AuthProvider` from `@ttla/auth` (Task 3), `getCommonStrings` from `@ttla/i18n` (Task 4), `AppShell`/`SidebarItem` from `@ttla/ui` (Task 5)
 - Produces: a standalone app on port 5173 — nothing later depends on this app's internals (student/management are siblings, not consumers)
 
 - [ ] **Step 1: Create `frontend/apps/teacher/package.json`**
@@ -1039,19 +1039,22 @@ export default function DashboardPlaceholder() {
 ```tsx
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { AppShell } from '@ttla/ui'
+import { AuthProvider } from '@ttla/auth'
 import DashboardPlaceholder from './pages/DashboardPlaceholder'
 
 const navItems = [{ to: '/', label: 'Dashboard' }]
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<AppShell title="Teacher Portal" navItems={navItems} />}>
-          <Route index element={<DashboardPlaceholder />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<AppShell title="Teacher Portal" navItems={navItems} />}>
+            <Route index element={<DashboardPlaceholder />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   )
 }
 
@@ -1097,7 +1100,7 @@ git commit -m "Add teacher portal app"
 
 **Files:** same shape as Task 6, under `frontend/apps/student/`, with the differences below.
 
-**Interfaces:** same as Task 6 — consumes `@ttla/api-client`, `@ttla/i18n`, `@ttla/ui`.
+**Interfaces:** same as Task 6 — consumes `@ttla/api-client`, `@ttla/auth`, `@ttla/i18n`, `@ttla/ui`.
 
 - [ ] **Step 1: Create `frontend/apps/student/package.json`**
 
@@ -1346,19 +1349,22 @@ export default function DashboardPlaceholder() {
 ```tsx
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { AppShell } from '@ttla/ui'
+import { AuthProvider } from '@ttla/auth'
 import DashboardPlaceholder from './pages/DashboardPlaceholder'
 
 const navItems = [{ to: '/', label: 'Dashboard' }]
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<AppShell title="Student Portal" navItems={navItems} />}>
-          <Route index element={<DashboardPlaceholder />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<AppShell title="Student Portal" navItems={navItems} />}>
+            <Route index element={<DashboardPlaceholder />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   )
 }
 
@@ -1404,7 +1410,7 @@ git commit -m "Add student portal app"
 
 **Files:** same shape as Task 6, under `frontend/apps/management/`, with the differences below.
 
-**Interfaces:** same as Task 6 — consumes `@ttla/api-client`, `@ttla/i18n`, `@ttla/ui`.
+**Interfaces:** same as Task 6 — consumes `@ttla/api-client`, `@ttla/auth`, `@ttla/i18n`, `@ttla/ui`.
 
 - [ ] **Step 1: Create `frontend/apps/management/package.json`**
 
@@ -1653,19 +1659,22 @@ export default function DashboardPlaceholder() {
 ```tsx
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { AppShell } from '@ttla/ui'
+import { AuthProvider } from '@ttla/auth'
 import DashboardPlaceholder from './pages/DashboardPlaceholder'
 
 const navItems = [{ to: '/', label: 'Dashboard' }]
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<AppShell title="Management Portal" navItems={navItems} />}>
-          <Route index element={<DashboardPlaceholder />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<AppShell title="Management Portal" navItems={navItems} />}>
+            <Route index element={<DashboardPlaceholder />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   )
 }
 
