@@ -1,32 +1,20 @@
-# React + TypeScript + Vite
+# Frontend (Multi-Portal Monorepo)
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Three independent React + TypeScript + Vite PWA apps, sharing code through npm workspaces:
 
-Currently, two official plugins are available:
+| App | Path | Dev command | Dev URL |
+|---|---|---|---|
+| Teacher Portal | `apps/teacher` | `npm run dev:teacher` | http://127.0.0.1:5173 |
+| Student Portal | `apps/student` | `npm run dev:student` | http://127.0.0.1:5174 |
+| Management Portal | `apps/management` | `npm run dev:management` | http://127.0.0.1:5175 |
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Shared packages (`packages/api-client`, `packages/auth`, `packages/ui`, `packages/i18n`) are TypeScript source, consumed directly by each app via npm workspaces — no build step of their own.
 
-## React Compiler
+## Common commands
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- `npm install` — installs all apps and packages
+- `npm run build` — builds every app independently
+- `npm run lint` — lints the whole workspace with oxlint
+- `npm run test` — runs the shared-package test suite with Vitest
 
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
-
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Each app also has its own `build`/`preview` scripts, runnable with `--workspace=apps/<name>`.

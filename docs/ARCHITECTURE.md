@@ -25,13 +25,28 @@ Laravel's own installer pulled in **Laravel Boost** (a dev-only AI-assistance pa
 
 ```
 Training_Learning_Analytics_Platform/
-├── backend/        Laravel (PHP) API — the ONLY backend framework
-├── frontend/        React + TypeScript + Vite PWA — the ONLY frontend app
-├── inspiration/     Original proposal + research (read-only reference)
-└── docs/            This documentation set
+├── backend/          Laravel (PHP) API — the ONLY backend framework
+├── frontend/          npm-workspaces monorepo — three independent portal apps + shared packages
+│   ├── apps/
+│   │   ├── teacher/       Teacher Portal (teacher.management.gov.bd)
+│   │   ├── student/       Student Portal (student.management.gov.bd)
+│   │   └── management/    Management Portal (management.gov.bd)
+│   └── packages/
+│       ├── api-client/    Shared fetch wrapper, env-based API base URL
+│       ├── auth/          Shared token storage + auth context/hook
+│       ├── ui/            Shared layout primitives (AppShell, Sidebar)
+│       └── i18n/          Shared en/bn string loader
+├── inspiration/      Original proposal + research (read-only reference)
+└── docs/              This documentation set
 ```
 
-Backend and frontend are two independently deployable applications that communicate exclusively over HTTP (`/api/v1/...`). Neither imports code from the other. Node.js is used only as frontend build tooling — it is never a backend runtime here.
+Backend and frontend are independently deployable; the three frontend apps are
+**also** independently deployable from each other — each builds its own
+`dist/` for its own subdomain. Neither frontend app imports another frontend
+app's code; all three only import from `frontend/packages/*`. This supersedes
+the earlier Phase 0 decision to ship a single PWA for all roles — see
+`docs/superpowers/specs/2026-10-30-frontend-monorepo-restructure-design.md`
+for the full rationale and the five-sub-project program this is part of.
 
 ## 2. Backend Architecture
 
@@ -51,7 +66,7 @@ Backend and frontend are two independently deployable applications that communic
 | Aspect | Decision |
 |---|---|
 | Framework | React 19 + TypeScript, built with Vite |
-| Structure | Feature-based under `frontend/src/`: `components/layout/` (app shell, nav), `pages/`, `lib/` (API client), `locales/` (Bangla/English string tables, placeholder only in Phase 1) |
+| Structure | npm-workspaces monorepo: `apps/{teacher,student,management}` (each its own Vite app, port, and PWA manifest) + `packages/{api-client,auth,ui,i18n}` (shared, source-only, no build step) |
 | API communication | A single `lib/api.ts` fetch wrapper reads `VITE_API_BASE_URL` from the environment — never hardcodes a host |
 | PWA | `vite-plugin-pwa`, `registerType: 'autoUpdate'`, installable manifest |
 | Responsiveness | CSS flexbox/grid, no fixed pixel layouts; verified at desktop/tablet/mobile breakpoints |
