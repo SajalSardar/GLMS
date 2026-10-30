@@ -20,7 +20,7 @@ describe('apiFetch', () => {
 
     expect(result.data.status).toBe('ok')
     expect(mockFetch).toHaveBeenCalledTimes(1)
-    expect(mockFetch.mock.calls[0][0]).toContain('/health')
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/health`)
   })
 
   it('throws when the response is not ok', async () => {

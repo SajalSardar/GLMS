@@ -10,6 +10,10 @@ Three independent React + TypeScript + Vite PWA apps, sharing code through npm w
 
 Shared packages (`packages/api-client`, `packages/auth`, `packages/ui`, `packages/i18n`) are TypeScript source, consumed directly by each app via npm workspaces — no build step of their own.
 
+## Setup
+
+- `npm install`, then copy each app's `.env.example` to `.env` (e.g. `cp apps/teacher/.env.example apps/teacher/.env`, repeat for `apps/student` and `apps/management`) before running `npm run dev:*`/`npm run build` — `.env` is gitignored local config, not tracked.
+
 ## Common commands
 
 - `npm install` — installs all apps and packages

@@ -13,10 +13,10 @@
 | MySQL | 8.0.30 | `SELECT VERSION();` |
 | Node.js | v24.11.0 | `node -v` |
 | npm | 11.6.1 | `npm -v` |
-| React | ^19.3.1 | `frontend/package.json` |
+| React | ^19.3.1 | `frontend/apps/teacher/package.json` (each app pins the same version) |
 | Vite | ^8.3.4 | `frontend/package.json` |
 | vite-plugin-pwa | ^2.0.0 | `frontend/package.json` |
-| react-router-dom | ^7.18.4 | `frontend/package.json` |
+| react-router-dom | ^7.18.4 | `frontend/apps/teacher/package.json` (each app pins the same version) |
 | TypeScript | ~6.0.3 | `frontend/package.json` |
 
 Laravel's own installer pulled in **Laravel Boost** (a dev-only AI-assistance package, `composer require laravel/boost --dev`) during backend setup, which generated `backend/CLAUDE.md` with Laravel-specific coding conventions (e.g., "use `artisan make:` generators," "don't change dependencies without approval," "don't create docs unless asked"). This is dev tooling only — it ships no runtime code and is not part of the application's architecture, but future AI-assisted sessions working inside `backend/` will pick up its guidelines automatically.
@@ -67,7 +67,7 @@ for the full rationale and the five-sub-project program this is part of.
 |---|---|
 | Framework | React 19 + TypeScript, built with Vite |
 | Structure | npm-workspaces monorepo: `apps/{teacher,student,management}` (each its own Vite app, port, and PWA manifest) + `packages/{api-client,auth,ui,i18n}` (shared, source-only, no build step) |
-| API communication | A single `lib/api.ts` fetch wrapper reads `VITE_API_BASE_URL` from the environment — never hardcodes a host |
+| API communication | Shared `packages/api-client` fetch wrapper (`apiFetch`/`getHealth`) reads `VITE_API_BASE_URL` from the environment — never hardcodes a host |
 | PWA | `vite-plugin-pwa`, `registerType: 'autoUpdate'`, installable manifest |
 | Responsiveness | CSS flexbox/grid, no fixed pixel layouts; verified at desktop/tablet/mobile breakpoints |
 | i18n | Not wired to a library yet (Phase 1 ships placeholder `en.json`/`bn.json`); full Bangla/English runtime switching is Phase 2+ |
@@ -75,6 +75,8 @@ for the full rationale and the five-sub-project program this is part of.
 ## 4. Authentication Design (target — Phase 2, not built in Phase 1)
 
 Laravel Sanctum, cookie-based SPA session auth: the SPA calls `GET /sanctum/csrf-cookie`, then `POST /api/v1/auth/login`; subsequent requests are session-authenticated via an HttpOnly cookie. This was chosen over Passport/OAuth2 because no third-party developer API access is in scope — see `inspiration/Research_Notes_and_Sources.md` §6 for the full comparison.
+
+`packages/auth` (added in the frontend monorepo restructuring) currently implements bearer-token storage via `localStorage`, not the cookie-based session described above. This mismatch, and the broader token-storage/XSS tradeoff, must be resolved by the multi-portal auth sub-project (see `docs/superpowers/specs/2026-10-30-frontend-monorepo-restructure-design.md`) before any real login flow is wired up — not left as an implicit default.
 
 ## 5. Integration Points (planned, stubbed with interfaces only when built)
 
