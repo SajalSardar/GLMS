@@ -4,12 +4,9 @@ namespace App\Policies;
 
 use App\Models\School;
 use App\Models\User;
-use App\Policies\Concerns\ChecksScope;
 
 class SchoolPolicy
 {
-    use ChecksScope;
-
     /**
      * Determine whether the user can view any models.
      */
@@ -23,7 +20,7 @@ class SchoolPolicy
      */
     public function view(User $user, School $school): bool
     {
-        return $user->hasPermission('schools.view') && $this->inScope($user, $school->id, $school->district_id);
+        return $user->hasPermission('schools.view');
     }
 
     /**
@@ -39,7 +36,7 @@ class SchoolPolicy
      */
     public function update(User $user, School $school): bool
     {
-        return $user->hasPermission('schools.update') && $this->inScope($user, $school->id, $school->district_id);
+        return $user->hasPermission('schools.update');
     }
 
     /**
@@ -47,6 +44,6 @@ class SchoolPolicy
      */
     public function delete(User $user, School $school): bool
     {
-        return $user->hasPermission('schools.delete') && $this->inScope($user, $school->id, $school->district_id);
+        return $user->hasPermission('schools.delete');
     }
 }

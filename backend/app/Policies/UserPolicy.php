@@ -3,12 +3,9 @@
 namespace App\Policies;
 
 use App\Models\User;
-use App\Policies\Concerns\ChecksScope;
 
 class UserPolicy
 {
-    use ChecksScope;
-
     public function viewAny(User $user): bool
     {
         return $user->hasPermission('users.view');
@@ -16,7 +13,7 @@ class UserPolicy
 
     public function view(User $user, User $target): bool
     {
-        return $user->hasPermission('users.view') && $this->inScope($user, $target->school_id, $target->district_id);
+        return $user->hasPermission('users.view');
     }
 
     public function create(User $user): bool
@@ -26,12 +23,12 @@ class UserPolicy
 
     public function update(User $user, User $target): bool
     {
-        return $user->hasPermission('users.update') && $this->inScope($user, $target->school_id, $target->district_id);
+        return $user->hasPermission('users.update');
     }
 
     public function delete(User $user, User $target): bool
     {
-        return $user->hasPermission('users.delete') && $this->inScope($user, $target->school_id, $target->district_id);
+        return $user->hasPermission('users.delete');
     }
 
     /**

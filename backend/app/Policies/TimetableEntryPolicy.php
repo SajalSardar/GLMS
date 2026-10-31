@@ -2,15 +2,11 @@
 
 namespace App\Policies;
 
-use App\Models\School;
 use App\Models\TimetableEntry;
 use App\Models\User;
-use App\Policies\Concerns\ChecksScope;
 
 class TimetableEntryPolicy
 {
-    use ChecksScope;
-
     public function viewAny(User $user): bool
     {
         return $user->hasPermission('timetable_entries.view');
@@ -18,26 +14,22 @@ class TimetableEntryPolicy
 
     public function view(User $user, TimetableEntry $entry): bool
     {
-        return $user->hasPermission('timetable_entries.view') && $this->inScope($user, $entry->school_id, $entry->district_id);
+        return $user->hasPermission('timetable_entries.view');
     }
 
-    /**
-     * Create takes the target School (not yet an existing TimetableEntry),
-     * so the scope check runs against where the entry would be created.
-     */
-    public function create(User $user, School $school): bool
+    public function create(User $user): bool
     {
-        return $user->hasPermission('timetable_entries.create') && $this->inScope($user, $school->id, $school->district_id);
+        return $user->hasPermission('timetable_entries.create');
     }
 
     public function update(User $user, TimetableEntry $entry): bool
     {
-        return $user->hasPermission('timetable_entries.update') && $this->inScope($user, $entry->school_id, $entry->district_id);
+        return $user->hasPermission('timetable_entries.update');
     }
 
     public function delete(User $user, TimetableEntry $entry): bool
     {
-        return $user->hasPermission('timetable_entries.delete') && $this->inScope($user, $entry->school_id, $entry->district_id);
+        return $user->hasPermission('timetable_entries.delete');
     }
 
     /**
