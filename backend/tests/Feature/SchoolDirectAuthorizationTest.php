@@ -6,17 +6,17 @@ use App\Models\AcademicYear;
 use App\Models\Classroom;
 use App\Models\District;
 use App\Models\Division;
-use App\Models\Permission;
-use App\Models\Role;
 use App\Models\School;
 use App\Models\TeacherProfile;
 use App\Models\Upazila;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\CreatesAuthorizedActors;
 use Tests\TestCase;
 
 class SchoolDirectAuthorizationTest extends TestCase
 {
+    use CreatesAuthorizedActors;
     use RefreshDatabase;
 
     private School $school;
@@ -35,25 +35,6 @@ class SchoolDirectAuthorizationTest extends TestCase
             'upazila_id' => $upazila->id,
             'name' => 'School A',
         ]);
-    }
-
-    private function actorWithPermissions(array $permissionNames, ?int $schoolId = null, ?int $districtId = null): User
-    {
-        $role = Role::create(['name' => 'role_'.md5(implode(',', $permissionNames).microtime()), 'label' => 'Test Role']);
-
-        foreach ($permissionNames as $name) {
-            $permission = Permission::firstOrCreate(['name' => $name], ['label' => $name]);
-            $role->permissions()->attach($permission);
-        }
-
-        return User::factory()->create(['role_id' => $role->id, 'school_id' => $schoolId, 'district_id' => $districtId]);
-    }
-
-    private function actorWithNoPermissions(?int $schoolId = null, ?int $districtId = null): User
-    {
-        $role = Role::create(['name' => 'role_no_perm_'.md5((string) microtime()), 'label' => 'No Permission']);
-
-        return User::factory()->create(['role_id' => $role->id, 'school_id' => $schoolId, 'district_id' => $districtId]);
     }
 
     public function test_school_store_and_update_are_authorized(): void

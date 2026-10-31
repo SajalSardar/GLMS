@@ -5,19 +5,18 @@ namespace Tests\Feature;
 use App\Models\ClassVersion;
 use App\Models\District;
 use App\Models\Division;
-use App\Models\Permission;
-use App\Models\Role;
 use App\Models\School;
 use App\Models\SchoolClass;
 use App\Models\Section;
 use App\Models\Shift;
 use App\Models\Upazila;
-use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\CreatesAuthorizedActors;
 use Tests\TestCase;
 
 class ShiftAndSectionAuthorizationTest extends TestCase
 {
+    use CreatesAuthorizedActors;
     use RefreshDatabase;
 
     private ClassVersion $classVersion;
@@ -45,25 +44,6 @@ class ShiftAndSectionAuthorizationTest extends TestCase
             'district_id' => $school->district_id,
             'name' => 'Version A',
         ]);
-    }
-
-    private function actorWithPermissions(array $permissionNames): User
-    {
-        $role = Role::create(['name' => 'role_'.md5(implode(',', $permissionNames).microtime()), 'label' => 'Test Role']);
-
-        foreach ($permissionNames as $name) {
-            $permission = Permission::firstOrCreate(['name' => $name], ['label' => $name]);
-            $role->permissions()->attach($permission);
-        }
-
-        return User::factory()->create(['role_id' => $role->id]);
-    }
-
-    private function actorWithNoPermissions(): User
-    {
-        $role = Role::create(['name' => 'role_no_perm_'.md5((string) microtime()), 'label' => 'No Permission']);
-
-        return User::factory()->create(['role_id' => $role->id]);
     }
 
     public function test_shift_store_and_update_are_authorized(): void

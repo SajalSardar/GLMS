@@ -16,7 +16,7 @@ class UpdateVersionSubjectsRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()?->can('update', $this->route('class_version')) ?? false;
+        return $this->user()?->can('updateSubjects', $this->route('class_version')) ?? false;
     }
 
     /**

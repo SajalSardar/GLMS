@@ -13,7 +13,7 @@ class TransferStudentSectionRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()?->can('update', $this->route('student_profile')) ?? false;
+        return $this->user()?->can('transferSection', $this->route('student_profile')) ?? false;
     }
 
     /**

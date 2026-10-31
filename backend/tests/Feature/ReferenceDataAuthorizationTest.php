@@ -6,36 +6,16 @@ use App\Models\Chapter;
 use App\Models\District;
 use App\Models\Division;
 use App\Models\Guardian;
-use App\Models\Permission;
-use App\Models\Role;
 use App\Models\Subject;
 use App\Models\Upazila;
-use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\CreatesAuthorizedActors;
 use Tests\TestCase;
 
 class ReferenceDataAuthorizationTest extends TestCase
 {
+    use CreatesAuthorizedActors;
     use RefreshDatabase;
-
-    private function actorWithPermissions(array $permissionNames): User
-    {
-        $role = Role::create(['name' => 'role_'.md5(implode(',', $permissionNames).microtime()), 'label' => 'Test Role']);
-
-        foreach ($permissionNames as $name) {
-            $permission = Permission::firstOrCreate(['name' => $name], ['label' => $name]);
-            $role->permissions()->attach($permission);
-        }
-
-        return User::factory()->create(['role_id' => $role->id]);
-    }
-
-    private function actorWithNoPermissions(): User
-    {
-        $role = Role::create(['name' => 'role_no_perm_'.md5((string) microtime()), 'label' => 'No Permission']);
-
-        return User::factory()->create(['role_id' => $role->id]);
-    }
 
     public function test_division_store_and_update_are_authorized(): void
     {
