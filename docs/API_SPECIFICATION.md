@@ -9,7 +9,7 @@
 - **Envelope:**
   - Single resource / collection: `{ "data": ... }`, with `{ "data": [...], "meta": { "page", "per_page", "total" } }` for paginated collections.
   - Errors: RFC 9457-style problem-detail JSON.
-- **Auth (Phase 2+):** Laravel Sanctum cookie-based SPA session — `GET /sanctum/csrf-cookie` → `POST /api/v1/auth/login` → session-authenticated requests. Bearer tokens are not used for the first-party SPA.
+- **Auth:** Laravel Sanctum bearer tokens, not cookie-based SPA sessions — `POST /api/v1/auth/login` (generic), or one of the three portal-specific endpoints (`POST /api/v1/auth/{teacher,student,management}/login`), each returning `{ "data": {...user...}, "token": "<plain-text-token>" }`. Every subsequent request carries `Authorization: Bearer <token>`. Chosen over cookie sessions because the three portals are three separate-subdomain SPAs with no shared cookie domain to configure.
 - **Rate limiting:** Laravel's built-in throttle middleware, tuned per endpoint class (stricter on `/auth/*` and any future `/ai/*` routes).
 - **Authorization:** every endpoint checks role + school/district scope server-side via Policies/Gates. No endpoint may rely on the frontend to filter what a user is allowed to see.
 
@@ -18,6 +18,9 @@
 | Method | Path | Returns | Auth |
 |---|---|---|---|
 | `GET` | `/api/v1/health` | `{ "data": { "status": "ok", "timestamp": "<ISO8601>" } }` | None (public health check) |
+| `POST` | `/api/v1/auth/teacher/login` | `{ "data": { ...UserResource... }, "token": "<plain-text-token>" }` | None (public; resolves by `teacher_profiles.employee_id`, phone, or email; `teacher` role only) |
+| `POST` | `/api/v1/auth/student/login` | `{ "data": { ...UserResource... }, "token": "<plain-text-token>" }` | None (public; resolves by `student_profiles.student_id` only; `student` role only) |
+| `POST` | `/api/v1/auth/management/login` | `{ "data": { ...UserResource... }, "token": "<plain-text-token>" }` | None (public; resolves by phone or email; `national_admin`/`district_officer`/`school_admin` roles only) |
 
 ## 3. Planned Endpoint Groups (🆕 illustrative — not built, finalized during detailed requirements analysis per module)
 
