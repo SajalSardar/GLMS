@@ -80,6 +80,8 @@ class TimetableEntryController extends Controller
      */
     public function store(StoreTimetableEntryRequest $request): JsonResponse
     {
+        $this->authorize('create', TimetableEntry::class);
+
         $section = Section::findOrFail($request->integer('section_id'));
 
         $attributes = [

@@ -1,0 +1,179 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\ClassRoutine;
+use App\Models\ClassVersion;
+use App\Models\District;
+use App\Models\Division;
+use App\Models\Permission;
+use App\Models\Role;
+use App\Models\School;
+use App\Models\SchoolClass;
+use App\Models\Section;
+use App\Models\Shift;
+use App\Models\Subject;
+use App\Models\SubjectTeacherAssignment;
+use App\Models\Upazila;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+
+class RoutineAssignmentTimetableAuthorizationTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private School $school;
+
+    private SchoolClass $class;
+
+    private Section $section;
+
+    private Subject $subject;
+
+    private User $teacher;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $division = Division::create(['name' => 'Division', 'bn_name' => 'বিভাগ']);
+        $district = District::create(['division_id' => $division->id, 'name' => 'District', 'bn_name' => 'জেলা']);
+        $upazila = Upazila::create(['district_id' => $district->id, 'name' => 'Upazila', 'bn_name' => 'উপজেলা']);
+
+        $this->school = School::create([
+            'division_id' => $division->id,
+            'district_id' => $district->id,
+            'upazila_id' => $upazila->id,
+            'name' => 'School A',
+        ]);
+
+        $this->class = SchoolClass::create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Class']);
+
+        $classVersion = ClassVersion::create([
+            'class_id' => $this->class->id,
+            'school_id' => $this->school->id,
+            'district_id' => $this->school->district_id,
+            'name' => 'Version',
+        ]);
+
+        $shift = Shift::create([
+            'class_version_id' => $classVersion->id,
+            'school_id' => $this->school->id,
+            'district_id' => $this->school->district_id,
+            'name' => 'Shift',
+            'start_time' => '08:00',
+            'end_time' => '13:00',
+            'days_of_week' => ['saturday'],
+        ]);
+
+        $this->section = Section::create([
+            'shift_id' => $shift->id,
+            'school_id' => $this->school->id,
+            'district_id' => $this->school->district_id,
+            'name' => 'Section',
+        ]);
+
+        $this->subject = Subject::create(['name' => 'Math']);
+        $this->class->subjects()->attach($this->subject->id);
+        $classVersion->subjects()->attach($this->subject->id);
+
+        $this->teacher = User::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
+    }
+
+    private function actorWithPermissions(array $permissionNames): User
+    {
+        $role = Role::create(['name' => 'role_'.md5(implode(',', $permissionNames).microtime()), 'label' => 'Test Role']);
+
+        foreach ($permissionNames as $name) {
+            $permission = Permission::firstOrCreate(['name' => $name], ['label' => $name]);
+            $role->permissions()->attach($permission);
+        }
+
+        return User::factory()->create(['role_id' => $role->id]);
+    }
+
+    private function actorWithNoPermissions(): User
+    {
+        $role = Role::create(['name' => 'role_no_perm_'.md5((string) microtime()), 'label' => 'No Permission']);
+
+        return User::factory()->create(['role_id' => $role->id]);
+    }
+
+    public function test_class_routine_store_and_update_are_authorized(): void
+    {
+        $routine = ClassRoutine::create([
+            'class_id' => $this->class->id,
+            'school_id' => $this->school->id,
+            'district_id' => $this->school->district_id,
+            'subject_id' => $this->subject->id,
+            'day_of_week' => 'sunday',
+            'period_no' => 2,
+        ]);
+        $payload = ['class_id' => $this->class->id, 'subject_id' => $this->subject->id, 'day_of_week' => 'saturday', 'period_no' => 1];
+
+        $denied = $this->actorWithNoPermissions();
+        $this->actingAs($denied, 'sanctum')->postJson('/api/v1/class-routines', $payload)->assertForbidden();
+        $this->actingAs($denied, 'sanctum')->patchJson("/api/v1/class-routines/{$routine->id}", [])->assertForbidden();
+
+        $allowed = $this->actorWithPermissions(['class_routines.create', 'class_routines.update']);
+        $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/class-routines', $payload)->assertCreated();
+        $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/class-routines/{$routine->id}", [])->assertOk();
+    }
+
+    public function test_subject_teacher_assignment_store_and_update_are_authorized(): void
+    {
+        $assignment = SubjectTeacherAssignment::create([
+            'section_id' => $this->section->id,
+            'school_id' => $this->school->id,
+            'district_id' => $this->school->district_id,
+            'subject_id' => $this->subject->id,
+            'teacher_id' => $this->teacher->id,
+        ]);
+
+        // A second section on the same shift/class version, so the new
+        // assignment created below targets a (section_id, subject_id) pair
+        // that doesn't collide with the DB-level unique constraint on the
+        // row already seeded above for the update() half of this test.
+        $otherSection = Section::create([
+            'shift_id' => $this->section->shift_id,
+            'school_id' => $this->school->id,
+            'district_id' => $this->school->district_id,
+            'name' => 'Section B',
+        ]);
+        $payload = ['section_id' => $otherSection->id, 'subject_id' => $this->subject->id, 'teacher_id' => $this->teacher->id];
+
+        $denied = $this->actorWithNoPermissions();
+        $this->actingAs($denied, 'sanctum')->postJson('/api/v1/subject-teacher-assignments', $payload)->assertForbidden();
+        $this->actingAs($denied, 'sanctum')->patchJson("/api/v1/subject-teacher-assignments/{$assignment->id}", [])->assertForbidden();
+
+        $allowed = $this->actorWithPermissions(['subject_teacher_assignments.create', 'subject_teacher_assignments.update']);
+        $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/subject-teacher-assignments', $payload)->assertCreated();
+        $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/subject-teacher-assignments/{$assignment->id}", ['teacher_id' => $this->teacher->id])->assertOk();
+    }
+
+    public function test_timetable_entry_store_is_authorized(): void
+    {
+        SubjectTeacherAssignment::create([
+            'section_id' => $this->section->id,
+            'school_id' => $this->school->id,
+            'district_id' => $this->school->district_id,
+            'subject_id' => $this->subject->id,
+            'teacher_id' => $this->teacher->id,
+        ]);
+
+        $payload = [
+            'section_id' => $this->section->id,
+            'subject_id' => $this->subject->id,
+            'teacher_id' => $this->teacher->id,
+            'day_of_week' => 'saturday',
+            'period_no' => 1,
+        ];
+
+        $denied = $this->actorWithNoPermissions();
+        $this->actingAs($denied, 'sanctum')->postJson('/api/v1/timetable-entries', $payload)->assertForbidden();
+
+        $allowed = $this->actorWithPermissions(['timetable_entries.create']);
+        $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/timetable-entries', $payload)->assertCreated();
+    }
+}

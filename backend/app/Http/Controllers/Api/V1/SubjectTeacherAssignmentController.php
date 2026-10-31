@@ -52,6 +52,8 @@ class SubjectTeacherAssignmentController extends Controller
      */
     public function store(StoreSubjectTeacherAssignmentRequest $request): JsonResponse
     {
+        $this->authorize('create', SubjectTeacherAssignment::class);
+
         $section = Section::findOrFail($request->integer('section_id'));
         $subjectId = $request->integer('subject_id');
         $teacherId = $request->integer('teacher_id');
@@ -89,6 +91,8 @@ class SubjectTeacherAssignmentController extends Controller
      */
     public function update(UpdateSubjectTeacherAssignmentRequest $request, SubjectTeacherAssignment $subject_teacher_assignment): SubjectTeacherAssignmentResource
     {
+        $this->authorize('update', $subject_teacher_assignment);
+
         $this->assertTeacherBelongsToSchool($request->integer('teacher_id'), $subject_teacher_assignment->school_id);
 
         $subject_teacher_assignment->update($request->validated());

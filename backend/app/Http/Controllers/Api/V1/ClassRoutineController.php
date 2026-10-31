@@ -58,6 +58,8 @@ class ClassRoutineController extends Controller
      */
     public function store(StoreClassRoutineRequest $request): JsonResponse
     {
+        $this->authorize('create', ClassRoutine::class);
+
         $class = SchoolClass::findOrFail($request->integer('class_id'));
 
         $attributes = [
@@ -104,6 +106,8 @@ class ClassRoutineController extends Controller
      */
     public function update(UpdateClassRoutineRequest $request, ClassRoutine $class_routine): ClassRoutineResource
     {
+        $this->authorize('update', $class_routine);
+
         $data = $request->validated();
         $class = $class_routine->schoolClass;
 
