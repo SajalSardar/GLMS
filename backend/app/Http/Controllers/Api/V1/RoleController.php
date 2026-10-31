@@ -45,6 +45,8 @@ class RoleController extends Controller
      */
     public function store(StoreRoleRequest $request): JsonResponse
     {
+        $this->authorize('create', Role::class);
+
         $data = $request->validated();
 
         $role = Role::onlyTrashed()->where('name', $data['name'])->first();
@@ -66,6 +68,8 @@ class RoleController extends Controller
      */
     public function update(UpdateRoleRequest $request, Role $role): RoleResource
     {
+        $this->authorize('update', $role);
+
         $role->update($request->validated());
 
         return new RoleResource($role->load('permissions'));
@@ -97,6 +101,8 @@ class RoleController extends Controller
      */
     public function updatePermissions(UpdateRolePermissionsRequest $request, Role $role): RoleResource
     {
+        $this->authorize('updatePermissions', $role);
+
         $requestedNames = collect($request->validated('permissions'));
         $actorPermissionNames = $request->user()->role?->permissions->pluck('name') ?? collect();
 
