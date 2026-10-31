@@ -33,7 +33,6 @@ class StudentProfileController extends Controller
         $this->authorize('viewAny', StudentProfile::class);
 
         $profiles = StudentProfile::query()
-            ->visibleTo($request->user())
             ->with(['user', 'school', 'district', 'schoolClass'])
             ->when($request->integer('school_id'), fn ($query, $schoolId) => $query->where('school_id', $schoolId))
             ->when($request->integer('district_id'), fn ($query, $districtId) => $query->where('district_id', $districtId))

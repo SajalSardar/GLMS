@@ -29,7 +29,6 @@ class UserController extends Controller
         $this->authorize('viewAny', User::class);
 
         $users = User::query()
-            ->visibleTo(request()->user())
             ->with(['role.permissions', 'school', 'district'])
             ->orderBy('name')
             ->paginate(request()->integer('per_page', 15));
