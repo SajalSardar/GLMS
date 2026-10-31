@@ -64,6 +64,8 @@ class StudentProfileController extends Controller
      */
     public function store(StoreStudentProfileRequest $request): JsonResponse
     {
+        $this->authorize('create', StudentProfile::class);
+
         $actor = $request->user();
         $targetUser = User::findOrFail($request->integer('user_id'));
 
@@ -103,6 +105,8 @@ class StudentProfileController extends Controller
      */
     public function update(UpdateStudentProfileRequest $request, StudentProfile $student_profile): StudentProfileResource
     {
+        $this->authorize('update', $student_profile);
+
         $data = $request->validated();
 
         if (array_key_exists('class_id', $data)) {
@@ -131,6 +135,8 @@ class StudentProfileController extends Controller
      */
     public function attachGuardian(AttachGuardianRequest $request, StudentProfile $student_profile): StudentProfileResource
     {
+        $this->authorize('attachGuardian', $student_profile);
+
         $data = $request->validated();
 
         $student_profile->guardians()->syncWithoutDetaching([
@@ -164,6 +170,8 @@ class StudentProfileController extends Controller
      */
     public function transferSection(TransferStudentSectionRequest $request, StudentProfile $student_profile): StudentSectionTransferResource
     {
+        $this->authorize('transferSection', $student_profile);
+
         $toSection = Section::findOrFail($request->integer('to_section_id'));
 
         if ($toSection->school_id !== $student_profile->school_id) {
