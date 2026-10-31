@@ -41,6 +41,8 @@ class DistrictController extends Controller
      */
     public function store(StoreDistrictRequest $request): JsonResponse
     {
+        $this->authorize('create', District::class);
+
         $district = District::create($request->validated());
 
         return (new DistrictResource($district->load('division')))
@@ -53,6 +55,8 @@ class DistrictController extends Controller
      */
     public function update(UpdateDistrictRequest $request, District $district): DistrictResource
     {
+        $this->authorize('update', $district);
+
         $district->update($request->validated());
 
         return new DistrictResource($district->load('division'));

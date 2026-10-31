@@ -41,6 +41,8 @@ class UpazilaController extends Controller
      */
     public function store(StoreUpazilaRequest $request): JsonResponse
     {
+        $this->authorize('create', Upazila::class);
+
         $upazila = Upazila::create($request->validated());
 
         return (new UpazilaResource($upazila->load('district')))
@@ -53,6 +55,8 @@ class UpazilaController extends Controller
      */
     public function update(UpdateUpazilaRequest $request, Upazila $upazila): UpazilaResource
     {
+        $this->authorize('update', $upazila);
+
         $upazila->update($request->validated());
 
         return new UpazilaResource($upazila->load('district'));

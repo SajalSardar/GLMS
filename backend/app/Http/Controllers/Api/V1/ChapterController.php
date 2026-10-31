@@ -49,6 +49,8 @@ class ChapterController extends Controller
      */
     public function store(StoreChapterRequest $request): JsonResponse
     {
+        $this->authorize('create', Chapter::class);
+
         $subject = Subject::findOrFail($request->integer('subject_id'));
         $data = $this->applyAutoNumbering($request->validated());
 
@@ -74,6 +76,8 @@ class ChapterController extends Controller
      */
     public function update(UpdateChapterRequest $request, Chapter $chapter): ChapterResource
     {
+        $this->authorize('update', $chapter);
+
         $chapter->update($this->applyAutoNumbering($request->validated()));
 
         return new ChapterResource($chapter->load('subject'));

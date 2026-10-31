@@ -48,6 +48,8 @@ class GuardianController extends Controller
      */
     public function store(StoreGuardianRequest $request): JsonResponse
     {
+        $this->authorize('create', Guardian::class);
+
         $data = $request->validated();
 
         $guardian = Guardian::onlyTrashed()->where('phone', $data['phone'])->first();
@@ -69,6 +71,8 @@ class GuardianController extends Controller
      */
     public function update(UpdateGuardianRequest $request, Guardian $guardian): GuardianResource
     {
+        $this->authorize('update', $guardian);
+
         $guardian->update($request->validated());
 
         return new GuardianResource($guardian);

@@ -39,6 +39,8 @@ class SubjectController extends Controller
      */
     public function store(StoreSubjectRequest $request): JsonResponse
     {
+        $this->authorize('create', Subject::class);
+
         $data = $request->validated();
 
         $subject = Subject::onlyTrashed()
@@ -63,6 +65,8 @@ class SubjectController extends Controller
      */
     public function update(UpdateSubjectRequest $request, Subject $subject): SubjectResource
     {
+        $this->authorize('update', $subject);
+
         $subject->update($request->validated());
 
         return new SubjectResource($subject);

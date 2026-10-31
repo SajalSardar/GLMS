@@ -35,6 +35,8 @@ class DivisionController extends Controller
      */
     public function store(StoreDivisionRequest $request): JsonResponse
     {
+        $this->authorize('create', Division::class);
+
         $division = Division::create($request->validated());
 
         return (new DivisionResource($division))
@@ -47,6 +49,8 @@ class DivisionController extends Controller
      */
     public function update(UpdateDivisionRequest $request, Division $division): DivisionResource
     {
+        $this->authorize('update', $division);
+
         $division->update($request->validated());
 
         return new DivisionResource($division);
