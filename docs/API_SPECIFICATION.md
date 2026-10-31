@@ -1,6 +1,6 @@
 # API Specification
 
-**Status:** Phase 1. Only one real endpoint exists (`GET /api/v1/health`). Everything else below documents the **conventions** every future endpoint must follow and the **planned** endpoint groups (🆕 from `inspiration/AI_Teacher_Training_Proposal_v2.md` §12), not yet-built functionality.
+**Status:** Phase 1. More real endpoints exist today than §2 below enumerates (a full academic-domain CRUD API and RBAC already ship — see `ARCHITECTURE.md` §2 for the backend's actual current state); §2 lists only the health check and the four auth endpoints. Everything else below documents the **conventions** every future endpoint must follow and the **planned** endpoint groups (🆕 from `inspiration/AI_Teacher_Training_Proposal_v2.md` §12), not yet-built functionality.
 
 ## 1. Conventions (binding on all future endpoints)
 
@@ -25,7 +25,7 @@
 ## 3. Planned Endpoint Groups (🆕 illustrative — not built, finalized during detailed requirements analysis per module)
 
 ```
-/api/v1/auth/login, /logout, /mfa/verify
+/api/v1/auth/mfa/verify
 /api/v1/users, /roles, /permissions
 /api/v1/districts, /schools, /classes, /classrooms
 /api/v1/courses, /courses/{id}/lessons, /courses/{id}/enroll
