@@ -195,4 +195,26 @@ class PortalLoginTest extends TestCase
         $response->assertJsonPath('data.id', $user->id);
         $this->assertIsString($response->json('token'));
     }
+
+    public function test_login_locks_out_after_five_failed_attempts(): void
+    {
+        $role = $this->roleNamed('national_admin');
+        $user = User::factory()->create(['role_id' => $role->id, 'email' => 'lockout@example.test', 'password' => 'correct-password']);
+
+        for ($i = 0; $i < 5; $i++) {
+            $this->postJson('/api/v1/auth/management/login', [
+                'login' => 'lockout@example.test',
+                'password' => 'wrong-password',
+            ])->assertStatus(422);
+        }
+
+        $response = $this->postJson('/api/v1/auth/management/login', [
+            'login' => 'lockout@example.test',
+            'password' => 'correct-password',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['login']);
+        $this->assertStringContainsString('Too many login attempts', $response->json('errors.login.0'));
+    }
 }

@@ -155,6 +155,22 @@ login flow going forward, but removing it is out of scope here (no harm in
 leaving it; a future cleanup can retire it once all three frontends are
 confirmed to use their portal-specific endpoint exclusively).
 
+**Accepted risk: student PIN brute-force window (recorded during Plan C's
+implementation, 2026-10-31).** The student portal's 4-character minimum
+password length (chosen in Plan C to allow a short numeric PIN — see
+`backend/app/Http/Requests/Api/V1/StoreUserRequest.php`'s
+`isStudentRole()`) means a 4-digit PIN has only 10,000 possibilities.
+Combined with the existing per-`(login, ip)` rate limiter (5 attempts per
+60 seconds, shared with every other login endpoint), a sustained attacker
+targeting one known `student_id` could average roughly 16-17 hours to
+brute-force that student's PIN. This is an accepted tradeoff, not an
+oversight: tightening it (a per-`student_id` counter, a longer decay
+window, or escalating lockout specific to the student portal) is real
+future work if this ever handles real student data at meaningful scale,
+but is not built here — the generic rate limiter was judged adequate for
+this plan's scope, and this note exists so that judgment is visible to
+the next reader rather than silently assumed.
+
 ## Global scope design
 
 A `TenantScoped` trait, applied to the models below, registers a global
