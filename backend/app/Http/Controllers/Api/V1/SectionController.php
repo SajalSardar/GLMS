@@ -51,6 +51,8 @@ class SectionController extends Controller
      */
     public function store(StoreSectionRequest $request): JsonResponse
     {
+        $this->authorize('create', Section::class);
+
         $shift = Shift::findOrFail($request->integer('shift_id'));
 
         $classTeacherId = $request->integer('class_teacher_id') ?: null;
@@ -91,6 +93,8 @@ class SectionController extends Controller
      */
     public function update(UpdateSectionRequest $request, Section $section): SectionResource
     {
+        $this->authorize('update', $section);
+
         $data = $request->validated();
 
         if (array_key_exists('class_teacher_id', $data)) {

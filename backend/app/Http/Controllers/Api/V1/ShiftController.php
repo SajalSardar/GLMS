@@ -51,6 +51,8 @@ class ShiftController extends Controller
      */
     public function store(StoreShiftRequest $request): JsonResponse
     {
+        $this->authorize('create', Shift::class);
+
         $classVersion = ClassVersion::findOrFail($request->integer('class_version_id'));
 
         $this->assertAcademicYearBelongsToSchool($request->integer('academic_year_id') ?: null, $classVersion->school_id);
@@ -86,6 +88,8 @@ class ShiftController extends Controller
      */
     public function update(UpdateShiftRequest $request, Shift $shift): ShiftResource
     {
+        $this->authorize('update', $shift);
+
         $data = $request->validated();
 
         if (array_key_exists('academic_year_id', $data)) {
