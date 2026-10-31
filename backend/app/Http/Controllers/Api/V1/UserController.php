@@ -60,6 +60,8 @@ class UserController extends Controller
      */
     public function store(StoreUserRequest $request): JsonResponse
     {
+        $this->authorize('create', User::class);
+
         $actor = $request->user();
 
         $schoolId = $request->filled('school_id') ? $request->integer('school_id') : $actor->school_id;
@@ -96,6 +98,8 @@ class UserController extends Controller
      */
     public function update(UpdateUserRequest $request, User $user): UserResource
     {
+        $this->authorize('update', $user);
+
         $user->update($request->safe()->only(['name', 'email', 'phone', 'password']));
 
         return new UserResource($user->load(['role.permissions', 'school', 'district']));
@@ -128,6 +132,8 @@ class UserController extends Controller
      */
     public function assignRole(AssignRoleRequest $request, User $user): UserResource
     {
+        $this->authorize('assignRole', $user);
+
         $actor = $request->user();
 
         $schoolId = $request->filled('school_id') ? $request->integer('school_id') : $user->school_id;
