@@ -50,6 +50,8 @@ class AcademicYearController extends Controller
      */
     public function store(StoreAcademicYearRequest $request): JsonResponse
     {
+        $this->authorize('create', AcademicYear::class);
+
         $school = School::findOrFail($request->integer('school_id'));
 
         $attributes = [
@@ -92,6 +94,8 @@ class AcademicYearController extends Controller
      */
     public function update(UpdateAcademicYearRequest $request, AcademicYear $academic_year): AcademicYearResource
     {
+        $this->authorize('update', $academic_year);
+
         $data = $request->validated();
 
         DB::transaction(function () use ($academic_year, $data) {

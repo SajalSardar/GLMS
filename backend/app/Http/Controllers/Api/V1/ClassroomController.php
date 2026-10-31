@@ -49,6 +49,8 @@ class ClassroomController extends Controller
      */
     public function store(StoreClassroomRequest $request): JsonResponse
     {
+        $this->authorize('create', Classroom::class);
+
         $school = School::findOrFail($request->integer('school_id'));
 
         $attributes = [
@@ -79,6 +81,8 @@ class ClassroomController extends Controller
      */
     public function update(UpdateClassroomRequest $request, Classroom $classroom): ClassroomResource
     {
+        $this->authorize('update', $classroom);
+
         $classroom->update($request->validated());
 
         return new ClassroomResource($classroom->load('school'));

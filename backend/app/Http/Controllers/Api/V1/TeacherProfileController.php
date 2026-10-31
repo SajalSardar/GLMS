@@ -57,6 +57,8 @@ class TeacherProfileController extends Controller
      */
     public function store(StoreTeacherProfileRequest $request): JsonResponse
     {
+        $this->authorize('create', TeacherProfile::class);
+
         $actor = $request->user();
         $targetUser = User::findOrFail($request->integer('user_id'));
 
@@ -92,6 +94,8 @@ class TeacherProfileController extends Controller
      */
     public function update(UpdateTeacherProfileRequest $request, TeacherProfile $teacher_profile): TeacherProfileResource
     {
+        $this->authorize('update', $teacher_profile);
+
         $teacher_profile->update($request->validated());
 
         return new TeacherProfileResource($teacher_profile->load(['user', 'school', 'district']));

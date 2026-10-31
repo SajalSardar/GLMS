@@ -51,6 +51,8 @@ class SchoolController extends Controller
      */
     public function store(StoreSchoolRequest $request): JsonResponse
     {
+        $this->authorize('create', School::class);
+
         $data = $request->validated();
 
         $school = ($data['eiin'] ?? null)
@@ -74,6 +76,8 @@ class SchoolController extends Controller
      */
     public function update(UpdateSchoolRequest $request, School $school): SchoolResource
     {
+        $this->authorize('update', $school);
+
         $school->update($request->validated());
 
         return new SchoolResource($school->load(['division', 'district', 'upazila']));
