@@ -35,6 +35,9 @@ Route::prefix('v1')->group(function (): void {
 
     Route::prefix('auth')->group(function (): void {
         Route::post('/login', [AuthController::class, 'login']);
+        Route::post('/teacher/login', [AuthController::class, 'teacherLogin']);
+        Route::post('/student/login', [AuthController::class, 'studentLogin']);
+        Route::post('/management/login', [AuthController::class, 'managementLogin']);
 
         Route::middleware('auth:sanctum')->group(function (): void {
             Route::post('/logout', [AuthController::class, 'logout']);
