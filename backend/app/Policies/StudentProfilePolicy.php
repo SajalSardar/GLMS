@@ -31,4 +31,22 @@ class StudentProfilePolicy
     {
         return $user->hasPermission('student_profiles.delete');
     }
+
+    /**
+     * Linking a guardian to a student is as sensitive as updating the
+     * profile itself, so it uses the same ability as `update`.
+     */
+    public function attachGuardian(User $user, StudentProfile $profile): bool
+    {
+        return $this->update($user, $profile);
+    }
+
+    /**
+     * Moving a student between sections is as sensitive as updating the
+     * profile itself, so it uses the same ability as `update`.
+     */
+    public function transferSection(User $user, StudentProfile $profile): bool
+    {
+        return $this->update($user, $profile);
+    }
 }
