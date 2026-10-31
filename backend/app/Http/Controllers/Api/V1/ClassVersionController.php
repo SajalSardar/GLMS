@@ -49,6 +49,8 @@ class ClassVersionController extends Controller
      */
     public function store(StoreClassVersionRequest $request): JsonResponse
     {
+        $this->authorize('create', ClassVersion::class);
+
         $class = SchoolClass::findOrFail($request->integer('class_id'));
 
         $attributes = [
@@ -82,6 +84,8 @@ class ClassVersionController extends Controller
      */
     public function update(UpdateClassVersionRequest $request, ClassVersion $class_version): ClassVersionResource
     {
+        $this->authorize('update', $class_version);
+
         $class_version->update($request->validated());
 
         return new ClassVersionResource($class_version->load('schoolClass'));
@@ -105,6 +109,8 @@ class ClassVersionController extends Controller
      */
     public function updateSubjects(UpdateVersionSubjectsRequest $request, ClassVersion $class_version): ClassVersionResource
     {
+        $this->authorize('updateSubjects', $class_version);
+
         $subjects = collect($request->validated('subjects'))
             ->mapWithKeys(fn (array $row) => [
                 $row['subject_id'] => ['required_weekly_periods' => $row['required_weekly_periods'] ?? null],

@@ -50,6 +50,8 @@ class ClassController extends Controller
      */
     public function store(StoreClassRequest $request): JsonResponse
     {
+        $this->authorize('create', SchoolClass::class);
+
         $school = School::findOrFail($request->integer('school_id'));
         $section = $request->input('section');
 
@@ -82,6 +84,8 @@ class ClassController extends Controller
      */
     public function update(UpdateClassRequest $request, SchoolClass $class): ClassResource
     {
+        $this->authorize('update', $class);
+
         $class->update($request->validated());
 
         return new ClassResource($class->load(['school', 'subjects']));
@@ -104,6 +108,8 @@ class ClassController extends Controller
      */
     public function updateSubjects(UpdateClassSubjectsRequest $request, SchoolClass $class): ClassResource
     {
+        $this->authorize('updateSubjects', $class);
+
         $class->subjects()->sync($request->validated('subject_ids'));
 
         return new ClassResource($class->load(['school', 'subjects']));
