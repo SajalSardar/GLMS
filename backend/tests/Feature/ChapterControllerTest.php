@@ -91,6 +91,20 @@ class ChapterControllerTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_update_silently_ignores_an_attempt_to_change_book_id(): void
+    {
+        $chapter = Chapter::create(['book_id' => $this->bookA->id, 'school_id' => $this->bookA->school_id, 'district_id' => $this->bookA->district_id, 'name' => 'Chapter 1']);
+
+        $allowed = $this->actorWithPermissions(['chapters.update'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $this->actingAs($allowed, 'sanctum')
+            ->patchJson("/api/v1/chapters/{$chapter->id}", ['book_id' => $this->bookB->id, 'name' => 'Renamed'])
+            ->assertOk()
+            ->assertJsonPath('data.book_id', $this->bookA->id);
+
+        $this->assertSame($this->bookA->id, $chapter->refresh()->book_id);
+    }
+
     public function test_store_restores_a_soft_deleted_chapter_with_the_same_identity(): void
     {
         $chapter = Chapter::create(['book_id' => $this->bookA->id, 'school_id' => $this->bookA->school_id, 'district_id' => $this->bookA->district_id, 'name' => 'Chapter 1']);

@@ -16,8 +16,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('chapters', function (Blueprint $table) {
-            $table->dropUnique(['subject_id', 'name']);
             $table->dropForeign(['subject_id']);
+            $table->dropUnique(['subject_id', 'name']);
             $table->dropColumn('subject_id');
 
             $table->foreignId('book_id')->after('id')->constrained()->cascadeOnDelete();
