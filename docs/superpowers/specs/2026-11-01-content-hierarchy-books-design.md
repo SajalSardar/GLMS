@@ -97,6 +97,21 @@ unique(class_version_id, subject_id, name)
 `Book` model: `TenantScoped`; `belongsTo(ClassVersion)`, `belongsTo(Subject)`,
 `hasMany(Chapter)` ordered by `order_index`.
 
+`Subject` model gains `books(): HasMany` (`hasMany(Book::class)`). Its
+existing `chapters(): HasMany` relation is **removed** — it returns
+`hasMany(Chapter::class)`, which breaks once `Chapter` no longer has a
+`subject_id` column. Two call sites depend on it and must change:
+`SubjectController::show()` currently does `$subject->load('chapters')`
+(remove — a bare `Subject` no longer has a direct chapter list; its
+`Book`s are reachable through `ClassVersion`/`BookController`, not through
+`Subject` itself); `SubjectController::destroy()` currently blocks deletion
+with `if ($subject->chapters()->exists())` (change to `if
+($subject->books()->exists())`, message "This subject still has books and
+cannot be deleted."). `SubjectResource`'s `'chapters' =>
+ChapterResource::collection($this->whenLoaded('chapters'))` key is removed
+(not replaced with a `books` key — out of scope here, consistent with
+"Out of scope" below).
+
 ### `chapters` table changes (new additive migration, not editing the
 original `2026_10_28_125244_create_chapters_table.php` — matches this
 repo's existing convention of additive migrations, e.g.
@@ -165,10 +180,7 @@ same pattern as every other resource in that file.
 
 ## Frontend
 
-Admin CRUD UI for `Book` (and the updated `Chapter` form, now requiring a
-`book_id` picker instead of `subject_id`) lives in
-`frontend/apps/management`, reusing the existing `packages/api-client`/
-`packages/ui` patterns already used for the Subjects/Chapters screens.
+**Correction (found while writing the implementation plan):** `frontend/apps/management/src` currently contains only a placeholder dashboard (`DashboardPlaceholder.tsx`) — there is no existing Subject/Chapter/ClassVersion admin screen to extend, contrary to this section's original assumption. Building real admin screens is the job of the separate "Management Portal" sub-project already decomposed in `docs/superpowers/specs/2026-10-30-frontend-monorepo-restructure-design.md` (sub-project 3 of its own 5-part program), not a side effect of each backend content sub-project. **Decision: this sub-project is backend-API-only.** No frontend work is included; the Book/Chapter CRUD screens are built whenever that Management Portal sub-project is executed, against the API this sub-project delivers.
 
 ## Testing
 
@@ -210,10 +222,14 @@ Admin CRUD UI for `Book` (and the updated `Chapter` form, now requiring a
   `Chapter` equivalents; routes registered in `routes/api.php`.
 - `ChapterController` and its policy/requests/resource are updated to key
   off `book_id` everywhere `subject_id` was used before.
+- `Subject::chapters()` is removed and replaced by `Subject::books()`;
+  `SubjectController::show()`/`destroy()` and `SubjectResource` are updated
+  to match (see "Schema" above).
 - `books.*` permissions seeded and mapped to the same roles as
   `chapters.*`.
 - `BookControllerTest` passes (CRUD, tenant scoping, policy denial,
   soft-delete restore, uniqueness); `ChapterControllerTest` is updated and
   passes against the new `book_id` relationship.
-- Management portal has a working Book CRUD screen and an updated Chapter
-  form using a `book_id` picker.
+- No frontend work is included in this sub-project (see "Frontend"
+  correction above) — the Book/Chapter CRUD screens are deferred to the
+  separate Management Portal sub-project.
