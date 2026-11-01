@@ -136,4 +136,31 @@ class ChapterVideoControllerTest extends TestCase
             ->patchJson('/api/v1/chapter-videos/reorder', ['chapter_id' => $this->chapterA->id, 'ordered_ids' => [$own->id, $foreign->id]])
             ->assertUnprocessable();
     }
+
+    public function test_index_excludes_disabled_videos_unless_the_caller_can_manage_them(): void
+    {
+        $enabled = ChapterVideo::create(['chapter_id' => $this->chapterA->id, 'school_id' => $this->chapterA->school_id, 'district_id' => $this->chapterA->district_id, 'youtube_video_id' => 'eeeeeeeeeee', 'title' => 'Enabled']);
+        $disabled = ChapterVideo::create(['chapter_id' => $this->chapterA->id, 'school_id' => $this->chapterA->school_id, 'district_id' => $this->chapterA->district_id, 'youtube_video_id' => 'fffffffffff', 'title' => 'Disabled', 'is_enabled' => false]);
+
+        $ids = $this->getJson('/api/v1/chapter-videos')->assertOk()->json('data.*.id');
+        $this->assertContains($enabled->id, $ids);
+        $this->assertNotContains($disabled->id, $ids);
+
+        $manager = $this->actorWithPermissions(['chapter_videos.update'], $this->schoolA->id, $this->schoolA->district_id);
+        $ids = $this->actingAs($manager, 'sanctum')->getJson('/api/v1/chapter-videos')->assertOk()->json('data.*.id');
+        $this->assertContains($disabled->id, $ids);
+    }
+
+    public function test_show_404s_a_disabled_video_unless_the_caller_can_manage_it(): void
+    {
+        $disabled = ChapterVideo::create(['chapter_id' => $this->chapterA->id, 'school_id' => $this->chapterA->school_id, 'district_id' => $this->chapterA->district_id, 'youtube_video_id' => 'ggggggggggg', 'title' => 'Disabled', 'is_enabled' => false]);
+
+        $this->getJson("/api/v1/chapter-videos/{$disabled->id}")->assertNotFound();
+
+        $manager = $this->actorWithPermissions(['chapter_videos.update'], $this->schoolA->id, $this->schoolA->district_id);
+        $this->actingAs($manager, 'sanctum')
+            ->getJson("/api/v1/chapter-videos/{$disabled->id}")
+            ->assertOk()
+            ->assertJsonPath('data.id', $disabled->id);
+    }
 }

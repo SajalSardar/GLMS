@@ -26,6 +26,10 @@ class ChapterVideoController extends Controller
         $videos = ChapterVideo::query()
             ->with('chapter')
             ->when($request->integer('chapter_id'), fn ($query, $id) => $query->where('chapter_id', $id))
+            ->when(
+                ! $request->user()?->hasPermission('chapter_videos.update'),
+                fn ($query) => $query->where('is_enabled', true)
+            )
             ->orderBy('chapter_id')
             ->orderBy('order_index')
             ->get();
@@ -35,6 +39,10 @@ class ChapterVideoController extends Controller
 
     public function show(ChapterVideo $chapter_video): ChapterVideoResource
     {
+        if (! $chapter_video->is_enabled && ! request()->user()?->hasPermission('chapter_videos.update')) {
+            abort(404);
+        }
+
         return new ChapterVideoResource($chapter_video->load('chapter'));
     }
 
@@ -87,7 +95,7 @@ class ChapterVideoController extends Controller
 
         DB::transaction(function () use ($request) {
             foreach ($request->validated()['ordered_ids'] as $index => $id) {
-                ChapterVideo::where('id', $id)->update(['order_index' => $index]);
+                ChapterVideo::where('id', $id)->where('chapter_id', $request->validated()['chapter_id'])->update(['order_index' => $index]);
             }
         });
 
