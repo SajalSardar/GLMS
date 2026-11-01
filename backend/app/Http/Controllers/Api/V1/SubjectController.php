@@ -27,7 +27,7 @@ class SubjectController extends Controller
      */
     public function show(Subject $subject): SubjectResource
     {
-        return new SubjectResource($subject->load('chapters'));
+        return new SubjectResource($subject);
     }
 
     /**
@@ -85,9 +85,9 @@ class SubjectController extends Controller
             ]);
         }
 
-        if ($subject->chapters()->exists()) {
+        if ($subject->books()->exists()) {
             throw ValidationException::withMessages([
-                'subject' => ['This subject still has chapters and cannot be deleted.'],
+                'subject' => ['This subject still has books and cannot be deleted.'],
             ]);
         }
 

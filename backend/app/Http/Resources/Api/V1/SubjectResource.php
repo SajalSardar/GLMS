@@ -20,7 +20,6 @@ class SubjectResource extends JsonResource
             'bn_name' => $this->bn_name,
             'code' => $this->code,
             'description' => $this->description,
-            'chapters' => ChapterResource::collection($this->whenLoaded('chapters')),
         ];
     }
 }

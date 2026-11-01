@@ -23,8 +23,8 @@ class Subject extends Model
         return $this->belongsToMany(SchoolClass::class, 'class_subjects', 'subject_id', 'class_id');
     }
 
-    public function chapters(): HasMany
+    public function books(): HasMany
     {
-        return $this->hasMany(Chapter::class)->orderBy('order_index');
+        return $this->hasMany(Book::class);
     }
 }
