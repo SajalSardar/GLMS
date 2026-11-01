@@ -22,13 +22,27 @@ class Book extends Model
         'order_index',
         'description',
         'is_active',
+        'pdf_original_filename',
+        'pdf_stored_path',
+        'pdf_disk',
+        'pdf_mime_type',
+        'pdf_size_bytes',
+        'pdf_uploaded_by_id',
+        'pdf_uploaded_at',
+        'pdf_status',
     ];
 
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
+            'pdf_uploaded_at' => 'datetime',
         ];
+    }
+
+    public function hasAvailablePdf(): bool
+    {
+        return $this->pdf_stored_path !== null && $this->pdf_status === 'active';
     }
 
     public function classVersion(): BelongsTo
