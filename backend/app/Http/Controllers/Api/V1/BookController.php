@@ -4,15 +4,21 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\StoreBookRequest;
+use App\Http\Requests\Api\V1\UpdateBookPdfStatusRequest;
 use App\Http\Requests\Api\V1\UpdateBookRequest;
+use App\Http\Requests\Api\V1\UploadBookPdfRequest;
 use App\Http\Resources\Api\V1\BookResource;
 use App\Models\Book;
 use App\Models\ClassVersion;
+use App\Models\ContentAccessLog;
 use App\Models\Subject;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class BookController extends Controller
@@ -108,5 +114,104 @@ class BookController extends Controller
         $book->delete();
 
         return response()->noContent();
+    }
+
+    public function uploadPdf(UploadBookPdfRequest $request, Book $book): BookResource
+    {
+        $this->authorize('update', $book);
+
+        $disk = config('content.pdf_disk');
+        $file = $request->file('pdf');
+
+        if ($book->pdf_stored_path) {
+            Storage::disk($book->pdf_disk ?? $disk)->delete($book->pdf_stored_path);
+        }
+
+        $path = $file->storeAs("books/{$book->id}/pdf", Str::uuid().'.pdf', $disk);
+
+        $book->update([
+            'pdf_original_filename' => $file->getClientOriginalName(),
+            'pdf_stored_path' => $path,
+            'pdf_disk' => $disk,
+            'pdf_mime_type' => $file->getClientMimeType(),
+            'pdf_size_bytes' => $file->getSize(),
+            'pdf_uploaded_by_id' => $request->user()->id,
+            'pdf_uploaded_at' => now(),
+            'pdf_status' => 'active',
+        ]);
+
+        return new BookResource($book);
+    }
+
+    public function updatePdfStatus(UpdateBookPdfStatusRequest $request, Book $book): BookResource
+    {
+        $this->authorize('update', $book);
+
+        $book->update(['pdf_status' => $request->validated()['status']]);
+
+        return new BookResource($book);
+    }
+
+    public function deletePdf(Book $book): Response
+    {
+        $this->authorize('delete', $book);
+
+        if ($book->pdf_stored_path) {
+            Storage::disk($book->pdf_disk)->delete($book->pdf_stored_path);
+        }
+
+        $book->update([
+            'pdf_original_filename' => null,
+            'pdf_stored_path' => null,
+            'pdf_disk' => null,
+            'pdf_mime_type' => null,
+            'pdf_size_bytes' => null,
+            'pdf_uploaded_by_id' => null,
+            'pdf_uploaded_at' => null,
+            'pdf_status' => null,
+        ]);
+
+        return response()->noContent();
+    }
+
+    public function pdfDownloadLink(Request $request, Book $book): JsonResponse
+    {
+        $this->authorize('view', $book);
+
+        if (! $book->hasAvailablePdf()) {
+            throw ValidationException::withMessages([
+                'pdf' => ['This book has no available PDF to download.'],
+            ]);
+        }
+
+        $url = URL::temporarySignedRoute(
+            'books.pdf.download',
+            now()->addMinutes(config('content.signed_download_expiry_minutes')),
+            ['book' => $book->id]
+        );
+
+        return response()->json(['download_url' => $url]);
+    }
+
+    public function downloadPdf(Book $book): mixed
+    {
+        if (! $book->hasAvailablePdf()) {
+            abort(404);
+        }
+
+        ContentAccessLog::create(['book_id' => $book->id, 'action' => 'downloaded']);
+
+        return Storage::disk($book->pdf_disk)->download($book->pdf_stored_path, $book->pdf_original_filename);
+    }
+
+    public function previewPdf(Book $book): mixed
+    {
+        if (! $book->hasAvailablePdf()) {
+            abort(404);
+        }
+
+        ContentAccessLog::create(['book_id' => $book->id, 'action' => 'previewed']);
+
+        return Storage::disk($book->pdf_disk)->response($book->pdf_stored_path, $book->pdf_original_filename);
     }
 }

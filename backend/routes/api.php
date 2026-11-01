@@ -74,6 +74,10 @@ Route::prefix('v1')->group(function (): void {
         Route::apiResource('subjects', SubjectController::class)->only(['store', 'update', 'destroy']);
         Route::apiResource('books', BookController::class)->only(['store', 'update', 'destroy']);
         Route::apiResource('chapters', ChapterController::class)->only(['store', 'update', 'destroy']);
+        Route::post('/books/{book}/pdf', [BookController::class, 'uploadPdf']);
+        Route::patch('/books/{book}/pdf/status', [BookController::class, 'updatePdfStatus']);
+        Route::delete('/books/{book}/pdf', [BookController::class, 'deletePdf']);
+        Route::post('/books/{book}/pdf/download-link', [BookController::class, 'pdfDownloadLink']);
 
         Route::apiResource('classes', ClassController::class)->only(['store', 'update', 'destroy']);
         Route::put('/classes/{class}/subjects', [ClassController::class, 'updateSubjects']);
@@ -110,5 +114,10 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/student-profiles/{student_profile}/transfer-section', [StudentProfileController::class, 'transferSection']);
 
         Route::apiResource('guardians', GuardianController::class);
+    });
+
+    Route::middleware('signed')->group(function (): void {
+        Route::get('/books/{book}/pdf/download', [BookController::class, 'downloadPdf'])->name('books.pdf.download');
+        Route::get('/books/{book}/pdf/preview', [BookController::class, 'previewPdf'])->name('books.pdf.preview');
     });
 });
