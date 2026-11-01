@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Http\Controllers\Api\V1\AcademicYearController;
+use App\Http\Controllers\Api\V1\BookController;
 use App\Http\Controllers\Api\V1\ChapterController;
 use App\Http\Controllers\Api\V1\ClassController;
 use App\Http\Controllers\Api\V1\ClassroomController;
@@ -65,6 +66,10 @@ class ControllerAuthorizationConventionTest extends TestCase
             [AcademicYearController::class, 'update'],
             [AcademicYearController::class, 'destroy'],
             [AcademicYearController::class, 'setCurrent'],
+
+            [BookController::class, 'store'],
+            [BookController::class, 'update'],
+            [BookController::class, 'destroy'],
 
             [ChapterController::class, 'store'],
             [ChapterController::class, 'update'],

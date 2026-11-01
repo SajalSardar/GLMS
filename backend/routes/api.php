@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\AcademicYearController;
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\BookController;
 use App\Http\Controllers\Api\V1\ChapterController;
 use App\Http\Controllers\Api\V1\ClassController;
 use App\Http\Controllers\Api\V1\ClassroomController;
@@ -51,6 +52,7 @@ Route::prefix('v1')->group(function (): void {
     Route::apiResource('schools', SchoolController::class)->only(['index', 'show']);
     Route::apiResource('subjects', SubjectController::class)->only(['index', 'show']);
     Route::apiResource('classes', ClassController::class)->only(['index', 'show']);
+    Route::apiResource('books', BookController::class)->only(['index', 'show']);
     Route::apiResource('chapters', ChapterController::class)->only(['index', 'show']);
     Route::apiResource('academic-years', AcademicYearController::class)->only(['index', 'show']);
     Route::apiResource('classrooms', ClassroomController::class)->only(['index', 'show']);
@@ -70,6 +72,7 @@ Route::prefix('v1')->group(function (): void {
         Route::apiResource('upazilas', UpazilaController::class)->only(['store', 'update', 'destroy']);
         Route::apiResource('schools', SchoolController::class)->only(['store', 'update', 'destroy']);
         Route::apiResource('subjects', SubjectController::class)->only(['store', 'update', 'destroy']);
+        Route::apiResource('books', BookController::class)->only(['store', 'update', 'destroy']);
         Route::apiResource('chapters', ChapterController::class)->only(['store', 'update', 'destroy']);
 
         Route::apiResource('classes', ClassController::class)->only(['store', 'update', 'destroy']);
