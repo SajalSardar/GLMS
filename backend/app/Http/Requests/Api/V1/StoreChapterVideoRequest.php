@@ -34,7 +34,7 @@ class StoreChapterVideoRequest extends FormRequest
             'duration_seconds' => ['nullable', 'integer', 'min:1'],
             'learning_objectives' => ['nullable', 'string', 'max:2000'],
             'completion_threshold_percent' => ['nullable', 'integer', 'min:1', 'max:100'],
-            'order_index' => ['nullable', 'integer', 'min:0', 'max:1000'],
+            'order_index' => ['sometimes', 'integer', 'min:0', 'max:1000'],
             'is_enabled' => ['sometimes', 'boolean'],
         ];
     }

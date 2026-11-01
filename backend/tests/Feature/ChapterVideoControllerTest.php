@@ -74,6 +74,16 @@ class ChapterVideoControllerTest extends TestCase
             ->assertJsonPath('data.is_enabled', false);
     }
 
+    public function test_store_without_order_index_defaults_to_zero(): void
+    {
+        $allowed = $this->actorWithPermissions(['chapter_videos.create'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $this->actingAs($allowed, 'sanctum')
+            ->postJson('/api/v1/chapter-videos', ['chapter_id' => $this->chapterA->id, 'youtube_url' => 'https://youtu.be/dQw4w9WgXcQ', 'title' => 'Intro'])
+            ->assertCreated()
+            ->assertJsonPath('data.order_index', 0);
+    }
+
     public function test_store_rejects_an_unrecognized_youtube_url(): void
     {
         $allowed = $this->actorWithPermissions(['chapter_videos.create'], $this->schoolA->id, $this->schoolA->district_id);

@@ -18,6 +18,7 @@ class ChapterVideo extends Model
      */
     protected $attributes = [
         'is_enabled' => true,
+        'order_index' => 0,
     ];
 
     protected $fillable = [
