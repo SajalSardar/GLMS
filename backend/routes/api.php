@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\AcademicYearController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BookController;
 use App\Http\Controllers\Api\V1\ChapterController;
+use App\Http\Controllers\Api\V1\ChapterMaterialController;
 use App\Http\Controllers\Api\V1\ClassController;
 use App\Http\Controllers\Api\V1\ClassroomController;
 use App\Http\Controllers\Api\V1\ClassRoutineController;
@@ -54,6 +55,7 @@ Route::prefix('v1')->group(function (): void {
     Route::apiResource('classes', ClassController::class)->only(['index', 'show']);
     Route::apiResource('books', BookController::class)->only(['index', 'show']);
     Route::apiResource('chapters', ChapterController::class)->only(['index', 'show']);
+    Route::apiResource('chapter-materials', ChapterMaterialController::class)->only(['index', 'show']);
     Route::apiResource('academic-years', AcademicYearController::class)->only(['index', 'show']);
     Route::apiResource('classrooms', ClassroomController::class)->only(['index', 'show']);
     Route::apiResource('class-routines', ClassRoutineController::class)->only(['index', 'show']);
@@ -78,6 +80,9 @@ Route::prefix('v1')->group(function (): void {
         Route::patch('/books/{book}/pdf/status', [BookController::class, 'updatePdfStatus']);
         Route::delete('/books/{book}/pdf', [BookController::class, 'deletePdf']);
         Route::post('/books/{book}/pdf/download-link', [BookController::class, 'pdfDownloadLink']);
+
+        Route::apiResource('chapter-materials', ChapterMaterialController::class)->only(['store', 'update', 'destroy']);
+        Route::post('/chapter-materials/{chapter_material}/download-link', [ChapterMaterialController::class, 'downloadLink']);
 
         Route::apiResource('classes', ClassController::class)->only(['store', 'update', 'destroy']);
         Route::put('/classes/{class}/subjects', [ClassController::class, 'updateSubjects']);
@@ -119,5 +124,7 @@ Route::prefix('v1')->group(function (): void {
     Route::middleware('signed')->group(function (): void {
         Route::get('/books/{book}/pdf/download', [BookController::class, 'downloadPdf'])->name('books.pdf.download');
         Route::get('/books/{book}/pdf/preview', [BookController::class, 'previewPdf'])->name('books.pdf.preview');
+        Route::get('/chapter-materials/{chapter_material}/download', [ChapterMaterialController::class, 'download'])->name('chapter-materials.download');
+        Route::get('/chapter-materials/{chapter_material}/preview', [ChapterMaterialController::class, 'preview'])->name('chapter-materials.preview');
     });
 });

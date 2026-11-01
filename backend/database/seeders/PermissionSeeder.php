@@ -52,6 +52,11 @@ class PermissionSeeder extends Seeder
             ['name' => 'books.update', 'label' => 'Update books'],
             ['name' => 'books.delete', 'label' => 'Delete books'],
 
+            ['name' => 'chapter_materials.view', 'label' => 'View chapter materials'],
+            ['name' => 'chapter_materials.create', 'label' => 'Create chapter materials'],
+            ['name' => 'chapter_materials.update', 'label' => 'Update chapter materials'],
+            ['name' => 'chapter_materials.delete', 'label' => 'Delete chapter materials'],
+
             ['name' => 'chapters.view', 'label' => 'View chapters'],
             ['name' => 'chapters.create', 'label' => 'Create chapters'],
             ['name' => 'chapters.update', 'label' => 'Update chapters'],
