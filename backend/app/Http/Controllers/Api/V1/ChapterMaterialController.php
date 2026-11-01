@@ -100,7 +100,7 @@ class ChapterMaterialController extends Controller
         return response()->noContent();
     }
 
-    public function downloadLink(ChapterMaterial $chapter_material): JsonResponse
+    public function downloadLink(Request $request, ChapterMaterial $chapter_material): JsonResponse
     {
         $this->authorize('view', $chapter_material);
 
@@ -110,31 +110,37 @@ class ChapterMaterialController extends Controller
             ]);
         }
 
-        $url = URL::temporarySignedRoute(
-            'chapter-materials.download',
-            now()->addMinutes(config('content.signed_download_expiry_minutes')),
-            ['chapter_material' => $chapter_material->id]
-        );
+        $expiry = now()->addMinutes(config('content.signed_download_expiry_minutes'));
+        $params = ['chapter_material' => $chapter_material->id, 'actor' => $request->user()->id];
 
-        return response()->json(['download_url' => $url]);
+        return response()->json([
+            'download_url' => URL::temporarySignedRoute('chapter-materials.download', $expiry, $params),
+            'preview_url' => URL::temporarySignedRoute('chapter-materials.preview', $expiry, $params),
+        ]);
     }
 
-    public function download(ChapterMaterial $chapter_material): mixed
+    public function download(Request $request, ChapterMaterial $chapter_material): mixed
     {
+        abort_unless($chapter_material->status === 'active', 404);
+
         ContentAccessLog::create([
             'chapter_id' => $chapter_material->chapter_id,
             'chapter_material_id' => $chapter_material->id,
+            'user_id' => $request->integer('actor') ?: null,
             'action' => 'downloaded',
         ]);
 
         return Storage::disk($chapter_material->disk)->download($chapter_material->stored_path, $chapter_material->original_filename);
     }
 
-    public function preview(ChapterMaterial $chapter_material): mixed
+    public function preview(Request $request, ChapterMaterial $chapter_material): mixed
     {
+        abort_unless($chapter_material->status === 'active', 404);
+
         ContentAccessLog::create([
             'chapter_id' => $chapter_material->chapter_id,
             'chapter_material_id' => $chapter_material->id,
+            'user_id' => $request->integer('actor') ?: null,
             'action' => 'previewed',
         ]);
 

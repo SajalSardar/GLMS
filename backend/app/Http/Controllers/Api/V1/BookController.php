@@ -184,33 +184,41 @@ class BookController extends Controller
             ]);
         }
 
-        $url = URL::temporarySignedRoute(
-            'books.pdf.download',
-            now()->addMinutes(config('content.signed_download_expiry_minutes')),
-            ['book' => $book->id]
-        );
+        $expiry = now()->addMinutes(config('content.signed_download_expiry_minutes'));
+        $params = ['book' => $book->id, 'actor' => $request->user()->id];
 
-        return response()->json(['download_url' => $url]);
+        return response()->json([
+            'download_url' => URL::temporarySignedRoute('books.pdf.download', $expiry, $params),
+            'preview_url' => URL::temporarySignedRoute('books.pdf.preview', $expiry, $params),
+        ]);
     }
 
-    public function downloadPdf(Book $book): mixed
+    public function downloadPdf(Request $request, Book $book): mixed
     {
         if (! $book->hasAvailablePdf()) {
             abort(404);
         }
 
-        ContentAccessLog::create(['book_id' => $book->id, 'action' => 'downloaded']);
+        ContentAccessLog::create([
+            'book_id' => $book->id,
+            'user_id' => $request->integer('actor') ?: null,
+            'action' => 'downloaded',
+        ]);
 
         return Storage::disk($book->pdf_disk)->download($book->pdf_stored_path, $book->pdf_original_filename);
     }
 
-    public function previewPdf(Book $book): mixed
+    public function previewPdf(Request $request, Book $book): mixed
     {
         if (! $book->hasAvailablePdf()) {
             abort(404);
         }
 
-        ContentAccessLog::create(['book_id' => $book->id, 'action' => 'previewed']);
+        ContentAccessLog::create([
+            'book_id' => $book->id,
+            'user_id' => $request->integer('actor') ?: null,
+            'action' => 'previewed',
+        ]);
 
         return Storage::disk($book->pdf_disk)->response($book->pdf_stored_path, $book->pdf_original_filename);
     }

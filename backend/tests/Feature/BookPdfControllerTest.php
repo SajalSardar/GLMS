@@ -159,7 +159,31 @@ class BookPdfControllerTest extends TestCase
 
         $this->get($url)->assertOk();
 
+        $log = ContentAccessLog::where('book_id', $this->book->id)->where('action', 'downloaded')->first();
+        $this->assertNotNull($log);
         $this->assertSame(1, ContentAccessLog::where('book_id', $this->book->id)->where('action', 'downloaded')->count());
+        $this->assertSame($allowed->id, $log->user_id);
+    }
+
+    public function test_preview_link_returns_a_working_signed_url_that_logs_access(): void
+    {
+        $allowed = $this->actorWithPermissions(['books.update', 'books.view'], $this->school->id, $this->school->district_id);
+        $file = UploadedFile::fake()->create('math.pdf', 100, 'application/pdf');
+        $this->actingAs($allowed, 'sanctum')->post("/api/v1/books/{$this->book->id}/pdf", ['pdf' => $file]);
+
+        $response = $this->actingAs($allowed, 'sanctum')
+            ->postJson("/api/v1/books/{$this->book->id}/pdf/download-link")
+            ->assertOk();
+
+        $previewUrl = $response->json('preview_url');
+        $this->assertNotNull($previewUrl);
+
+        $this->get($previewUrl)->assertOk();
+
+        $log = ContentAccessLog::where('book_id', $this->book->id)->where('action', 'previewed')->first();
+        $this->assertNotNull($log);
+        $this->assertSame(1, ContentAccessLog::where('book_id', $this->book->id)->where('action', 'previewed')->count());
+        $this->assertSame($allowed->id, $log->user_id);
     }
 
     public function test_download_rejects_an_invalid_signature(): void
