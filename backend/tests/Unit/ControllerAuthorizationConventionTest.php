@@ -71,6 +71,9 @@ class ControllerAuthorizationConventionTest extends TestCase
             [BookController::class, 'store'],
             [BookController::class, 'update'],
             [BookController::class, 'destroy'],
+            [BookController::class, 'uploadPdf'],
+            [BookController::class, 'updatePdfStatus'],
+            [BookController::class, 'deletePdf'],
 
             [ChapterMaterialController::class, 'store'],
             [ChapterMaterialController::class, 'update'],

@@ -191,4 +191,15 @@ class BookPdfControllerTest extends TestCase
         $this->get("/api/v1/books/{$this->book->id}/pdf/download?signature=invalid&expires=9999999999")
             ->assertForbidden();
     }
+
+    public function test_delete_requires_books_delete_permission(): void
+    {
+        $allowed = $this->actorWithPermissions(['books.update'], $this->school->id, $this->school->district_id);
+        $file = UploadedFile::fake()->create('math.pdf', 100, 'application/pdf');
+        $this->actingAs($allowed, 'sanctum')->post("/api/v1/books/{$this->book->id}/pdf", ['pdf' => $file]);
+
+        $this->actingAs($allowed, 'sanctum')
+            ->deleteJson("/api/v1/books/{$this->book->id}/pdf")
+            ->assertForbidden();
+    }
 }
