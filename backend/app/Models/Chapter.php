@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\TenantScoped;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Chapter extends Model
@@ -26,5 +27,10 @@ class Chapter extends Model
     public function book(): BelongsTo
     {
         return $this->belongsTo(Book::class);
+    }
+
+    public function materials(): HasMany
+    {
+        return $this->hasMany(ChapterMaterial::class)->orderBy('order_index');
     }
 }
