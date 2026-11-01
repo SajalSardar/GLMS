@@ -30,7 +30,6 @@ class DatabaseSeeder extends Seeder
             AcademicYearSeeder::class,
             ClassroomSeeder::class,
             SubjectSeeder::class,
-            ChapterSeeder::class,
             ClassSeeder::class,
             ClassSubjectSeeder::class,
             PermissionSeeder::class,
