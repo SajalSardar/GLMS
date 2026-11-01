@@ -16,14 +16,16 @@ class ChapterResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'subject_id' => $this->subject_id,
+            'book_id' => $this->book_id,
+            'school_id' => $this->school_id,
+            'district_id' => $this->district_id,
             'name' => $this->name,
             'bn_name' => $this->bn_name,
             'order_index' => $this->order_index,
             'chapter_number' => $this->chapter_number,
             'bn_chapter_number' => $this->bn_chapter_number,
             'description' => $this->description,
-            'subject' => new SubjectResource($this->whenLoaded('subject')),
+            'book' => new BookResource($this->whenLoaded('book')),
         ];
     }
 }

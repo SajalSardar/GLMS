@@ -6,8 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\StoreChapterRequest;
 use App\Http\Requests\Api\V1\UpdateChapterRequest;
 use App\Http\Resources\Api\V1\ChapterResource;
+use App\Models\Book;
 use App\Models\Chapter;
-use App\Models\Subject;
 use App\Support\Ordinal;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -22,9 +22,9 @@ class ChapterController extends Controller
     public function index(Request $request): AnonymousResourceCollection
     {
         $chapters = Chapter::query()
-            ->with('subject')
-            ->when($request->integer('subject_id'), fn ($query, $subjectId) => $query->where('subject_id', $subjectId))
-            ->orderBy('subject_id')
+            ->with('book')
+            ->when($request->integer('book_id'), fn ($query, $bookId) => $query->where('book_id', $bookId))
+            ->orderBy('book_id')
             ->orderBy('order_index')
             ->orderBy('name')
             ->get();
@@ -37,13 +37,13 @@ class ChapterController extends Controller
      */
     public function show(Chapter $chapter): ChapterResource
     {
-        return new ChapterResource($chapter->load('subject'));
+        return new ChapterResource($chapter->load('book'));
     }
 
     /**
      * Store a newly created resource in storage.
      *
-     * A soft-deleted chapter with the same (subject_id, name) is restored
+     * A soft-deleted chapter with the same (book_id, name) is restored
      * and updated in place, rather than attempting a second insert that
      * would collide with the still-present unique index on a trashed row.
      */
@@ -51,11 +51,13 @@ class ChapterController extends Controller
     {
         $this->authorize('create', Chapter::class);
 
-        $subject = Subject::findOrFail($request->integer('subject_id'));
+        $book = Book::findOrFail($request->integer('book_id'));
         $data = $this->applyAutoNumbering($request->validated());
+        $data['school_id'] = $book->school_id;
+        $data['district_id'] = $book->district_id;
 
         $chapter = Chapter::onlyTrashed()
-            ->where('subject_id', $subject->id)
+            ->where('book_id', $book->id)
             ->where('name', $data['name'])
             ->first();
 
@@ -66,7 +68,7 @@ class ChapterController extends Controller
             $chapter = Chapter::create($data);
         }
 
-        return (new ChapterResource($chapter->load('subject')))
+        return (new ChapterResource($chapter->load('book')))
             ->response()
             ->setStatusCode(Response::HTTP_CREATED);
     }
@@ -80,7 +82,7 @@ class ChapterController extends Controller
 
         $chapter->update($this->applyAutoNumbering($request->validated()));
 
-        return new ChapterResource($chapter->load('subject'));
+        return new ChapterResource($chapter->load('book'));
     }
 
     /**

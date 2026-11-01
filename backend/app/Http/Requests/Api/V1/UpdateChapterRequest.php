@@ -17,10 +17,8 @@ class UpdateChapterRequest extends FormRequest
     }
 
     /**
-     * Get the validation rules that apply to the request.
-     *
-     * subject_id is immutable after creation — moving a chapter to a
-     * different subject isn't supported by this endpoint.
+     * book_id is immutable after creation — moving a chapter to a
+     * different book isn't supported by this endpoint.
      *
      * @return array<string, ValidationRule|array<mixed>|string>
      */
@@ -31,7 +29,7 @@ class UpdateChapterRequest extends FormRequest
         return [
             'name' => [
                 'sometimes', 'required', 'string', 'max:255',
-                Rule::unique('chapters', 'name')->ignore($chapter)->where('subject_id', $chapter->subject_id),
+                Rule::unique('chapters', 'name')->ignore($chapter)->where('book_id', $chapter->book_id),
             ],
             'bn_name' => ['nullable', 'string', 'max:255'],
             'order_index' => ['nullable', 'integer', 'min:0', 'max:255'],

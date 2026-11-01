@@ -25,10 +25,10 @@ class StoreChapterRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'subject_id' => ['required', 'integer', Rule::exists('subjects', 'id')->withoutTrashed()],
+            'book_id' => ['required', 'integer', Rule::exists('books', 'id')->withoutTrashed()],
             'name' => [
                 'required', 'string', 'max:255',
-                Rule::unique('chapters', 'name')->withoutTrashed()->where('subject_id', $this->integer('subject_id')),
+                Rule::unique('chapters', 'name')->withoutTrashed()->where('book_id', $this->integer('book_id')),
             ],
             'bn_name' => ['nullable', 'string', 'max:255'],
             'order_index' => ['nullable', 'integer', 'min:0', 'max:255'],
