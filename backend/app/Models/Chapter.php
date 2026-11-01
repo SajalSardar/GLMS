@@ -2,16 +2,19 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\TenantScoped;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Chapter extends Model
 {
-    use SoftDeletes;
+    use SoftDeletes, TenantScoped;
 
     protected $fillable = [
-        'subject_id',
+        'book_id',
+        'school_id',
+        'district_id',
         'name',
         'bn_name',
         'order_index',
@@ -20,8 +23,8 @@ class Chapter extends Model
         'description',
     ];
 
-    public function subject(): BelongsTo
+    public function book(): BelongsTo
     {
-        return $this->belongsTo(Subject::class);
+        return $this->belongsTo(Book::class);
     }
 }

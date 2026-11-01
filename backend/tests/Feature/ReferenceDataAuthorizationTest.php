@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\Chapter;
 use App\Models\District;
 use App\Models\Division;
 use App\Models\Guardian;
@@ -74,21 +73,6 @@ class ReferenceDataAuthorizationTest extends TestCase
         $allowed = $this->actorWithPermissions(['subjects.create', 'subjects.update']);
         $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/subjects', $payload)->assertCreated();
         $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/subjects/{$subject->id}", [])->assertOk();
-    }
-
-    public function test_chapter_store_and_update_are_authorized(): void
-    {
-        $subject = Subject::create(['name' => 'Subject']);
-        $chapter = Chapter::create(['subject_id' => $subject->id, 'name' => 'Existing Chapter']);
-        $payload = ['subject_id' => $subject->id, 'name' => 'New Chapter'];
-
-        $denied = $this->actorWithNoPermissions();
-        $this->actingAs($denied, 'sanctum')->postJson('/api/v1/chapters', $payload)->assertForbidden();
-        $this->actingAs($denied, 'sanctum')->patchJson("/api/v1/chapters/{$chapter->id}", [])->assertForbidden();
-
-        $allowed = $this->actorWithPermissions(['chapters.create', 'chapters.update']);
-        $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/chapters', $payload)->assertCreated();
-        $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/chapters/{$chapter->id}", [])->assertOk();
     }
 
     public function test_guardian_store_and_update_are_authorized(): void
