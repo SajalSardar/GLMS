@@ -5,10 +5,13 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\ReorderChapterVideosRequest;
 use App\Http\Requests\Api\V1\StoreChapterVideoRequest;
+use App\Http\Requests\Api\V1\UpdateChapterVideoProgressRequest;
 use App\Http\Requests\Api\V1\UpdateChapterVideoRequest;
+use App\Http\Resources\Api\V1\ChapterVideoProgressResource;
 use App\Http\Resources\Api\V1\ChapterVideoResource;
 use App\Models\Chapter;
 use App\Models\ChapterVideo;
+use App\Models\ChapterVideoProgress;
 use App\Support\YoutubeUrl;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -89,5 +92,53 @@ class ChapterVideoController extends Controller
         });
 
         return response()->json(['message' => 'Reordered.']);
+    }
+
+    public function updateProgress(UpdateChapterVideoProgressRequest $request, ChapterVideo $chapter_video): JsonResponse
+    {
+        $position = $request->integer('position_seconds');
+        $reportedDuration = $request->input('duration_seconds');
+
+        if ($reportedDuration && ! $chapter_video->duration_seconds) {
+            $chapter_video->update(['duration_seconds' => $reportedDuration]);
+        }
+
+        $progress = ChapterVideoProgress::firstOrNew([
+            'chapter_video_id' => $chapter_video->id,
+            'user_id' => $request->user()->id,
+        ]);
+
+        if (! $progress->exists) {
+            $progress->status = 'not_started';
+            $progress->max_position_seconds = 0;
+        }
+
+        if ($position > $progress->max_position_seconds) {
+            $progress->max_position_seconds = $position;
+        }
+
+        $progress->started_at ??= now();
+
+        $duration = $chapter_video->duration_seconds ?? $reportedDuration;
+        $threshold = $chapter_video->completion_threshold_percent ?? config('content.video_completion_threshold_percent');
+
+        if ($progress->status !== 'completed') {
+            if ($duration && $duration > 0 && ($progress->max_position_seconds / $duration) * 100 >= $threshold) {
+                $progress->status = 'completed';
+                $progress->completed_at = now();
+            } else {
+                $progress->status = 'in_progress';
+            }
+        }
+
+        $progress->save();
+
+        // Force 200: Laravel's resource response otherwise returns 201 when
+        // the underlying progress record was just created by firstOrNew(),
+        // but this endpoint represents "report state" at a URI scoped to
+        // the video, not creation of a progress resource.
+        return (new ChapterVideoProgressResource($progress))
+            ->response()
+            ->setStatusCode(Response::HTTP_OK);
     }
 }

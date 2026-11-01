@@ -88,6 +88,7 @@ Route::prefix('v1')->group(function (): void {
 
         Route::patch('/chapter-videos/reorder', [ChapterVideoController::class, 'reorder']);
         Route::apiResource('chapter-videos', ChapterVideoController::class)->only(['store', 'update', 'destroy']);
+        Route::put('/chapter-videos/{chapter_video}/progress', [ChapterVideoController::class, 'updateProgress']);
 
         Route::apiResource('classes', ClassController::class)->only(['store', 'update', 'destroy']);
         Route::put('/classes/{class}/subjects', [ClassController::class, 'updateSubjects']);

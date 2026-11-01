@@ -15,4 +15,11 @@ return [
      * The filesystem disk PDFs are stored on — must be a private disk.
      */
     'pdf_disk' => env('CONTENT_PDF_DISK', 'local'),
+
+    /*
+     * Default percentage-of-duration a student must reach for a video to
+     * count as completed, used when a ChapterVideo has no per-video
+     * override (completion_threshold_percent).
+     */
+    'video_completion_threshold_percent' => (int) env('VIDEO_COMPLETION_THRESHOLD_PERCENT', 90),
 ];
