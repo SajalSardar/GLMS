@@ -95,6 +95,34 @@ class ChapterMaterialControllerTest extends TestCase
             ->assertUnprocessable();
     }
 
+    public function test_reactivating_a_material_is_rejected_if_another_active_primary_exists(): void
+    {
+        $allowed = $this->actorWithPermissions(['chapter_materials.create', 'chapter_materials.update'], $this->schoolA->id, $this->schoolA->district_id);
+        $file = UploadedFile::fake()->create('chapter1.pdf', 100, 'application/pdf');
+
+        $firstId = $this->actingAs($allowed, 'sanctum')
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'primary', 'pdf' => $file])
+            ->json('data.id');
+
+        // Step 1: archive the chapter's only active primary material.
+        $this->actingAs($allowed, 'sanctum')
+            ->patchJson("/api/v1/chapter-materials/{$firstId}", ['status' => 'archived'])
+            ->assertOk();
+
+        // Step 2: create a new primary material for the same chapter — succeeds, since
+        // there is no active primary right now.
+        $secondFile = UploadedFile::fake()->create('chapter1-v2.pdf', 100, 'application/pdf');
+        $this->actingAs($allowed, 'sanctum')
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'primary', 'pdf' => $secondFile])
+            ->assertCreated();
+
+        // Step 3: re-activating the first (now-archived) material must be rejected,
+        // since it would leave two active primaries for the same chapter.
+        $this->actingAs($allowed, 'sanctum')
+            ->patchJson("/api/v1/chapter-materials/{$firstId}", ['status' => 'active'])
+            ->assertUnprocessable();
+    }
+
     public function test_multiple_supplementary_materials_are_allowed(): void
     {
         $allowed = $this->actorWithPermissions(['chapter_materials.create'], $this->schoolA->id, $this->schoolA->district_id);
@@ -187,6 +215,54 @@ class ChapterMaterialControllerTest extends TestCase
 
         $this->get($url)->assertOk();
 
+        $log = ContentAccessLog::where('chapter_material_id', $id)->where('action', 'downloaded')->first();
+        $this->assertNotNull($log);
         $this->assertSame(1, ContentAccessLog::where('chapter_material_id', $id)->where('action', 'downloaded')->count());
+        $this->assertSame($allowed->id, $log->user_id);
+    }
+
+    public function test_preview_link_returns_a_working_signed_url_that_logs_access(): void
+    {
+        $allowed = $this->actorWithPermissions(['chapter_materials.create', 'chapter_materials.view'], $this->schoolA->id, $this->schoolA->district_id);
+        $file = UploadedFile::fake()->create('chapter1.pdf', 100, 'application/pdf');
+
+        $id = $this->actingAs($allowed, 'sanctum')
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'primary', 'pdf' => $file])
+            ->json('data.id');
+
+        $response = $this->actingAs($allowed, 'sanctum')
+            ->postJson("/api/v1/chapter-materials/{$id}/download-link")
+            ->assertOk();
+
+        $previewUrl = $response->json('preview_url');
+        $this->assertNotNull($previewUrl);
+
+        $this->get($previewUrl)->assertOk();
+
+        $log = ContentAccessLog::where('chapter_material_id', $id)->where('action', 'previewed')->first();
+        $this->assertNotNull($log);
+        $this->assertSame(1, ContentAccessLog::where('chapter_material_id', $id)->where('action', 'previewed')->count());
+        $this->assertSame($allowed->id, $log->user_id);
+    }
+
+    public function test_archived_material_download_link_returns_404(): void
+    {
+        $allowed = $this->actorWithPermissions(['chapter_materials.create', 'chapter_materials.update', 'chapter_materials.view'], $this->schoolA->id, $this->schoolA->district_id);
+        $file = UploadedFile::fake()->create('chapter1.pdf', 100, 'application/pdf');
+
+        $id = $this->actingAs($allowed, 'sanctum')
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'primary', 'pdf' => $file])
+            ->json('data.id');
+
+        $url = $this->actingAs($allowed, 'sanctum')
+            ->postJson("/api/v1/chapter-materials/{$id}/download-link")
+            ->assertOk()
+            ->json('download_url');
+
+        $this->actingAs($allowed, 'sanctum')
+            ->patchJson("/api/v1/chapter-materials/{$id}", ['status' => 'archived'])
+            ->assertOk();
+
+        $this->get($url)->assertNotFound();
     }
 }

@@ -2,9 +2,11 @@
 
 namespace App\Http\Requests\Api\V1;
 
+use App\Models\ChapterMaterial;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class UpdateChapterMaterialRequest extends FormRequest
 {
@@ -29,5 +31,30 @@ class UpdateChapterMaterialRequest extends FormRequest
             'status' => ['sometimes', 'string', Rule::in(['active', 'archived'])],
             'pdf' => ['sometimes', 'file', 'mimes:pdf', 'max:'.config('content.max_pdf_size_kb')],
         ];
+    }
+
+    /**
+     * Reject re-activating a 'primary' material if the chapter already has
+     * a different active primary material.
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            $material = $this->route('chapter_material');
+
+            if ($this->input('status') !== 'active' || $material->type !== 'primary') {
+                return;
+            }
+
+            $clash = ChapterMaterial::where('chapter_id', $material->chapter_id)
+                ->where('type', 'primary')
+                ->where('status', 'active')
+                ->whereKeyNot($material->getKey())
+                ->exists();
+
+            if ($clash) {
+                $validator->errors()->add('status', 'This chapter already has an active primary material — archive it before re-activating this one.');
+            }
+        });
     }
 }
