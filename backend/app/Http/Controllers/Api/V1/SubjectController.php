@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\StoreSubjectRequest;
 use App\Http\Requests\Api\V1\UpdateSubjectRequest;
 use App\Http\Resources\Api\V1\SubjectResource;
+use App\Models\Scopes\TenantScope;
 use App\Models\Subject;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -85,7 +86,7 @@ class SubjectController extends Controller
             ]);
         }
 
-        if ($subject->books()->exists()) {
+        if ($subject->books()->withoutGlobalScope(TenantScope::class)->exists()) {
             throw ValidationException::withMessages([
                 'subject' => ['This subject still has books and cannot be deleted.'],
             ]);
