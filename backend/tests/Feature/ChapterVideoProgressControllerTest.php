@@ -16,6 +16,7 @@ use App\Models\Subject;
 use App\Models\Upazila;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class ChapterVideoProgressControllerTest extends TestCase
@@ -115,6 +116,69 @@ class ChapterVideoProgressControllerTest extends TestCase
             ->assertOk();
 
         $this->assertSame(200, $this->video->refresh()->duration_seconds);
+    }
+
+    public function test_a_reported_position_above_duration_is_clamped_to_the_duration(): void
+    {
+        // setUp's video has duration_seconds = 100.
+        $this->actingAs($this->student, 'sanctum')
+            ->putJson("/api/v1/chapter-videos/{$this->video->id}/progress", ['position_seconds' => 150])
+            ->assertOk()
+            ->assertJsonPath('data.max_position_seconds', 100);
+
+        $progress = ChapterVideoProgress::where('chapter_video_id', $this->video->id)->where('user_id', $this->student->id)->first();
+        $this->assertSame(100, $progress->max_position_seconds);
+    }
+
+    public function test_a_reported_duration_lower_than_the_reported_position_is_rejected(): void
+    {
+        $this->video->update(['duration_seconds' => null]);
+
+        $this->actingAs($this->student, 'sanctum')
+            ->putJson("/api/v1/chapter-videos/{$this->video->id}/progress", ['position_seconds' => 50, 'duration_seconds' => 30])
+            ->assertOk();
+
+        $this->assertNull($this->video->refresh()->duration_seconds);
+    }
+
+    public function test_two_near_simultaneous_first_reports_for_a_new_pair_do_not_500_and_converge_to_one_row(): void
+    {
+        $raced = false;
+
+        ChapterVideoProgress::creating(function (ChapterVideoProgress $model) use (&$raced) {
+            if ($raced) {
+                return;
+            }
+
+            $raced = true;
+
+            // Simulate a competing request winning the insert race between
+            // this request's firstOrNew() lookup and its save().
+            DB::table('chapter_video_progress')->insert([
+                'chapter_video_id' => $model->chapter_video_id,
+                'user_id' => $model->user_id,
+                'status' => 'in_progress',
+                'max_position_seconds' => 5,
+                'started_at' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        });
+
+        try {
+            $this->actingAs($this->student, 'sanctum')
+                ->putJson("/api/v1/chapter-videos/{$this->video->id}/progress", ['position_seconds' => 10])
+                ->assertOk();
+
+            $this->assertSame(
+                1,
+                ChapterVideoProgress::where('chapter_video_id', $this->video->id)->where('user_id', $this->student->id)->count()
+            );
+        } finally {
+            // This test registers a model-wide event listener; unregister
+            // it so it doesn't leak into other tests in the same run.
+            ChapterVideoProgress::flushEventListeners();
+        }
     }
 
     public function test_progress_is_scoped_to_the_authenticated_user_only(): void
