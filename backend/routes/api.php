@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BookController;
 use App\Http\Controllers\Api\V1\ChapterController;
 use App\Http\Controllers\Api\V1\ChapterMaterialController;
+use App\Http\Controllers\Api\V1\ChapterVideoController;
 use App\Http\Controllers\Api\V1\ClassController;
 use App\Http\Controllers\Api\V1\ClassroomController;
 use App\Http\Controllers\Api\V1\ClassRoutineController;
@@ -56,6 +57,7 @@ Route::prefix('v1')->group(function (): void {
     Route::apiResource('books', BookController::class)->only(['index', 'show']);
     Route::apiResource('chapters', ChapterController::class)->only(['index', 'show']);
     Route::apiResource('chapter-materials', ChapterMaterialController::class)->only(['index', 'show']);
+    Route::apiResource('chapter-videos', ChapterVideoController::class)->only(['index', 'show']);
     Route::apiResource('academic-years', AcademicYearController::class)->only(['index', 'show']);
     Route::apiResource('classrooms', ClassroomController::class)->only(['index', 'show']);
     Route::apiResource('class-routines', ClassRoutineController::class)->only(['index', 'show']);
@@ -83,6 +85,9 @@ Route::prefix('v1')->group(function (): void {
 
         Route::apiResource('chapter-materials', ChapterMaterialController::class)->only(['store', 'update', 'destroy']);
         Route::post('/chapter-materials/{chapter_material}/download-link', [ChapterMaterialController::class, 'downloadLink']);
+
+        Route::patch('/chapter-videos/reorder', [ChapterVideoController::class, 'reorder']);
+        Route::apiResource('chapter-videos', ChapterVideoController::class)->only(['store', 'update', 'destroy']);
 
         Route::apiResource('classes', ClassController::class)->only(['store', 'update', 'destroy']);
         Route::put('/classes/{class}/subjects', [ClassController::class, 'updateSubjects']);

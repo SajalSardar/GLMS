@@ -27,7 +27,7 @@ class RolePermissionSeeder extends Seeder
 
             'district_officer' => [
                 'divisions.view', 'districts.view', 'upazilas.view', 'schools.view',
-                'classes.view', 'subjects.view', 'chapter_materials.view', 'books.view', 'chapters.view', 'academic_years.view',
+                'classes.view', 'subjects.view', 'chapter_videos.view', 'chapter_materials.view', 'books.view', 'chapters.view', 'academic_years.view',
                 'classrooms.view', 'class_routines.view',
                 'class_versions.view', 'shifts.view', 'sections.view',
                 'subject_teacher_assignments.view', 'timetable_entries.view',
@@ -38,7 +38,7 @@ class RolePermissionSeeder extends Seeder
                 'divisions.view', 'districts.view', 'upazilas.view',
                 'schools.view', 'schools.update',
                 'classes.view', 'classes.create', 'classes.update', 'classes.delete',
-                'subjects.view', 'chapter_materials.view', 'books.view', 'chapters.view',
+                'subjects.view', 'chapter_videos.view', 'chapter_materials.view', 'books.view', 'chapters.view',
                 'academic_years.view', 'academic_years.create', 'academic_years.update', 'academic_years.delete',
                 'classrooms.view', 'classrooms.create', 'classrooms.update', 'classrooms.delete',
                 'class_routines.view', 'class_routines.create', 'class_routines.update', 'class_routines.delete',
@@ -57,14 +57,14 @@ class RolePermissionSeeder extends Seeder
 
             'teacher' => [
                 'divisions.view', 'districts.view', 'upazilas.view', 'schools.view',
-                'classes.view', 'subjects.view', 'chapter_materials.view', 'books.view', 'chapters.view', 'academic_years.view',
+                'classes.view', 'subjects.view', 'chapter_videos.view', 'chapter_materials.view', 'books.view', 'chapters.view', 'academic_years.view',
                 'classrooms.view', 'class_routines.view',
                 'class_versions.view', 'shifts.view', 'sections.view', 'subject_teacher_assignments.view',
                 'teacher_profiles.view', 'student_profiles.view',
             ],
 
             'student' => [
-                'schools.view', 'classes.view', 'subjects.view', 'chapter_materials.view', 'books.view', 'chapters.view', 'academic_years.view',
+                'schools.view', 'classes.view', 'subjects.view', 'chapter_videos.view', 'chapter_materials.view', 'books.view', 'chapters.view', 'academic_years.view',
                 'classrooms.view', 'class_routines.view',
                 'class_versions.view', 'shifts.view', 'sections.view',
                 'student_profiles.view',
@@ -75,6 +75,7 @@ class RolePermissionSeeder extends Seeder
                 'classes.view', 'academic_years.view', 'classrooms.view', 'class_routines.view',
                 'class_versions.view', 'shifts.view', 'sections.view', 'subject_teacher_assignments.view',
                 'subjects.view', 'subjects.create', 'subjects.update',
+                'chapter_videos.view', 'chapter_videos.create', 'chapter_videos.update',
                 'chapter_materials.view', 'chapter_materials.create', 'chapter_materials.update',
                 'books.view', 'books.create', 'books.update',
                 'chapters.view', 'chapters.create', 'chapters.update',
@@ -83,7 +84,7 @@ class RolePermissionSeeder extends Seeder
 
             'office_staff' => [
                 'divisions.view', 'districts.view', 'upazilas.view', 'schools.view',
-                'classes.view', 'subjects.view', 'chapter_materials.view', 'books.view', 'chapters.view', 'academic_years.view',
+                'classes.view', 'subjects.view', 'chapter_videos.view', 'chapter_materials.view', 'books.view', 'chapters.view', 'academic_years.view',
                 'classrooms.view', 'class_routines.view',
                 'class_versions.view', 'shifts.view', 'sections.view', 'subject_teacher_assignments.view',
                 'teacher_profiles.view', 'student_profiles.view',
@@ -91,7 +92,7 @@ class RolePermissionSeeder extends Seeder
             ],
 
             'parent_guardian' => [
-                'schools.view', 'classes.view', 'subjects.view', 'chapter_materials.view', 'books.view', 'chapters.view', 'academic_years.view',
+                'schools.view', 'classes.view', 'subjects.view', 'chapter_videos.view', 'chapter_materials.view', 'books.view', 'chapters.view', 'academic_years.view',
                 'classrooms.view', 'class_routines.view',
                 'class_versions.view', 'shifts.view', 'sections.view',
                 'student_profiles.view', 'guardians.view',
@@ -99,14 +100,14 @@ class RolePermissionSeeder extends Seeder
 
             'it_admin' => [
                 'divisions.view', 'districts.view', 'upazilas.view', 'schools.view',
-                'classes.view', 'subjects.view', 'chapter_materials.view', 'books.view', 'chapters.view', 'academic_years.view',
+                'classes.view', 'subjects.view', 'chapter_videos.view', 'chapter_materials.view', 'books.view', 'chapters.view', 'academic_years.view',
                 'classrooms.view', 'class_routines.view',
                 'class_versions.view', 'shifts.view', 'sections.view',
             ],
 
             'auditor' => [
                 'divisions.view', 'districts.view', 'upazilas.view', 'schools.view',
-                'classes.view', 'subjects.view', 'chapter_materials.view', 'books.view', 'chapters.view', 'academic_years.view',
+                'classes.view', 'subjects.view', 'chapter_videos.view', 'chapter_materials.view', 'books.view', 'chapters.view', 'academic_years.view',
                 'classrooms.view', 'class_routines.view',
                 'class_versions.view', 'shifts.view', 'sections.view',
                 'subject_teacher_assignments.view', 'timetable_entries.view',

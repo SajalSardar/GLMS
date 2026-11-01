@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\AcademicYearController;
 use App\Http\Controllers\Api\V1\BookController;
 use App\Http\Controllers\Api\V1\ChapterController;
 use App\Http\Controllers\Api\V1\ChapterMaterialController;
+use App\Http\Controllers\Api\V1\ChapterVideoController;
 use App\Http\Controllers\Api\V1\ClassController;
 use App\Http\Controllers\Api\V1\ClassroomController;
 use App\Http\Controllers\Api\V1\ClassRoutineController;
@@ -78,6 +79,11 @@ class ControllerAuthorizationConventionTest extends TestCase
             [ChapterMaterialController::class, 'store'],
             [ChapterMaterialController::class, 'update'],
             [ChapterMaterialController::class, 'destroy'],
+
+            [ChapterVideoController::class, 'store'],
+            [ChapterVideoController::class, 'update'],
+            [ChapterVideoController::class, 'destroy'],
+            [ChapterVideoController::class, 'reorder'],
 
             [ChapterController::class, 'store'],
             [ChapterController::class, 'update'],
