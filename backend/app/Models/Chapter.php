@@ -38,4 +38,9 @@ class Chapter extends Model
     {
         return $this->hasMany(ChapterVideo::class)->orderBy('order_index');
     }
+
+    public function questions(): HasMany
+    {
+        return $this->hasMany(Question::class)->orderBy('order_index');
+    }
 }

@@ -1,0 +1,36 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     *
+     * No denormalized tenant columns here — question_options is always
+     * reached through its parent Question (question->options()), never
+     * queried standalone, same as chapter_video_progress.
+     */
+    public function up(): void
+    {
+        Schema::create('question_options', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('question_id')->constrained()->cascadeOnDelete();
+            $table->string('option_text');
+            $table->string('bn_option_text')->nullable();
+            $table->boolean('is_correct')->default(false);
+            $table->unsignedSmallInteger('order_index')->default(0);
+            $table->timestamps();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('question_options');
+    }
+};
