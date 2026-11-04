@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V1\ClassRoutineController;
 use App\Http\Controllers\Api\V1\ClassVersionController;
 use App\Http\Controllers\Api\V1\DistrictController;
 use App\Http\Controllers\Api\V1\DivisionController;
+use App\Http\Controllers\Api\V1\ExamController;
 use App\Http\Controllers\Api\V1\GuardianController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\PermissionController;
@@ -88,6 +89,9 @@ Route::prefix('v1')->group(function (): void {
         Route::patch('/questions/reorder', [QuestionController::class, 'reorder']);
         Route::post('/questions/import', [QuestionController::class, 'import']);
         Route::apiResource('questions', QuestionController::class)->only(['store', 'update', 'destroy']);
+
+        Route::apiResource('exams', ExamController::class);
+
         Route::post('/books/{book}/pdf', [BookController::class, 'uploadPdf']);
         Route::patch('/books/{book}/pdf/status', [BookController::class, 'updatePdfStatus']);
         Route::delete('/books/{book}/pdf', [BookController::class, 'deletePdf']);
