@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V1\ClassRoutineController;
 use App\Http\Controllers\Api\V1\ClassVersionController;
 use App\Http\Controllers\Api\V1\DistrictController;
 use App\Http\Controllers\Api\V1\DivisionController;
+use App\Http\Controllers\Api\V1\ExamAttemptController;
 use App\Http\Controllers\Api\V1\ExamController;
 use App\Http\Controllers\Api\V1\GuardianController;
 use App\Http\Controllers\Api\V1\HealthController;
@@ -94,6 +95,10 @@ Route::prefix('v1')->group(function (): void {
         Route::patch('/exams/{exam}/questions', [ExamController::class, 'setQuestions']);
         Route::patch('/exams/{exam}/random-chapters', [ExamController::class, 'setRandomChapters']);
         Route::post('/exams/{exam}/randomize', [ExamController::class, 'randomize']);
+
+        Route::post('/exams/{exam}/attempts', [ExamAttemptController::class, 'start']);
+        Route::get('/exams/{exam}/attempts', [ExamAttemptController::class, 'index']);
+        Route::get('/exam-attempts/{exam_attempt}', [ExamAttemptController::class, 'show']);
 
         Route::post('/books/{book}/pdf', [BookController::class, 'uploadPdf']);
         Route::patch('/books/{book}/pdf/status', [BookController::class, 'updatePdfStatus']);
