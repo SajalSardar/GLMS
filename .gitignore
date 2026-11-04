@@ -40,3 +40,5 @@ Thumbs.db
 
 # Claude Code session artifacts (not project content)
 .claude/
+
+/.superpowers/
