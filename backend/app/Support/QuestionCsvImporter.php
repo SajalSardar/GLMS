@@ -89,6 +89,11 @@ class QuestionCsvImporter
         }
 
         $marksRaw = trim((string) ($row['marks'] ?? ''));
+
+        if ($marksRaw !== '' && ! ctype_digit($marksRaw)) {
+            throw new InvalidArgumentException("marks must be a non-negative integer, got '{$marksRaw}'.");
+        }
+
         $marks = $marksRaw === '' ? 1 : (int) $marksRaw;
 
         $optionRows = [];

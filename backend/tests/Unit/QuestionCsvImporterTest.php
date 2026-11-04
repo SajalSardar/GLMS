@@ -72,6 +72,8 @@ class QuestionCsvImporterTest extends TestCase
             'true_false with 3 options' => [['question_type' => 'true_false', 'option_1' => 'True', 'option_2' => 'False', 'option_3' => 'Maybe', 'correct_options' => '1']],
             'mcq_single with 2 correct' => [['correct_options' => '1;2']],
             'unknown difficulty' => [['difficulty' => 'impossible']],
+            'non-numeric marks' => [['marks' => 'abc']],
+            'negative marks' => [['marks' => '-5']],
         ];
     }
 

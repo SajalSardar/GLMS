@@ -63,6 +63,13 @@ class QuestionController extends Controller
 
         while (($line = fgetcsv($handle)) !== false) {
             $rowNumber++;
+
+            if (count($line) !== count($header)) {
+                $rows[] = ['row' => $rowNumber, 'status' => 'error', 'message' => 'Row has a different number of columns than the header.'];
+
+                continue;
+            }
+
             $row = array_combine($header, $line);
 
             try {

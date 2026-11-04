@@ -85,6 +85,33 @@ class QuestionImportExportTest extends TestCase
         $this->assertDatabaseCount('questions', 1);
     }
 
+    public function test_import_reports_a_ragged_row_as_an_error_without_aborting(): void
+    {
+        $allowed = $this->actorWithPermissions(['questions.create'], $this->schoolA->id, $this->schoolA->district_id);
+
+        // The middle row is missing its trailing correct_options column
+        // (12 fields instead of the header's 13) — this must not crash
+        // array_combine() for the whole request; it must be recorded as
+        // a per-row error while the rows before and after it still import.
+        $csv = "chapter_id,question_type,question_text,bn_question_text,marks,difficulty,option_1,option_2,option_3,option_4,option_5,option_6,correct_options\n"
+            ."{$this->chapterA->id},mcq_single,What is 2+2?,,1,easy,3,4,,,,,2\n"
+            ."{$this->chapterA->id},mcq_single,Ragged row,,1,easy,3,4,,,,\n"
+            ."{$this->chapterA->id},mcq_single,What is 3+3?,,1,easy,5,6,,,,,2\n";
+
+        $response = $this->actingAs($allowed, 'sanctum')
+            ->post('/api/v1/questions/import', ['file' => $this->csvFile($csv)])
+            ->assertOk();
+
+        $response->assertJsonPath('imported', 2);
+        $response->assertJsonPath('failed', 1);
+        $response->assertJsonPath('rows.0.status', 'imported');
+        $response->assertJsonPath('rows.1.status', 'error');
+        $response->assertJsonPath('rows.1.message', 'Row has a different number of columns than the header.');
+        $response->assertJsonPath('rows.2.status', 'imported');
+
+        $this->assertDatabaseCount('questions', 2);
+    }
+
     public function test_import_cannot_target_a_chapter_outside_the_actors_tenant(): void
     {
         $allowed = $this->actorWithPermissions(['questions.create'], $this->schoolA->id, $this->schoolA->district_id);
