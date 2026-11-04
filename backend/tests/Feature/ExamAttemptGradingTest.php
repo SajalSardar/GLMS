@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Http\Controllers\Api\V1\ExamAttemptController;
+use App\Http\Requests\Api\V1\SaveExamAttemptAnswerRequest;
 use App\Http\Requests\Api\V1\SubmitExamAttemptRequest;
 use App\Models\AcademicYear;
 use App\Models\Book;
@@ -26,6 +27,9 @@ use App\Models\Subject;
 use App\Models\Upazila;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
+use ReflectionProperty;
 use Tests\TestCase;
 
 class ExamAttemptGradingTest extends TestCase
@@ -274,5 +278,78 @@ class ExamAttemptGradingTest extends TestCase
             1,
             ExamAttemptAnswer::where('exam_attempt_id', $attemptId)->where('question_id', $this->multiQuestion->id)->count()
         );
+    }
+
+    public function test_save_answer_handles_a_concurrent_double_finalize_without_crashing(): void
+    {
+        $this->exam->update(['time_limit_minutes' => 10]);
+        $attemptId = $this->actingAs($this->student, 'sanctum')->postJson("/api/v1/exams/{$this->exam->id}/attempts")->json('data.id');
+
+        $this->actingAs($this->student, 'sanctum')
+            ->putJson("/api/v1/exam-attempts/{$attemptId}/answers/{$this->singleQuestion->id}", ['selected_option_ids' => [$this->singleCorrectOptionId]])
+            ->assertOk();
+
+        ExamAttempt::where('id', $attemptId)->update(['started_at' => now()->subMinutes(20)]);
+
+        // Two independent in-memory copies of the same (now expired)
+        // attempt — standing in for two near-simultaneous requests past
+        // the deadline. Eager-loaded for the same reason as the
+        // submit()/show() race tests above: finalize()'s loadMissing()
+        // must not silently refresh $attemptB's stale "answers"
+        // collection.
+        $attemptA = ExamAttempt::with(['attemptQuestions.question.options', 'answers'])->find($attemptId);
+        $attemptB = ExamAttempt::with(['attemptQuestions.question.options', 'answers'])->find($attemptId);
+
+        $controller = app(ExamAttemptController::class);
+
+        // The first "request" wins the race and auto-finalizes normally.
+        $controller->show($attemptA);
+
+        // The second "request" still sees the stale in-memory
+        // in_progress/started_at it loaded before $attemptA committed, so
+        // saveAnswer()'s finalizeIfExpired() call also tries to finalize —
+        // the same unique-constraint collision as submit()/show(), which
+        // saveAnswer() must swallow too (via finalizeSafely()) instead of
+        // crashing with a 500.
+        $request = new SaveExamAttemptAnswerRequest;
+        $validator = Validator::make(['selected_option_ids' => [$this->singleCorrectOptionId]], $request->rules());
+        (new ReflectionProperty($request, 'validator'))->setValue($request, $validator);
+
+        $this->expectException(ValidationException::class);
+
+        try {
+            $controller->saveAnswer($request, $attemptB, $this->singleQuestion);
+        } finally {
+            $attempt = ExamAttempt::find($attemptId);
+            $this->assertSame('submitted', $attempt->status);
+            $this->assertSame(
+                1,
+                ExamAttemptAnswer::where('exam_attempt_id', $attemptId)->where('question_id', $this->multiQuestion->id)->count()
+            );
+        }
+    }
+
+    public function test_an_already_graded_attempt_survives_its_exam_and_question_being_soft_deleted(): void
+    {
+        $attemptId = $this->actingAs($this->student, 'sanctum')->postJson("/api/v1/exams/{$this->exam->id}/attempts")->json('data.id');
+
+        $this->actingAs($this->student, 'sanctum')
+            ->putJson("/api/v1/exam-attempts/{$attemptId}/answers/{$this->singleQuestion->id}", ['selected_option_ids' => [$this->singleCorrectOptionId]])
+            ->assertOk();
+
+        $this->actingAs($this->student, 'sanctum')->postJson("/api/v1/exam-attempts/{$attemptId}/submit")->assertOk();
+
+        $this->singleQuestion->delete();
+        $this->exam->delete();
+
+        $response = $this->actingAs($this->student, 'sanctum')
+            ->getJson("/api/v1/exam-attempts/{$attemptId}")
+            ->assertOk();
+
+        $response->assertJsonPath('data.status', 'submitted');
+        $response->assertJsonPath('data.score', 2);
+        $response->assertJsonPath('data.total_possible_marks', 5);
+        $response->assertJsonPath('data.passed', false);
+        $response->assertJsonPath('data.questions.0.is_correct', true);
     }
 }

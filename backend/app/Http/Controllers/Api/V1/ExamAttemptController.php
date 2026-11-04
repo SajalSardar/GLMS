@@ -92,7 +92,7 @@ class ExamAttemptController extends Controller
                     'exam_attempt_id' => $attempt->id,
                     'question_id' => $questionId,
                     'order_index' => $index,
-                    'marks' => $questions[$questionId]->marks,
+                    'marks' => $exam->selection_mode === 'per_attempt_random' ? $exam->marks_per_question : $questions[$questionId]->marks,
                 ]);
             }
 
@@ -124,9 +124,7 @@ class ExamAttemptController extends Controller
 
     public function saveAnswer(SaveExamAttemptAnswerRequest $request, ExamAttempt $exam_attempt, Question $question): JsonResponse
     {
-        if ($exam_attempt->finalizeIfExpired()) {
-            throw ValidationException::withMessages(['exam_attempt' => ['This attempt has already been finalized due to time expiry.']]);
-        }
+        $this->finalizeSafely($exam_attempt, fn () => $exam_attempt->finalizeIfExpired());
 
         if ($exam_attempt->status !== 'in_progress') {
             throw ValidationException::withMessages(['exam_attempt' => ['This attempt is no longer in progress.']]);

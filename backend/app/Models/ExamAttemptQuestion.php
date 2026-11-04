@@ -25,6 +25,6 @@ class ExamAttemptQuestion extends Model
 
     public function question(): BelongsTo
     {
-        return $this->belongsTo(Question::class);
+        return $this->belongsTo(Question::class)->withTrashed();
     }
 }

@@ -132,13 +132,53 @@ class ExamAttemptControllerTest extends TestCase
         $this->actingAs($student, 'sanctum')->postJson("/api/v1/exams/{$this->manualExam->id}/attempts")->assertUnprocessable();
     }
 
-    public function test_per_attempt_random_start_performs_the_draw_and_rejects_a_too_small_pool(): void
+    public function test_per_attempt_random_start_rejects_a_too_small_pool(): void
     {
         $exam = Exam::create(['class_version_id' => $this->version->id, 'subject_id' => $this->subject->id, 'academic_year_id' => $this->academicYear->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Final', 'selection_mode' => 'per_attempt_random', 'random_question_count' => 5, 'marks_per_question' => 2, 'status' => 'published']);
         $student = $this->eligibleStudent();
 
         $this->actingAs($student, 'sanctum')
             ->postJson("/api/v1/exams/{$exam->id}/attempts")
+            ->assertUnprocessable();
+    }
+
+    public function test_per_attempt_random_start_performs_the_draw_and_snapshots_marks_per_question(): void
+    {
+        foreach (range(1, 5) as $i) {
+            Question::create(['chapter_id' => $this->chapter->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'question_type' => 'mcq_single', 'question_text' => "Random Q{$i}", 'marks' => $i + 10]);
+        }
+
+        $exam = Exam::create(['class_version_id' => $this->version->id, 'subject_id' => $this->subject->id, 'academic_year_id' => $this->academicYear->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Final', 'selection_mode' => 'per_attempt_random', 'random_question_count' => 3, 'marks_per_question' => 2, 'status' => 'published']);
+        $student = $this->eligibleStudent();
+
+        $response = $this->actingAs($student, 'sanctum')
+            ->postJson("/api/v1/exams/{$exam->id}/attempts")
+            ->assertCreated();
+
+        $response->assertJsonCount(3, 'data.questions');
+
+        foreach ($response->json('data.questions') as $attemptQuestion) {
+            $this->assertSame(2, $attemptQuestion['marks']);
+        }
+    }
+
+    public function test_start_is_rejected_when_available_from_is_in_the_future(): void
+    {
+        $this->manualExam->update(['available_from' => now()->addDay()]);
+        $student = $this->eligibleStudent();
+
+        $this->actingAs($student, 'sanctum')
+            ->postJson("/api/v1/exams/{$this->manualExam->id}/attempts")
+            ->assertUnprocessable();
+    }
+
+    public function test_start_is_rejected_when_available_until_is_in_the_past(): void
+    {
+        $this->manualExam->update(['available_until' => now()->subDay()]);
+        $student = $this->eligibleStudent();
+
+        $this->actingAs($student, 'sanctum')
+            ->postJson("/api/v1/exams/{$this->manualExam->id}/attempts")
             ->assertUnprocessable();
     }
 
