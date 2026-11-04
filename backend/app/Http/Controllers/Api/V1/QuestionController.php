@@ -12,6 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -55,7 +56,7 @@ class QuestionController extends Controller
         if ($request->hasFile('image')) {
             $disk = config('content.question_image_disk');
             $file = $request->file('image');
-            $data['image_path'] = $file->storeAs("questions/{$chapter->id}", Str::uuid().'.'.$file->getClientOriginalExtension(), $disk);
+            $data['image_path'] = $file->storeAs("questions/{$chapter->id}", Str::uuid().'.'.$this->imageExtension($file), $disk);
             $data['image_disk'] = $disk;
         }
 
@@ -80,7 +81,7 @@ class QuestionController extends Controller
 
             $disk = config('content.question_image_disk');
             $file = $request->file('image');
-            $data['image_path'] = $file->storeAs("questions/{$question->chapter_id}", Str::uuid().'.'.$file->getClientOriginalExtension(), $disk);
+            $data['image_path'] = $file->storeAs("questions/{$question->chapter_id}", Str::uuid().'.'.$this->imageExtension($file), $disk);
             $data['image_disk'] = $disk;
         }
 
@@ -104,6 +105,25 @@ class QuestionController extends Controller
         $question->delete();
 
         return response()->noContent();
+    }
+
+    /**
+     * Derive the stored file extension from the validated MIME type rather
+     * than the client-supplied original filename — the original filename
+     * is attacker-controlled, so trusting its extension (e.g. "shell.php")
+     * could get a non-.jpg/.png file saved on the public disk under an
+     * executable extension even though its content passed image
+     * validation. The default branch is defensive only: the
+     * mimes:jpg,jpeg,png rule on the request already guarantees one of
+     * these two MIME types by the time this method runs.
+     */
+    private function imageExtension(UploadedFile $file): string
+    {
+        return match ($file->getMimeType()) {
+            'image/jpeg' => 'jpg',
+            'image/png' => 'png',
+            default => abort(422, 'Unsupported image type'),
+        };
     }
 
     /**

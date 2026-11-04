@@ -194,4 +194,44 @@ class QuestionControllerTest extends TestCase
         $this->actingAs($allowed, 'sanctum')->deleteJson("/api/v1/questions/{$question->id}")->assertNoContent();
         Storage::disk('public')->assertMissing($question->image_path);
     }
+
+    public function test_stored_image_extension_is_derived_from_file_content_not_the_client_supplied_filename(): void
+    {
+        Storage::fake('public');
+
+        $allowed = $this->actorWithPermissions(['questions.create', 'questions.update'], $this->schoolA->id, $this->schoolA->district_id);
+
+        // ".php" itself can't reach the controller at all here: Laravel's
+        // own `mimes` rule has a hardcoded guard (shouldBlockPhpUpload)
+        // that rejects a client filename ending in .php/.php3-8/.phtml/
+        // .phar outright, independent of content. ".pht" is a real,
+        // historically-used alternate PHP-execution extension on
+        // misconfigured Apache setups that ISN'T in that hardcoded list,
+        // so it sails through validation once the (genuine, validated)
+        // MIME type is an allowed image type — exactly the attacker
+        // scenario: real image bytes, a dangerous original filename.
+        // getClientOriginalExtension() would trust that filename; the
+        // fix must instead derive the stored extension from the real,
+        // validated MIME type via ->mimeType().
+        $maliciousImage = UploadedFile::fake()->image('shell.pht')->mimeType('image/jpeg');
+
+        $response = $this->actingAs($allowed, 'sanctum')->post('/api/v1/questions', array_merge(
+            $this->mcqPayload(),
+            ['image' => $maliciousImage]
+        ))->assertCreated();
+
+        $question = Question::findOrFail($response->json('data.id'));
+        $this->assertStringEndsWith('.jpg', $question->image_path);
+        Storage::disk('public')->assertExists($question->image_path);
+
+        $secondMaliciousImage = UploadedFile::fake()->image('backdoor.pht')->mimeType('image/png');
+
+        $this->actingAs($allowed, 'sanctum')
+            ->put("/api/v1/questions/{$question->id}", ['image' => $secondMaliciousImage])
+            ->assertOk();
+
+        $question->refresh();
+        $this->assertStringEndsWith('.png', $question->image_path);
+        Storage::disk('public')->assertExists($question->image_path);
+    }
 }
