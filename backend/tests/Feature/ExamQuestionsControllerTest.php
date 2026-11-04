@@ -77,6 +77,23 @@ class ExamQuestionsControllerTest extends TestCase
         return $ids;
     }
 
+    private function createQuestionsInChapter(Chapter $chapter, int $count): array
+    {
+        $ids = [];
+
+        for ($i = 0; $i < $count; $i++) {
+            $ids[] = Question::create([
+                'chapter_id' => $chapter->id,
+                'school_id' => $chapter->school_id,
+                'district_id' => $chapter->district_id,
+                'question_type' => 'mcq_single',
+                'question_text' => "Chapter {$chapter->id} Question {$i}",
+            ])->id;
+        }
+
+        return $ids;
+    }
+
     public function test_set_questions_stores_the_ordered_list(): void
     {
         [$q1, $q2] = $this->createQuestions(2);
@@ -162,5 +179,79 @@ class ExamQuestionsControllerTest extends TestCase
         $this->actingAs($allowed, 'sanctum')
             ->postJson("/api/v1/exams/{$this->manualExam->id}/randomize")
             ->assertUnprocessable();
+    }
+
+    public function test_randomize_narrows_the_pool_to_allowed_chapters_only(): void
+    {
+        $chapterB = Chapter::create(['book_id' => $this->chapterA->book_id, 'school_id' => $this->chapterA->school_id, 'district_id' => $this->chapterA->district_id, 'name' => 'Chapter 2']);
+
+        $excludedIds = $this->createQuestions(5); // chapterA — excluded by the allow-list below.
+        $allowedIds = $this->createQuestionsInChapter($chapterB, 5);
+
+        $this->fixedRandomExam->randomChapters()->attach($chapterB->id);
+
+        $allowed = $this->actorWithPermissions(['exams.update'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $response = $this->actingAs($allowed, 'sanctum')
+            ->postJson("/api/v1/exams/{$this->fixedRandomExam->id}/randomize")
+            ->assertOk();
+
+        $drawnIds = collect($response->json('data.questions'))->pluck('question.id')->all();
+
+        $this->assertCount(2, $drawnIds);
+        $this->assertEmpty(array_intersect($drawnIds, $excludedIds));
+        $this->assertEmpty(array_diff($drawnIds, $allowedIds));
+    }
+
+    public function test_randomize_draws_from_any_chapter_when_no_random_chapters_are_configured(): void
+    {
+        $chapterB = Chapter::create(['book_id' => $this->chapterA->book_id, 'school_id' => $this->chapterA->school_id, 'district_id' => $this->chapterA->district_id, 'name' => 'Chapter 2']);
+
+        $chapterAIds = $this->createQuestions(10);
+        $chapterBIds = $this->createQuestionsInChapter($chapterB, 10);
+
+        $this->fixedRandomExam->update(['random_question_count' => 10]);
+
+        $allowed = $this->actorWithPermissions(['exams.update'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $response = $this->actingAs($allowed, 'sanctum')
+            ->postJson("/api/v1/exams/{$this->fixedRandomExam->id}/randomize")
+            ->assertOk();
+
+        $drawnIds = collect($response->json('data.questions'))->pluck('question.id')->all();
+
+        // No exam_random_chapters row is configured, so the pool spans
+        // both chapters under the subject. With 10 drawn from a 20-item
+        // pool split evenly across two chapters, the odds of a correct
+        // implementation drawing exclusively from one chapter are
+        // astronomically small (~1/184,756) — this would reliably catch
+        // a reversed/absent chapter allow-list check.
+        $this->assertNotEmpty(array_intersect($drawnIds, $chapterAIds));
+        $this->assertNotEmpty(array_intersect($drawnIds, $chapterBIds));
+    }
+
+    public function test_randomize_produces_varying_draws_across_repeated_calls(): void
+    {
+        $this->createQuestions(20);
+        $this->fixedRandomExam->update(['random_question_count' => 5]);
+
+        $allowed = $this->actorWithPermissions(['exams.update'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $draws = [];
+
+        for ($i = 0; $i < 10; $i++) {
+            $response = $this->actingAs($allowed, 'sanctum')
+                ->postJson("/api/v1/exams/{$this->fixedRandomExam->id}/randomize")
+                ->assertOk();
+
+            $ids = collect($response->json('data.questions'))->pluck('question.id')->sort()->values()->all();
+            $draws[] = implode(',', $ids);
+        }
+
+        // Drawing 5 of 20 questions 10 times gives C(20,5) = 15,504
+        // possible sets — a deterministic "always the first N by id" bug
+        // would produce the exact same set every time, which this would
+        // catch with overwhelming probability.
+        $this->assertGreaterThan(1, count(array_unique($draws)), 'Expected randomize() to produce varying draws across repeated calls.');
     }
 }
