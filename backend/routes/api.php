@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\V1\DivisionController;
 use App\Http\Controllers\Api\V1\GuardianController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\PermissionController;
+use App\Http\Controllers\Api\V1\QuestionController;
 use App\Http\Controllers\Api\V1\RoleController;
 use App\Http\Controllers\Api\V1\SchoolController;
 use App\Http\Controllers\Api\V1\SectionController;
@@ -56,6 +57,7 @@ Route::prefix('v1')->group(function (): void {
     Route::apiResource('classes', ClassController::class)->only(['index', 'show']);
     Route::apiResource('books', BookController::class)->only(['index', 'show']);
     Route::apiResource('chapters', ChapterController::class)->only(['index', 'show']);
+    Route::apiResource('questions', QuestionController::class)->only(['index', 'show']);
     Route::apiResource('chapter-materials', ChapterMaterialController::class)->only(['index', 'show']);
     Route::apiResource('chapter-videos', ChapterVideoController::class)->only(['index', 'show']);
     Route::apiResource('academic-years', AcademicYearController::class)->only(['index', 'show']);
@@ -78,6 +80,7 @@ Route::prefix('v1')->group(function (): void {
         Route::apiResource('subjects', SubjectController::class)->only(['store', 'update', 'destroy']);
         Route::apiResource('books', BookController::class)->only(['store', 'update', 'destroy']);
         Route::apiResource('chapters', ChapterController::class)->only(['store', 'update', 'destroy']);
+        Route::apiResource('questions', QuestionController::class)->only(['store', 'update', 'destroy']);
         Route::post('/books/{book}/pdf', [BookController::class, 'uploadPdf']);
         Route::patch('/books/{book}/pdf/status', [BookController::class, 'updatePdfStatus']);
         Route::delete('/books/{book}/pdf', [BookController::class, 'deletePdf']);
