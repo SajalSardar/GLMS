@@ -234,4 +234,40 @@ class QuestionControllerTest extends TestCase
         $this->assertStringEndsWith('.png', $question->image_path);
         Storage::disk('public')->assertExists($question->image_path);
     }
+
+    public function test_reorder_sets_order_index_from_the_given_sequence(): void
+    {
+        $allowed = $this->actorWithPermissions(['questions.create', 'questions.update'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $first = Question::create(['chapter_id' => $this->chapterA->id, 'school_id' => $this->chapterA->school_id, 'district_id' => $this->chapterA->district_id, 'question_type' => 'mcq_single', 'question_text' => 'First', 'order_index' => 0]);
+        $second = Question::create(['chapter_id' => $this->chapterA->id, 'school_id' => $this->chapterA->school_id, 'district_id' => $this->chapterA->district_id, 'question_type' => 'mcq_single', 'question_text' => 'Second', 'order_index' => 1]);
+
+        $this->actingAs($allowed, 'sanctum')
+            ->patchJson('/api/v1/questions/reorder', ['chapter_id' => $this->chapterA->id, 'ordered_ids' => [$second->id, $first->id]])
+            ->assertOk();
+
+        $this->assertSame(0, $second->refresh()->order_index);
+        $this->assertSame(1, $first->refresh()->order_index);
+    }
+
+    public function test_reorder_rejects_an_id_from_a_different_chapter(): void
+    {
+        $allowed = $this->actorWithPermissions(['questions.update'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $foreign = Question::create(['chapter_id' => $this->chapterB->id, 'school_id' => $this->chapterB->school_id, 'district_id' => $this->chapterB->district_id, 'question_type' => 'mcq_single', 'question_text' => 'Foreign']);
+        $own = Question::create(['chapter_id' => $this->chapterA->id, 'school_id' => $this->chapterA->school_id, 'district_id' => $this->chapterA->district_id, 'question_type' => 'mcq_single', 'question_text' => 'Own']);
+
+        $this->actingAs($allowed, 'sanctum')
+            ->patchJson('/api/v1/questions/reorder', ['chapter_id' => $this->chapterA->id, 'ordered_ids' => [$own->id, $foreign->id]])
+            ->assertUnprocessable();
+    }
+
+    public function test_reorder_is_forbidden_without_update_permission(): void
+    {
+        $denied = $this->actorWithNoPermissions($this->schoolA->id, $this->schoolA->district_id);
+
+        $this->actingAs($denied, 'sanctum')
+            ->patchJson('/api/v1/questions/reorder', ['chapter_id' => $this->chapterA->id, 'ordered_ids' => []])
+            ->assertForbidden();
+    }
 }

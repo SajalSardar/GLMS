@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\V1\ReorderQuestionsRequest;
 use App\Http\Requests\Api\V1\StoreQuestionRequest;
 use App\Http\Requests\Api\V1\UpdateQuestionRequest;
 use App\Http\Resources\Api\V1\QuestionResource;
@@ -33,6 +34,19 @@ class QuestionController extends Controller
             ->get();
 
         return QuestionResource::collection($questions);
+    }
+
+    public function reorder(ReorderQuestionsRequest $request): JsonResponse
+    {
+        $this->authorize('reorder', Question::class);
+
+        DB::transaction(function () use ($request) {
+            foreach ($request->validated()['ordered_ids'] as $index => $id) {
+                Question::where('id', $id)->where('chapter_id', $request->validated()['chapter_id'])->update(['order_index' => $index]);
+            }
+        });
+
+        return response()->json(['message' => 'Reordered.']);
     }
 
     public function show(Question $question): QuestionResource

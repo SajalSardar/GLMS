@@ -80,6 +80,7 @@ Route::prefix('v1')->group(function (): void {
         Route::apiResource('subjects', SubjectController::class)->only(['store', 'update', 'destroy']);
         Route::apiResource('books', BookController::class)->only(['store', 'update', 'destroy']);
         Route::apiResource('chapters', ChapterController::class)->only(['store', 'update', 'destroy']);
+        Route::patch('/questions/reorder', [QuestionController::class, 'reorder']);
         Route::apiResource('questions', QuestionController::class)->only(['store', 'update', 'destroy']);
         Route::post('/books/{book}/pdf', [BookController::class, 'uploadPdf']);
         Route::patch('/books/{book}/pdf/status', [BookController::class, 'updatePdfStatus']);
