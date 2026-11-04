@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\V1\ImportQuestionsRequest;
 use App\Http\Requests\Api\V1\ReorderQuestionsRequest;
 use App\Http\Requests\Api\V1\StoreQuestionRequest;
 use App\Http\Requests\Api\V1\UpdateQuestionRequest;
 use App\Http\Resources\Api\V1\QuestionResource;
 use App\Models\Chapter;
 use App\Models\Question;
+use App\Support\QuestionCsvImporter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -17,6 +19,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 
 class QuestionController extends Controller
 {
@@ -47,6 +50,57 @@ class QuestionController extends Controller
         });
 
         return response()->json(['message' => 'Reordered.']);
+    }
+
+    public function import(ImportQuestionsRequest $request): JsonResponse
+    {
+        $handle = fopen($request->file('file')->getRealPath(), 'r');
+        $header = fgetcsv($handle);
+
+        $imported = 0;
+        $rows = [];
+        $rowNumber = 1;
+
+        while (($line = fgetcsv($handle)) !== false) {
+            $rowNumber++;
+            $row = array_combine($header, $line);
+
+            try {
+                $parsed = QuestionCsvImporter::parseRow($row);
+                $chapter = Chapter::find($parsed['question']['chapter_id']);
+
+                if (! $chapter) {
+                    throw new InvalidArgumentException('chapter_id does not exist or is not accessible.');
+                }
+
+                $question = DB::transaction(function () use ($parsed, $chapter) {
+                    $question = Question::create([
+                        ...$parsed['question'],
+                        'school_id' => $chapter->school_id,
+                        'district_id' => $chapter->district_id,
+                    ]);
+
+                    foreach ($parsed['options'] as $option) {
+                        $question->options()->create($option);
+                    }
+
+                    return $question;
+                });
+
+                $imported++;
+                $rows[] = ['row' => $rowNumber, 'status' => 'imported', 'question_id' => $question->id];
+            } catch (InvalidArgumentException $e) {
+                $rows[] = ['row' => $rowNumber, 'status' => 'error', 'message' => $e->getMessage()];
+            }
+        }
+
+        fclose($handle);
+
+        return response()->json([
+            'imported' => $imported,
+            'failed' => count($rows) - $imported,
+            'rows' => $rows,
+        ]);
     }
 
     public function show(Question $question): QuestionResource
