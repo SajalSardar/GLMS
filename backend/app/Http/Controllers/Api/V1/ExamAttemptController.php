@@ -3,9 +3,12 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\V1\SaveExamAttemptAnswerRequest;
+use App\Http\Requests\Api\V1\SubmitExamAttemptRequest;
 use App\Http\Resources\Api\V1\ExamAttemptResource;
 use App\Models\Exam;
 use App\Models\ExamAttempt;
+use App\Models\ExamAttemptAnswer;
 use App\Models\ExamAttemptQuestion;
 use App\Models\Question;
 use Illuminate\Http\JsonResponse;
@@ -104,6 +107,8 @@ class ExamAttemptController extends Controller
     {
         $this->authorize('view', $exam_attempt);
 
+        $exam_attempt->finalizeIfExpired();
+
         return new ExamAttemptResource($exam_attempt->load(self::WITH));
     }
 
@@ -114,5 +119,40 @@ class ExamAttemptController extends Controller
         $attempts = $exam->attempts()->orderBy('user_id')->orderBy('attempt_number')->get();
 
         return ExamAttemptResource::collection($attempts);
+    }
+
+    public function saveAnswer(SaveExamAttemptAnswerRequest $request, ExamAttempt $exam_attempt, Question $question): JsonResponse
+    {
+        if ($exam_attempt->finalizeIfExpired()) {
+            throw ValidationException::withMessages(['exam_attempt' => ['This attempt has already been finalized due to time expiry.']]);
+        }
+
+        if ($exam_attempt->status !== 'in_progress') {
+            throw ValidationException::withMessages(['exam_attempt' => ['This attempt is no longer in progress.']]);
+        }
+
+        if (! $exam_attempt->attemptQuestions()->where('question_id', $question->id)->exists()) {
+            abort(404);
+        }
+
+        $answer = ExamAttemptAnswer::updateOrCreate(
+            ['exam_attempt_id' => $exam_attempt->id, 'question_id' => $question->id],
+            ['selected_option_ids' => $request->validated()['selected_option_ids']]
+        );
+
+        return response()->json([
+            'question_id' => $question->id,
+            'selected_option_ids' => $answer->selected_option_ids,
+            'saved_at' => $answer->updated_at,
+        ]);
+    }
+
+    public function submit(SubmitExamAttemptRequest $request, ExamAttempt $exam_attempt): ExamAttemptResource
+    {
+        if ($exam_attempt->status === 'in_progress') {
+            $exam_attempt->finalizeIfExpired() || $exam_attempt->finalize();
+        }
+
+        return new ExamAttemptResource($exam_attempt->load(self::WITH));
     }
 }
