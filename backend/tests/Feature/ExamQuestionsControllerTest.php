@@ -230,6 +230,92 @@ class ExamQuestionsControllerTest extends TestCase
         $this->assertNotEmpty(array_intersect($drawnIds, $chapterBIds));
     }
 
+    public function test_randomize_is_forbidden_for_an_actor_with_only_exams_view(): void
+    {
+        $this->createQuestions(5);
+        $actor = $this->actorWithPermissions(['exams.view'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $this->actingAs($actor, 'sanctum')
+            ->postJson("/api/v1/exams/{$this->fixedRandomExam->id}/randomize")
+            ->assertForbidden();
+    }
+
+    public function test_set_random_chapters_narrows_randomize_to_the_given_chapter(): void
+    {
+        $chapterB = Chapter::create(['book_id' => $this->chapterA->book_id, 'school_id' => $this->chapterA->school_id, 'district_id' => $this->chapterA->district_id, 'name' => 'Chapter 2']);
+
+        $excludedIds = $this->createQuestions(5); // chapterA — excluded by the allow-list set below.
+        $allowedIds = $this->createQuestionsInChapter($chapterB, 5);
+
+        $allowed = $this->actorWithPermissions(['exams.update'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $this->actingAs($allowed, 'sanctum')
+            ->patchJson("/api/v1/exams/{$this->fixedRandomExam->id}/random-chapters", ['chapter_ids' => [$chapterB->id]])
+            ->assertOk()
+            ->assertJsonCount(1, 'data.random_chapters')
+            ->assertJsonPath('data.random_chapters.0.id', $chapterB->id);
+
+        $response = $this->actingAs($allowed, 'sanctum')
+            ->postJson("/api/v1/exams/{$this->fixedRandomExam->id}/randomize")
+            ->assertOk();
+
+        $drawnIds = collect($response->json('data.questions'))->pluck('question.id')->all();
+
+        $this->assertCount(2, $drawnIds);
+        $this->assertEmpty(array_intersect($drawnIds, $excludedIds));
+        $this->assertEmpty(array_diff($drawnIds, $allowedIds));
+    }
+
+    public function test_set_random_chapters_rejects_a_chapter_from_an_unrelated_subject(): void
+    {
+        $otherSubject = Subject::create(['name' => 'Science']);
+        $otherBook = Book::create(['class_version_id' => $this->versionA->id, 'subject_id' => $otherSubject->id, 'school_id' => $this->versionA->school_id, 'district_id' => $this->versionA->district_id, 'name' => 'Science Book']);
+        $foreignChapter = Chapter::create(['book_id' => $otherBook->id, 'school_id' => $otherBook->school_id, 'district_id' => $otherBook->district_id, 'name' => 'Foreign Chapter']);
+
+        $allowed = $this->actorWithPermissions(['exams.update'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $this->actingAs($allowed, 'sanctum')
+            ->patchJson("/api/v1/exams/{$this->fixedRandomExam->id}/random-chapters", ['chapter_ids' => [$foreignChapter->id]])
+            ->assertUnprocessable();
+    }
+
+    public function test_set_random_chapters_is_rejected_for_a_manual_exam(): void
+    {
+        $allowed = $this->actorWithPermissions(['exams.update'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $this->actingAs($allowed, 'sanctum')
+            ->patchJson("/api/v1/exams/{$this->manualExam->id}/random-chapters", ['chapter_ids' => [$this->chapterA->id]])
+            ->assertUnprocessable();
+    }
+
+    public function test_set_random_chapters_with_an_empty_array_clears_a_previous_narrowing(): void
+    {
+        $chapterB = Chapter::create(['book_id' => $this->chapterA->book_id, 'school_id' => $this->chapterA->school_id, 'district_id' => $this->chapterA->district_id, 'name' => 'Chapter 2']);
+
+        $chapterAIds = $this->createQuestions(10);
+        $chapterBIds = $this->createQuestionsInChapter($chapterB, 10);
+
+        $this->fixedRandomExam->randomChapters()->attach($chapterB->id);
+        $this->fixedRandomExam->update(['random_question_count' => 10]);
+
+        $allowed = $this->actorWithPermissions(['exams.update'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $this->actingAs($allowed, 'sanctum')
+            ->patchJson("/api/v1/exams/{$this->fixedRandomExam->id}/random-chapters", ['chapter_ids' => []])
+            ->assertOk()
+            ->assertJsonCount(0, 'data.random_chapters');
+
+        $response = $this->actingAs($allowed, 'sanctum')
+            ->postJson("/api/v1/exams/{$this->fixedRandomExam->id}/randomize")
+            ->assertOk();
+
+        $drawnIds = collect($response->json('data.questions'))->pluck('question.id')->all();
+
+        // Narrowing cleared — the pool now spans both chapters again.
+        $this->assertNotEmpty(array_intersect($drawnIds, $chapterAIds));
+        $this->assertNotEmpty(array_intersect($drawnIds, $chapterBIds));
+    }
+
     public function test_randomize_produces_varying_draws_across_repeated_calls(): void
     {
         $this->createQuestions(20);

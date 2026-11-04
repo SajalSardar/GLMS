@@ -3,10 +3,14 @@
 namespace Tests\Feature;
 
 use App\Models\AcademicYear;
+use App\Models\Book;
+use App\Models\Chapter;
 use App\Models\ClassVersion;
 use App\Models\District;
 use App\Models\Division;
 use App\Models\Exam;
+use App\Models\Question;
+use App\Models\QuestionOption;
 use App\Models\School;
 use App\Models\SchoolClass;
 use App\Models\Subject;
@@ -161,5 +165,90 @@ class ExamControllerTest extends TestCase
         $this->actingAs($allowed, 'sanctum')
             ->putJson("/api/v1/exams/{$id}", ['status' => 'published'])
             ->assertUnprocessable();
+    }
+
+    public function test_publish_guard_reapplies_on_a_follow_up_update_with_no_status_in_the_body(): void
+    {
+        $book = Book::create(['class_version_id' => $this->versionA->id, 'subject_id' => $this->subject->id, 'school_id' => $this->versionA->school_id, 'district_id' => $this->versionA->district_id, 'name' => 'Mathematics Book']);
+        $chapter = Chapter::create(['book_id' => $book->id, 'school_id' => $book->school_id, 'district_id' => $book->district_id, 'name' => 'Chapter 1']);
+
+        // Exactly 2 matching questions available — pool size exactly 2.
+        Question::create(['chapter_id' => $chapter->id, 'school_id' => $chapter->school_id, 'district_id' => $chapter->district_id, 'question_type' => 'mcq_single', 'question_text' => 'Q1']);
+        Question::create(['chapter_id' => $chapter->id, 'school_id' => $chapter->school_id, 'district_id' => $chapter->district_id, 'question_type' => 'mcq_single', 'question_text' => 'Q2']);
+
+        $allowed = $this->actorWithPermissions(['exams.create', 'exams.update'], $this->schoolA->id, $this->schoolA->district_id);
+        $id = $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/exams', $this->examPayload([
+            'selection_mode' => 'per_attempt_random',
+            'random_question_count' => 2,
+            'marks_per_question' => 2,
+        ]))->json('data.id');
+
+        $this->actingAs($allowed, 'sanctum')
+            ->putJson("/api/v1/exams/{$id}", ['status' => 'published'])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'published');
+
+        // No `status` key in this second request's body — the guard must
+        // still re-run because the exam's resulting status is published.
+        $this->actingAs($allowed, 'sanctum')
+            ->putJson("/api/v1/exams/{$id}", ['random_question_count' => 5])
+            ->assertUnprocessable();
+    }
+
+    public function test_show_is_forbidden_for_an_actor_with_no_exams_permission(): void
+    {
+        $exam = Exam::create($this->examPayload() + ['school_id' => $this->versionA->school_id, 'district_id' => $this->versionA->district_id]);
+
+        $denied = $this->actorWithNoPermissions($this->schoolA->id, $this->schoolA->district_id);
+
+        $this->actingAs($denied, 'sanctum')
+            ->getJson("/api/v1/exams/{$exam->id}")
+            ->assertForbidden();
+    }
+
+    public function test_destroy_is_forbidden_without_exams_delete_permission(): void
+    {
+        $exam = Exam::create($this->examPayload() + ['school_id' => $this->versionA->school_id, 'district_id' => $this->versionA->district_id]);
+
+        $actor = $this->actorWithPermissions(['exams.update'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $this->actingAs($actor, 'sanctum')
+            ->deleteJson("/api/v1/exams/{$exam->id}")
+            ->assertForbidden();
+    }
+
+    public function test_destroy_succeeds_with_exams_delete_permission(): void
+    {
+        $exam = Exam::create($this->examPayload() + ['school_id' => $this->versionA->school_id, 'district_id' => $this->versionA->district_id]);
+
+        $actor = $this->actorWithPermissions(['exams.delete'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $this->actingAs($actor, 'sanctum')
+            ->deleteJson("/api/v1/exams/{$exam->id}")
+            ->assertNoContent();
+    }
+
+    public function test_is_correct_is_hidden_from_an_exam_viewer_without_questions_update(): void
+    {
+        $book = Book::create(['class_version_id' => $this->versionA->id, 'subject_id' => $this->subject->id, 'school_id' => $this->versionA->school_id, 'district_id' => $this->versionA->district_id, 'name' => 'Mathematics Book']);
+        $chapter = Chapter::create(['book_id' => $book->id, 'school_id' => $book->school_id, 'district_id' => $book->district_id, 'name' => 'Chapter 1']);
+        $question = Question::create(['chapter_id' => $chapter->id, 'school_id' => $chapter->school_id, 'district_id' => $chapter->district_id, 'question_type' => 'mcq_single', 'question_text' => 'What is 2+2?']);
+        QuestionOption::create(['question_id' => $question->id, 'option_text' => '4', 'is_correct' => true]);
+        QuestionOption::create(['question_id' => $question->id, 'option_text' => '3', 'is_correct' => false]);
+
+        $exam = Exam::create($this->examPayload() + ['school_id' => $this->versionA->school_id, 'district_id' => $this->versionA->district_id]);
+        $exam->questions()->attach($question->id, ['order_index' => 0]);
+
+        $viewer = $this->actorWithPermissions(['exams.view', 'questions.view'], $this->schoolA->id, $this->schoolA->district_id);
+        $response = $this->actingAs($viewer, 'sanctum')
+            ->getJson("/api/v1/exams/{$exam->id}")
+            ->assertOk();
+        $this->assertArrayNotHasKey('is_correct', $response->json('data.questions.0.question.options.0'));
+
+        $manager = $this->actorWithPermissions(['exams.view', 'questions.update'], $this->schoolA->id, $this->schoolA->district_id);
+        $response = $this->actingAs($manager, 'sanctum')
+            ->getJson("/api/v1/exams/{$exam->id}")
+            ->assertOk();
+        $this->assertArrayHasKey('is_correct', $response->json('data.questions.0.question.options.0'));
     }
 }

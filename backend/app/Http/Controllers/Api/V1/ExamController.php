@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\SetExamQuestionsRequest;
+use App\Http\Requests\Api\V1\SetExamRandomChaptersRequest;
 use App\Http\Requests\Api\V1\StoreExamRequest;
 use App\Http\Requests\Api\V1\UpdateExamRequest;
 use App\Http\Resources\Api\V1\ExamResource;
@@ -99,6 +100,15 @@ class ExamController extends Controller
                 $exam->questions()->attach($questionId, ['order_index' => $index]);
             }
         });
+
+        return new ExamResource($exam->load(self::WITH));
+    }
+
+    public function setRandomChapters(SetExamRandomChaptersRequest $request, Exam $exam): ExamResource
+    {
+        $this->authorize('update', $exam);
+
+        $exam->randomChapters()->sync($request->validated()['chapter_ids'] ?? []);
 
         return new ExamResource($exam->load(self::WITH));
     }

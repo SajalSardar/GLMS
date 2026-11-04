@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\V1\ClassRoutineController;
 use App\Http\Controllers\Api\V1\ClassVersionController;
 use App\Http\Controllers\Api\V1\DistrictController;
 use App\Http\Controllers\Api\V1\DivisionController;
+use App\Http\Controllers\Api\V1\ExamController;
 use App\Http\Controllers\Api\V1\GuardianController;
 use App\Http\Controllers\Api\V1\RoleController;
 use App\Http\Controllers\Api\V1\SchoolController;
@@ -114,6 +115,12 @@ class ControllerAuthorizationConventionTest extends TestCase
             [DivisionController::class, 'store'],
             [DivisionController::class, 'update'],
             [DivisionController::class, 'destroy'],
+
+            [ExamController::class, 'store'],
+            [ExamController::class, 'update'],
+            [ExamController::class, 'destroy'],
+            [ExamController::class, 'setQuestions'],
+            [ExamController::class, 'randomize'],
 
             [GuardianController::class, 'store'],
             [GuardianController::class, 'update'],

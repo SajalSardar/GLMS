@@ -59,11 +59,13 @@ class UpdateExamRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator) {
-            if ($this->input('status') !== 'published') {
+            $exam = $this->route('exam');
+
+            $status = $this->input('status', $exam->status);
+
+            if ($status !== 'published') {
                 return;
             }
-
-            $exam = $this->route('exam');
 
             if (in_array($exam->selection_mode, ['manual', 'fixed_random'], true)) {
                 if ($exam->questions()->count() === 0) {
