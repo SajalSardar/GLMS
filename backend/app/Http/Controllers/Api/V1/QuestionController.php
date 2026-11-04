@@ -11,6 +11,7 @@ use App\Http\Resources\Api\V1\QuestionResource;
 use App\Models\Chapter;
 use App\Models\Question;
 use App\Support\QuestionCsvImporter;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -58,6 +59,14 @@ class QuestionController extends Controller
         $handle = fopen($request->file('file')->getRealPath(), 'r');
         $header = fgetcsv($handle);
 
+        if ($header !== QuestionCsvImporter::HEADERS) {
+            fclose($handle);
+
+            return response()->json([
+                'message' => 'The CSV header row does not match the expected column order.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
         $imported = 0;
         $rows = [];
         $rowNumber = 1;
@@ -97,8 +106,12 @@ class QuestionController extends Controller
 
                 $imported++;
                 $rows[] = ['row' => $rowNumber, 'status' => 'imported', 'question_id' => $question->id];
-            } catch (InvalidArgumentException $e) {
-                $rows[] = ['row' => $rowNumber, 'status' => 'error', 'message' => $e->getMessage()];
+            } catch (InvalidArgumentException|QueryException $e) {
+                $message = $e instanceof QueryException
+                    ? 'Could not save this row: '.$e->getMessage()
+                    : $e->getMessage();
+
+                $rows[] = ['row' => $rowNumber, 'status' => 'error', 'message' => $message];
             }
         }
 
@@ -113,11 +126,15 @@ class QuestionController extends Controller
 
     public function export(Request $request): StreamedResponse
     {
-        $this->authorize('viewAny', Question::class);
+        $this->authorize('export', Question::class);
 
         $questions = Question::query()
             ->with('options')
             ->when($request->integer('chapter_id'), fn ($query, $id) => $query->where('chapter_id', $id))
+            ->when(
+                ! $request->user()?->hasPermission('questions.update'),
+                fn ($query) => $query->where('is_active', true)
+            )
             ->orderBy('chapter_id')
             ->orderBy('order_index')
             ->get();

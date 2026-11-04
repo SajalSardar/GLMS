@@ -57,6 +57,10 @@ Route::prefix('v1')->group(function (): void {
     Route::apiResource('classes', ClassController::class)->only(['index', 'show']);
     Route::apiResource('books', BookController::class)->only(['index', 'show']);
     Route::apiResource('chapters', ChapterController::class)->only(['index', 'show']);
+    // Must be registered before the apiResource's wildcard {question} show
+    // route below, or "export" would be matched as a question ID and
+    // routed to show() instead of export(). Requires auth despite sitting
+    // in this "public" section — see QuestionPolicy::export().
     Route::get('/questions/export', [QuestionController::class, 'export'])->middleware('auth:sanctum');
     Route::apiResource('questions', QuestionController::class)->only(['index', 'show']);
     Route::apiResource('chapter-materials', ChapterMaterialController::class)->only(['index', 'show']);

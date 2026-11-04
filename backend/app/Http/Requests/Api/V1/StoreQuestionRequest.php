@@ -33,7 +33,7 @@ class StoreQuestionRequest extends FormRequest
             'order_index' => ['sometimes', 'integer', 'min:0', 'max:1000'],
             'is_active' => ['sometimes', 'boolean'],
             'image' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'max:'.config('content.max_image_size_kb')],
-            'options' => ['required', 'array', 'min:2'],
+            'options' => ['required', 'array', 'min:2', 'max:6'],
             'options.*.option_text' => ['required', 'string', 'max:500'],
             'options.*.bn_option_text' => ['nullable', 'string', 'max:500'],
             'options.*.is_correct' => ['required', 'boolean'],

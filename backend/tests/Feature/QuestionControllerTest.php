@@ -128,6 +128,46 @@ class QuestionControllerTest extends TestCase
         ]))->assertUnprocessable();
     }
 
+    public function test_store_rejects_more_than_six_options(): void
+    {
+        $allowed = $this->actorWithPermissions(['questions.create'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/questions', $this->mcqPayload([
+            'question_type' => 'mcq_multiple',
+            'options' => [
+                ['option_text' => '1', 'is_correct' => true],
+                ['option_text' => '2', 'is_correct' => false],
+                ['option_text' => '3', 'is_correct' => false],
+                ['option_text' => '4', 'is_correct' => false],
+                ['option_text' => '5', 'is_correct' => false],
+                ['option_text' => '6', 'is_correct' => false],
+                ['option_text' => '7', 'is_correct' => false],
+            ],
+        ]))->assertUnprocessable();
+    }
+
+    public function test_update_reapplies_option_invariants_against_stored_options_when_only_question_type_changes(): void
+    {
+        $allowed = $this->actorWithPermissions(['questions.create', 'questions.update'], $this->schoolA->id, $this->schoolA->district_id);
+
+        // 3 options, 2 correct — valid for mcq_multiple.
+        $id = $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/questions', $this->mcqPayload([
+            'question_type' => 'mcq_multiple',
+            'options' => [
+                ['option_text' => '1', 'is_correct' => true],
+                ['option_text' => '2', 'is_correct' => true],
+                ['option_text' => '3', 'is_correct' => false],
+            ],
+        ]))->assertCreated()->json('data.id');
+
+        // Switching to mcq_single without resending options must still be
+        // checked against the stored options: 2 correct options is
+        // invalid for mcq_single (requires exactly 1).
+        $this->actingAs($allowed, 'sanctum')
+            ->patchJson("/api/v1/questions/{$id}", ['question_type' => 'mcq_single'])
+            ->assertUnprocessable();
+    }
+
     public function test_actor_with_permission_gets_404_updating_another_schools_question(): void
     {
         $question = Question::create([

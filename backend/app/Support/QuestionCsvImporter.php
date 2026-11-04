@@ -96,6 +96,15 @@ class QuestionCsvImporter
 
         $marks = $marksRaw === '' ? 1 : (int) $marksRaw;
 
+        // Matches the API's own StoreQuestionRequest marks ceiling
+        // (max:1000). ctype_digit() alone lets through values like 99999
+        // that would overflow the questions.marks unsignedSmallInteger
+        // column (max 65535) and throw a QueryException at the DB layer
+        // instead of being reported as a clean per-row error.
+        if ($marks > 1000) {
+            throw new InvalidArgumentException("marks must not exceed 1000, got '{$marksRaw}'.");
+        }
+
         $optionRows = [];
         $orderIndex = 0;
 

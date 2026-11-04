@@ -74,6 +74,7 @@ class QuestionCsvImporterTest extends TestCase
             'unknown difficulty' => [['difficulty' => 'impossible']],
             'non-numeric marks' => [['marks' => 'abc']],
             'negative marks' => [['marks' => '-5']],
+            'marks exceeds the 1000 ceiling' => [['marks' => '99999']],
         ];
     }
 

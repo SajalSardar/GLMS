@@ -46,4 +46,17 @@ class QuestionPolicy
     {
         return $user->hasPermission('questions.delete');
     }
+
+    /**
+     * The exported CSV's correct_options column names the correct
+     * answer(s) for every question — unlike on-screen viewing (where
+     * QuestionOptionResource strips is_correct), there is no way to
+     * redact the answer key from a downloaded file. questions.view is
+     * granted to students and other non-management roles, so exporting
+     * must gate on questions.update instead, same as reorder().
+     */
+    public function export(User $user): bool
+    {
+        return $user->hasPermission('questions.update');
+    }
 }

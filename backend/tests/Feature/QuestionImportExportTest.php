@@ -141,7 +141,7 @@ class QuestionImportExportTest extends TestCase
 
     public function test_export_produces_a_csv_that_reimports_cleanly(): void
     {
-        $allowed = $this->actorWithPermissions(['questions.create'], $this->schoolA->id, $this->schoolA->district_id);
+        $allowed = $this->actorWithPermissions(['questions.create', 'questions.update'], $this->schoolA->id, $this->schoolA->district_id);
 
         $csv = "chapter_id,question_type,question_text,bn_question_text,marks,difficulty,option_1,option_2,option_3,option_4,option_5,option_6,correct_options\n"
             ."{$this->chapterA->id},mcq_multiple,Which are even?,,3,hard,1,2,3,4,,,2;4\n";
@@ -151,8 +151,7 @@ class QuestionImportExportTest extends TestCase
             ->assertOk()
             ->assertJsonPath('imported', 1);
 
-        $viewer = $this->actorWithPermissions(['questions.view'], $this->schoolA->id, $this->schoolA->district_id);
-        $exported = $this->actingAs($viewer, 'sanctum')
+        $exported = $this->actingAs($allowed, 'sanctum')
             ->get("/api/v1/questions/export?chapter_id={$this->chapterA->id}")
             ->assertOk()
             ->streamedContent();
@@ -175,5 +174,51 @@ class QuestionImportExportTest extends TestCase
         $this->actingAs($denied, 'sanctum')
             ->get('/api/v1/questions/export')
             ->assertForbidden();
+    }
+
+    public function test_export_is_forbidden_for_a_view_only_actor(): void
+    {
+        // questions.view is granted to students and other non-management
+        // roles — the exported CSV's correct_options column names the
+        // answer key, so a view-only actor must not be able to reach it
+        // even though they can view questions on screen.
+        $viewer = $this->actorWithPermissions(['questions.view'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $this->actingAs($viewer, 'sanctum')
+            ->get('/api/v1/questions/export')
+            ->assertForbidden();
+    }
+
+    public function test_import_rejects_a_marks_value_that_overflows_the_column(): void
+    {
+        $allowed = $this->actorWithPermissions(['questions.create'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $csv = "chapter_id,question_type,question_text,bn_question_text,marks,difficulty,option_1,option_2,option_3,option_4,option_5,option_6,correct_options\n"
+            ."{$this->chapterA->id},mcq_single,Overflowing marks,,99999,easy,3,4,,,,,2\n";
+
+        $response = $this->actingAs($allowed, 'sanctum')
+            ->post('/api/v1/questions/import', ['file' => $this->csvFile($csv)])
+            ->assertOk();
+
+        $response->assertJsonPath('imported', 0);
+        $response->assertJsonPath('failed', 1);
+        $response->assertJsonPath('rows.0.status', 'error');
+        $this->assertDatabaseCount('questions', 0);
+    }
+
+    public function test_import_rejects_a_csv_with_a_malformed_header_row(): void
+    {
+        $allowed = $this->actorWithPermissions(['questions.create'], $this->schoolA->id, $this->schoolA->district_id);
+
+        // "marks" and "difficulty" are swapped relative to
+        // QuestionCsvImporter::HEADERS.
+        $csv = "chapter_id,question_type,question_text,bn_question_text,difficulty,marks,option_1,option_2,option_3,option_4,option_5,option_6,correct_options\n"
+            ."{$this->chapterA->id},mcq_single,What is 2+2?,,easy,1,3,4,,,,,2\n";
+
+        $this->actingAs($allowed, 'sanctum')
+            ->post('/api/v1/questions/import', ['file' => $this->csvFile($csv)])
+            ->assertStatus(422);
+
+        $this->assertDatabaseCount('questions', 0);
     }
 }
