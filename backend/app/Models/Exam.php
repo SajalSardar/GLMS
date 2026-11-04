@@ -7,7 +7,9 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Collection;
 
 class Exam extends Model
 {
@@ -73,6 +75,40 @@ class Exam extends Model
     public function randomChapters(): BelongsToMany
     {
         return $this->belongsToMany(Chapter::class, 'exam_random_chapters');
+    }
+
+    public function attempts(): HasMany
+    {
+        return $this->hasMany(ExamAttempt::class);
+    }
+
+    /**
+     * The single source of truth for "which questions can a
+     * fixed_random/per_attempt_random draw pick from": every chapter
+     * reachable through a book under this exam's (class_version_id,
+     * subject_id), optionally narrowed by exam_random_chapters,
+     * optionally filtered by random_difficulty. Used by both
+     * ExamController::randomize() and ExamAttemptController::start() —
+     * must not be duplicated a third time.
+     *
+     * @return Collection<int, int>
+     */
+    public function eligibleRandomQuestionIds(): Collection
+    {
+        $chapterIds = Chapter::query()
+            ->whereHas('book', fn ($query) => $query->where('class_version_id', $this->class_version_id)->where('subject_id', $this->subject_id))
+            ->pluck('id');
+
+        $allowedChapterIds = $this->randomChapters()->pluck('chapters.id');
+
+        if ($allowedChapterIds->isNotEmpty()) {
+            $chapterIds = $chapterIds->intersect($allowedChapterIds);
+        }
+
+        return Question::query()
+            ->whereIn('chapter_id', $chapterIds)
+            ->when($this->random_difficulty, fn ($query, $value) => $query->where('difficulty', $value))
+            ->pluck('id');
     }
 
     /**

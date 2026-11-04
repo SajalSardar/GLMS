@@ -9,10 +9,8 @@ use App\Http\Requests\Api\V1\StoreExamRequest;
 use App\Http\Requests\Api\V1\UpdateExamRequest;
 use App\Http\Resources\Api\V1\ExamResource;
 use App\Models\AcademicYear;
-use App\Models\Chapter;
 use App\Models\ClassVersion;
 use App\Models\Exam;
-use App\Models\Question;
 use App\Models\Subject;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -129,20 +127,7 @@ class ExamController extends Controller
             ]);
         }
 
-        $chapterIds = Chapter::query()
-            ->whereHas('book', fn ($query) => $query->where('class_version_id', $exam->class_version_id)->where('subject_id', $exam->subject_id))
-            ->pluck('id');
-
-        $allowedChapterIds = $exam->randomChapters()->pluck('chapters.id');
-
-        if ($allowedChapterIds->isNotEmpty()) {
-            $chapterIds = $chapterIds->intersect($allowedChapterIds);
-        }
-
-        $eligible = Question::query()
-            ->whereIn('chapter_id', $chapterIds)
-            ->when($exam->random_difficulty, fn ($query, $value) => $query->where('difficulty', $value))
-            ->pluck('id');
+        $eligible = $exam->eligibleRandomQuestionIds();
 
         if ($eligible->count() < $exam->random_question_count) {
             throw ValidationException::withMessages([
