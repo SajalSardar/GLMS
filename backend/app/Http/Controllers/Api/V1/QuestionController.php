@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class QuestionController extends Controller
 {
@@ -108,6 +109,33 @@ class QuestionController extends Controller
             'failed' => count($rows) - $imported,
             'rows' => $rows,
         ]);
+    }
+
+    public function export(Request $request): StreamedResponse
+    {
+        $this->authorize('viewAny', Question::class);
+
+        $questions = Question::query()
+            ->with('options')
+            ->when($request->integer('chapter_id'), fn ($query, $id) => $query->where('chapter_id', $id))
+            ->orderBy('chapter_id')
+            ->orderBy('order_index')
+            ->get();
+
+        return response()->streamDownload(
+            function () use ($questions) {
+                $handle = fopen('php://output', 'w');
+                fputcsv($handle, QuestionCsvImporter::HEADERS);
+
+                foreach ($questions as $question) {
+                    fputcsv($handle, QuestionCsvImporter::toRow($question));
+                }
+
+                fclose($handle);
+            },
+            'questions-export.csv',
+            ['Content-Type' => 'text/csv']
+        );
     }
 
     public function show(Question $question): QuestionResource

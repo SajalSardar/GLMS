@@ -138,4 +138,42 @@ class QuestionImportExportTest extends TestCase
             ->post('/api/v1/questions/import', ['file' => $this->csvFile($csv)])
             ->assertForbidden();
     }
+
+    public function test_export_produces_a_csv_that_reimports_cleanly(): void
+    {
+        $allowed = $this->actorWithPermissions(['questions.create'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $csv = "chapter_id,question_type,question_text,bn_question_text,marks,difficulty,option_1,option_2,option_3,option_4,option_5,option_6,correct_options\n"
+            ."{$this->chapterA->id},mcq_multiple,Which are even?,,3,hard,1,2,3,4,,,2;4\n";
+
+        $this->actingAs($allowed, 'sanctum')
+            ->post('/api/v1/questions/import', ['file' => $this->csvFile($csv)])
+            ->assertOk()
+            ->assertJsonPath('imported', 1);
+
+        $viewer = $this->actorWithPermissions(['questions.view'], $this->schoolA->id, $this->schoolA->district_id);
+        $exported = $this->actingAs($viewer, 'sanctum')
+            ->get("/api/v1/questions/export?chapter_id={$this->chapterA->id}")
+            ->assertOk()
+            ->streamedContent();
+
+        $this->assertDatabaseCount('questions', 1);
+
+        $reimported = $this->actingAs($allowed, 'sanctum')
+            ->post('/api/v1/questions/import', ['file' => $this->csvFile($exported)])
+            ->assertOk();
+
+        $reimported->assertJsonPath('imported', 1);
+        $reimported->assertJsonPath('failed', 0);
+        $this->assertDatabaseCount('questions', 2);
+    }
+
+    public function test_export_is_forbidden_without_view_permission(): void
+    {
+        $denied = $this->actorWithNoPermissions($this->schoolA->id, $this->schoolA->district_id);
+
+        $this->actingAs($denied, 'sanctum')
+            ->get('/api/v1/questions/export')
+            ->assertForbidden();
+    }
 }
