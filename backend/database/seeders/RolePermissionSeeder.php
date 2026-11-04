@@ -27,7 +27,7 @@ class RolePermissionSeeder extends Seeder
 
             'district_officer' => [
                 'divisions.view', 'districts.view', 'upazilas.view', 'schools.view',
-                'classes.view', 'subjects.view', 'chapter_videos.view', 'chapter_materials.view', 'books.view', 'chapters.view', 'questions.view', 'academic_years.view',
+                'classes.view', 'subjects.view', 'chapter_videos.view', 'chapter_materials.view', 'books.view', 'chapters.view', 'questions.view', 'exams.view', 'academic_years.view',
                 'classrooms.view', 'class_routines.view',
                 'class_versions.view', 'shifts.view', 'sections.view',
                 'subject_teacher_assignments.view', 'timetable_entries.view',
@@ -39,6 +39,7 @@ class RolePermissionSeeder extends Seeder
                 'schools.view', 'schools.update',
                 'classes.view', 'classes.create', 'classes.update', 'classes.delete',
                 'subjects.view', 'chapter_videos.view', 'chapter_materials.view', 'books.view', 'chapters.view', 'questions.view',
+                'exams.view', 'exams.create', 'exams.update',
                 'academic_years.view', 'academic_years.create', 'academic_years.update', 'academic_years.delete',
                 'classrooms.view', 'classrooms.create', 'classrooms.update', 'classrooms.delete',
                 'class_routines.view', 'class_routines.create', 'class_routines.update', 'class_routines.delete',
@@ -61,6 +62,7 @@ class RolePermissionSeeder extends Seeder
                 'classrooms.view', 'class_routines.view',
                 'class_versions.view', 'shifts.view', 'sections.view', 'subject_teacher_assignments.view',
                 'questions.view', 'questions.create', 'questions.update',
+                'exams.view', 'exams.create', 'exams.update',
                 'teacher_profiles.view', 'student_profiles.view',
             ],
 
@@ -81,6 +83,7 @@ class RolePermissionSeeder extends Seeder
                 'books.view', 'books.create', 'books.update',
                 'chapters.view', 'chapters.create', 'chapters.update',
                 'questions.view', 'questions.create', 'questions.update',
+                'exams.view', 'exams.create', 'exams.update',
                 'teacher_profiles.view',
             ],
 

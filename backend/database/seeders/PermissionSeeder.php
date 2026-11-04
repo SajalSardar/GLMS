@@ -72,6 +72,11 @@ class PermissionSeeder extends Seeder
             ['name' => 'questions.update', 'label' => 'Update questions'],
             ['name' => 'questions.delete', 'label' => 'Delete questions'],
 
+            ['name' => 'exams.view', 'label' => 'View exams'],
+            ['name' => 'exams.create', 'label' => 'Create exams'],
+            ['name' => 'exams.update', 'label' => 'Update exams'],
+            ['name' => 'exams.delete', 'label' => 'Delete exams'],
+
             ['name' => 'users.view', 'label' => 'View users'],
             ['name' => 'users.create', 'label' => 'Create users'],
             ['name' => 'users.update', 'label' => 'Update users'],
