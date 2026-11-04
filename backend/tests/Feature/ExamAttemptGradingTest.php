@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\Api\V1\ExamAttemptController;
+use App\Http\Requests\Api\V1\SubmitExamAttemptRequest;
 use App\Models\AcademicYear;
 use App\Models\Book;
 use App\Models\Chapter;
@@ -10,6 +12,7 @@ use App\Models\District;
 use App\Models\Division;
 use App\Models\Exam;
 use App\Models\ExamAttempt;
+use App\Models\ExamAttemptAnswer;
 use App\Models\Permission;
 use App\Models\Question;
 use App\Models\QuestionOption;
@@ -182,5 +185,94 @@ class ExamAttemptGradingTest extends TestCase
         $this->assertSame('submitted', $attempt->status);
         // Only the first (correct, pre-expiry) answer counts.
         $this->assertSame(2, $attempt->score);
+    }
+
+    public function test_submit_handles_a_concurrent_double_finalize_without_crashing(): void
+    {
+        $attemptId = $this->actingAs($this->student, 'sanctum')->postJson("/api/v1/exams/{$this->exam->id}/attempts")->json('data.id');
+
+        $this->actingAs($this->student, 'sanctum')
+            ->putJson("/api/v1/exam-attempts/{$attemptId}/answers/{$this->singleQuestion->id}", ['selected_option_ids' => [$this->singleCorrectOptionId]])
+            ->assertOk();
+
+        // Two independent in-memory copies of the same attempt — standing
+        // in for two near-simultaneous submit requests that both loaded the
+        // row (and its attemptQuestions/answers) while it was still
+        // in_progress, before either had committed. Eager-loading here
+        // matters: finalize()'s loadMissing() is a no-op once a relation
+        // is already loaded, so $attemptB's "answers" collection stays
+        // stale (pre-collision) through its own finalize() call below —
+        // exactly like two real requests that both read the row before
+        // either write landed.
+        $attemptA = ExamAttempt::with(['attemptQuestions.question.options', 'answers'])->find($attemptId);
+        $attemptB = ExamAttempt::with(['attemptQuestions.question.options', 'answers'])->find($attemptId);
+
+        $controller = app(ExamAttemptController::class);
+        $request = new SubmitExamAttemptRequest;
+
+        // The first "request" wins the race and finalizes normally.
+        $controller->submit($request, $attemptA);
+
+        // The second "request" still sees the stale in-memory in_progress
+        // status it loaded before $attemptA committed, so it also tries to
+        // finalize. Its ExamAttemptAnswer::create() for the unanswered
+        // multiQuestion collides with the unique constraint on
+        // (exam_attempt_id, question_id) that $attemptA's finalize()
+        // already satisfied. This must not throw — the controller swallows
+        // the QueryException and treats it as "already finalized."
+        $controller->submit($request, $attemptB);
+
+        $attempt = ExamAttempt::find($attemptId);
+        $this->assertSame('submitted', $attempt->status);
+        // Same score a single clean finalize() call would have produced:
+        // 2 marks for the correctly-answered singleQuestion, 0 for the
+        // unanswered multiQuestion.
+        $this->assertSame(2, $attempt->score);
+        $this->assertSame(5, $attempt->total_possible_marks);
+        // Exactly one answer row for the unanswered question — no
+        // duplicate was left behind by the losing "request".
+        $this->assertSame(
+            1,
+            ExamAttemptAnswer::where('exam_attempt_id', $attemptId)->where('question_id', $this->multiQuestion->id)->count()
+        );
+    }
+
+    public function test_show_handles_a_concurrent_double_finalize_without_crashing(): void
+    {
+        $this->exam->update(['time_limit_minutes' => 10]);
+        $attemptId = $this->actingAs($this->student, 'sanctum')->postJson("/api/v1/exams/{$this->exam->id}/attempts")->json('data.id');
+
+        $this->actingAs($this->student, 'sanctum')
+            ->putJson("/api/v1/exam-attempts/{$attemptId}/answers/{$this->singleQuestion->id}", ['selected_option_ids' => [$this->singleCorrectOptionId]])
+            ->assertOk();
+
+        ExamAttempt::where('id', $attemptId)->update(['started_at' => now()->subMinutes(20)]);
+
+        // Two independent in-memory copies of the same (now expired)
+        // attempt — standing in for two near-simultaneous GET requests
+        // past the deadline, both of which try to auto-finalize via
+        // finalizeIfExpired(). Eager-loaded for the same reason as the
+        // submit() race test above: finalize()'s loadMissing() must not
+        // silently refresh $attemptB's stale "answers" collection.
+        $attemptA = ExamAttempt::with(['attemptQuestions.question.options', 'answers'])->find($attemptId);
+        $attemptB = ExamAttempt::with(['attemptQuestions.question.options', 'answers'])->find($attemptId);
+
+        $controller = app(ExamAttemptController::class);
+
+        $controller->show($attemptA);
+
+        // The second "request" still sees the stale in-memory
+        // in_progress/started_at it loaded before $attemptA committed, so
+        // it also tries to auto-finalize — same unique-constraint
+        // collision as submit(), which show() must swallow too.
+        $controller->show($attemptB);
+
+        $attempt = ExamAttempt::find($attemptId);
+        $this->assertSame('submitted', $attempt->status);
+        $this->assertSame(2, $attempt->score);
+        $this->assertSame(
+            1,
+            ExamAttemptAnswer::where('exam_attempt_id', $attemptId)->where('question_id', $this->multiQuestion->id)->count()
+        );
     }
 }

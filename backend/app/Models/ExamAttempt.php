@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class ExamAttempt extends Model
 {
@@ -109,46 +110,57 @@ class ExamAttempt extends Model
     {
         $this->loadMissing(['attemptQuestions.question.options', 'answers']);
 
-        $score = 0;
-        $total = 0;
+        // Wrapped so a concurrent double-finalize (two near-simultaneous
+        // submit()/show() calls both seeing a stale in_progress status)
+        // either fully applies or fully rolls back — the per-question
+        // ExamAttemptAnswer::create() below can collide with the unique
+        // constraint on (exam_attempt_id, question_id) when another
+        // request already finalized this attempt first; the caller
+        // (ExamAttemptController) is expected to catch that QueryException
+        // and treat it as "already finalized," same pattern as
+        // ChapterVideoController::updateProgress().
+        DB::transaction(function () use ($at) {
+            $score = 0;
+            $total = 0;
 
-        foreach ($this->attemptQuestions as $attemptQuestion) {
-            $total += $attemptQuestion->marks;
+            foreach ($this->attemptQuestions as $attemptQuestion) {
+                $total += $attemptQuestion->marks;
 
-            $answer = $this->answers->firstWhere('question_id', $attemptQuestion->question_id);
-            $isCorrect = $answer !== null && $this->answerIsCorrect($attemptQuestion, $answer);
-            $marksAwarded = $isCorrect ? $attemptQuestion->marks : 0;
+                $answer = $this->answers->firstWhere('question_id', $attemptQuestion->question_id);
+                $isCorrect = $answer !== null && $this->answerIsCorrect($attemptQuestion, $answer);
+                $marksAwarded = $isCorrect ? $attemptQuestion->marks : 0;
 
-            if ($answer !== null) {
-                $answer->update(['is_correct' => $isCorrect, 'marks_awarded' => $marksAwarded]);
-            } else {
-                // An unanswered question still needs a graded record so
-                // the resource can show a definite (false) is_correct
-                // once submitted, rather than leaving it null forever
-                // (null is reserved for "not yet graded"/in_progress).
-                ExamAttemptAnswer::create([
-                    'exam_attempt_id' => $this->id,
-                    'question_id' => $attemptQuestion->question_id,
-                    'selected_option_ids' => [],
-                    'is_correct' => false,
-                    'marks_awarded' => 0,
-                ]);
+                if ($answer !== null) {
+                    $answer->update(['is_correct' => $isCorrect, 'marks_awarded' => $marksAwarded]);
+                } else {
+                    // An unanswered question still needs a graded record so
+                    // the resource can show a definite (false) is_correct
+                    // once submitted, rather than leaving it null forever
+                    // (null is reserved for "not yet graded"/in_progress).
+                    ExamAttemptAnswer::create([
+                        'exam_attempt_id' => $this->id,
+                        'question_id' => $attemptQuestion->question_id,
+                        'selected_option_ids' => [],
+                        'is_correct' => false,
+                        'marks_awarded' => 0,
+                    ]);
+                }
+
+                $score += $marksAwarded;
             }
 
-            $score += $marksAwarded;
-        }
+            $passed = ($this->exam->passing_score_percent !== null && $total > 0)
+                ? (($score / $total) * 100) >= $this->exam->passing_score_percent
+                : null;
 
-        $passed = ($this->exam->passing_score_percent !== null && $total > 0)
-            ? (($score / $total) * 100) >= $this->exam->passing_score_percent
-            : null;
-
-        $this->update([
-            'status' => 'submitted',
-            'submitted_at' => $at ?? now(),
-            'score' => $score,
-            'total_possible_marks' => $total,
-            'passed' => $passed,
-        ]);
+            $this->update([
+                'status' => 'submitted',
+                'submitted_at' => $at ?? now(),
+                'score' => $score,
+                'total_possible_marks' => $total,
+                'passed' => $passed,
+            ]);
+        });
     }
 
     private function answerIsCorrect(ExamAttemptQuestion $attemptQuestion, ExamAttemptAnswer $answer): bool

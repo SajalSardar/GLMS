@@ -11,6 +11,7 @@ use App\Models\ExamAttempt;
 use App\Models\ExamAttemptAnswer;
 use App\Models\ExamAttemptQuestion;
 use App\Models\Question;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -107,7 +108,7 @@ class ExamAttemptController extends Controller
     {
         $this->authorize('view', $exam_attempt);
 
-        $exam_attempt->finalizeIfExpired();
+        $this->finalizeSafely($exam_attempt, fn () => $exam_attempt->finalizeIfExpired());
 
         return new ExamAttemptResource($exam_attempt->load(self::WITH));
     }
@@ -150,9 +151,32 @@ class ExamAttemptController extends Controller
     public function submit(SubmitExamAttemptRequest $request, ExamAttempt $exam_attempt): ExamAttemptResource
     {
         if ($exam_attempt->status === 'in_progress') {
-            $exam_attempt->finalizeIfExpired() || $exam_attempt->finalize();
+            $this->finalizeSafely($exam_attempt, fn () => $exam_attempt->finalizeIfExpired() || $exam_attempt->finalize());
         }
 
         return new ExamAttemptResource($exam_attempt->load(self::WITH));
+    }
+
+    /**
+     * Runs $callback (expected to call finalizeIfExpired()/finalize() on
+     * $exam_attempt), swallowing the unique-constraint race where another
+     * near-simultaneous request (a double-click submit, or submit() racing
+     * a show()-triggered finalizeIfExpired() right at the expiry boundary)
+     * already finalized this attempt first. Same detection pattern as
+     * ChapterVideoController::updateProgress() (commit d138b9d) — on that
+     * race we just refresh to the now-submitted state instead of
+     * re-attempting the write or propagating the exception.
+     */
+    private function finalizeSafely(ExamAttempt $exam_attempt, callable $callback): void
+    {
+        try {
+            $callback();
+        } catch (QueryException $e) {
+            if (! str_contains($e->getMessage(), 'UNIQUE constraint') && $e->getCode() !== '23000') {
+                throw $e;
+            }
+
+            $exam_attempt->refresh();
+        }
     }
 }
