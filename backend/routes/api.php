@@ -91,6 +91,8 @@ Route::prefix('v1')->group(function (): void {
         Route::apiResource('questions', QuestionController::class)->only(['store', 'update', 'destroy']);
 
         Route::apiResource('exams', ExamController::class);
+        Route::patch('/exams/{exam}/questions', [ExamController::class, 'setQuestions']);
+        Route::post('/exams/{exam}/randomize', [ExamController::class, 'randomize']);
 
         Route::post('/books/{book}/pdf', [BookController::class, 'uploadPdf']);
         Route::patch('/books/{book}/pdf/status', [BookController::class, 'updatePdfStatus']);
