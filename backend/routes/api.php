@@ -147,6 +147,7 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/student-profiles/{student_profile}/guardians', [StudentProfileController::class, 'attachGuardian']);
         Route::delete('/student-profiles/{student_profile}/guardians/{guardian}', [StudentProfileController::class, 'detachGuardian']);
         Route::post('/student-profiles/{student_profile}/transfer-section', [StudentProfileController::class, 'transferSection']);
+        Route::get('/student-profiles/{student_profile}/dashboard', [StudentProfileController::class, 'dashboard']);
 
         Route::apiResource('guardians', GuardianController::class);
     });

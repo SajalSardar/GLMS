@@ -49,4 +49,26 @@ class StudentProfilePolicy
     {
         return $this->update($user, $profile);
     }
+
+    /**
+     * Viewing a student's learning dashboard: the student themselves,
+     * their linked guardian, or a management/oversight role holding
+     * student_progress.view — deliberately NOT view()'s flat
+     * student_profiles.view permission, which the student role already
+     * holds broadly and would let any student see any other student's
+     * exam scores and video-watching history.
+     */
+    public function viewDashboard(User $user, StudentProfile $profile): bool
+    {
+        if ($user->id === $profile->user_id) {
+            return true;
+        }
+
+        if ($user->hasPermission('student_progress.view')) {
+            return true;
+        }
+
+        return $user->guardian !== null
+            && $user->guardian->students()->where('student_profiles.id', $profile->id)->exists();
+    }
 }

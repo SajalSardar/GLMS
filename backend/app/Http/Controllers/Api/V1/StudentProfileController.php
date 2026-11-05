@@ -15,6 +15,7 @@ use App\Models\StudentProfile;
 use App\Models\StudentSectionTransfer;
 use App\Models\User;
 use App\Policies\Concerns\ChecksScope;
+use App\Support\StudentDashboardBuilder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -209,6 +210,19 @@ class StudentProfileController extends Controller
         $student_profile->update(['section_id' => $toSection->id]);
 
         return new StudentSectionTransferResource($transfer->load(['fromSection', 'toSection']));
+    }
+
+    /**
+     * A read-only rollup of this student's video/material/exam progress
+     * per chapter and subject. No Resource class — the payload is a
+     * synthetic aggregate computed by StudentDashboardBuilder, not a 1:1
+     * transform of this model.
+     */
+    public function dashboard(StudentProfile $student_profile): JsonResponse
+    {
+        $this->authorize('viewDashboard', $student_profile);
+
+        return response()->json(['data' => (new StudentDashboardBuilder)->build($student_profile)]);
     }
 
     /**
