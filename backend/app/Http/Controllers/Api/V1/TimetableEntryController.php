@@ -6,21 +6,19 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\StoreTimetableEntryRequest;
 use App\Http\Requests\Api\V1\UpdateTimetableEntryRequest;
 use App\Http\Resources\Api\V1\TimetableEntryResource;
-use App\Models\Classroom;
 use App\Models\Section;
-use App\Models\Shift;
-use App\Models\SubjectTeacherAssignment;
 use App\Models\TimetableEntry;
-use App\Models\User;
+use App\Support\TimetableConflictChecker;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
-use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 
 class TimetableEntryController extends Controller
 {
+    public function __construct(private TimetableConflictChecker $conflictChecker) {}
+
     /**
      * Display a listing of the resource.
      *
@@ -211,96 +209,17 @@ class TimetableEntryController extends Controller
      * one the section's shift actually runs, the period's time (if given)
      * must fall within the shift's hours and outside its breaks, the
      * weekly period cap for the subject must not be exceeded, and room
-     * capacity must be sufficient.
+     * capacity must be sufficient. Delegates to TimetableConflictChecker,
+     * shared with TimetableGenerator.
      *
      * @param  array<string, mixed>  $attributes
      */
     private function assertValid(Section $section, array $attributes, ?int $exceptId = null): void
     {
-        $shift = $section->shift;
-        $classVersion = $shift->classVersion;
+        $error = $this->conflictChecker->invalidReason($section, $attributes, $exceptId);
 
-        $assignment = SubjectTeacherAssignment::where('section_id', $section->id)
-            ->where('subject_id', $attributes['subject_id'])
-            ->first();
-
-        if (! $assignment || $assignment->teacher_id !== $attributes['teacher_id']) {
-            throw ValidationException::withMessages([
-                'teacher_id' => ['This teacher has no valid subject assignment for this section.'],
-            ]);
-        }
-
-        if (! in_array($attributes['day_of_week'], $shift->days_of_week, true)) {
-            throw ValidationException::withMessages([
-                'day_of_week' => ['This day is not part of the section\'s shift schedule.'],
-            ]);
-        }
-
-        if ($attributes['start_time'] !== null && $attributes['end_time'] !== null) {
-            $this->assertWithinShiftHours($shift, $attributes['start_time'], $attributes['end_time']);
-        }
-
-        $pivot = $classVersion->subjects()->where('subjects.id', $attributes['subject_id'])->first()?->pivot;
-        $requiredWeekly = $pivot?->required_weekly_periods;
-
-        if ($requiredWeekly !== null) {
-            $scheduledCount = TimetableEntry::where('section_id', $section->id)
-                ->where('subject_id', $attributes['subject_id'])
-                ->when($exceptId, fn ($query, $exceptId) => $query->whereKeyNot($exceptId))
-                ->count();
-
-            if ($scheduledCount >= $requiredWeekly) {
-                throw ValidationException::withMessages([
-                    'subject_id' => ["This subject already has its configured {$requiredWeekly} weekly period(s) scheduled."],
-                ]);
-            }
-        }
-
-        if ($attributes['classroom_id'] !== null) {
-            $classroom = Classroom::find($attributes['classroom_id']);
-
-            if (! $classroom || $classroom->school_id !== $section->school_id) {
-                throw ValidationException::withMessages([
-                    'classroom_id' => ['The selected classroom does not belong to this section\'s school.'],
-                ]);
-            }
-
-            if ($classroom->capacity !== null && $section->capacity !== null && $classroom->capacity < $section->capacity) {
-                throw ValidationException::withMessages([
-                    'classroom_id' => ['This classroom\'s capacity is smaller than the section\'s capacity.'],
-                ]);
-            }
-        }
-
-        if (User::where('id', $attributes['teacher_id'])->where('school_id', $section->school_id)->doesntExist()) {
-            throw ValidationException::withMessages([
-                'teacher_id' => ['The selected teacher does not belong to this section\'s school.'],
-            ]);
-        }
-    }
-
-    private function assertWithinShiftHours(Shift $shift, string $startTime, string $endTime): void
-    {
-        $start = Carbon::parse($startTime);
-        $end = Carbon::parse($endTime);
-        $shiftStart = Carbon::parse($shift->start_time->format('H:i'));
-        $shiftEnd = Carbon::parse($shift->end_time->format('H:i'));
-
-        if ($start->lessThan($shiftStart) || $end->greaterThan($shiftEnd)) {
-            throw ValidationException::withMessages([
-                'start_time' => ['This period falls outside the section\'s shift hours.'],
-            ]);
-        }
-
-        foreach ($shift->breaks ?? [] as $break) {
-            $breakStart = Carbon::parse($break['start_time']);
-            $breakEnd = Carbon::parse($break['end_time']);
-
-            if ($start->lessThan($breakEnd) && $end->greaterThan($breakStart)) {
-                throw ValidationException::withMessages([
-                    'start_time' => ['This period overlaps a configured break interval.'],
-                ]);
-            }
+        if ($error !== null) {
+            throw ValidationException::withMessages([$error['field'] => [$error['message']]]);
         }
     }
 
@@ -308,36 +227,17 @@ class TimetableEntryController extends Controller
      * Hard constraints: a teacher or a classroom can't be double-booked in
      * the same period on the same day. The section/day/period triplet
      * itself is enforced by a DB unique index instead (mirrors
-     * ClassRoutineController's conflict checks).
+     * ClassRoutineController's conflict checks). Delegates to
+     * TimetableConflictChecker, shared with TimetableGenerator.
      *
      * @param  array<string, mixed>  $attributes
      */
     private function assertNoConflicts(array $attributes, ?int $exceptId = null): void
     {
-        $teacherConflict = TimetableEntry::where('teacher_id', $attributes['teacher_id'])
-            ->where('day_of_week', $attributes['day_of_week'])
-            ->where('period_no', $attributes['period_no'])
-            ->when($exceptId, fn ($query, $exceptId) => $query->whereKeyNot($exceptId))
-            ->exists();
+        $error = $this->conflictChecker->conflictReason($attributes, $exceptId);
 
-        if ($teacherConflict) {
-            throw ValidationException::withMessages([
-                'teacher_id' => ['This teacher is already assigned to another section in this period.'],
-            ]);
-        }
-
-        if ($attributes['classroom_id'] !== null) {
-            $classroomConflict = TimetableEntry::where('classroom_id', $attributes['classroom_id'])
-                ->where('day_of_week', $attributes['day_of_week'])
-                ->where('period_no', $attributes['period_no'])
-                ->when($exceptId, fn ($query, $exceptId) => $query->whereKeyNot($exceptId))
-                ->exists();
-
-            if ($classroomConflict) {
-                throw ValidationException::withMessages([
-                    'classroom_id' => ['This classroom is already booked for another section in this period.'],
-                ]);
-            }
+        if ($error !== null) {
+            throw ValidationException::withMessages([$error['field'] => [$error['message']]]);
         }
     }
 }
