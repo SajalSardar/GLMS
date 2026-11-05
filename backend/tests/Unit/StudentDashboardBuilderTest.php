@@ -150,4 +150,16 @@ class StudentDashboardBuilderTest extends TestCase
         $this->assertNull($exams[0]['total_possible_marks']);
         $this->assertNull($exams[0]['passed']);
     }
+
+    public function test_exam_passed_is_null_when_submitted_attempt_was_never_evaluated_against_a_pass_bar(): void
+    {
+        $exam = Exam::create(['class_version_id' => $this->version->id, 'subject_id' => $this->subject->id, 'academic_year_id' => $this->academicYear->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Ungraded', 'selection_mode' => 'manual', 'status' => 'published']);
+        ExamAttempt::create(['exam_id' => $exam->id, 'user_id' => $this->studentUser->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'attempt_number' => 1, 'status' => 'submitted', 'started_at' => now(), 'submitted_at' => now(), 'score' => 4, 'total_possible_marks' => 10, 'passed' => null]);
+
+        $result = (new StudentDashboardBuilder)->build($this->profile);
+        $exams = $result['subjects'][0]['exams'];
+
+        $this->assertCount(1, $exams);
+        $this->assertNull($exams[0]['passed'], 'passed must stay null when every submitted attempt was never evaluated against a pass bar');
+    }
 }

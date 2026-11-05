@@ -60,7 +60,9 @@ class StudentDashboardBuilder
                 ->where('class_version_id', $classVersionId)
                 ->where('subject_id', $subject->id)
                 ->where('is_active', true))
+            ->orderBy('book_id')
             ->orderBy('order_index')
+            ->orderBy('name')
             ->get(['id', 'name']);
 
         $chapterIds = $chapters->pluck('id');
@@ -111,6 +113,7 @@ class StudentDashboardBuilder
             ->where('subject_id', $subject->id)
             ->where('academic_year_id', $academicYearId)
             ->where('status', 'published')
+            ->orderBy('name')
             ->get(['id', 'name', 'max_attempts']);
 
         $attempts = ExamAttempt::query()
@@ -133,7 +136,9 @@ class StudentDashboardBuilder
                 'max_attempts' => $exam->max_attempts,
                 'best_score' => $best?->score,
                 'total_possible_marks' => $best?->total_possible_marks,
-                'passed' => $submitted->isEmpty() ? null : $submitted->contains('passed', true),
+                'passed' => $submitted->isEmpty() || $submitted->every(fn ($attempt) => $attempt->passed === null)
+                    ? null
+                    : $submitted->contains('passed', true),
             ];
         })->values()->all();
 
