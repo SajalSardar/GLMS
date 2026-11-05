@@ -94,6 +94,18 @@ class TimetablePeriodGridTest extends TestCase
         $this->assertSame([], $this->grid->build($shift));
     }
 
+    public function test_returns_empty_when_period_duration_is_zero(): void
+    {
+        $shift = new Shift([
+            'start_time' => '08:00',
+            'end_time' => '13:00',
+            'days_of_week' => ['saturday'],
+            'period_duration_minutes' => 0,
+        ]);
+
+        $this->assertSame([], $this->grid->build($shift));
+    }
+
     public function test_returns_empty_when_no_days_are_configured(): void
     {
         $shift = new Shift([

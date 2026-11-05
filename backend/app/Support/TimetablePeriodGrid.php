@@ -20,7 +20,7 @@ class TimetablePeriodGrid
      */
     public function build(Shift $shift): array
     {
-        if ($shift->period_duration_minutes === null || empty($shift->days_of_week)) {
+        if ($shift->period_duration_minutes === null || $shift->period_duration_minutes <= 0 || empty($shift->days_of_week)) {
             return [];
         }
 
