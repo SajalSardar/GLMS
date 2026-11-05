@@ -27,5 +27,6 @@ class DatabaseSeederTest extends TestCase
         $this->assertTrue(Permission::where('name', 'exams.view')->exists());
         $this->assertTrue(Permission::where('name', 'exam_attempts.view')->exists());
         $this->assertTrue(Permission::where('name', 'student_progress.view')->exists());
+        $this->assertTrue(Permission::where('name', 'timetable_entries.generate')->exists());
     }
 }

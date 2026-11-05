@@ -49,7 +49,7 @@ class RolePermissionSeeder extends Seeder
                 'subject_teacher_assignments.view', 'subject_teacher_assignments.create',
                 'subject_teacher_assignments.update', 'subject_teacher_assignments.delete',
                 'timetable_entries.view', 'timetable_entries.create', 'timetable_entries.update',
-                'timetable_entries.delete', 'timetable_entries.publish',
+                'timetable_entries.delete', 'timetable_entries.publish', 'timetable_entries.generate',
                 'users.view', 'users.create', 'users.update',
                 'teacher_profiles.view', 'teacher_profiles.create', 'teacher_profiles.update', 'teacher_profiles.delete',
                 'student_profiles.view', 'student_profiles.create', 'student_profiles.update', 'student_profiles.delete',

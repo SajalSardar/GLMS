@@ -150,6 +150,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'timetable_entries.update', 'label' => 'Update timetable entries'],
             ['name' => 'timetable_entries.delete', 'label' => 'Delete timetable entries'],
             ['name' => 'timetable_entries.publish', 'label' => 'Publish or revise published timetable entries'],
+            ['name' => 'timetable_entries.generate', 'label' => 'Automatically generate timetable entries for a shift'],
         ];
 
         foreach ($permissions as $permission) {
