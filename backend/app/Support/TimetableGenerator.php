@@ -65,6 +65,15 @@ class TimetableGenerator
         DB::beginTransaction();
 
         try {
+            // Row-lock the section so two concurrent generate() calls
+            // targeting the same section serialize against each other
+            // instead of racing to clear/insert drafts at once. This is a
+            // SELECT ... FOR UPDATE under MySQL/Postgres and a no-op under
+            // SQLite (this codebase's test driver) — the locked result is
+            // intentionally discarded; the already-passed-in $section is
+            // what the rest of this method uses.
+            Section::where('id', $section->id)->lockForUpdate()->first();
+
             TimetableEntry::where('section_id', $section->id)->where('status', 'draft')->delete();
 
             $entriesCreated = 0;
@@ -360,10 +369,17 @@ class TimetableGenerator
         }
 
         for ($i = 0; $i < self::MAX_LOCAL_SEARCH_ITERATIONS; $i++) {
-            $entries = TimetableEntry::where('section_id', $section->id)->where('status', 'draft')->get();
+            // Iteration 0 reuses the collection already fetched above — the
+            // DB hasn't been touched yet, so re-fetching it here would be
+            // an identical, wasted query. Iterations 1+ must re-fetch:
+            // the previous iteration's swap (kept or reverted) changed row
+            // ids, so the collection they left behind is stale.
+            if ($i > 0) {
+                $entries = TimetableEntry::where('section_id', $section->id)->where('status', 'draft')->get();
 
-            if ($entries->count() < 2) {
-                return;
+                if ($entries->count() < 2) {
+                    return;
+                }
             }
 
             [$a, $b] = $entries->random(2)->values()->all();

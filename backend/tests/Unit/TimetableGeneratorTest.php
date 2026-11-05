@@ -19,6 +19,7 @@ use App\Support\TimetableConflictChecker;
 use App\Support\TimetableGenerator;
 use App\Support\TimetablePeriodGrid;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class TimetableGeneratorTest extends TestCase
@@ -459,6 +460,40 @@ class TimetableGeneratorTest extends TestCase
         $this->assertStringContainsString(
             'period_duration_minutes',
             $result['failed'][0]['shortfalls'][0]['reason']
+        );
+    }
+
+    public function test_generate_for_section_locks_the_section_row(): void
+    {
+        // PHPUnit's test runner is single-threaded, so true concurrent
+        // generate() calls can't be exercised here — SQLite (this
+        // project's test driver) also treats lockForUpdate() as a no-op,
+        // so there is nothing observably different about the locking
+        // itself to assert. What *is* observable, and what this test
+        // guards against regressing, is that generateForSection() issues
+        // a SELECT ... FOR UPDATE-flavored query against the section's
+        // own row before touching its draft entries — the actual
+        // production protection under MySQL/Postgres depends on that
+        // query happening at all.
+        $section = $this->makeSection('A');
+        $math = $this->makeSubject('Math', 1);
+        $teacher = $this->makeTeacher();
+        $this->assign($section, $math, $teacher);
+
+        DB::enableQueryLog();
+        $this->generator->generate($this->shift);
+        $queries = DB::getQueryLog();
+        DB::disableQueryLog();
+
+        $sectionLockQueries = array_filter(
+            $queries,
+            fn (array $q): bool => stripos($q['query'], 'from "sections"') !== false
+                && in_array($section->id, $q['bindings'], true)
+        );
+
+        $this->assertNotEmpty(
+            $sectionLockQueries,
+            'Expected generateForSection() to query the sections table for this section id (the row-lock acquisition).'
         );
     }
 }
