@@ -80,6 +80,8 @@ class PermissionSeeder extends Seeder
             ['name' => 'exam_attempts.view', 'label' => 'View any exam attempt'],
             ['name' => 'exam_attempts.create', 'label' => 'Start, answer, and submit exam attempts'],
 
+            ['name' => 'student_progress.view', 'label' => 'View any student\'s learning dashboard'],
+
             ['name' => 'users.view', 'label' => 'View users'],
             ['name' => 'users.create', 'label' => 'Create users'],
             ['name' => 'users.update', 'label' => 'Update users'],
