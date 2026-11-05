@@ -42,6 +42,7 @@ class DatabaseSeeder extends Seeder
             ClassRoutineSeeder::class,
             SectionBackfillSeeder::class,
             TimetableGenerationDemoSeeder::class,
+            LmsContentDemoSeeder::class,
         ]);
     }
 }
