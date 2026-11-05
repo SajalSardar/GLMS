@@ -170,6 +170,7 @@ class ControllerAuthorizationConventionTest extends TestCase
             [TimetableEntryController::class, 'destroy'],
             [TimetableEntryController::class, 'publish'],
             [TimetableEntryController::class, 'unpublish'],
+            [TimetableEntryController::class, 'generate'],
 
             [UpazilaController::class, 'store'],
             [UpazilaController::class, 'update'],

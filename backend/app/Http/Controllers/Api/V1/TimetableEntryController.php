@@ -7,8 +7,10 @@ use App\Http\Requests\Api\V1\StoreTimetableEntryRequest;
 use App\Http\Requests\Api\V1\UpdateTimetableEntryRequest;
 use App\Http\Resources\Api\V1\TimetableEntryResource;
 use App\Models\Section;
+use App\Models\Shift;
 use App\Models\TimetableEntry;
 use App\Support\TimetableConflictChecker;
+use App\Support\TimetableGenerator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -175,6 +177,21 @@ class TimetableEntryController extends Controller
         $timetable_entry->update(['status' => 'draft', 'published_at' => null, 'published_by' => null]);
 
         return new TimetableEntryResource($timetable_entry->load(['section', 'subject', 'teacher', 'classroom', 'academicYear']));
+    }
+
+    /**
+     * Fill every section under this shift with conflict-free draft
+     * entries for each assigned subject's full required_weekly_periods.
+     * Published entries are never touched; a section's own pre-existing
+     * draft entries are replaced on success and left untouched on
+     * failure (TimetableGenerator handles both per-section, inside its
+     * own transaction).
+     */
+    public function generate(Shift $shift, TimetableGenerator $generator): JsonResponse
+    {
+        $this->authorize('generate', TimetableEntry::class);
+
+        return response()->json(['data' => $generator->generate($shift)]);
     }
 
     /**

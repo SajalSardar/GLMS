@@ -133,6 +133,7 @@ Route::prefix('v1')->group(function (): void {
         Route::apiResource('timetable-entries', TimetableEntryController::class)->only(['store', 'update', 'destroy']);
         Route::patch('/timetable-entries/{timetable_entry}/publish', [TimetableEntryController::class, 'publish']);
         Route::patch('/timetable-entries/{timetable_entry}/unpublish', [TimetableEntryController::class, 'unpublish']);
+        Route::post('/shifts/{shift}/timetable-entries/generate', [TimetableEntryController::class, 'generate']);
 
         Route::apiResource('roles', RoleController::class);
         Route::put('/roles/{role}/permissions', [RoleController::class, 'updatePermissions']);
