@@ -179,7 +179,9 @@ class TimetableGenerator
         }
 
         $placedSlots = [];
-        $lastReason = 'This shift has no remaining period that fits this subject\'s constraints.';
+        $lastReason = $grid === []
+            ? 'This shift has no period_duration_minutes configured, so no candidate periods exist to place this subject into.'
+            : 'This shift has no remaining period that fits this subject\'s constraints.';
 
         for ($i = 0; $i < $remaining; $i++) {
             $outcome = $this->bestCandidate($section, $subject, $assignment, $grid, $placedSlots, $lastReason);
@@ -345,6 +347,18 @@ class TimetableGenerator
      */
     private function runLocalSearch(Section $section): void
     {
+        $entries = TimetableEntry::where('section_id', $section->id)->where('status', 'draft')->get();
+
+        // A score of 0 is the minimum possible (softScore() only sums
+        // non-negative terms), so it can never be improved — the normal
+        // case whenever greedy placement already spread each subject
+        // across distinct days. Skip the whole bounded search rather than
+        // burning iterations force-deleting and recreating rows for no
+        // possible gain.
+        if ($entries->count() < 2 || $this->softScore($entries) === 0) {
+            return;
+        }
+
         for ($i = 0; $i < self::MAX_LOCAL_SEARCH_ITERATIONS; $i++) {
             $entries = TimetableEntry::where('section_id', $section->id)->where('status', 'draft')->get();
 

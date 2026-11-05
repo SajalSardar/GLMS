@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Models\Classroom;
 use App\Models\ClassVersion;
 use App\Models\District;
 use App\Models\Division;
@@ -233,6 +234,18 @@ class TimetableGeneratorTest extends TestCase
             'status' => 'published',
             'day_of_week' => 'saturday',
             'period_no' => 1,
+            'deleted_at' => null,
+        ]);
+
+        // No other subject's entry landed on the published row's exact
+        // slot — proving the generator actually routed around it rather
+        // than, say, happening to leave it alone while also double-booking
+        // the same slot for Science.
+        $this->assertDatabaseMissing('timetable_entries', [
+            'section_id' => $section->id,
+            'day_of_week' => 'saturday',
+            'period_no' => 1,
+            'subject_id' => $science->id,
         ]);
 
         $this->assertSame([], $result['failed']);
@@ -341,5 +354,111 @@ class TimetableGeneratorTest extends TestCase
 
         $this->assertSame([], $result['failed']);
         $this->assertSame(0, $result['generated'][0]['entries_created']);
+    }
+
+    public function test_generates_entries_with_a_section_default_classroom_set(): void
+    {
+        // Every other test in this file leaves default_classroom_id null,
+        // so TimetableConflictChecker's classroom-double-booking and
+        // classroom-capacity branches were never exercised through
+        // TimetableGenerator at all — including this exact configuration
+        // (two subjects, shared default classroom) that caused the
+        // local-search swap bug a prior fix round corrected.
+        $classroom = Classroom::create([
+            'school_id' => $this->school->id,
+            'district_id' => $this->school->district_id,
+            'name' => 'Room 1',
+            'capacity' => 100,
+        ]);
+
+        $section = Section::create([
+            'shift_id' => $this->shift->id,
+            'school_id' => $this->school->id,
+            'district_id' => $this->school->district_id,
+            'name' => 'A',
+            'default_classroom_id' => $classroom->id,
+        ]);
+
+        $math = $this->makeSubject('Math', 3);
+        $science = $this->makeSubject('Science', 2);
+        $mathTeacher = $this->makeTeacher();
+        $scienceTeacher = $this->makeTeacher();
+        $this->assign($section, $math, $mathTeacher);
+        $this->assign($section, $science, $scienceTeacher);
+
+        $result = $this->generator->generate($this->shift);
+
+        $this->assertSame([], $result['failed']);
+        $this->assertContains($section->id, array_column($result['generated'], 'section_id'));
+
+        $entries = TimetableEntry::where('section_id', $section->id)->get(['day_of_week', 'period_no', 'classroom_id']);
+        $this->assertSame(5, $entries->count());
+
+        foreach ($entries as $entry) {
+            $this->assertSame($classroom->id, $entry->classroom_id);
+        }
+
+        // No two of this section's entries share the same (day_of_week,
+        // period_no), proving the classroom-conflict code path was
+        // genuinely exercised (not merely skipped) while still placing a
+        // correct, conflict-free schedule.
+        $this->assertSame(
+            $entries->count(),
+            $entries->unique(fn ($e) => $e->day_of_week.'-'.$e->period_no)->count()
+        );
+    }
+
+    public function test_runs_local_search_without_error_when_required_periods_exceed_available_days(): void
+    {
+        // required_weekly_periods (7) > count(days_of_week) (5) forces
+        // greedy placement to double up on at least one day, so the
+        // initial softScore() is > 0 — the only configuration where
+        // runLocalSearch() actually enters its loop body at all (a score
+        // of 0, the normal case, now returns immediately per the "skip
+        // local search when already optimal" fix) and its swap-accept
+        // branch is reachable.
+        $section = $this->makeSection('A');
+        $math = $this->makeSubject('Math', 7);
+        $teacher = $this->makeTeacher();
+        $this->assign($section, $math, $teacher);
+
+        $result = $this->generator->generate($this->shift);
+
+        $this->assertSame([], $result['failed']);
+        $this->assertContains($section->id, array_column($result['generated'], 'section_id'));
+
+        $entries = TimetableEntry::where('section_id', $section->id)->get(['day_of_week', 'period_no']);
+        $this->assertSame(7, $entries->count());
+        $this->assertSame(
+            $entries->count(),
+            $entries->unique(fn ($e) => $e->day_of_week.'-'.$e->period_no)->count()
+        );
+    }
+
+    public function test_shortfall_reason_is_specific_when_shift_has_no_period_duration_configured(): void
+    {
+        $shift = Shift::create([
+            'class_version_id' => $this->classVersion->id,
+            'school_id' => $this->school->id,
+            'district_id' => $this->school->district_id,
+            'name' => 'Unconfigured Shift',
+            'start_time' => '08:00',
+            'end_time' => '13:00',
+            'days_of_week' => ['saturday', 'sunday'],
+            'period_duration_minutes' => null,
+        ]);
+
+        $section = Section::create(['shift_id' => $shift->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'A']);
+        $math = $this->makeSubject('Math', 2);
+        $teacher = $this->makeTeacher();
+        $this->assign($section, $math, $teacher);
+
+        $result = $this->generator->generate($shift);
+
+        $this->assertCount(1, $result['failed']);
+        $this->assertStringContainsString(
+            'period_duration_minutes',
+            $result['failed'][0]['shortfalls'][0]['reason']
+        );
     }
 }

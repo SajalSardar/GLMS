@@ -129,6 +129,8 @@ class TimetableEntryController extends Controller
             'classroom_id' => array_key_exists('classroom_id', $data) ? $data['classroom_id'] : $timetable_entry->classroom_id,
             'day_of_week' => $data['day_of_week'] ?? $timetable_entry->day_of_week,
             'period_no' => $data['period_no'] ?? $timetable_entry->period_no,
+            'start_time' => $data['start_time'] ?? $timetable_entry->start_time?->format('H:i'),
+            'end_time' => $data['end_time'] ?? $timetable_entry->end_time?->format('H:i'),
         ];
 
         $this->assertValid($section, $merged);
