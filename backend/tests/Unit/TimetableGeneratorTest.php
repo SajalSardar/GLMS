@@ -122,15 +122,51 @@ class TimetableGeneratorTest extends TestCase
         $this->assertSame(3, TimetableEntry::where('section_id', $sectionB->id)->count());
     }
 
+    public function test_places_two_subjects_in_one_section_without_double_booking_any_slot(): void
+    {
+        // Two subjects in the same section, different teachers each, and
+        // no section default_classroom_id — this is the exact
+        // configuration that previously crashed the generator with an
+        // uncaught unique-constraint QueryException: bestCandidate() only
+        // checked $alreadyPlaced (reset per subject), so once Math's
+        // periods were placed, Science's placement attempt could not see
+        // them as occupied and would pick an already-taken
+        // (section_id, day_of_week, period_no) slot.
+        $section = $this->makeSection('A');
+        $math = $this->makeSubject('Math', 3);
+        $science = $this->makeSubject('Science', 2);
+        $mathTeacher = $this->makeTeacher();
+        $scienceTeacher = $this->makeTeacher();
+        $this->assign($section, $math, $mathTeacher);
+        $this->assign($section, $science, $scienceTeacher);
+
+        $result = $this->generator->generate($this->shift);
+
+        $this->assertSame([], $result['failed']);
+        $this->assertContains($section->id, array_column($result['generated'], 'section_id'));
+
+        $entries = TimetableEntry::where('section_id', $section->id)->get(['day_of_week', 'period_no']);
+        $this->assertSame(5, $entries->count());
+
+        // No two of this section's entries share the same (day_of_week,
+        // period_no) — proving the occupancy fix actually works, not
+        // just that generation didn't crash.
+        $this->assertSame(
+            $entries->count(),
+            $entries->unique(fn ($e) => $e->day_of_week.'-'.$e->period_no)->count()
+        );
+    }
+
     public function test_reports_a_shortfall_when_a_shared_teacher_cannot_cover_both_sections_without_double_booking(): void
     {
-        // 5 days x 1 period/day of usable grid per section if they shared
-        // every slot; one teacher assigned to both sections for a subject
-        // that needs 3 periods each is only 6 total bookings but the
-        // teacher can only be in one place per (day, period) — this shift
-        // has 5 days x 6 periods = 30 slots, more than enough to NOT
-        // conflict, so shrink the grid to one period per day to force a
-        // real shortfall.
+        // One teacher is assigned to both sections for a subject that
+        // needs 2 periods each (4 total bookings), but the teacher can
+        // only be in one place per (day, period). A normal shift would
+        // have plenty of slots to avoid conflict, so this test uses a
+        // tight 2-day x 1-period shift (2 total slots) to force a real
+        // shortfall: whichever section is processed first takes both
+        // slots, leaving the other section with none of its 2 required
+        // periods.
         $tightShift = Shift::create([
             'class_version_id' => $this->classVersion->id,
             'school_id' => $this->school->id,
@@ -170,6 +206,14 @@ class TimetableGeneratorTest extends TestCase
         $teacher = $this->makeTeacher();
         $this->assign($section, $math, $teacher);
 
+        // A second subject, still needing fresh placement, so this test
+        // actually exercises a *successful* generation that has to route
+        // around the already-fully-published subject above, rather than
+        // the generator doing nothing for this section at all.
+        $science = $this->makeSubject('Science', 2);
+        $scienceTeacher = $this->makeTeacher();
+        $this->assign($section, $science, $scienceTeacher);
+
         $published = TimetableEntry::create([
             'section_id' => $section->id,
             'subject_id' => $math->id,
@@ -182,7 +226,7 @@ class TimetableGeneratorTest extends TestCase
             'published_at' => now(),
         ]);
 
-        $this->generator->generate($this->shift);
+        $result = $this->generator->generate($this->shift);
 
         $this->assertDatabaseHas('timetable_entries', [
             'id' => $published->id,
@@ -190,6 +234,10 @@ class TimetableGeneratorTest extends TestCase
             'day_of_week' => 'saturday',
             'period_no' => 1,
         ]);
+
+        $this->assertSame([], $result['failed']);
+        $this->assertContains($section->id, array_column($result['generated'], 'section_id'));
+        $this->assertSame(2, TimetableEntry::where('section_id', $section->id)->where('subject_id', $science->id)->count());
     }
 
     public function test_preexisting_draft_entries_are_replaced_on_success(): void
@@ -199,21 +247,35 @@ class TimetableGeneratorTest extends TestCase
         $teacher = $this->makeTeacher();
         $this->assign($section, $math, $teacher);
 
+        // Placed at (saturday, 1) — the exact slot the generator's greedy
+        // placement picks first for a single-subject, single-period
+        // section — so the generator's createOrRestore() restore branch
+        // is actually exercised, not just a delete-and-recreate-elsewhere.
         $staleDraft = TimetableEntry::create([
             'section_id' => $section->id,
             'subject_id' => $math->id,
             'teacher_id' => $teacher->id,
             'school_id' => $this->school->id,
             'district_id' => $this->school->district_id,
-            'day_of_week' => 'tuesday',
-            'period_no' => 5,
+            'day_of_week' => 'saturday',
+            'period_no' => 1,
             'status' => 'draft',
         ]);
 
         $result = $this->generator->generate($this->shift);
 
         $this->assertSame([], $result['failed']);
-        $this->assertDatabaseMissing('timetable_entries', ['id' => $staleDraft->id, 'deleted_at' => null]);
+
+        // createOrRestore() restores this exact row (same id) at the same
+        // slot rather than soft-deleting it and inserting a new row.
+        $this->assertDatabaseHas('timetable_entries', [
+            'id' => $staleDraft->id,
+            'deleted_at' => null,
+            'day_of_week' => 'saturday',
+            'period_no' => 1,
+            'status' => 'draft',
+        ]);
+        $this->assertSame(1, TimetableEntry::where('section_id', $section->id)->count());
     }
 
     public function test_preexisting_draft_entries_are_restored_on_failure(): void

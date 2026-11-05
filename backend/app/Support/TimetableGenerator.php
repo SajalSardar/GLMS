@@ -64,30 +64,36 @@ class TimetableGenerator
     {
         DB::beginTransaction();
 
-        TimetableEntry::where('section_id', $section->id)->where('status', 'draft')->delete();
+        try {
+            TimetableEntry::where('section_id', $section->id)->where('status', 'draft')->delete();
 
-        $entriesCreated = 0;
-        $shortfalls = [];
+            $entriesCreated = 0;
+            $shortfalls = [];
 
-        foreach ($this->orderSubjectsByConstraint($section, $grid) as [$subject, $assignment, $required]) {
-            $result = $this->placeSubject($section, $subject, $assignment, $required, $grid);
-            $entriesCreated += count($result['placed']);
+            foreach ($this->orderSubjectsByConstraint($section, $grid) as [$subject, $assignment, $required]) {
+                $result = $this->placeSubject($section, $subject, $assignment, $required, $grid);
+                $entriesCreated += count($result['placed']);
 
-            if ($result['shortfall'] !== null) {
-                $shortfalls[] = $result['shortfall'];
+                if ($result['shortfall'] !== null) {
+                    $shortfalls[] = $result['shortfall'];
+                }
             }
-        }
 
-        if ($shortfalls !== []) {
+            if ($shortfalls !== []) {
+                DB::rollBack();
+
+                return ['entries_created' => 0, 'shortfalls' => $shortfalls];
+            }
+
+            $this->runLocalSearch($section);
+            DB::commit();
+
+            return ['entries_created' => $entriesCreated, 'shortfalls' => []];
+        } catch (\Throwable $e) {
             DB::rollBack();
 
-            return ['entries_created' => 0, 'shortfalls' => $shortfalls];
+            throw $e;
         }
-
-        $this->runLocalSearch($section);
-        DB::commit();
-
-        return ['entries_created' => $entriesCreated, 'shortfalls' => []];
     }
 
     /**
@@ -106,7 +112,7 @@ class TimetableGenerator
         $classVersion = $section->shift->classVersion;
         $rows = [];
 
-        foreach ($classVersion->subjects as $subject) {
+        foreach ($classVersion->subjects()->orderBy('subjects.id')->get() as $subject) {
             $required = $subject->pivot->required_weekly_periods;
 
             if ($required === null) {
@@ -165,10 +171,17 @@ class TimetableGenerator
             ];
         }
 
+        $alreadyScheduled = TimetableEntry::where('section_id', $section->id)->where('subject_id', $subject->id)->count();
+        $remaining = max(0, $required - $alreadyScheduled);
+
+        if ($remaining === 0) {
+            return ['placed' => [], 'shortfall' => null];
+        }
+
         $placedSlots = [];
         $lastReason = 'This shift has no remaining period that fits this subject\'s constraints.';
 
-        for ($i = 0; $i < $required; $i++) {
+        for ($i = 0; $i < $remaining; $i++) {
             $outcome = $this->bestCandidate($section, $subject, $assignment, $grid, $placedSlots, $lastReason);
 
             if ($outcome['candidate'] === null) {
@@ -196,7 +209,7 @@ class TimetableGenerator
             $placedSlots[] = ['day_of_week' => $candidate['day_of_week'], 'period_no' => $candidate['period_no']];
         }
 
-        if (count($placedSlots) === $required) {
+        if (count($placedSlots) === $remaining) {
             return ['placed' => $placedSlots, 'shortfall' => null];
         }
 
@@ -206,7 +219,7 @@ class TimetableGenerator
                 'subject_id' => $subject->id,
                 'subject_name' => $subject->name,
                 'required' => $required,
-                'placed' => count($placedSlots),
+                'placed' => $alreadyScheduled + count($placedSlots),
                 'reason' => $lastReason,
             ],
         ];
@@ -247,6 +260,17 @@ class TimetableGenerator
                 }
 
                 if (! $tierFilter($candidateSlot)) {
+                    continue;
+                }
+
+                $occupied = TimetableEntry::where('section_id', $section->id)
+                    ->where('day_of_week', $candidateSlot['day_of_week'])
+                    ->where('period_no', $candidateSlot['period_no'])
+                    ->exists();
+
+                if ($occupied) {
+                    $lastReason = 'This section already has an entry in this slot.';
+
                     continue;
                 }
 
@@ -307,12 +331,17 @@ class TimetableGenerator
      * section's placed entries (different subjects only — swapping
      * identical-subject slots can never change the score) and keep the
      * swap only if both resulting placements are still hard-constraint
-     * valid AND it reduces the soft-constraint score. This check is
-     * deliberately conservative: it excepts only the entry being moved,
-     * not its swap partner, from the conflict query, so a same-teacher-
-     * or same-classroom coincidence between the two can cause a valid
-     * swap to be rejected as a false conflict. That is a safe failure —
-     * it only means fewer swaps happen, never an invalid final state.
+     * valid AND it reduces the soft-constraint score. Both entries are
+     * force-deleted BEFORE validity is checked: entry B sits at exactly
+     * the slot entry A wants to move to (and vice versa), so checking
+     * validity while both rows still exist would have each swapped
+     * placement "conflict" with its own swap partner's still-present row
+     * (e.g. same teacher_id, or the section's shared default classroom)
+     * on every single attempt. With both rows physically gone first,
+     * there is nothing left for either swapped placement to conflict
+     * with via the other, so no except-id handling is needed at all. If
+     * the swap turns out invalid or non-improving, both entries are
+     * recreated at their original positions via createOrRestore().
      */
     private function runLocalSearch(Section $section): void
     {
@@ -331,27 +360,27 @@ class TimetableGenerator
 
             $scoreBefore = $this->softScore($entries);
 
-            $aOriginal = ['day_of_week' => $a->day_of_week, 'period_no' => $a->period_no, 'start_time' => $a->start_time, 'end_time' => $a->end_time];
-            $bOriginal = ['day_of_week' => $b->day_of_week, 'period_no' => $b->period_no, 'start_time' => $b->start_time, 'end_time' => $b->end_time];
-
             $aBaseAttributes = ['subject_id' => $a->subject_id, 'teacher_id' => $a->teacher_id, 'classroom_id' => $a->classroom_id, 'section_id' => $a->section_id, 'academic_year_id' => $a->academic_year_id, 'school_id' => $a->school_id, 'district_id' => $a->district_id];
             $bBaseAttributes = ['subject_id' => $b->subject_id, 'teacher_id' => $b->teacher_id, 'classroom_id' => $b->classroom_id, 'section_id' => $b->section_id, 'academic_year_id' => $b->academic_year_id, 'school_id' => $b->school_id, 'district_id' => $b->district_id];
 
-            $bSlotAsStrings = ['day_of_week' => $b->day_of_week, 'period_no' => $b->period_no, 'start_time' => $b->start_time?->format('H:i'), 'end_time' => $b->end_time?->format('H:i')];
-            $aSlotAsStrings = ['day_of_week' => $a->day_of_week, 'period_no' => $a->period_no, 'start_time' => $a->start_time?->format('H:i'), 'end_time' => $a->end_time?->format('H:i')];
+            $aOriginalSlot = ['day_of_week' => $a->day_of_week, 'period_no' => $a->period_no, 'start_time' => $a->start_time?->format('H:i'), 'end_time' => $a->end_time?->format('H:i')];
+            $bOriginalSlot = ['day_of_week' => $b->day_of_week, 'period_no' => $b->period_no, 'start_time' => $b->start_time?->format('H:i'), 'end_time' => $b->end_time?->format('H:i')];
 
-            $aSwapped = [...$aBaseAttributes, ...$bSlotAsStrings];
-            $bSwapped = [...$bBaseAttributes, ...$aSlotAsStrings];
-
-            $aValid = ($this->conflictChecker->invalidReason($section, $aSwapped, $a->id) ?? $this->conflictChecker->conflictReason($aSwapped, $a->id)) === null;
-            $bValid = ($this->conflictChecker->invalidReason($section, $bSwapped, $b->id) ?? $this->conflictChecker->conflictReason($bSwapped, $b->id)) === null;
-
-            if (! $aValid || ! $bValid) {
-                continue;
-            }
+            $aSwapped = [...$aBaseAttributes, ...$bOriginalSlot];
+            $bSwapped = [...$bBaseAttributes, ...$aOriginalSlot];
 
             $a->forceDelete();
             $b->forceDelete();
+
+            $aValid = ($this->conflictChecker->invalidReason($section, $aSwapped) ?? $this->conflictChecker->conflictReason($aSwapped)) === null;
+            $bValid = ($this->conflictChecker->invalidReason($section, $bSwapped) ?? $this->conflictChecker->conflictReason($bSwapped)) === null;
+
+            if (! $aValid || ! $bValid) {
+                TimetableEntry::createOrRestore([...$aBaseAttributes, ...$aOriginalSlot]);
+                TimetableEntry::createOrRestore([...$bBaseAttributes, ...$bOriginalSlot]);
+
+                continue;
+            }
 
             TimetableEntry::createOrRestore($aSwapped);
             TimetableEntry::createOrRestore($bSwapped);
@@ -361,13 +390,15 @@ class TimetableGenerator
             if ($scoreAfter >= $scoreBefore) {
                 TimetableEntry::where('section_id', $section->id)
                     ->where('day_of_week', $aSwapped['day_of_week'])->where('period_no', $aSwapped['period_no'])
+                    ->where('status', 'draft')
                     ->forceDelete();
                 TimetableEntry::where('section_id', $section->id)
                     ->where('day_of_week', $bSwapped['day_of_week'])->where('period_no', $bSwapped['period_no'])
+                    ->where('status', 'draft')
                     ->forceDelete();
 
-                TimetableEntry::createOrRestore([...$aBaseAttributes, ...$aOriginal]);
-                TimetableEntry::createOrRestore([...$bBaseAttributes, ...$bOriginal]);
+                TimetableEntry::createOrRestore([...$aBaseAttributes, ...$aOriginalSlot]);
+                TimetableEntry::createOrRestore([...$bBaseAttributes, ...$bOriginalSlot]);
             }
         }
     }
@@ -379,7 +410,7 @@ class TimetableGenerator
      *
      * @param  Collection<int, TimetableEntry>  $entries
      */
-    private function softScore($entries): int
+    private function softScore(Collection $entries): int
     {
         return $entries
             ->groupBy(fn (TimetableEntry $e): string => $e->subject_id.'-'.$e->day_of_week)
