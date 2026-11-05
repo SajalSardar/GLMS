@@ -100,18 +100,7 @@ class TimetableEntryController extends Controller
         $this->assertValid($section, $attributes);
         $this->assertNoConflicts($attributes);
 
-        $entry = TimetableEntry::onlyTrashed()
-            ->where('section_id', $section->id)
-            ->where('day_of_week', $attributes['day_of_week'])
-            ->where('period_no', $attributes['period_no'])
-            ->first();
-
-        if ($entry) {
-            $entry->restore();
-            $entry->update([...$attributes, 'status' => 'draft', 'published_at' => null, 'published_by' => null]);
-        } else {
-            $entry = TimetableEntry::create($attributes);
-        }
+        $entry = TimetableEntry::createOrRestore($attributes);
 
         return (new TimetableEntryResource($entry->load(['section', 'subject', 'teacher', 'classroom', 'academicYear'])))
             ->response()
