@@ -117,4 +117,34 @@ class TimetablePeriodGridTest extends TestCase
 
         $this->assertSame([], $this->grid->build($shift));
     }
+
+    public function test_period_no_never_exceeds_the_manual_entry_validation_ceiling_of_twenty(): void
+    {
+        // 15-minute periods over a 6-hour shift would otherwise produce 24
+        // periods per day (360 / 15) — more than the 20 that
+        // StoreTimetableEntryRequest/UpdateTimetableEntryRequest allow for
+        // period_no on the manual entry endpoints. The grid must cap at 20
+        // so TimetableGenerator never creates entries the manual API could
+        // not subsequently be used to edit.
+        $shift = new Shift([
+            'start_time' => '08:00',
+            'end_time' => '14:00',
+            'days_of_week' => ['saturday', 'sunday'],
+            'period_duration_minutes' => 15,
+        ]);
+
+        $slots = $this->grid->build($shift);
+
+        $this->assertNotEmpty($slots);
+
+        foreach ($slots as $slot) {
+            $this->assertLessThanOrEqual(20, $slot['period_no']);
+        }
+
+        // Exactly 20 periods per day are generated (not fewer), proving the
+        // cap truncates the surplus rather than coincidentally matching it.
+        $saturdaySlots = array_values(array_filter($slots, fn (array $s): bool => $s['day_of_week'] === 'saturday'));
+        $this->assertCount(20, $saturdaySlots);
+        $this->assertSame(20, $saturdaySlots[19]['period_no']);
+    }
 }

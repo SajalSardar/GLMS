@@ -16,6 +16,17 @@ use Illuminate\Support\Carbon;
 class TimetablePeriodGrid
 {
     /**
+     * Mirrors the `period_no` ceiling already validated by
+     * StoreTimetableEntryRequest and UpdateTimetableEntryRequest
+     * (`['required', 'integer', 'min:1', 'max:20']`) — the one sane
+     * per-day period ceiling established elsewhere in this codebase.
+     * Capping the generated grid to the same value keeps generated
+     * entries editable through the manual entry endpoints, which would
+     * otherwise reject any period_no beyond 20.
+     */
+    private const MAX_PERIODS_PER_DAY = 20;
+
+    /**
      * @return list<array{day_of_week: string, period_no: int, start_time: string, end_time: string}>
      */
     public function build(Shift $shift): array
@@ -33,7 +44,7 @@ class TimetablePeriodGrid
             foreach ($freeWindows as [$windowStart, $windowEnd]) {
                 $cursor = $windowStart->copy();
 
-                while ($cursor->copy()->addMinutes($shift->period_duration_minutes)->lessThanOrEqualTo($windowEnd)) {
+                while ($periodNo <= self::MAX_PERIODS_PER_DAY && $cursor->copy()->addMinutes($shift->period_duration_minutes)->lessThanOrEqualTo($windowEnd)) {
                     $periodEnd = $cursor->copy()->addMinutes($shift->period_duration_minutes);
 
                     $slots[] = [
@@ -45,6 +56,10 @@ class TimetablePeriodGrid
 
                     $periodNo++;
                     $cursor = $periodEnd;
+                }
+
+                if ($periodNo > self::MAX_PERIODS_PER_DAY) {
+                    break;
                 }
             }
         }
