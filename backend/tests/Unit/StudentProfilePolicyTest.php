@@ -5,6 +5,7 @@ namespace Tests\Unit;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\StudentProfile;
+use App\Models\StudentUser;
 use App\Models\User;
 use App\Policies\StudentProfilePolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -21,7 +22,7 @@ class StudentProfilePolicyTest extends TestCase
         $role->permissions()->attach($permission);
 
         $user = User::factory()->create(['role_id' => $role->id]);
-        $targetUser = User::factory()->create();
+        $targetUser = StudentUser::factory()->create();
         $profile = StudentProfile::create(['user_id' => $targetUser->id]);
 
         $policy = new StudentProfilePolicy;
@@ -34,7 +35,7 @@ class StudentProfilePolicyTest extends TestCase
     {
         $role = Role::create(['name' => 'no_perm_sp', 'label' => 'No Permission']);
         $user = User::factory()->create(['role_id' => $role->id]);
-        $targetUser = User::factory()->create();
+        $targetUser = StudentUser::factory()->create();
         $profile = StudentProfile::create(['user_id' => $targetUser->id]);
 
         $policy = new StudentProfilePolicy;

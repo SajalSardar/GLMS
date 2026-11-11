@@ -41,7 +41,7 @@ class StudentProfile extends Model
 
     public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(StudentUser::class);
     }
 
     public function school(): BelongsTo

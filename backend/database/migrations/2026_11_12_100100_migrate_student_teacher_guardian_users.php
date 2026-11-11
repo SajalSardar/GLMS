@@ -1,7 +1,9 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -59,6 +61,21 @@ return new class extends Migration
                 DB::table('users')->where('role_id', $roleId)->delete();
             });
         }
+
+        Schema::table('student_profiles', function (Blueprint $blueprint) {
+            $blueprint->dropForeign(['user_id']);
+            $blueprint->foreign('user_id')->references('id')->on('student_users')->cascadeOnDelete();
+        });
+
+        Schema::table('teacher_profiles', function (Blueprint $blueprint) {
+            $blueprint->dropForeign(['user_id']);
+            $blueprint->foreign('user_id')->references('id')->on('teacher_users')->cascadeOnDelete();
+        });
+
+        Schema::table('guardians', function (Blueprint $blueprint) {
+            $blueprint->dropForeign(['user_id']);
+            $blueprint->foreign('user_id')->references('id')->on('guardian_users')->nullOnDelete();
+        });
     }
 
     /**
@@ -67,6 +84,21 @@ return new class extends Migration
      */
     public function down(): void
     {
+        Schema::table('student_profiles', function (Blueprint $blueprint) {
+            $blueprint->dropForeign(['user_id']);
+            $blueprint->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
+        });
+
+        Schema::table('teacher_profiles', function (Blueprint $blueprint) {
+            $blueprint->dropForeign(['user_id']);
+            $blueprint->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
+        });
+
+        Schema::table('guardians', function (Blueprint $blueprint) {
+            $blueprint->dropForeign(['user_id']);
+            $blueprint->foreign('user_id')->references('id')->on('users')->nullOnDelete();
+        });
+
         foreach ($this->roleTableMap as $roleName => $table) {
             DB::transaction(function () use ($table) {
                 $rows = DB::table($table)->get();

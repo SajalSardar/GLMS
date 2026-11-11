@@ -26,7 +26,7 @@ class Guardian extends Model
 
     public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(GuardianUser::class);
     }
 
     public function students(): BelongsToMany
