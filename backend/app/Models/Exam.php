@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\TenantScoped;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
@@ -13,7 +14,7 @@ use Illuminate\Support\Collection;
 
 class Exam extends Model
 {
-    use SoftDeletes, TenantScoped;
+    use Auditable, SoftDeletes, TenantScoped;
 
     /**
      * In-memory default mirroring the migration's column default.
