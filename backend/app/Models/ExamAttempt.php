@@ -51,7 +51,7 @@ class ExamAttempt extends Model
 
     public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(StudentUser::class);
     }
 
     public function attemptQuestions(): HasMany

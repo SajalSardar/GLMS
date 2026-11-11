@@ -50,7 +50,7 @@ class Section extends Model
 
     public function classTeacher(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'class_teacher_id');
+        return $this->belongsTo(TeacherUser::class, 'class_teacher_id');
     }
 
     public function defaultClassroom(): BelongsTo
