@@ -15,12 +15,14 @@ class SplitUserTablesDataMigrationTest extends TestCase
     {
         // Simulate "existed before the split": insert directly into users
         // with role=teacher, matching what the pre-split app would have
-        // done, then re-run just the two split migrations to prove they
-        // move it. RefreshDatabase already ran every migration once for
-        // this test class, so the row below is inserted AFTER the split
-        // already ran — to actually exercise the migration's up() logic
-        // against pre-existing data, insert the row, roll the two split
-        // migrations back, then forward again.
+        // done, then run this migration's up() directly to prove it moves
+        // it. RefreshDatabase already ran every migration once for this
+        // test class, so the row below is inserted AFTER the split already
+        // ran — to actually exercise the migration's up() logic against
+        // pre-existing data, insert the row and call up() directly by
+        // requiring the migration file, rather than rolling back by step
+        // count (which rolls back whichever migration ran last, not
+        // necessarily this one).
         $role = Role::where('name', 'teacher')->first() ?? Role::create(['name' => 'teacher', 'label' => 'Teacher']);
 
         $userId = DB::table('users')->insertGetId([
@@ -32,8 +34,7 @@ class SplitUserTablesDataMigrationTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        $this->artisan('migrate:rollback', ['--step' => 1])->run();
-        $this->artisan('migrate')->run();
+        (require database_path('migrations/2026_11_12_100100_migrate_student_teacher_guardian_users.php'))->up();
 
         $this->assertDatabaseMissing('users', ['id' => $userId]);
         $this->assertDatabaseHas('teacher_users', ['id' => $userId, 'email' => 'pre-split-teacher@example.test']);
@@ -52,10 +53,13 @@ class SplitUserTablesDataMigrationTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        $this->artisan('migrate:rollback', ['--step' => 1])->run();
-        $this->artisan('migrate')->run();
-        $this->artisan('migrate:rollback', ['--step' => 1])->run();
-        $this->artisan('migrate')->run();
+        // Call up() directly, twice in a row, with no down() in between —
+        // this proves the migration is idempotent across retries without
+        // relying on migrate:rollback --step=1, which rolls back whichever
+        // migration ran last (not necessarily this one, once later
+        // migrations are added on top of it).
+        (require database_path('migrations/2026_11_12_100100_migrate_student_teacher_guardian_users.php'))->up();
+        (require database_path('migrations/2026_11_12_100100_migrate_student_teacher_guardian_users.php'))->up();
 
         $this->assertSame(1, DB::table('student_users')->where('email', 'idempotency@example.test')->count());
     }
