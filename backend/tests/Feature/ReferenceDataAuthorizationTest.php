@@ -26,8 +26,12 @@ class ReferenceDataAuthorizationTest extends TestCase
         $this->actingAs($denied, 'sanctum')->patchJson("/api/v1/divisions/{$division->id}", [])->assertForbidden();
 
         $allowed = $this->actorWithPermissions(['divisions.create', 'divisions.update']);
-        $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/divisions', $payload)->assertCreated();
-        $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/divisions/{$division->id}", [])->assertOk();
+        $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/divisions', $payload)
+            ->assertCreated()
+            ->assertJsonPath('data.created_by', $allowed->id);
+        $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/divisions/{$division->id}", [])
+            ->assertOk()
+            ->assertJsonPath('data.updated_by', $allowed->id);
     }
 
     public function test_district_store_and_update_are_authorized(): void
