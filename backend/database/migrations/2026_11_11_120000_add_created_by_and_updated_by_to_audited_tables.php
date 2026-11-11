@@ -11,6 +11,10 @@ return new class extends Migration
      * always exists at creation/update time for these. See
      * docs/superpowers/specs/2026-11-11-audit-created-by-updated-by-design.md.
      *
+     * On MySQL, adding a foreign-key column is a full table rebuild under
+     * a metadata lock, not an online/INPLACE operation — plan downtime or
+     * a maintenance window accordingly when running this in production.
+     *
      * @var list<string>
      */
     private array $tables = [
@@ -28,9 +32,14 @@ return new class extends Migration
     public function up(): void
     {
         foreach ($this->tables as $table) {
-            Schema::table($table, function (Blueprint $blueprint) {
-                $blueprint->foreignId('created_by')->nullable()->after('id')->constrained('users')->nullOnDelete();
-                $blueprint->foreignId('updated_by')->nullable()->after('created_by')->constrained('users')->nullOnDelete();
+            Schema::table($table, function (Blueprint $blueprint) use ($table) {
+                if (! Schema::hasColumn($table, 'created_by')) {
+                    $blueprint->foreignId('created_by')->nullable()->after('id')->constrained('users')->nullOnDelete();
+                }
+
+                if (! Schema::hasColumn($table, 'updated_by')) {
+                    $blueprint->foreignId('updated_by')->nullable()->after('created_by')->constrained('users')->nullOnDelete();
+                }
             });
         }
     }
@@ -41,9 +50,14 @@ return new class extends Migration
     public function down(): void
     {
         foreach (array_reverse($this->tables) as $table) {
-            Schema::table($table, function (Blueprint $blueprint) {
-                $blueprint->dropConstrainedForeignId('updated_by');
-                $blueprint->dropConstrainedForeignId('created_by');
+            Schema::table($table, function (Blueprint $blueprint) use ($table) {
+                if (Schema::hasColumn($table, 'updated_by')) {
+                    $blueprint->dropConstrainedForeignId('updated_by');
+                }
+
+                if (Schema::hasColumn($table, 'created_by')) {
+                    $blueprint->dropConstrainedForeignId('created_by');
+                }
             });
         }
     }
