@@ -216,9 +216,30 @@ change their `belongsTo` target from `User::class` to `StudentUser::class`/
 
 Every Policy's method signatures change `User $user`/`User $actor` to
 `Authenticatable $user`/`Authenticatable $actor` (import changes from
-`App\Models\User` to `Illuminate\Contracts\Auth\Authenticatable`). Method
-bodies are untouched — they already only call `$user->hasPermission(...)`
-or a relation, which works identically on the concrete type at runtime.
+`App\Models\User` to `Illuminate\Contracts\Auth\Authenticatable`). Nearly
+every method body is untouched — they already only call
+`$user->hasPermission(...)` or a relation, which works identically on the
+concrete type at runtime.
+
+**Exception, found while writing the implementation plan:** four call
+sites assume the acting user has a `guardian()` relation (today, every
+`User` row does, even if it's null for non-guardians) and use it to find
+"the guardian profile this actor's own account is linked to":
+`Guardian::scopeVisibleTo()`/`isVisibleTo()` (`$actor->guardian`),
+`ExamAttemptPolicy::view()` (`$user->guardian`), and
+`StudentProfilePolicy::viewDashboard()` (`$user->guardian`). Once a
+guardian is a `GuardianUser` instead of a `User`, that relation doesn't
+exist on `User` anymore (dead code — no `users` row can ever be a guardian
+again post-migration) and needs to exist on `GuardianUser` instead, named
+`profile()` for consistency with `StudentUser`/`TeacherUser`. All four call
+sites change to check `$actor instanceof GuardianUser ? $actor->profile :
+null` in place of `$actor->guardian`. `User::guardian()`,
+`User::studentProfile()`, and `User::teacherProfile()` are removed
+entirely (dead code once no `users` row can be a student/teacher/guardian).
+One more call site needs the same treatment for a different relation:
+`ExamAttemptController::start()` reads `$user->studentProfile` to find the
+exam-taker's own profile — becomes `$user->profile` once the actor is a
+`StudentUser`.
 
 ## New account-creation endpoints
 
