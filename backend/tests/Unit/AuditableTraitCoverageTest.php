@@ -59,7 +59,7 @@ use Tests\TestCase;
 /**
  * Structural drift-guard test: catches a future audited model being added
  * without the Auditable trait, or an existing Resource class losing its
- * created_by/updated_by keys. Mirrors the house style of
+ * created_by_type/created_by_id/updated_by_type/updated_by_id keys. Mirrors the house style of
  * ControllerAuthorizationConventionTest (reflection/iteration over a fixed
  * list of classes) rather than exercising any HTTP or auth behavior.
  */
@@ -135,14 +135,24 @@ class AuditableTraitCoverageTest extends TestCase
         $array = (new $resourceClass($instance))->toArray(request());
 
         $this->assertArrayHasKey(
-            'created_by',
+            'created_by_type',
             $array,
-            "{$resourceClass} must expose a created_by key."
+            "{$resourceClass} must expose a created_by_type key."
         );
         $this->assertArrayHasKey(
-            'updated_by',
+            'created_by_id',
             $array,
-            "{$resourceClass} must expose an updated_by key."
+            "{$resourceClass} must expose a created_by_id key."
+        );
+        $this->assertArrayHasKey(
+            'updated_by_type',
+            $array,
+            "{$resourceClass} must expose an updated_by_type key."
+        );
+        $this->assertArrayHasKey(
+            'updated_by_id',
+            $array,
+            "{$resourceClass} must expose an updated_by_id key."
         );
     }
 }

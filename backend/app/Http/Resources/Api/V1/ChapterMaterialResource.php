@@ -14,8 +14,10 @@ class ChapterMaterialResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'created_by' => $this->created_by,
-            'updated_by' => $this->updated_by,
+            'created_by_type' => $this->created_by_type,
+            'created_by_id' => $this->created_by_id,
+            'updated_by_type' => $this->updated_by_type,
+            'updated_by_id' => $this->updated_by_id,
             'chapter_id' => $this->chapter_id,
             'type' => $this->type,
             'title' => $this->title,
