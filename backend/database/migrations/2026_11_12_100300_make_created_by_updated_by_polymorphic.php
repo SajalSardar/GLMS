@@ -34,23 +34,19 @@ return new class extends Migration
      * non-null values are backfilled with App\Models\User, since every
      * row created so far was created by a staff actor (the split only
      * just happened).
+     *
+     * MySQL DDL is not transactional, and each Blueprint command added
+     * in a Schema::table() closure compiles to its own sequential
+     * ALTER TABLE statement. So every step below is independently
+     * guarded against actual current DB state (not just a downstream
+     * signal) — a crash between any two steps and a retry must be able
+     * to resume exactly where it left off.
      */
     public function up(): void
     {
         foreach ($this->tables as $table) {
-            Schema::table($table, function (Blueprint $blueprint) use ($table) {
-                if (! Schema::hasColumn($table, 'created_by_type')) {
-                    $blueprint->dropForeign([$table === 'users' ? 'users_created_by_foreign' : "{$table}_created_by_foreign"]);
-                    $blueprint->string('created_by_type')->nullable()->after('created_by');
-                    $blueprint->renameColumn('created_by', 'created_by_id');
-                }
-
-                if (! Schema::hasColumn($table, 'updated_by_type')) {
-                    $blueprint->dropForeign([$table === 'users' ? 'users_updated_by_foreign' : "{$table}_updated_by_foreign"]);
-                    $blueprint->string('updated_by_type')->nullable()->after('updated_by');
-                    $blueprint->renameColumn('updated_by', 'updated_by_id');
-                }
-            });
+            $this->makeColumnPolymorphic($table, 'created_by');
+            $this->makeColumnPolymorphic($table, 'updated_by');
 
             DB::table($table)->whereNotNull('created_by_id')->update(['created_by_type' => User::class]);
             DB::table($table)->whereNotNull('updated_by_id')->update(['updated_by_type' => User::class]);
@@ -63,18 +59,79 @@ return new class extends Migration
     public function down(): void
     {
         foreach (array_reverse($this->tables) as $table) {
-            Schema::table($table, function (Blueprint $blueprint) use ($table) {
-                if (Schema::hasColumn($table, 'created_by_type')) {
-                    $blueprint->renameColumn('created_by_id', 'created_by');
-                    $blueprint->dropColumn('created_by_type');
-                    $blueprint->foreign('created_by')->references('id')->on('users')->nullOnDelete();
-                }
+            $this->revertColumnPolymorphic($table, 'created_by');
+            $this->revertColumnPolymorphic($table, 'updated_by');
+        }
+    }
 
-                if (Schema::hasColumn($table, 'updated_by_type')) {
-                    $blueprint->renameColumn('updated_by_id', 'updated_by');
-                    $blueprint->dropColumn('updated_by_type');
-                    $blueprint->foreign('updated_by')->references('id')->on('users')->nullOnDelete();
-                }
+    /**
+     * Turn {column} into {column}_type/{column}_id on $table, in three
+     * independently-guarded sub-steps so a crash between any two of
+     * them leaves the table in a state a retry can detect and resume
+     * from.
+     */
+    private function makeColumnPolymorphic(string $table, string $column): void
+    {
+        $typeColumn = "{$column}_type";
+        $idColumn = "{$column}_id";
+
+        // Step 1: add the type column.
+        Schema::table($table, function (Blueprint $blueprint) use ($table, $column, $typeColumn) {
+            if (! Schema::hasColumn($table, $typeColumn)) {
+                $blueprint->string($typeColumn)->nullable()->after($column);
+            }
+        });
+
+        // Step 2: drop the FK, if it still exists.
+        $hasForeign = collect(Schema::getForeignKeys($table))->contains(
+            fn ($fk) => $fk['columns'] === [$column]
+        );
+        if ($hasForeign) {
+            Schema::table($table, function (Blueprint $blueprint) use ($table, $column) {
+                $blueprint->dropForeign(["{$table}_{$column}_foreign"]);
+            });
+        }
+
+        // Step 3: rename the column, if not already renamed.
+        if (Schema::hasColumn($table, $column) && ! Schema::hasColumn($table, $idColumn)) {
+            Schema::table($table, function (Blueprint $blueprint) use ($column, $idColumn) {
+                $blueprint->renameColumn($column, $idColumn);
+            });
+        }
+    }
+
+    /**
+     * Reverse makeColumnPolymorphic(): rename {column}_id back to
+     * {column}, re-add its FK, and drop {column}_type — each step
+     * independently guarded. Renaming back happens first since the FK
+     * must reference the final {column} name, not {column}_id.
+     */
+    private function revertColumnPolymorphic(string $table, string $column): void
+    {
+        $typeColumn = "{$column}_type";
+        $idColumn = "{$column}_id";
+
+        // Step 1: rename the column back, if not already done.
+        if (Schema::hasColumn($table, $idColumn) && ! Schema::hasColumn($table, $column)) {
+            Schema::table($table, function (Blueprint $blueprint) use ($idColumn, $column) {
+                $blueprint->renameColumn($idColumn, $column);
+            });
+        }
+
+        // Step 2: re-add the FK, if it doesn't already exist.
+        $hasForeign = collect(Schema::getForeignKeys($table))->contains(
+            fn ($fk) => $fk['columns'] === [$column]
+        );
+        if (! $hasForeign && Schema::hasColumn($table, $column)) {
+            Schema::table($table, function (Blueprint $blueprint) use ($column) {
+                $blueprint->foreign($column)->references('id')->on('users')->nullOnDelete();
+            });
+        }
+
+        // Step 3: drop the now-unused type column, if it still exists.
+        if (Schema::hasColumn($table, $typeColumn)) {
+            Schema::table($table, function (Blueprint $blueprint) use ($typeColumn) {
+                $blueprint->dropColumn($typeColumn);
             });
         }
     }
