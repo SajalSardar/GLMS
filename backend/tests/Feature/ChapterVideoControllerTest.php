@@ -63,15 +63,17 @@ class ChapterVideoControllerTest extends TestCase
         $this->actingAs($denied, 'sanctum')->postJson('/api/v1/chapter-videos', $payload)->assertForbidden();
 
         $allowed = $this->actorWithPermissions(['chapter_videos.create', 'chapter_videos.update'], $this->schoolA->id, $this->schoolA->district_id);
-        $id = $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/chapter-videos', $payload)
+        $createResponse = $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/chapter-videos', $payload)
             ->assertCreated()
             ->assertJsonPath('data.youtube_video_id', 'dQw4w9WgXcQ')
-            ->json('data.id');
+            ->assertJsonPath('data.created_by', $allowed->id);
+        $id = $createResponse->json('data.id');
 
         $this->actingAs($allowed, 'sanctum')
             ->patchJson("/api/v1/chapter-videos/{$id}", ['is_enabled' => false])
             ->assertOk()
-            ->assertJsonPath('data.is_enabled', false);
+            ->assertJsonPath('data.is_enabled', false)
+            ->assertJsonPath('data.updated_by', $allowed->id);
     }
 
     public function test_store_without_order_index_defaults_to_zero(): void

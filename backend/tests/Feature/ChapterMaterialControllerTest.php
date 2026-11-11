@@ -71,14 +71,16 @@ class ChapterMaterialControllerTest extends TestCase
 
         $allowed = $this->actorWithPermissions(['chapter_materials.create', 'chapter_materials.update'], $this->schoolA->id, $this->schoolA->district_id);
 
-        $created = $this->actingAs($allowed, 'sanctum')
+        $createResponse = $this->actingAs($allowed, 'sanctum')
             ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'primary', 'pdf' => $file])
             ->assertCreated()
-            ->json('data.id');
+            ->assertJsonPath('data.created_by', $allowed->id);
+        $created = $createResponse->json('data.id');
 
         $this->actingAs($allowed, 'sanctum')
             ->patchJson("/api/v1/chapter-materials/{$created}", ['order_index' => 2])
-            ->assertOk();
+            ->assertOk()
+            ->assertJsonPath('data.updated_by', $allowed->id);
     }
 
     public function test_only_one_active_primary_material_allowed_per_chapter(): void
