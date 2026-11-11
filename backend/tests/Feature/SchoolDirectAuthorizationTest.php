@@ -53,8 +53,12 @@ class SchoolDirectAuthorizationTest extends TestCase
         $this->actingAs($denied, 'sanctum')->patchJson("/api/v1/schools/{$this->school->id}", [])->assertForbidden();
 
         $allowed = $this->actorWithPermissions(['schools.create', 'schools.update']);
-        $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/schools', $payload)->assertCreated();
-        $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/schools/{$this->school->id}", [])->assertOk();
+        $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/schools', $payload)
+            ->assertCreated()
+            ->assertJsonPath('data.created_by', $allowed->id);
+        $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/schools/{$this->school->id}", [])
+            ->assertOk()
+            ->assertJsonPath('data.updated_by', $allowed->id);
     }
 
     public function test_classroom_store_and_update_are_authorized(): void
@@ -67,8 +71,12 @@ class SchoolDirectAuthorizationTest extends TestCase
         $this->actingAs($denied, 'sanctum')->patchJson("/api/v1/classrooms/{$classroom->id}", [])->assertForbidden();
 
         $allowed = $this->actorWithPermissions(['classrooms.create', 'classrooms.update']);
-        $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/classrooms', $payload)->assertCreated();
-        $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/classrooms/{$classroom->id}", [])->assertOk();
+        $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/classrooms', $payload)
+            ->assertCreated()
+            ->assertJsonPath('data.created_by', $allowed->id);
+        $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/classrooms/{$classroom->id}", [])
+            ->assertOk()
+            ->assertJsonPath('data.updated_by', $allowed->id);
     }
 
     public function test_academic_year_store_and_update_are_authorized(): void

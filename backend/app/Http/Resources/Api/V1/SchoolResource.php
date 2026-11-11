@@ -17,6 +17,8 @@ class SchoolResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'created_by' => $this->created_by,
+            'updated_by' => $this->updated_by,
             'division_id' => $this->division_id,
             'district_id' => $this->district_id,
             'upazila_id' => $this->upazila_id,
