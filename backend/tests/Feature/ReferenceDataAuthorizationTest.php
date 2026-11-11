@@ -83,8 +83,12 @@ class ReferenceDataAuthorizationTest extends TestCase
         $this->actingAs($denied, 'sanctum')->patchJson("/api/v1/subjects/{$subject->id}", [])->assertForbidden();
 
         $allowed = $this->actorWithPermissions(['subjects.create', 'subjects.update']);
-        $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/subjects', $payload)->assertCreated();
-        $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/subjects/{$subject->id}", [])->assertOk();
+        $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/subjects', $payload)
+            ->assertCreated()
+            ->assertJsonPath('data.created_by', $allowed->id);
+        $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/subjects/{$subject->id}", [])
+            ->assertOk()
+            ->assertJsonPath('data.updated_by', $allowed->id);
     }
 
     public function test_guardian_store_and_update_are_authorized(): void
@@ -97,7 +101,11 @@ class ReferenceDataAuthorizationTest extends TestCase
         $this->actingAs($denied, 'sanctum')->patchJson("/api/v1/guardians/{$guardian->id}", [])->assertForbidden();
 
         $allowed = $this->actorWithPermissions(['guardians.create', 'guardians.update']);
-        $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/guardians', $payload)->assertCreated();
-        $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/guardians/{$guardian->id}", [])->assertOk();
+        $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/guardians', $payload)
+            ->assertCreated()
+            ->assertJsonPath('data.created_by', $allowed->id);
+        $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/guardians/{$guardian->id}", [])
+            ->assertOk()
+            ->assertJsonPath('data.updated_by', $allowed->id);
     }
 }
