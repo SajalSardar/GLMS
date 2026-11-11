@@ -30,7 +30,7 @@ class StoreTeacherProfileRequest extends FormRequest
         return [
             'user_id' => [
                 'required', 'integer',
-                Rule::exists('users', 'id')->withoutTrashed(),
+                Rule::exists('teacher_users', 'id')->withoutTrashed(),
                 Rule::unique('teacher_profiles', 'user_id')->withoutTrashed(),
             ],
             'employee_id' => ['nullable', 'string', 'max:50', Rule::unique('teacher_profiles', 'employee_id')->withoutTrashed()],

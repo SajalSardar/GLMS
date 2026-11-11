@@ -27,7 +27,7 @@ class StoreGuardianRequest extends FormRequest
         return [
             'user_id' => [
                 'nullable', 'integer',
-                Rule::exists('users', 'id')->withoutTrashed(),
+                Rule::exists('guardian_users', 'id')->withoutTrashed(),
                 Rule::unique('guardians', 'user_id')->withoutTrashed(),
             ],
             'name' => ['required', 'string', 'max:255'],

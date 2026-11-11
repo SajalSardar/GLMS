@@ -30,7 +30,7 @@ class StoreSubjectTeacherAssignmentRequest extends FormRequest
         return [
             'section_id' => ['required', 'integer', Rule::exists('sections', 'id')->withoutTrashed()],
             'subject_id' => ['required', 'integer', Rule::exists('subjects', 'id')->withoutTrashed()],
-            'teacher_id' => ['required', 'integer', Rule::exists('users', 'id')->withoutTrashed()],
+            'teacher_id' => ['required', 'integer', Rule::exists('teacher_users', 'id')->withoutTrashed()],
         ];
     }
 }

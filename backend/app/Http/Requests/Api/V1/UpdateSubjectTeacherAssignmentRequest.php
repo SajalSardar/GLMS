@@ -27,7 +27,7 @@ class UpdateSubjectTeacherAssignmentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'teacher_id' => ['required', 'integer', Rule::exists('users', 'id')->withoutTrashed()],
+            'teacher_id' => ['required', 'integer', Rule::exists('teacher_users', 'id')->withoutTrashed()],
         ];
     }
 }

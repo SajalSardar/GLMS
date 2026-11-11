@@ -36,7 +36,7 @@ class UpdateTimetableEntryRequest extends FormRequest
 
         return [
             'subject_id' => ['sometimes', 'required', 'integer', Rule::exists('subjects', 'id')->withoutTrashed()],
-            'teacher_id' => ['sometimes', 'required', 'integer', Rule::exists('users', 'id')->withoutTrashed()],
+            'teacher_id' => ['sometimes', 'required', 'integer', Rule::exists('teacher_users', 'id')->withoutTrashed()],
             'classroom_id' => ['nullable', 'integer', Rule::exists('classrooms', 'id')->withoutTrashed()],
             'day_of_week' => [
                 'sometimes', 'required', 'string', Rule::in(ClassRoutine::DAYS_OF_WEEK),

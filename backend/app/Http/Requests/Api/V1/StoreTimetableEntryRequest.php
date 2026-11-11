@@ -31,7 +31,7 @@ class StoreTimetableEntryRequest extends FormRequest
         return [
             'section_id' => ['required', 'integer', Rule::exists('sections', 'id')->withoutTrashed()],
             'subject_id' => ['required', 'integer', Rule::exists('subjects', 'id')->withoutTrashed()],
-            'teacher_id' => ['required', 'integer', Rule::exists('users', 'id')->withoutTrashed()],
+            'teacher_id' => ['required', 'integer', Rule::exists('teacher_users', 'id')->withoutTrashed()],
             'classroom_id' => ['nullable', 'integer', Rule::exists('classrooms', 'id')->withoutTrashed()],
             'day_of_week' => [
                 'required', 'string', Rule::in(ClassRoutine::DAYS_OF_WEEK),

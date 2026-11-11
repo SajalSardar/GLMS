@@ -36,7 +36,7 @@ class StoreSectionRequest extends FormRequest
             'bn_name' => ['nullable', 'string', 'max:255'],
             'code' => ['nullable', 'string', 'max:50'],
             'capacity' => ['nullable', 'integer', 'min:1', 'max:200'],
-            'class_teacher_id' => ['nullable', 'integer', Rule::exists('users', 'id')->withoutTrashed()],
+            'class_teacher_id' => ['nullable', 'integer', Rule::exists('teacher_users', 'id')->withoutTrashed()],
             'default_classroom_id' => ['nullable', 'integer', Rule::exists('classrooms', 'id')->withoutTrashed()],
             'is_active' => ['boolean'],
         ];

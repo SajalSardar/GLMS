@@ -30,7 +30,7 @@ class StoreClassRoutineRequest extends FormRequest
         return [
             'class_id' => ['required', 'integer', Rule::exists('school_classes', 'id')->withoutTrashed()],
             'subject_id' => ['required', 'integer', Rule::exists('subjects', 'id')->withoutTrashed()],
-            'teacher_id' => ['nullable', 'integer', Rule::exists('users', 'id')->withoutTrashed()],
+            'teacher_id' => ['nullable', 'integer', Rule::exists('teacher_users', 'id')->withoutTrashed()],
             'classroom_id' => ['nullable', 'integer', Rule::exists('classrooms', 'id')->withoutTrashed()],
             'academic_year_id' => ['nullable', 'integer', Rule::exists('academic_years', 'id')->withoutTrashed()],
             'day_of_week' => [

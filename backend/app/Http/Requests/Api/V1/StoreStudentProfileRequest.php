@@ -31,7 +31,7 @@ class StoreStudentProfileRequest extends FormRequest
         return [
             'user_id' => [
                 'required', 'integer',
-                Rule::exists('users', 'id')->withoutTrashed(),
+                Rule::exists('student_users', 'id')->withoutTrashed(),
                 Rule::unique('student_profiles', 'user_id')->withoutTrashed(),
             ],
             'class_id' => ['nullable', 'integer', Rule::exists('school_classes', 'id')->withoutTrashed()],
