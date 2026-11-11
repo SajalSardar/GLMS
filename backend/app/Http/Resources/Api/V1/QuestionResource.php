@@ -15,6 +15,8 @@ class QuestionResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'created_by' => $this->created_by,
+            'updated_by' => $this->updated_by,
             'chapter_id' => $this->chapter_id,
             'question_type' => $this->question_type,
             'question_text' => $this->question_text,

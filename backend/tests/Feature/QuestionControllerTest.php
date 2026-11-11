@@ -76,17 +76,19 @@ class QuestionControllerTest extends TestCase
         $this->actingAs($denied, 'sanctum')->postJson('/api/v1/questions', $this->mcqPayload())->assertForbidden();
 
         $allowed = $this->actorWithPermissions(['questions.create', 'questions.update'], $this->schoolA->id, $this->schoolA->district_id);
-        $id = $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/questions', $this->mcqPayload())
+        $createResponse = $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/questions', $this->mcqPayload())
             ->assertCreated()
             ->assertJsonPath('data.question_text', 'What is 2+2?')
             ->assertJsonCount(2, 'data.options')
-            ->json('data.id');
+            ->assertJsonPath('data.created_by', $allowed->id);
+        $id = $createResponse->json('data.id');
 
         $this->actingAs($allowed, 'sanctum')
             ->putJson("/api/v1/questions/{$id}", ['question_text' => 'What is 2+2, really?'])
             ->assertOk()
             ->assertJsonPath('data.question_text', 'What is 2+2, really?')
-            ->assertJsonCount(2, 'data.options');
+            ->assertJsonCount(2, 'data.options')
+            ->assertJsonPath('data.updated_by', $allowed->id);
     }
 
     public function test_store_rejects_true_false_without_exactly_two_options(): void
