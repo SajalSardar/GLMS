@@ -92,8 +92,12 @@ class StudentProfileAuthorizationTest extends TestCase
         $this->actingAs($denied, 'sanctum')->postJson("/api/v1/student-profiles/{$profile->id}/transfer-section", $transferPayload)->assertForbidden();
 
         $allowed = $this->actorWithPermissions(['student_profiles.create', 'student_profiles.update'], $this->school->id, $this->school->district_id);
-        $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/student-profiles', $storePayload)->assertCreated();
-        $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/student-profiles/{$profile->id}", [])->assertOk();
+        $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/student-profiles', $storePayload)
+            ->assertCreated()
+            ->assertJsonPath('data.created_by', $allowed->id);
+        $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/student-profiles/{$profile->id}", [])
+            ->assertOk()
+            ->assertJsonPath('data.updated_by', $allowed->id);
         $this->actingAs($allowed, 'sanctum')->postJson("/api/v1/student-profiles/{$profile->id}/guardians", $attachPayload)->assertOk();
     }
 }
