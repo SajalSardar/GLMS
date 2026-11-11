@@ -98,8 +98,12 @@ class RoutineAssignmentTimetableAuthorizationTest extends TestCase
         $this->actingAs($denied, 'sanctum')->patchJson("/api/v1/class-routines/{$routine->id}", [])->assertForbidden();
 
         $allowed = $this->actorWithPermissions(['class_routines.create', 'class_routines.update']);
-        $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/class-routines', $payload)->assertCreated();
-        $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/class-routines/{$routine->id}", [])->assertOk();
+        $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/class-routines', $payload)
+            ->assertCreated()
+            ->assertJsonPath('data.created_by', $allowed->id);
+        $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/class-routines/{$routine->id}", [])
+            ->assertOk()
+            ->assertJsonPath('data.updated_by', $allowed->id);
     }
 
     public function test_subject_teacher_assignment_store_and_update_are_authorized(): void
@@ -129,8 +133,12 @@ class RoutineAssignmentTimetableAuthorizationTest extends TestCase
         $this->actingAs($denied, 'sanctum')->patchJson("/api/v1/subject-teacher-assignments/{$assignment->id}", [])->assertForbidden();
 
         $allowed = $this->actorWithPermissions(['subject_teacher_assignments.create', 'subject_teacher_assignments.update']);
-        $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/subject-teacher-assignments', $payload)->assertCreated();
-        $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/subject-teacher-assignments/{$assignment->id}", ['teacher_id' => $this->teacher->id])->assertOk();
+        $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/subject-teacher-assignments', $payload)
+            ->assertCreated()
+            ->assertJsonPath('data.created_by', $allowed->id);
+        $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/subject-teacher-assignments/{$assignment->id}", ['teacher_id' => $this->teacher->id])
+            ->assertOk()
+            ->assertJsonPath('data.updated_by', $allowed->id);
     }
 
     public function test_timetable_entry_store_is_authorized(): void

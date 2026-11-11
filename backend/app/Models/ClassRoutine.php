@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\TenantScoped;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,7 +10,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ClassRoutine extends Model
 {
-    use SoftDeletes, TenantScoped;
+    use Auditable, SoftDeletes, TenantScoped;
 
     /**
      * Canonical weekly order (Bangladesh school week: Sunday–Thursday,
