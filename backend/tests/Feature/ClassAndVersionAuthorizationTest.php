@@ -48,8 +48,12 @@ class ClassAndVersionAuthorizationTest extends TestCase
         $this->actingAs($denied, 'sanctum')->putJson("/api/v1/classes/{$class->id}/subjects", ['subject_ids' => [$subject->id]])->assertForbidden();
 
         $allowed = $this->actorWithPermissions(['classes.create', 'classes.update']);
-        $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/classes', $payload)->assertCreated();
-        $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/classes/{$class->id}", [])->assertOk();
+        $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/classes', $payload)
+            ->assertCreated()
+            ->assertJsonPath('data.created_by', $allowed->id);
+        $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/classes/{$class->id}", [])
+            ->assertOk()
+            ->assertJsonPath('data.updated_by', $allowed->id);
         $this->actingAs($allowed, 'sanctum')->putJson("/api/v1/classes/{$class->id}/subjects", ['subject_ids' => [$subject->id]])->assertOk();
     }
 
@@ -66,8 +70,12 @@ class ClassAndVersionAuthorizationTest extends TestCase
         $this->actingAs($denied, 'sanctum')->putJson("/api/v1/class-versions/{$version->id}/subjects", ['subjects' => [['subject_id' => $subject->id]]])->assertForbidden();
 
         $allowed = $this->actorWithPermissions(['class_versions.create', 'class_versions.update']);
-        $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/class-versions', $payload)->assertCreated();
-        $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/class-versions/{$version->id}", [])->assertOk();
+        $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/class-versions', $payload)
+            ->assertCreated()
+            ->assertJsonPath('data.created_by', $allowed->id);
+        $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/class-versions/{$version->id}", [])
+            ->assertOk()
+            ->assertJsonPath('data.updated_by', $allowed->id);
         $this->actingAs($allowed, 'sanctum')->putJson("/api/v1/class-versions/{$version->id}/subjects", ['subjects' => [['subject_id' => $subject->id]]])->assertOk();
     }
 }
