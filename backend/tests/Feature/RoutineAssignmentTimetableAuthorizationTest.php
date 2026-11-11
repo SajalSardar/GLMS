@@ -141,7 +141,7 @@ class RoutineAssignmentTimetableAuthorizationTest extends TestCase
             ->assertJsonPath('data.updated_by', $allowed->id);
     }
 
-    public function test_timetable_entry_store_is_authorized(): void
+    public function test_timetable_entry_store_and_update_are_authorized(): void
     {
         SubjectTeacherAssignment::create([
             'section_id' => $this->section->id,
@@ -162,7 +162,14 @@ class RoutineAssignmentTimetableAuthorizationTest extends TestCase
         $denied = $this->actorWithNoPermissions();
         $this->actingAs($denied, 'sanctum')->postJson('/api/v1/timetable-entries', $payload)->assertForbidden();
 
-        $allowed = $this->actorWithPermissions(['timetable_entries.create']);
-        $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/timetable-entries', $payload)->assertCreated();
+        $allowed = $this->actorWithPermissions(['timetable_entries.create', 'timetable_entries.update']);
+        $createResponse = $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/timetable-entries', $payload)
+            ->assertCreated()
+            ->assertJsonPath('data.created_by', $allowed->id);
+        $id = $createResponse->json('data.id');
+
+        $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/timetable-entries/{$id}", [])
+            ->assertOk()
+            ->assertJsonPath('data.updated_by', $allowed->id);
     }
 }

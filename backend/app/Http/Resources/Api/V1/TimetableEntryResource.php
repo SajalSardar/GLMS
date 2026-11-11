@@ -16,6 +16,8 @@ class TimetableEntryResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'created_by' => $this->created_by,
+            'updated_by' => $this->updated_by,
             'section_id' => $this->section_id,
             'subject_id' => $this->subject_id,
             'teacher_id' => $this->teacher_id,
