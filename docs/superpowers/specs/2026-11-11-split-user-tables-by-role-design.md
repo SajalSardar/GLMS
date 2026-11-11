@@ -51,6 +51,29 @@ each its own table.
   builders in `tests/Concerns/CreatesAuthorizedActors.php`.
 - Seeders that create teacher/student/guardian demo accounts, repointed to
   the new tables.
+- **Every other FK pointing at `users.id` that actually means "a
+  teacher"/"a student" specifically, found by auditing every
+  `constrained('users')`/`foreignId('user_id')` in the migrations
+  directory** (see "Domain FKs beyond the profile tables" below):
+  `class_routines.teacher_id`, `sections.class_teacher_id`,
+  `subject_teacher_assignments.teacher_id`, `timetable_entries.teacher_id`
+  (all → `teacher_users`), and `exam_attempts.user_id` (→ `student_users`).
+  Their model relations (`ClassRoutine::teacher()`, `Section::classTeacher()`,
+  `SubjectTeacherAssignment::teacher()`, `TimetableEntry::teacher()`,
+  `ExamAttempt::user()`) repoint accordingly, as do the `Rule::exists('users',
+  'id')` validations in `StoreClassRoutineRequest`, `StoreSectionRequest`,
+  `StoreSubjectTeacherAssignmentRequest`, `StoreTimetableEntryRequest`.
+- **Two more columns that need the same polymorphic treatment as
+  `created_by`/`updated_by`**, because — unlike the FKs above — the actor
+  genuinely can be any of the four tables:
+  `content_access_logs.user_id` (any authenticated role can view/download a
+  book or chapter material) and `chapter_video_progress.user_id`
+  (`UpdateChapterVideoProgressRequest::authorize()`: "Any authenticated
+  user may report their own progress"). Both become `user_type`/`user_id`
+  morph columns, same shape and same backfill rule
+  (`user_type = App\Models\User::class` wherever the existing value is
+  non-null) as `created_by`/`updated_by`. `ChapterVideoProgress::user()`
+  and `ContentAccessLog::user()` become `morphTo('user')`.
 
 **Explicitly out of scope:**
 
@@ -166,6 +189,35 @@ On all 25 tables from the audit-columns project, `created_by`/`updated_by`
 `created_by_type = updated_by_type = User::class` (the FQCN string Eloquent
 morph columns conventionally store) wherever `created_by_id`/`updated_by_id`
 is non-null; both stay null where the existing value was already null.
+
+### Domain FKs beyond the profile tables
+
+Auditing every migration that constrains a column to `users` turned up more
+than the three profile tables. Classified by checking who actually holds
+the relevant permission in `RolePermissionSeeder` (not by guessing from the
+column name):
+
+| Table.column | Who can actually be it | Treatment |
+|---|---|---|
+| `class_routines.teacher_id` | only ever a teacher (domain reference: which teacher, not who created the row) | repoint FK to `teacher_users` |
+| `sections.class_teacher_id` | only ever a teacher | repoint FK to `teacher_users` |
+| `subject_teacher_assignments.teacher_id` | only ever a teacher | repoint FK to `teacher_users` |
+| `timetable_entries.teacher_id` | only ever a teacher | repoint FK to `teacher_users` |
+| `exam_attempts.user_id` | only `student` role has `exam_attempts.create` | repoint FK to `student_users` |
+| `content_access_logs.user_id` | any role with `books.view`/`chapter_materials.view` (student, teacher, parent_guardian, and staff all hold it) | polymorphic `user_type`/`user_id`, no FK |
+| `chapter_video_progress.user_id` | "any authenticated user" per `UpdateChapterVideoProgressRequest::authorize()` | polymorphic `user_type`/`user_id`, no FK |
+| `timetable_entries.published_by` | only `timetable_entries.publish`, held only by staff roles | **unchanged** — stays FK'd to `users` |
+| `student_section_transfers.transferred_by` | only staff roles have the update ability `transferSection` reuses | **unchanged** — stays FK'd to `users` |
+| `books.pdf_uploaded_by_id` | only `trainer` has `books.create`/`update`, a staff role | **unchanged** — stays FK'd to `users` |
+| `chapter_materials.uploaded_by_id` | only `trainer` has `chapter_materials.create`/`update`, a staff role | **unchanged** — stays FK'd to `users` |
+
+The four `teacher_id`/`class_teacher_id` repoints and the one
+`exam_attempts.user_id` repoint are simple FK-target changes (same
+migration-guard pattern as the audit-columns migration: check the column
+doesn't already point the new way before altering, so the migration is
+re-runnable). The two polymorphic ones get the same `{column}_type`/
+`{column}_id` treatment as `created_by`/`updated_by`, including the same
+backfill rule.
 
 ## Model layer
 
@@ -287,5 +339,13 @@ is unchanged — it was never checking the `users` table).
   id>`, not `User::class` — the one assertion that actually proves the
   polymorphic audit columns work for a non-staff actor, which is the whole
   reason this project touches that code at all.
+- New test: a `TeacherUser` can be assigned as `class_routines.teacher_id`/
+  `subject_teacher_assignments.teacher_id`/`timetable_entries.teacher_id`/
+  `sections.class_teacher_id` and the relation resolves to a `TeacherUser`
+  instance, not a lookup failure.
+- New test: a `StudentUser` reporting chapter-video progress, and a
+  `TeacherUser` (or any role) downloading a book PDF, each record the
+  correct `user_type`/`user_id` on `chapter_video_progress`/
+  `content_access_logs`.
 - Full `php artisan test` run at the end, same bar as every prior
   sub-project this session.
