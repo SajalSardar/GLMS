@@ -70,8 +70,11 @@ class BookControllerTest extends TestCase
         $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/books', $payload)
             ->assertCreated()
             ->assertJsonPath('data.school_id', $this->schoolA->id)
-            ->assertJsonPath('data.district_id', $this->schoolA->district_id);
-        $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/books/{$book->id}", [])->assertOk();
+            ->assertJsonPath('data.district_id', $this->schoolA->district_id)
+            ->assertJsonPath('data.created_by', $allowed->id);
+        $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/books/{$book->id}", [])
+            ->assertOk()
+            ->assertJsonPath('data.updated_by', $allowed->id);
     }
 
     public function test_multiple_books_allowed_per_class_version_and_subject(): void
