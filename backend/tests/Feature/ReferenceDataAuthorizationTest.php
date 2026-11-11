@@ -45,8 +45,12 @@ class ReferenceDataAuthorizationTest extends TestCase
         $this->actingAs($denied, 'sanctum')->patchJson("/api/v1/districts/{$district->id}", [])->assertForbidden();
 
         $allowed = $this->actorWithPermissions(['districts.create', 'districts.update']);
-        $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/districts', $payload)->assertCreated();
-        $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/districts/{$district->id}", [])->assertOk();
+        $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/districts', $payload)
+            ->assertCreated()
+            ->assertJsonPath('data.created_by', $allowed->id);
+        $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/districts/{$district->id}", [])
+            ->assertOk()
+            ->assertJsonPath('data.updated_by', $allowed->id);
     }
 
     public function test_upazila_store_and_update_are_authorized(): void
@@ -61,8 +65,12 @@ class ReferenceDataAuthorizationTest extends TestCase
         $this->actingAs($denied, 'sanctum')->patchJson("/api/v1/upazilas/{$upazila->id}", [])->assertForbidden();
 
         $allowed = $this->actorWithPermissions(['upazilas.create', 'upazilas.update']);
-        $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/upazilas', $payload)->assertCreated();
-        $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/upazilas/{$upazila->id}", [])->assertOk();
+        $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/upazilas', $payload)
+            ->assertCreated()
+            ->assertJsonPath('data.created_by', $allowed->id);
+        $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/upazilas/{$upazila->id}", [])
+            ->assertOk()
+            ->assertJsonPath('data.updated_by', $allowed->id);
     }
 
     public function test_subject_store_and_update_are_authorized(): void
