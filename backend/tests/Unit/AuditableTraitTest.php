@@ -20,8 +20,10 @@ class AuditableTraitTest extends TestCase
 
         $division = Division::create(['name' => 'Dhaka', 'bn_name' => 'ঢাকা']);
 
-        $this->assertSame($actor->id, $division->created_by);
-        $this->assertNull($division->updated_by);
+        $this->assertSame(get_class($actor), $division->created_by_type);
+        $this->assertSame($actor->id, $division->created_by_id);
+        $this->assertNull($division->updated_by_type);
+        $this->assertNull($division->updated_by_id);
     }
 
     public function test_updating_sets_updated_by_to_the_authenticated_actor(): void
@@ -34,18 +36,21 @@ class AuditableTraitTest extends TestCase
 
         $division->update(['name' => 'Dhaka Division']);
 
-        $this->assertSame($actor->id, $division->updated_by);
+        $this->assertSame(get_class($actor), $division->updated_by_type);
+        $this->assertSame($actor->id, $division->updated_by_id);
     }
 
     public function test_creating_and_updating_with_no_authenticated_actor_leaves_columns_null(): void
     {
         $division = Division::create(['name' => 'Dhaka', 'bn_name' => 'ঢাকা']);
 
-        $this->assertNull($division->created_by);
+        $this->assertNull($division->created_by_type);
+        $this->assertNull($division->created_by_id);
 
         $division->update(['name' => 'Dhaka Division']);
 
-        $this->assertNull($division->updated_by);
+        $this->assertNull($division->updated_by_type);
+        $this->assertNull($division->updated_by_id);
     }
 
     public function test_a_no_op_update_still_sets_updated_by(): void
@@ -58,6 +63,9 @@ class AuditableTraitTest extends TestCase
 
         $division->update([]);
 
-        $this->assertSame($actor->id, $division->fresh()->updated_by);
+        $fresh = $division->fresh();
+
+        $this->assertSame(get_class($actor), $fresh->updated_by_type);
+        $this->assertSame($actor->id, $fresh->updated_by_id);
     }
 }

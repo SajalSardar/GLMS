@@ -20,20 +20,29 @@ trait Auditable
     protected static function bootAuditable(): void
     {
         static::creating(function ($model) {
-            if ($model->created_by === null) {
-                $model->created_by = Auth::id();
+            if ($model->created_by_id === null) {
+                $actor = Auth::user();
+
+                if ($actor !== null) {
+                    $model->created_by_type = get_class($actor);
+                    $model->created_by_id = $actor->getAuthIdentifier();
+                }
             }
         });
 
         static::saving(function ($model) {
             // Only an update, never an insert: $model->exists is false
             // during creating() (set true only after the insert
-            // completes), so this never fires on create. Only overwrite
-            // updated_by when there IS an authenticated actor — an
-            // unauthenticated save (console command, job, seeder re-run)
-            // must not blank out a previously recorded real actor.
-            if ($model->exists && ($actorId = Auth::id()) !== null) {
-                $model->updated_by = $actorId;
+            // completes), so this never fires on create.
+            if (! $model->exists) {
+                return;
+            }
+
+            $actor = Auth::user();
+
+            if ($actor !== null) {
+                $model->updated_by_type = get_class($actor);
+                $model->updated_by_id = $actor->getAuthIdentifier();
             }
         });
     }
