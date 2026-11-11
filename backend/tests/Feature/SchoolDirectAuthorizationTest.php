@@ -95,8 +95,12 @@ class SchoolDirectAuthorizationTest extends TestCase
         $this->actingAs($denied, 'sanctum')->patchJson("/api/v1/academic-years/{$year->id}", [])->assertForbidden();
 
         $allowed = $this->actorWithPermissions(['academic_years.create', 'academic_years.update']);
-        $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/academic-years', $payload)->assertCreated();
-        $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/academic-years/{$year->id}", [])->assertOk();
+        $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/academic-years', $payload)
+            ->assertCreated()
+            ->assertJsonPath('data.created_by', $allowed->id);
+        $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/academic-years/{$year->id}", [])
+            ->assertOk()
+            ->assertJsonPath('data.updated_by', $allowed->id);
     }
 
     public function test_teacher_profile_store_and_update_are_authorized(): void
@@ -116,7 +120,11 @@ class SchoolDirectAuthorizationTest extends TestCase
         $this->actingAs($denied, 'sanctum')->patchJson("/api/v1/teacher-profiles/{$profile->id}", [])->assertForbidden();
 
         $allowed = $this->actorWithPermissions(['teacher_profiles.create', 'teacher_profiles.update'], $this->school->id, $this->school->district_id);
-        $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/teacher-profiles', $payload)->assertCreated();
-        $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/teacher-profiles/{$profile->id}", [])->assertOk();
+        $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/teacher-profiles', $payload)
+            ->assertCreated()
+            ->assertJsonPath('data.created_by', $allowed->id);
+        $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/teacher-profiles/{$profile->id}", [])
+            ->assertOk()
+            ->assertJsonPath('data.updated_by', $allowed->id);
     }
 }

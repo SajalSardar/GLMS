@@ -16,6 +16,8 @@ class TeacherProfileResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'created_by' => $this->created_by,
+            'updated_by' => $this->updated_by,
             'user_id' => $this->user_id,
             'school_id' => $this->school_id,
             'district_id' => $this->district_id,
