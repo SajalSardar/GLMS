@@ -4,6 +4,7 @@ namespace App\Http\Resources\Api\V1;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Storage;
 
 class SchoolResource extends JsonResource
 {
@@ -28,6 +29,7 @@ class SchoolResource extends JsonResource
             'phone' => $this->phone,
             'email' => $this->email,
             'established_year' => $this->established_year,
+            'logo_url' => $this->logo_path ? Storage::disk($this->logo_disk)->url($this->logo_path) : null,
             'division' => new DivisionResource($this->whenLoaded('division')),
             'district' => new DistrictResource($this->whenLoaded('district')),
             'upazila' => new UpazilaResource($this->whenLoaded('upazila')),

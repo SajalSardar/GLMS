@@ -11,6 +11,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class SchoolController extends Controller
 {
@@ -53,7 +56,14 @@ class SchoolController extends Controller
     {
         $this->authorize('create', School::class);
 
-        $data = $request->validated();
+        $data = $request->safe()->except(['logo']);
+
+        if ($request->hasFile('logo')) {
+            $disk = config('content.school_logo_disk');
+            $file = $request->file('logo');
+            $data['logo_path'] = $file->storeAs('schools', Str::uuid().'.'.$this->imageExtension($file), $disk);
+            $data['logo_disk'] = $disk;
+        }
 
         $school = ($data['eiin'] ?? null)
             ? School::onlyTrashed()->where('eiin', $data['eiin'])->first()
@@ -78,7 +88,20 @@ class SchoolController extends Controller
     {
         $this->authorize('update', $school);
 
-        $school->update($request->validated());
+        $data = $request->safe()->except(['logo']);
+
+        if ($request->hasFile('logo')) {
+            if ($school->logo_path) {
+                Storage::disk($school->logo_disk)->delete($school->logo_path);
+            }
+
+            $disk = config('content.school_logo_disk');
+            $file = $request->file('logo');
+            $data['logo_path'] = $file->storeAs('schools', Str::uuid().'.'.$this->imageExtension($file), $disk);
+            $data['logo_disk'] = $disk;
+        }
+
+        $school->update($data);
 
         return new SchoolResource($school->load(['division', 'district', 'upazila']));
     }
@@ -90,8 +113,31 @@ class SchoolController extends Controller
     {
         $this->authorize('delete', $school);
 
+        if ($school->logo_path) {
+            Storage::disk($school->logo_disk)->delete($school->logo_path);
+        }
+
         $school->delete();
 
         return response()->noContent();
+    }
+
+    /**
+     * Derive the stored file extension from the validated MIME type rather
+     * than the client-supplied original filename — the original filename
+     * is attacker-controlled, so trusting its extension (e.g. "shell.php")
+     * could get a non-.jpg/.png file saved on the public disk under an
+     * executable extension even though its content passed image
+     * validation. The default branch is defensive only: the
+     * mimes:jpg,jpeg,png rule on the request already guarantees one of
+     * these two MIME types by the time this method runs.
+     */
+    private function imageExtension(UploadedFile $file): string
+    {
+        return match ($file->getMimeType()) {
+            'image/jpeg' => 'jpg',
+            'image/png' => 'png',
+            default => abort(422, 'Unsupported image type'),
+        };
     }
 }

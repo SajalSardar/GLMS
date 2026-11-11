@@ -26,9 +26,9 @@ class AcademicYearController extends Controller
             ->when($request->integer('school_id'), fn ($query, $schoolId) => $query->where('school_id', $schoolId))
             ->when($request->integer('district_id'), fn ($query, $districtId) => $query->where('district_id', $districtId))
             ->when($request->boolean('current_only'), fn ($query) => $query->where('is_current', true))
-            ->orderBy('school_id')
-            ->orderBy('start_date')
-            ->get();
+            ->when($request->string('search')->toString(), fn ($query, $search) => $query->where('name', 'like', "%{$search}%"))
+            ->orderByDesc('id')
+            ->paginate($request->integer('per_page', 15));
 
         return AcademicYearResource::collection($academicYears);
     }

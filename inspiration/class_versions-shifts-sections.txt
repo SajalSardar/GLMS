@@ -1,0 +1,37 @@
+Classes: one
+
+Version:
+-------- 
+class one : English, Bangla
+
+Shift:
+----- 
+Morning shift: english version and Bangla version
+Day shift: Bangla Version
+
+Section:
+------
+Morning shift : english version : A section, B Section
+
+Morning shift : Bangla version : A section, B Section, C section
+
+Day shift: Bangla Version : A section, B Section
+
+========================
+
+Classes: Two
+
+Version:
+-------- 
+class Two: Bangla
+
+Shift:
+----- 
+Morning shift: Bangla version
+Day shift: Bangla Version
+
+Section:
+------
+Morning shift : Bangla version : A section, B Section, C section
+
+Day shift: Bangla Version : A section, B Section

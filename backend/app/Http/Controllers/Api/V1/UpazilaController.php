@@ -21,9 +21,11 @@ class UpazilaController extends Controller
     public function index(Request $request): AnonymousResourceCollection
     {
         $upazilas = Upazila::query()
+            ->with('district')
             ->when($request->integer('district_id'), fn ($query, $districtId) => $query->where('district_id', $districtId))
+            ->when($request->string('search')->toString(), fn ($query, $search) => $query->where('name', 'like', "%{$search}%"))
             ->orderBy('name')
-            ->get();
+            ->paginate($request->integer('per_page', 15));
 
         return UpazilaResource::collection($upazilas);
     }

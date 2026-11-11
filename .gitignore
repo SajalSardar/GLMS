@@ -30,6 +30,9 @@ frontend/.env.*
 !frontend/.env.example
 frontend/*.local
 
+# Reference/inspiration material (vendored third-party templates, not project code)
+inspiration/dashboard-tailwind-v4/
+
 # OS / editor
 .DS_Store
 Thumbs.db

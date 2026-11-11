@@ -21,9 +21,11 @@ class DistrictController extends Controller
     public function index(Request $request): AnonymousResourceCollection
     {
         $districts = District::query()
+            ->with('division')
             ->when($request->integer('division_id'), fn ($query, $divisionId) => $query->where('division_id', $divisionId))
+            ->when($request->string('search')->toString(), fn ($query, $search) => $query->where('name', 'like', "%{$search}%"))
             ->orderBy('name')
-            ->get();
+            ->paginate($request->integer('per_page', 15));
 
         return DistrictResource::collection($districts);
     }

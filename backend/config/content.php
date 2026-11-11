@@ -32,7 +32,15 @@ return [
     'question_image_disk' => env('CONTENT_QUESTION_IMAGE_DISK', 'public'),
 
     /*
-     * Maximum upload size, in kilobytes, for a question or option image.
+     * Maximum upload size, in kilobytes, for a question or option image,
+     * or a school logo.
      */
     'max_image_size_kb' => (int) env('MAX_IMAGE_SIZE_KB', 2048),
+
+    /*
+     * The filesystem disk school logos are stored on — public, same
+     * reasoning as question_image_disk: a logo is meant to be publicly
+     * visible, not confidential.
+     */
+    'school_logo_disk' => env('CONTENT_SCHOOL_LOGO_DISK', 'public'),
 ];

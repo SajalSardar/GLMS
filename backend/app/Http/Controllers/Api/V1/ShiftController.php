@@ -23,12 +23,12 @@ class ShiftController extends Controller
     public function index(Request $request): AnonymousResourceCollection
     {
         $shifts = Shift::query()
-            ->with(['classVersion', 'academicYear'])
+            ->with(['classVersion.schoolClass.school', 'academicYear'])
             ->when($request->integer('class_version_id'), fn ($query, $id) => $query->where('class_version_id', $id))
             ->when($request->integer('school_id'), fn ($query, $schoolId) => $query->where('school_id', $schoolId))
-            ->orderBy('class_version_id')
-            ->orderBy('name')
-            ->get();
+            ->when($request->string('search')->toString(), fn ($query, $search) => $query->where('name', 'like', "%{$search}%"))
+            ->orderByDesc('id')
+            ->paginate($request->integer('per_page', 15));
 
         return ShiftResource::collection($shifts);
     }
@@ -38,7 +38,7 @@ class ShiftController extends Controller
      */
     public function show(Shift $shift): ShiftResource
     {
-        return new ShiftResource($shift->load(['classVersion', 'academicYear', 'sections']));
+        return new ShiftResource($shift->load(['classVersion.schoolClass.school', 'academicYear', 'sections']));
     }
 
     /**
@@ -78,7 +78,7 @@ class ShiftController extends Controller
             $shift = Shift::create($attributes);
         }
 
-        return (new ShiftResource($shift->load('classVersion')))
+        return (new ShiftResource($shift->load('classVersion.schoolClass.school')))
             ->response()
             ->setStatusCode(Response::HTTP_CREATED);
     }
@@ -98,7 +98,7 @@ class ShiftController extends Controller
 
         $shift->update($data);
 
-        return new ShiftResource($shift->load('classVersion'));
+        return new ShiftResource($shift->load('classVersion.schoolClass.school'));
     }
 
     /**

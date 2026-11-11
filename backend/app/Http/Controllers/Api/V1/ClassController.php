@@ -25,9 +25,9 @@ class ClassController extends Controller
             ->with(['school', 'subjects'])
             ->when($request->integer('school_id'), fn ($query, $schoolId) => $query->where('school_id', $schoolId))
             ->when($request->integer('district_id'), fn ($query, $districtId) => $query->where('district_id', $districtId))
-            ->orderBy('numeric_level')
-            ->orderBy('name')
-            ->get();
+            ->when($request->string('search')->toString(), fn ($query, $search) => $query->where('name', 'like', "%{$search}%"))
+            ->orderByDesc('id')
+            ->paginate($request->integer('per_page', 15));
 
         return ClassResource::collection($classes);
     }

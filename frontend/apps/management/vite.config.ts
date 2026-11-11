@@ -1,3 +1,4 @@
+import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -12,6 +13,7 @@ export default defineConfig({
     port: 4175,
   },
   plugins: [
+    tailwindcss(),
     react(),
     VitePWA({
       registerType: 'autoUpdate',
@@ -20,15 +22,15 @@ export default defineConfig({
         short_name: 'Management Portal',
         description:
           'Management dashboard for the Teacher Training & Learning Analytics Platform',
-        theme_color: '#1e293b',
+        theme_color: '#046a38',
         background_color: '#ffffff',
         display: 'standalone',
         start_url: '/',
         icons: [
           {
-            src: 'favicon.svg',
+            src: 'favicon.png',
             sizes: 'any',
-            type: 'image/svg+xml',
+            type: 'image/png',
           },
         ],
       },

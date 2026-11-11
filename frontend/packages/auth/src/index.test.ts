@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { clearStoredToken, getStoredToken, storeToken } from './index'
+import {
+  clearStoredRole,
+  clearStoredToken,
+  getStoredRole,
+  getStoredToken,
+  storeRole,
+  storeToken,
+} from './index'
 
 class MemoryStorage implements Storage {
   private store = new Map<string, string>()
@@ -53,5 +60,32 @@ describe('token storage', () => {
     clearStoredToken()
 
     expect(getStoredToken()).toBeNull()
+  })
+})
+
+describe('role storage', () => {
+  beforeEach(() => {
+    vi.stubGlobal('localStorage', new MemoryStorage())
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('returns null when no role is stored', () => {
+    expect(getStoredRole()).toBeNull()
+  })
+
+  it('stores and retrieves a role', () => {
+    storeRole('national_admin')
+
+    expect(getStoredRole()).toBe('national_admin')
+  })
+
+  it('clears a stored role', () => {
+    storeRole('national_admin')
+    clearStoredRole()
+
+    expect(getStoredRole()).toBeNull()
   })
 })

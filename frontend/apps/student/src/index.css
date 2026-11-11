@@ -1,6 +1,47 @@
+@import 'tailwindcss';
+@source '../../../packages/ui/src';
+
+@theme {
+  --color-primary-50: #ecf0ff;
+  --color-primary-100: #dde4ff;
+  --color-primary-200: #c2cdff;
+  --color-primary-300: #9caaff;
+  --color-primary-400: #757dff;
+  --color-primary-500: #605dff;
+  --color-primary-600: #4936f5;
+  --color-primary-700: #3e2ad8;
+  --color-primary-800: #3225ae;
+
+  --color-success-50: #eeffe5;
+  --color-success-100: #d8ffc8;
+  --color-success-500: #37d80a;
+  --color-success-600: #25b003;
+
+  --color-danger-50: #fff2f0;
+  --color-danger-100: #ffe1dd;
+  --color-danger-400: #ff6d57;
+  --color-danger-500: #ff4023;
+  --color-danger-600: #ec1f00;
+
+  --color-warning-50: #fff8e1;
+  --color-warning-500: #ffc107;
+}
+
 :root {
-  color-scheme: light dark;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  color-scheme: light;
+  font-family:
+    'Hind Siliguri', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+
+  --color-primary: #0f6b4c;
+  --color-primary-dark: #0a4d37;
+  --color-primary-tint: #e8f5ee;
+  --color-accent: #f2a93b;
+  --color-accent-dark: #c9820f;
+  --color-ink: #142420;
+  --color-muted: #4b5d57;
+  --color-surface: #ffffff;
+  --color-border: #d8e8e0;
+  --font-display: 'Baloo Da 2', 'Hind Siliguri', system-ui, sans-serif;
 }
 
 * {
@@ -9,6 +50,7 @@
 
 body {
   margin: 0;
+  background-color: var(--color-gray-50);
 }
 
 .status-card {

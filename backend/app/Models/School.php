@@ -25,6 +25,8 @@ class School extends Model
         'phone',
         'email',
         'established_year',
+        'logo_path',
+        'logo_disk',
     ];
 
     public function division(): BelongsTo

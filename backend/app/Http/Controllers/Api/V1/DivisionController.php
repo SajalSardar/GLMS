@@ -8,6 +8,7 @@ use App\Http\Requests\Api\V1\UpdateDivisionRequest;
 use App\Http\Resources\Api\V1\DivisionResource;
 use App\Models\Division;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
 use Illuminate\Validation\ValidationException;
@@ -17,9 +18,14 @@ class DivisionController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(): AnonymousResourceCollection
+    public function index(Request $request): AnonymousResourceCollection
     {
-        return DivisionResource::collection(Division::orderBy('name')->get());
+        $divisions = Division::query()
+            ->when($request->string('search')->toString(), fn ($query, $search) => $query->where('name', 'like', "%{$search}%"))
+            ->orderBy('name')
+            ->paginate($request->integer('per_page', 15));
+
+        return DivisionResource::collection($divisions);
     }
 
     /**

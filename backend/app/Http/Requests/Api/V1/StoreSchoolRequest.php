@@ -43,6 +43,7 @@ class StoreSchoolRequest extends FormRequest
             'phone' => ['nullable', 'string', 'max:30'],
             'email' => ['nullable', 'email', 'max:255'],
             'established_year' => ['nullable', 'integer', 'min:1800', 'max:'.date('Y')],
+            'logo' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'max:'.config('content.max_image_size_kb')],
         ];
     }
 }

@@ -3,7 +3,7 @@ import { AppShell } from '@ttla/ui'
 import { AuthProvider } from '@ttla/auth'
 import DashboardPlaceholder from './pages/DashboardPlaceholder'
 
-const navItems = [{ to: '/', label: 'Dashboard' }]
+const navItems = [{ to: '/', label: 'Dashboard', icon: 'dashboard' }]
 
 function App() {
   return (
