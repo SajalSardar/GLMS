@@ -47,4 +47,17 @@ class AuditableTraitTest extends TestCase
 
         $this->assertNull($division->updated_by);
     }
+
+    public function test_a_no_op_update_still_sets_updated_by(): void
+    {
+        $division = Division::create(['name' => 'Dhaka', 'bn_name' => 'ঢাকা']);
+
+        $role = Role::create(['name' => 'actor_role_3', 'label' => 'Actor 3']);
+        $actor = User::factory()->create(['role_id' => $role->id]);
+        $this->actingAs($actor);
+
+        $division->update([]);
+
+        $this->assertSame($actor->id, $division->fresh()->updated_by);
+    }
 }
