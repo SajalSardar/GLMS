@@ -70,8 +70,12 @@ class ShiftAndSectionAuthorizationTest extends TestCase
         $this->actingAs($denied, 'sanctum')->patchJson("/api/v1/shifts/{$shift->id}", [])->assertForbidden();
 
         $allowed = $this->actorWithPermissions(['shifts.create', 'shifts.update']);
-        $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/shifts', $payload)->assertCreated();
-        $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/shifts/{$shift->id}", [])->assertOk();
+        $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/shifts', $payload)
+            ->assertCreated()
+            ->assertJsonPath('data.created_by', $allowed->id);
+        $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/shifts/{$shift->id}", [])
+            ->assertOk()
+            ->assertJsonPath('data.updated_by', $allowed->id);
     }
 
     public function test_section_store_and_update_are_authorized(): void
@@ -99,7 +103,11 @@ class ShiftAndSectionAuthorizationTest extends TestCase
         $this->actingAs($denied, 'sanctum')->patchJson("/api/v1/sections/{$section->id}", [])->assertForbidden();
 
         $allowed = $this->actorWithPermissions(['sections.create', 'sections.update']);
-        $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/sections', $payload)->assertCreated();
-        $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/sections/{$section->id}", [])->assertOk();
+        $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/sections', $payload)
+            ->assertCreated()
+            ->assertJsonPath('data.created_by', $allowed->id);
+        $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/sections/{$section->id}", [])
+            ->assertOk()
+            ->assertJsonPath('data.updated_by', $allowed->id);
     }
 }
