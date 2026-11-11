@@ -4,11 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class ChapterVideoProgress extends Model
 {
     protected $fillable = [
         'chapter_video_id',
+        'user_type',
         'user_id',
         'status',
         'max_position_seconds',
@@ -35,8 +37,8 @@ class ChapterVideoProgress extends Model
         return $this->belongsTo(ChapterVideo::class);
     }
 
-    public function user(): BelongsTo
+    public function user(): MorphTo
     {
-        return $this->belongsTo(User::class);
+        return $this->morphTo();
     }
 }

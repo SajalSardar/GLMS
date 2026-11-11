@@ -111,7 +111,7 @@ class ChapterMaterialController extends Controller
         }
 
         $expiry = now()->addMinutes(config('content.signed_download_expiry_minutes'));
-        $params = ['chapter_material' => $chapter_material->id, 'actor' => $request->user()->id];
+        $params = ['chapter_material' => $chapter_material->id, 'actor_type' => get_class($request->user()), 'actor' => $request->user()->id];
 
         return response()->json([
             'download_url' => URL::temporarySignedRoute('chapter-materials.download', $expiry, $params),
@@ -126,6 +126,7 @@ class ChapterMaterialController extends Controller
         ContentAccessLog::create([
             'chapter_id' => $chapter_material->chapter_id,
             'chapter_material_id' => $chapter_material->id,
+            'user_type' => $request->string('actor_type')->toString() ?: null,
             'user_id' => $request->integer('actor') ?: null,
             'action' => 'downloaded',
         ]);
@@ -140,6 +141,7 @@ class ChapterMaterialController extends Controller
         ContentAccessLog::create([
             'chapter_id' => $chapter_material->chapter_id,
             'chapter_material_id' => $chapter_material->id,
+            'user_type' => $request->string('actor_type')->toString() ?: null,
             'user_id' => $request->integer('actor') ?: null,
             'action' => 'previewed',
         ]);

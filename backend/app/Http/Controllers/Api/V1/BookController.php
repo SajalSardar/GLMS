@@ -185,7 +185,7 @@ class BookController extends Controller
         }
 
         $expiry = now()->addMinutes(config('content.signed_download_expiry_minutes'));
-        $params = ['book' => $book->id, 'actor' => $request->user()->id];
+        $params = ['book' => $book->id, 'actor_type' => get_class($request->user()), 'actor' => $request->user()->id];
 
         return response()->json([
             'download_url' => URL::temporarySignedRoute('books.pdf.download', $expiry, $params),
@@ -201,6 +201,7 @@ class BookController extends Controller
 
         ContentAccessLog::create([
             'book_id' => $book->id,
+            'user_type' => $request->string('actor_type')->toString() ?: null,
             'user_id' => $request->integer('actor') ?: null,
             'action' => 'downloaded',
         ]);
@@ -216,6 +217,7 @@ class BookController extends Controller
 
         ContentAccessLog::create([
             'book_id' => $book->id,
+            'user_type' => $request->string('actor_type')->toString() ?: null,
             'user_id' => $request->integer('actor') ?: null,
             'action' => 'previewed',
         ]);

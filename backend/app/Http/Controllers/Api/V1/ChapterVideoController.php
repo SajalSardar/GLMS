@@ -126,6 +126,7 @@ class ChapterVideoController extends Controller
 
         $progress = ChapterVideoProgress::firstOrNew([
             'chapter_video_id' => $chapter_video->id,
+            'user_type' => get_class($request->user()),
             'user_id' => $request->user()->id,
         ]);
 
@@ -144,6 +145,7 @@ class ChapterVideoController extends Controller
             }
 
             $progress = ChapterVideoProgress::where('chapter_video_id', $chapter_video->id)
+                ->where('user_type', get_class($request->user()))
                 ->where('user_id', $request->user()->id)
                 ->first();
 

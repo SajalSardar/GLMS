@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class ContentAccessLog extends Model
 {
@@ -13,6 +14,7 @@ class ContentAccessLog extends Model
         'book_id',
         'chapter_id',
         'chapter_material_id',
+        'user_type',
         'user_id',
         'action',
     ];
@@ -32,8 +34,8 @@ class ContentAccessLog extends Model
         return $this->belongsTo(ChapterMaterial::class);
     }
 
-    public function user(): BelongsTo
+    public function user(): MorphTo
     {
-        return $this->belongsTo(User::class);
+        return $this->morphTo();
     }
 }
