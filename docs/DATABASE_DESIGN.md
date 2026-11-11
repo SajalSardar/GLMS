@@ -23,6 +23,7 @@ Configured in `backend/.env` (never committed — see root `.gitignore`). The da
 - **Explainability via versioning:** scoring/competency tables retain prior computed states (`score_versions`) rather than overwriting, so a later change to weights/rubrics never makes an earlier result inexplicable.
 - **Transactional writes:** any operation touching both a leaf record and a derived aggregate (e.g., posting a mark + recalculating class rank) is wrapped in a DB transaction.
 - **Missing data ≠ zero:** a sub-indicator with no evidence is stored as `NULL`/`not_available`, and aggregate calculations explicitly exclude nulls from weighted averages rather than defaulting to 0.
+- **Actor audit columns:** every table backed by its own `Store*Request` carries nullable `created_by`/`updated_by` FKs to `users.id` (`ON DELETE SET NULL`), populated by the `Auditable` model trait — never set directly by controllers.
 
 ## 3. Planned Entity Groups (🔹 ORIGINAL entities + 🆕 additions, from `inspiration/AI_Teacher_Training_Proposal_v2.md` §11 — none created in Phase 1)
 
