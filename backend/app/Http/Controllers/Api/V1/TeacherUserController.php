@@ -53,6 +53,10 @@ class TeacherUserController extends Controller
      * caller pick any role up to their own privilege level). Omitted
      * school/district place the new row in the caller's own scope, same
      * convention as UserController::store().
+     *
+     * A soft-deleted teacher with the same email is restored and updated
+     * in place, rather than attempting a second insert that would
+     * collide with the still-present unique index on a trashed row.
      */
     public function store(StoreTeacherUserRequest $request): JsonResponse
     {
@@ -80,12 +84,21 @@ class TeacherUserController extends Controller
             ]);
         }
 
-        $teacher = TeacherUser::create([
+        $attributes = [
             ...$request->safe()->only(['name', 'email', 'phone', 'password']),
             'role_id' => $role?->id,
             'school_id' => $schoolId,
             'district_id' => $districtId,
-        ]);
+        ];
+
+        $teacher = TeacherUser::onlyTrashed()->where('email', $attributes['email'])->first();
+
+        if ($teacher) {
+            $teacher->restore();
+            $teacher->update($attributes);
+        } else {
+            $teacher = TeacherUser::create($attributes);
+        }
 
         return (new TeacherUserResource($teacher->load(['role.permissions', 'school', 'district'])))
             ->response()

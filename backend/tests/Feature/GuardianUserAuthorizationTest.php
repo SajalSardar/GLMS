@@ -122,4 +122,24 @@ class GuardianUserAuthorizationTest extends TestCase
             'district_id' => $district->id,
         ]);
     }
+
+    public function test_recreating_a_soft_deleted_guardian_restores_it_in_place(): void
+    {
+        $actor = $this->actorWithPermissions(['users.create', 'users.delete']);
+
+        $payload = ['name' => 'New Guardian', 'email' => 'new-guardian@example.test', 'password' => 'password123'];
+
+        $created = $this->actingAs($actor, 'sanctum')->postJson('/api/v1/guardian-users', $payload)->assertCreated();
+        $guardianId = $created->json('data.id');
+
+        $this->actingAs($actor, 'sanctum')->deleteJson("/api/v1/guardian-users/{$guardianId}")->assertNoContent();
+
+        $this->actingAs($actor, 'sanctum')->postJson('/api/v1/guardian-users', $payload)->assertCreated();
+
+        $this->assertDatabaseHas('guardian_users', [
+            'id' => $guardianId,
+            'email' => 'new-guardian@example.test',
+            'deleted_at' => null,
+        ]);
+    }
 }

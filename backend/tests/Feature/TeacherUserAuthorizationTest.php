@@ -117,4 +117,24 @@ class TeacherUserAuthorizationTest extends TestCase
             'district_id' => $district->id,
         ]);
     }
+
+    public function test_recreating_a_soft_deleted_teacher_restores_it_in_place(): void
+    {
+        $actor = $this->actorWithPermissions(['users.create', 'users.delete']);
+
+        $payload = ['name' => 'New Teacher', 'email' => 'new-teacher@example.test', 'password' => 'password123'];
+
+        $created = $this->actingAs($actor, 'sanctum')->postJson('/api/v1/teacher-users', $payload)->assertCreated();
+        $teacherId = $created->json('data.id');
+
+        $this->actingAs($actor, 'sanctum')->deleteJson("/api/v1/teacher-users/{$teacherId}")->assertNoContent();
+
+        $this->actingAs($actor, 'sanctum')->postJson('/api/v1/teacher-users', $payload)->assertCreated();
+
+        $this->assertDatabaseHas('teacher_users', [
+            'id' => $teacherId,
+            'email' => 'new-teacher@example.test',
+            'deleted_at' => null,
+        ]);
+    }
 }

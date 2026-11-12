@@ -116,4 +116,24 @@ class StudentUserAuthorizationTest extends TestCase
             'district_id' => $district->id,
         ]);
     }
+
+    public function test_recreating_a_soft_deleted_student_restores_it_in_place(): void
+    {
+        $actor = $this->actorWithPermissions(['users.create', 'users.delete']);
+
+        $payload = ['name' => 'New Student', 'email' => 'new-student@example.test', 'password' => 'pin1'];
+
+        $created = $this->actingAs($actor, 'sanctum')->postJson('/api/v1/student-users', $payload)->assertCreated();
+        $studentId = $created->json('data.id');
+
+        $this->actingAs($actor, 'sanctum')->deleteJson("/api/v1/student-users/{$studentId}")->assertNoContent();
+
+        $this->actingAs($actor, 'sanctum')->postJson('/api/v1/student-users', $payload)->assertCreated();
+
+        $this->assertDatabaseHas('student_users', [
+            'id' => $studentId,
+            'email' => 'new-student@example.test',
+            'deleted_at' => null,
+        ]);
+    }
 }

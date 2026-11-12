@@ -51,6 +51,11 @@ class StudentUserController extends Controller
      * The role is always "student" — fixed by this endpoint, never
      * caller-supplied. Omitted school/district place the new row in the
      * caller's own scope, same convention as UserController::store().
+     *
+     * A soft-deleted student with the same email is restored and
+     * updated in place, rather than attempting a second insert that
+     * would collide with the still-present unique index on a trashed
+     * row.
      */
     public function store(StoreStudentUserRequest $request): JsonResponse
     {
@@ -78,12 +83,23 @@ class StudentUserController extends Controller
             ]);
         }
 
-        $student = StudentUser::create([
+        $attributes = [
             ...$request->safe()->only(['name', 'email', 'phone', 'password']),
             'role_id' => $role?->id,
             'school_id' => $schoolId,
             'district_id' => $districtId,
-        ]);
+        ];
+
+        $student = empty($attributes['email'])
+            ? null
+            : StudentUser::onlyTrashed()->where('email', $attributes['email'])->first();
+
+        if ($student) {
+            $student->restore();
+            $student->update($attributes);
+        } else {
+            $student = StudentUser::create($attributes);
+        }
 
         return (new StudentUserResource($student->load(['role.permissions', 'school', 'district'])))
             ->response()
