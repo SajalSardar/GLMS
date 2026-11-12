@@ -35,4 +35,23 @@ class UserAuthorizationTest extends TestCase
             ->assertJsonPath('data.updated_by_id', $allowed->id);
         $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/users/{$target->id}/role", ['role_id' => $assignableRole->id])->assertOk();
     }
+
+    public function test_creating_a_users_row_with_a_split_off_role_is_rejected_even_for_a_fully_permissioned_actor(): void
+    {
+        $studentRole = Role::create(['name' => 'student', 'label' => 'Student']);
+        $actor = $this->actorWithPermissions(['users.create', 'users.update', 'users.delete', 'users.view']);
+
+        $payload = [
+            'name' => 'New User',
+            'email' => 'new-user@example.test',
+            'password' => 'password123',
+            'role_id' => $studentRole->id,
+        ];
+
+        $this->actingAs($actor, 'sanctum')->postJson('/api/v1/users', $payload)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('role_id');
+
+        $this->assertDatabaseMissing('users', ['email' => 'new-user@example.test']);
+    }
 }

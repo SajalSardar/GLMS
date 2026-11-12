@@ -172,8 +172,12 @@ class UserController extends Controller
 
     /**
      * Shared guard for store() and assignRole(): no privilege escalation
-     * (the role's permissions must be a subset of the actor's own) and no
-     * placing a user outside the actor's own school/district scope.
+     * (the role's permissions must be a subset of the actor's own), no
+     * assigning the `teacher`/`student`/`parent_guardian` role (those
+     * accounts live in their own tables and must be created via their
+     * own endpoints — see TeacherUserController/StudentUserController/
+     * GuardianUserController), and no placing a user outside the
+     * actor's own school/district scope.
      */
     private function assertAssignable(Authenticatable $actor, ?int $roleId, ?int $schoolId, ?int $districtId): void
     {
@@ -185,6 +189,12 @@ class UserController extends Controller
             if ($rolePermissionNames->diff($actorPermissionNames)->isNotEmpty()) {
                 throw ValidationException::withMessages([
                     'role_id' => ['You cannot assign a role with more permissions than your own.'],
+                ]);
+            }
+
+            if (in_array($role->name, ['teacher', 'student', 'parent_guardian'], true)) {
+                throw ValidationException::withMessages([
+                    'role_id' => ['Teacher, student, and guardian accounts must be created via their own endpoints (/teacher-users, /student-users, /guardian-users).'],
                 ]);
             }
         }
