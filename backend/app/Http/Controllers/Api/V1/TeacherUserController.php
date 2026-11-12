@@ -7,6 +7,7 @@ use App\Http\Requests\Api\V1\StoreTeacherUserRequest;
 use App\Http\Requests\Api\V1\UpdateTeacherUserRequest;
 use App\Http\Resources\Api\V1\TeacherUserResource;
 use App\Models\Role;
+use App\Models\School;
 use App\Models\TeacherUser;
 use App\Policies\Concerns\ChecksScope;
 use Illuminate\Http\JsonResponse;
@@ -61,6 +62,16 @@ class TeacherUserController extends Controller
 
         $schoolId = $request->filled('school_id') ? $request->integer('school_id') : $actor->school_id;
         $districtId = $request->filled('district_id') ? $request->integer('district_id') : $actor->district_id;
+
+        // A submitted school_id must actually belong to the submitted
+        // district_id — otherwise a district-scoped actor could pass their
+        // own district_id while pointing school_id at a school in a
+        // different district entirely, bypassing the scope check below.
+        if ($schoolId !== null && School::where('id', $schoolId)->where('district_id', $districtId)->doesntExist()) {
+            throw ValidationException::withMessages([
+                'school_id' => ['The selected school does not belong to the selected district.'],
+            ]);
+        }
 
         if (! $this->inScope($actor, $schoolId, $districtId)) {
             throw ValidationException::withMessages([

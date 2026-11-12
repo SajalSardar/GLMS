@@ -56,4 +56,33 @@ class TeacherUserAuthorizationTest extends TestCase
 
         $this->actingAs($actorScopedToA, 'sanctum')->postJson('/api/v1/teacher-users', $payload)->assertUnprocessable();
     }
+
+    public function test_district_scoped_actor_cannot_bypass_district_with_out_of_district_school(): void
+    {
+        $division1 = Division::create(['name' => 'Division 1', 'bn_name' => 'বিভাগ ১']);
+        $district1 = District::create(['division_id' => $division1->id, 'name' => 'District A', 'bn_name' => 'জেলা ক']);
+        $upazila1 = Upazila::create(['district_id' => $district1->id, 'name' => 'Upazila 1', 'bn_name' => 'উপজেলা ১']);
+
+        $division2 = Division::create(['name' => 'Division 2', 'bn_name' => 'বিভাগ ২']);
+        $district2 = District::create(['division_id' => $division2->id, 'name' => 'District B', 'bn_name' => 'জেলা খ']);
+        $upazila2 = Upazila::create(['district_id' => $district2->id, 'name' => 'Upazila 2', 'bn_name' => 'উপজেলা ২']);
+
+        $schoolInDistrictB = School::create([
+            'division_id' => $division2->id,
+            'district_id' => $district2->id,
+            'upazila_id' => $upazila2->id,
+            'name' => 'School in District B',
+        ]);
+
+        $actorScopedToDistrictA = $this->actorWithPermissions(['users.create'], null, $district1->id);
+
+        $payload = [
+            'name' => 'New Teacher',
+            'email' => 'new-teacher@example.test',
+            'password' => 'password123',
+            'school_id' => $schoolInDistrictB->id,
+        ];
+
+        $this->actingAs($actorScopedToDistrictA, 'sanctum')->postJson('/api/v1/teacher-users', $payload)->assertUnprocessable();
+    }
 }
