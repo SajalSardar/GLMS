@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\V1\DivisionController;
 use App\Http\Controllers\Api\V1\ExamAttemptController;
 use App\Http\Controllers\Api\V1\ExamController;
 use App\Http\Controllers\Api\V1\GuardianController;
+use App\Http\Controllers\Api\V1\GuardianUserController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\PermissionController;
 use App\Http\Controllers\Api\V1\QuestionController;
@@ -147,6 +148,7 @@ Route::prefix('v1')->group(function (): void {
 
         Route::apiResource('teacher-users', TeacherUserController::class);
         Route::apiResource('student-users', StudentUserController::class);
+        Route::apiResource('guardian-users', GuardianUserController::class);
 
         Route::apiResource('teacher-profiles', TeacherProfileController::class);
 
