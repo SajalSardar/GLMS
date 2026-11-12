@@ -8,12 +8,14 @@ use App\Http\Requests\Api\V1\UpdateStudentUserRequest;
 use App\Http\Resources\Api\V1\StudentUserResource;
 use App\Models\Role;
 use App\Models\School;
+use App\Models\Scopes\TenantScope;
 use App\Models\StudentUser;
 use App\Policies\Concerns\ChecksScope;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class StudentUserController extends Controller
@@ -55,7 +57,12 @@ class StudentUserController extends Controller
      * A soft-deleted student with the same email is restored and
      * updated in place, rather than attempting a second insert that
      * would collide with the still-present unique index on a trashed
-     * row.
+     * row. That trashed row is only eligible for restoration if it
+     * already falls within the acting actor's own school/district
+     * scope — otherwise the actor could reassign (and inherit) a
+     * trashed account that belongs to a different school/district
+     * merely by guessing its email, so an out-of-scope match is
+     * rejected instead of silently restored.
      */
     public function store(StoreStudentUserRequest $request): JsonResponse
     {
@@ -90,13 +97,28 @@ class StudentUserController extends Controller
             'district_id' => $districtId,
         ];
 
-        $student = empty($attributes['email'])
+        // The tenant global scope would otherwise hide a trashed row that
+        // belongs to a different school/district, making it invisible to
+        // this lookup — which would just fall through to create() and
+        // crash on the real DB unique index instead of producing a clean
+        // validation error. Bypass it here so the inScope() check below
+        // is what actually decides, not an accident of query visibility.
+        $trashedStudent = empty($attributes['email'])
             ? null
-            : StudentUser::onlyTrashed()->where('email', $attributes['email'])->first();
+            : StudentUser::onlyTrashed()->withoutGlobalScope(TenantScope::class)->where('email', $attributes['email'])->first();
 
-        if ($student) {
-            $student->restore();
-            $student->update($attributes);
+        if ($trashedStudent && ! $this->inScope($actor, $trashedStudent->school_id, $trashedStudent->district_id)) {
+            throw ValidationException::withMessages([
+                'email' => ['The email has already been taken.'],
+            ]);
+        }
+
+        if ($trashedStudent) {
+            DB::transaction(function () use ($trashedStudent, $attributes) {
+                $trashedStudent->restore();
+                $trashedStudent->update($attributes);
+            });
+            $student = $trashedStudent;
         } else {
             $student = StudentUser::create($attributes);
         }

@@ -9,11 +9,13 @@ use App\Http\Resources\Api\V1\GuardianUserResource;
 use App\Models\GuardianUser;
 use App\Models\Role;
 use App\Models\School;
+use App\Models\Scopes\TenantScope;
 use App\Policies\Concerns\ChecksScope;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class GuardianUserController extends Controller
@@ -56,7 +58,12 @@ class GuardianUserController extends Controller
      * A soft-deleted guardian with the same email is restored and
      * updated in place, rather than attempting a second insert that
      * would collide with the still-present unique index on a trashed
-     * row.
+     * row. That trashed row is only eligible for restoration if it
+     * already falls within the acting actor's own school/district
+     * scope — otherwise the actor could reassign (and inherit) a
+     * trashed account that belongs to a different school/district
+     * merely by guessing its email, so an out-of-scope match is
+     * rejected instead of silently restored.
      */
     public function store(StoreGuardianUserRequest $request): JsonResponse
     {
@@ -91,11 +98,26 @@ class GuardianUserController extends Controller
             'district_id' => $districtId,
         ];
 
-        $guardian = GuardianUser::onlyTrashed()->where('email', $attributes['email'])->first();
+        // The tenant global scope would otherwise hide a trashed row that
+        // belongs to a different school/district, making it invisible to
+        // this lookup — which would just fall through to create() and
+        // crash on the real DB unique index instead of producing a clean
+        // validation error. Bypass it here so the inScope() check below
+        // is what actually decides, not an accident of query visibility.
+        $trashedGuardian = GuardianUser::onlyTrashed()->withoutGlobalScope(TenantScope::class)->where('email', $attributes['email'])->first();
 
-        if ($guardian) {
-            $guardian->restore();
-            $guardian->update($attributes);
+        if ($trashedGuardian && ! $this->inScope($actor, $trashedGuardian->school_id, $trashedGuardian->district_id)) {
+            throw ValidationException::withMessages([
+                'email' => ['The email has already been taken.'],
+            ]);
+        }
+
+        if ($trashedGuardian) {
+            DB::transaction(function () use ($trashedGuardian, $attributes) {
+                $trashedGuardian->restore();
+                $trashedGuardian->update($attributes);
+            });
+            $guardian = $trashedGuardian;
         } else {
             $guardian = GuardianUser::create($attributes);
         }

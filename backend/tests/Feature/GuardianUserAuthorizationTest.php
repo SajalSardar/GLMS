@@ -142,4 +142,45 @@ class GuardianUserAuthorizationTest extends TestCase
             'deleted_at' => null,
         ]);
     }
+
+    public function test_recreating_a_soft_deleted_guardian_from_a_different_school_is_rejected(): void
+    {
+        $division = Division::create(['name' => 'Division', 'bn_name' => 'বিভাগ']);
+        $district = District::create(['division_id' => $division->id, 'name' => 'District', 'bn_name' => 'জেলা']);
+        $upazila = Upazila::create(['district_id' => $district->id, 'name' => 'Upazila', 'bn_name' => 'উপজেলা']);
+
+        $schoolA = School::create([
+            'division_id' => $division->id,
+            'district_id' => $district->id,
+            'upazila_id' => $upazila->id,
+            'name' => 'School A',
+        ]);
+
+        $schoolB = School::create([
+            'division_id' => $division->id,
+            'district_id' => $district->id,
+            'upazila_id' => $upazila->id,
+            'name' => 'School B',
+        ]);
+
+        $actorA = $this->actorWithPermissions(['users.create', 'users.delete'], $schoolA->id, $district->id);
+        $actorB = $this->actorWithPermissions(['users.create'], $schoolB->id, $district->id);
+
+        $payload = ['name' => 'New Guardian', 'email' => 'new-guardian@example.test', 'password' => 'password123'];
+
+        $created = $this->actingAs($actorA, 'sanctum')->postJson('/api/v1/guardian-users', $payload)->assertCreated();
+        $guardianId = $created->json('data.id');
+
+        $this->actingAs($actorA, 'sanctum')->deleteJson("/api/v1/guardian-users/{$guardianId}")->assertNoContent();
+
+        $this->actingAs($actorB, 'sanctum')->postJson('/api/v1/guardian-users', $payload)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('email');
+
+        $this->assertDatabaseHas('guardian_users', [
+            'id' => $guardianId,
+            'school_id' => $schoolA->id,
+        ]);
+        $this->assertSoftDeleted('guardian_users', ['id' => $guardianId]);
+    }
 }

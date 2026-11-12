@@ -9,6 +9,7 @@ use App\Http\Requests\Api\V1\UpdateUserRequest;
 use App\Http\Resources\Api\V1\UserResource;
 use App\Models\Role;
 use App\Models\School;
+use App\Models\Scopes\TenantScope;
 use App\Models\User;
 use App\Policies\Concerns\ChecksScope;
 use Illuminate\Contracts\Auth\Authenticatable;
@@ -16,6 +17,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class UserController extends Controller
@@ -57,7 +59,12 @@ class UserController extends Controller
      *
      * A soft-deleted user with the same email is restored and updated in
      * place, rather than attempting a second insert that would collide
-     * with the still-present unique index on a trashed row.
+     * with the still-present unique index on a trashed row. That trashed
+     * row is only eligible for restoration if it already falls within
+     * the acting actor's own school/district scope — otherwise the
+     * actor could reassign (and inherit) a trashed account that belongs
+     * to a different school/district merely by guessing its email, so
+     * an out-of-scope match is rejected instead of silently restored.
      */
     public function store(StoreUserRequest $request): JsonResponse
     {
@@ -77,11 +84,26 @@ class UserController extends Controller
             'district_id' => $districtId,
         ];
 
-        $user = User::onlyTrashed()->where('email', $attributes['email'])->first();
+        // The tenant global scope would otherwise hide a trashed row that
+        // belongs to a different school/district, making it invisible to
+        // this lookup — which would just fall through to create() and
+        // crash on the real DB unique index instead of producing a clean
+        // validation error. Bypass it here so the inScope() check below
+        // is what actually decides, not an accident of query visibility.
+        $trashedUser = User::onlyTrashed()->withoutGlobalScope(TenantScope::class)->where('email', $attributes['email'])->first();
 
-        if ($user) {
-            $user->restore();
-            $user->update($attributes);
+        if ($trashedUser && ! $this->inScope($actor, $trashedUser->school_id, $trashedUser->district_id)) {
+            throw ValidationException::withMessages([
+                'email' => ['The email has already been taken.'],
+            ]);
+        }
+
+        if ($trashedUser) {
+            DB::transaction(function () use ($trashedUser, $attributes) {
+                $trashedUser->restore();
+                $trashedUser->update($attributes);
+            });
+            $user = $trashedUser;
         } else {
             $user = User::create($attributes);
         }

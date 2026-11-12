@@ -137,4 +137,45 @@ class TeacherUserAuthorizationTest extends TestCase
             'deleted_at' => null,
         ]);
     }
+
+    public function test_recreating_a_soft_deleted_teacher_from_a_different_school_is_rejected(): void
+    {
+        $division = Division::create(['name' => 'Division', 'bn_name' => 'বিভাগ']);
+        $district = District::create(['division_id' => $division->id, 'name' => 'District', 'bn_name' => 'জেলা']);
+        $upazila = Upazila::create(['district_id' => $district->id, 'name' => 'Upazila', 'bn_name' => 'উপজেলা']);
+
+        $schoolA = School::create([
+            'division_id' => $division->id,
+            'district_id' => $district->id,
+            'upazila_id' => $upazila->id,
+            'name' => 'School A',
+        ]);
+
+        $schoolB = School::create([
+            'division_id' => $division->id,
+            'district_id' => $district->id,
+            'upazila_id' => $upazila->id,
+            'name' => 'School B',
+        ]);
+
+        $actorA = $this->actorWithPermissions(['users.create', 'users.delete'], $schoolA->id, $district->id);
+        $actorB = $this->actorWithPermissions(['users.create'], $schoolB->id, $district->id);
+
+        $payload = ['name' => 'New Teacher', 'email' => 'new-teacher@example.test', 'password' => 'password123'];
+
+        $created = $this->actingAs($actorA, 'sanctum')->postJson('/api/v1/teacher-users', $payload)->assertCreated();
+        $teacherId = $created->json('data.id');
+
+        $this->actingAs($actorA, 'sanctum')->deleteJson("/api/v1/teacher-users/{$teacherId}")->assertNoContent();
+
+        $this->actingAs($actorB, 'sanctum')->postJson('/api/v1/teacher-users', $payload)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('email');
+
+        $this->assertDatabaseHas('teacher_users', [
+            'id' => $teacherId,
+            'school_id' => $schoolA->id,
+        ]);
+        $this->assertSoftDeleted('teacher_users', ['id' => $teacherId]);
+    }
 }

@@ -2,7 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Models\District;
+use App\Models\Division;
 use App\Models\Role;
+use App\Models\School;
+use App\Models\Upazila;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\CreatesAuthorizedActors;
@@ -53,5 +57,46 @@ class UserAuthorizationTest extends TestCase
             ->assertJsonValidationErrors('role_id');
 
         $this->assertDatabaseMissing('users', ['email' => 'new-user@example.test']);
+    }
+
+    public function test_recreating_a_soft_deleted_user_from_a_different_school_is_rejected(): void
+    {
+        $division = Division::create(['name' => 'Division', 'bn_name' => 'বিভাগ']);
+        $district = District::create(['division_id' => $division->id, 'name' => 'District', 'bn_name' => 'জেলা']);
+        $upazila = Upazila::create(['district_id' => $district->id, 'name' => 'Upazila', 'bn_name' => 'উপজেলা']);
+
+        $schoolA = School::create([
+            'division_id' => $division->id,
+            'district_id' => $district->id,
+            'upazila_id' => $upazila->id,
+            'name' => 'School A',
+        ]);
+
+        $schoolB = School::create([
+            'division_id' => $division->id,
+            'district_id' => $district->id,
+            'upazila_id' => $upazila->id,
+            'name' => 'School B',
+        ]);
+
+        $actorA = $this->actorWithPermissions(['users.create', 'users.delete'], $schoolA->id, $district->id);
+        $actorB = $this->actorWithPermissions(['users.create'], $schoolB->id, $district->id);
+
+        $payload = ['name' => 'New User', 'email' => 'new-user@example.test', 'password' => 'password123'];
+
+        $created = $this->actingAs($actorA, 'sanctum')->postJson('/api/v1/users', $payload)->assertCreated();
+        $userId = $created->json('data.id');
+
+        $this->actingAs($actorA, 'sanctum')->deleteJson("/api/v1/users/{$userId}")->assertNoContent();
+
+        $this->actingAs($actorB, 'sanctum')->postJson('/api/v1/users', $payload)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('email');
+
+        $this->assertDatabaseHas('users', [
+            'id' => $userId,
+            'school_id' => $schoolA->id,
+        ]);
+        $this->assertSoftDeleted('users', ['id' => $userId]);
     }
 }

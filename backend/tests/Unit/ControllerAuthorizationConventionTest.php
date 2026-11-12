@@ -16,14 +16,17 @@ use App\Http\Controllers\Api\V1\DivisionController;
 use App\Http\Controllers\Api\V1\ExamAttemptController;
 use App\Http\Controllers\Api\V1\ExamController;
 use App\Http\Controllers\Api\V1\GuardianController;
+use App\Http\Controllers\Api\V1\GuardianUserController;
 use App\Http\Controllers\Api\V1\RoleController;
 use App\Http\Controllers\Api\V1\SchoolController;
 use App\Http\Controllers\Api\V1\SectionController;
 use App\Http\Controllers\Api\V1\ShiftController;
 use App\Http\Controllers\Api\V1\StudentProfileController;
+use App\Http\Controllers\Api\V1\StudentUserController;
 use App\Http\Controllers\Api\V1\SubjectController;
 use App\Http\Controllers\Api\V1\SubjectTeacherAssignmentController;
 use App\Http\Controllers\Api\V1\TeacherProfileController;
+use App\Http\Controllers\Api\V1\TeacherUserController;
 use App\Http\Controllers\Api\V1\TimetableEntryController;
 use App\Http\Controllers\Api\V1\UpazilaController;
 use App\Http\Controllers\Api\V1\UserController;
@@ -33,7 +36,7 @@ use Tests\TestCase;
 
 /**
  * Structural regression test for this plan's actual deliverable: every
- * mutating action on the 20 Api\V1 controllers must call
+ * mutating action on the 23 Api\V1 controllers must call
  * `$this->authorize(...)` as the literal first statement of its method
  * body. The HTTP-level feature tests added alongside each controller's
  * authorize() call cannot detect a revert of that call, because every
@@ -129,6 +132,10 @@ class ControllerAuthorizationConventionTest extends TestCase
             [GuardianController::class, 'update'],
             [GuardianController::class, 'destroy'],
 
+            [GuardianUserController::class, 'store'],
+            [GuardianUserController::class, 'update'],
+            [GuardianUserController::class, 'destroy'],
+
             [RoleController::class, 'store'],
             [RoleController::class, 'update'],
             [RoleController::class, 'destroy'],
@@ -153,6 +160,10 @@ class ControllerAuthorizationConventionTest extends TestCase
             [StudentProfileController::class, 'detachGuardian'],
             [StudentProfileController::class, 'transferSection'],
 
+            [StudentUserController::class, 'store'],
+            [StudentUserController::class, 'update'],
+            [StudentUserController::class, 'destroy'],
+
             [SubjectController::class, 'store'],
             [SubjectController::class, 'update'],
             [SubjectController::class, 'destroy'],
@@ -164,6 +175,10 @@ class ControllerAuthorizationConventionTest extends TestCase
             [TeacherProfileController::class, 'store'],
             [TeacherProfileController::class, 'update'],
             [TeacherProfileController::class, 'destroy'],
+
+            [TeacherUserController::class, 'store'],
+            [TeacherUserController::class, 'update'],
+            [TeacherUserController::class, 'destroy'],
 
             [TimetableEntryController::class, 'store'],
             [TimetableEntryController::class, 'update'],
