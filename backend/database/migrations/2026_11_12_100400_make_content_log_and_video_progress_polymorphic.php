@@ -34,8 +34,6 @@ return new class extends Migration
      */
     public function up(): void
     {
-        $this->dropUniqueIfExists('chapter_video_progress', ['chapter_video_id', 'user_id']);
-
         $this->dropUserForeignKey('content_access_logs');
         $this->addUserTypeColumn('content_access_logs');
 
@@ -43,6 +41,7 @@ return new class extends Migration
         $this->addUserTypeColumn('chapter_video_progress');
 
         $this->addUniqueIfMissing('chapter_video_progress', ['chapter_video_id', 'user_type', 'user_id']);
+        $this->dropUniqueIfExists('chapter_video_progress', ['chapter_video_id', 'user_id']);
 
         DB::table('content_access_logs')->whereNotNull('user_id')->update(['user_type' => User::class]);
         DB::table('chapter_video_progress')->whereNotNull('user_id')->update(['user_type' => User::class]);
@@ -53,6 +52,7 @@ return new class extends Migration
      */
     public function down(): void
     {
+        $this->addUniqueIfMissing('chapter_video_progress', ['chapter_video_id', 'user_id']);
         $this->dropUniqueIfExists('chapter_video_progress', ['chapter_video_id', 'user_type', 'user_id']);
 
         $this->dropUserTypeColumn('chapter_video_progress');
@@ -60,8 +60,6 @@ return new class extends Migration
 
         $this->dropUserTypeColumn('content_access_logs');
         $this->addUserForeignKey('content_access_logs', cascade: false);
-
-        $this->addUniqueIfMissing('chapter_video_progress', ['chapter_video_id', 'user_id']);
     }
 
     /**
