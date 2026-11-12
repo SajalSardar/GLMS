@@ -2,9 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Models\GuardianUser;
 use App\Models\Role;
 use App\Models\StudentProfile;
+use App\Models\StudentUser;
 use App\Models\TeacherProfile;
+use App\Models\TeacherUser;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -21,7 +24,7 @@ class PortalLoginTest extends TestCase
     public function test_teacher_login_succeeds_with_employee_id_and_returns_a_token(): void
     {
         $role = $this->roleNamed('teacher');
-        $user = User::factory()->create(['role_id' => $role->id, 'password' => 'correct-password']);
+        $user = TeacherUser::factory()->create(['role_id' => $role->id, 'password' => 'correct-password']);
         TeacherProfile::create(['user_id' => $user->id, 'employee_id' => 'EMP-001']);
 
         $response = $this->postJson('/api/v1/auth/teacher/login', [
@@ -37,7 +40,7 @@ class PortalLoginTest extends TestCase
     public function test_teacher_login_succeeds_with_email_fallback_when_no_employee_id_matches(): void
     {
         $role = $this->roleNamed('teacher');
-        $user = User::factory()->create(['role_id' => $role->id, 'email' => 'teacher@example.test', 'password' => 'correct-password']);
+        $user = TeacherUser::factory()->create(['role_id' => $role->id, 'email' => 'teacher@example.test', 'password' => 'correct-password']);
 
         $response = $this->postJson('/api/v1/auth/teacher/login', [
             'login' => 'teacher@example.test',
@@ -51,7 +54,7 @@ class PortalLoginTest extends TestCase
     public function test_teacher_login_fails_with_wrong_password(): void
     {
         $role = $this->roleNamed('teacher');
-        $user = User::factory()->create(['role_id' => $role->id, 'password' => 'correct-password']);
+        $user = TeacherUser::factory()->create(['role_id' => $role->id, 'password' => 'correct-password']);
         TeacherProfile::create(['user_id' => $user->id, 'employee_id' => 'EMP-002']);
 
         $response = $this->postJson('/api/v1/auth/teacher/login', [
@@ -66,7 +69,7 @@ class PortalLoginTest extends TestCase
     public function test_teacher_login_fails_for_a_role_outside_the_teacher_portal(): void
     {
         $role = $this->roleNamed('student');
-        $user = User::factory()->create(['role_id' => $role->id, 'password' => 'correct-password']);
+        $user = TeacherUser::factory()->create(['role_id' => $role->id, 'password' => 'correct-password']);
         TeacherProfile::create(['user_id' => $user->id, 'employee_id' => 'EMP-003']);
 
         $response = $this->postJson('/api/v1/auth/teacher/login', [
@@ -81,7 +84,7 @@ class PortalLoginTest extends TestCase
     public function test_student_login_succeeds_with_student_id_and_returns_a_token(): void
     {
         $role = $this->roleNamed('student');
-        $user = User::factory()->create(['role_id' => $role->id, 'password' => '1234']);
+        $user = StudentUser::factory()->create(['role_id' => $role->id, 'password' => '1234']);
         StudentProfile::create(['user_id' => $user->id, 'student_id' => 'STU-001']);
 
         $response = $this->postJson('/api/v1/auth/student/login', [
@@ -97,7 +100,7 @@ class PortalLoginTest extends TestCase
     public function test_student_login_fails_with_wrong_password(): void
     {
         $role = $this->roleNamed('student');
-        $user = User::factory()->create(['role_id' => $role->id, 'password' => '1234']);
+        $user = StudentUser::factory()->create(['role_id' => $role->id, 'password' => '1234']);
         StudentProfile::create(['user_id' => $user->id, 'student_id' => 'STU-002']);
 
         $response = $this->postJson('/api/v1/auth/student/login', [
@@ -112,7 +115,7 @@ class PortalLoginTest extends TestCase
     public function test_student_login_fails_for_a_role_outside_the_student_portal(): void
     {
         $role = $this->roleNamed('teacher');
-        $user = User::factory()->create(['role_id' => $role->id, 'password' => '1234']);
+        $user = StudentUser::factory()->create(['role_id' => $role->id, 'password' => '1234']);
         StudentProfile::create(['user_id' => $user->id, 'student_id' => 'STU-003']);
 
         $response = $this->postJson('/api/v1/auth/student/login', [
@@ -127,7 +130,7 @@ class PortalLoginTest extends TestCase
     public function test_student_login_does_not_fall_back_to_email_or_phone(): void
     {
         $role = $this->roleNamed('student');
-        $user = User::factory()->create(['role_id' => $role->id, 'email' => 'student@example.test', 'password' => '1234']);
+        $user = StudentUser::factory()->create(['role_id' => $role->id, 'email' => 'student@example.test', 'password' => '1234']);
 
         $response = $this->postJson('/api/v1/auth/student/login', [
             'login' => 'student@example.test',
@@ -136,6 +139,21 @@ class PortalLoginTest extends TestCase
 
         $response->assertStatus(422);
         $response->assertJsonValidationErrors(['login' => 'The provided credentials are incorrect.']);
+    }
+
+    public function test_guardian_login_succeeds_with_email_and_returns_a_token(): void
+    {
+        $role = $this->roleNamed('parent_guardian');
+        $user = GuardianUser::factory()->create(['role_id' => $role->id, 'email' => 'guardian@example.test', 'password' => 'correct-password']);
+
+        $response = $this->postJson('/api/v1/auth/guardian/login', [
+            'login' => 'guardian@example.test',
+            'password' => 'correct-password',
+        ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('data.id', $user->id);
+        $this->assertIsString($response->json('token'));
     }
 
     public function test_management_login_succeeds_with_email_and_returns_a_token(): void

@@ -5,9 +5,12 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\LoginRequest;
 use App\Http\Resources\Api\V1\UserResource;
+use App\Models\GuardianUser;
 use App\Models\StudentProfile;
 use App\Models\TeacherProfile;
+use App\Models\TeacherUser;
 use App\Models\User;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -59,7 +62,7 @@ class AuthController extends Controller
         $login = $request->string('login')->toString();
 
         $user = TeacherProfile::where('employee_id', $login)->first()?->user
-            ?? User::where('email', $login)->orWhere('phone', $login)->first();
+            ?? TeacherUser::where('email', $login)->orWhere('phone', $login)->first();
 
         return $this->issuePortalToken($request, $user, 'portals.teacher');
     }
@@ -93,12 +96,27 @@ class AuthController extends Controller
     }
 
     /**
+     * Guardian Portal login: resolves by phone or email, same as the
+     * generic login; only a `parent_guardian`-role account may
+     * authenticate here. No frontend consumes this yet — added for
+     * backend symmetry with teacher/student login.
+     */
+    public function guardianLogin(LoginRequest $request): JsonResponse
+    {
+        $login = $request->string('login')->toString();
+
+        $user = GuardianUser::where('email', $login)->orWhere('phone', $login)->first();
+
+        return $this->issuePortalToken($request, $user, 'portals.guardian');
+    }
+
+    /**
      * Shared portal-login tail: rate limiting, password check, and
      * role-allowlist check collapse to the exact same generic failure
      * message regardless of which part was wrong, so a login attempt
      * never reveals which check failed.
      */
-    private function issuePortalToken(LoginRequest $request, ?User $user, string $allowedRolesConfigKey): JsonResponse
+    private function issuePortalToken(LoginRequest $request, ?Authenticatable $user, string $allowedRolesConfigKey): JsonResponse
     {
         $login = $request->string('login')->toString();
         $throttleKey = mb_strtolower($login).'|'.$request->ip();
