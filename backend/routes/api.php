@@ -23,6 +23,7 @@ use App\Http\Controllers\Api\V1\SchoolController;
 use App\Http\Controllers\Api\V1\SectionController;
 use App\Http\Controllers\Api\V1\ShiftController;
 use App\Http\Controllers\Api\V1\StudentProfileController;
+use App\Http\Controllers\Api\V1\StudentUserController;
 use App\Http\Controllers\Api\V1\SubjectController;
 use App\Http\Controllers\Api\V1\SubjectTeacherAssignmentController;
 use App\Http\Controllers\Api\V1\TeacherProfileController;
@@ -145,6 +146,7 @@ Route::prefix('v1')->group(function (): void {
         Route::patch('/users/{user}/role', [UserController::class, 'assignRole']);
 
         Route::apiResource('teacher-users', TeacherUserController::class);
+        Route::apiResource('student-users', StudentUserController::class);
 
         Route::apiResource('teacher-profiles', TeacherProfileController::class);
 
