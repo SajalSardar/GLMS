@@ -8,12 +8,16 @@ use App\Http\Requests\Api\V1\UpdateTeacherUserRequest;
 use App\Http\Resources\Api\V1\TeacherUserResource;
 use App\Models\Role;
 use App\Models\TeacherUser;
+use App\Policies\Concerns\ChecksScope;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
+use Illuminate\Validation\ValidationException;
 
 class TeacherUserController extends Controller
 {
+    use ChecksScope;
+
     /**
      * Display a listing of the resource.
      */
@@ -55,11 +59,20 @@ class TeacherUserController extends Controller
         $actor = $request->user();
         $role = Role::where('name', 'teacher')->first();
 
+        $schoolId = $request->filled('school_id') ? $request->integer('school_id') : $actor->school_id;
+        $districtId = $request->filled('district_id') ? $request->integer('district_id') : $actor->district_id;
+
+        if (! $this->inScope($actor, $schoolId, $districtId)) {
+            throw ValidationException::withMessages([
+                'school_id' => ['You cannot create an account outside your own school or district.'],
+            ]);
+        }
+
         $teacher = TeacherUser::create([
             ...$request->safe()->only(['name', 'email', 'phone', 'password']),
             'role_id' => $role?->id,
-            'school_id' => $request->filled('school_id') ? $request->integer('school_id') : $actor->school_id,
-            'district_id' => $request->filled('district_id') ? $request->integer('district_id') : $actor->district_id,
+            'school_id' => $schoolId,
+            'district_id' => $districtId,
         ]);
 
         return (new TeacherUserResource($teacher->load(['role.permissions', 'school', 'district'])))
