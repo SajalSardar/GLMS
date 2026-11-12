@@ -1,0 +1,93 @@
+<?php
+
+namespace App\Http\Controllers\Api\V1;
+
+use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\V1\StoreTeacherUserRequest;
+use App\Http\Requests\Api\V1\UpdateTeacherUserRequest;
+use App\Http\Resources\Api\V1\TeacherUserResource;
+use App\Models\Role;
+use App\Models\TeacherUser;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\Response;
+
+class TeacherUserController extends Controller
+{
+    /**
+     * Display a listing of the resource.
+     */
+    public function index(): AnonymousResourceCollection
+    {
+        $this->authorize('viewAny', TeacherUser::class);
+
+        $teachers = TeacherUser::query()
+            ->with(['role.permissions', 'school', 'district'])
+            ->orderBy('name')
+            ->paginate(request()->integer('per_page', 15));
+
+        return TeacherUserResource::collection($teachers);
+    }
+
+    /**
+     * Display the specified resource.
+     */
+    public function show(TeacherUser $teacher_user): TeacherUserResource
+    {
+        $this->authorize('view', $teacher_user);
+
+        return new TeacherUserResource($teacher_user->load(['role.permissions', 'school', 'district']));
+    }
+
+    /**
+     * Store a newly created resource in storage.
+     *
+     * The role is always "teacher" — fixed by this endpoint, never
+     * caller-supplied (unlike UserController::store(), which lets a
+     * caller pick any role up to their own privilege level). Omitted
+     * school/district place the new row in the caller's own scope, same
+     * convention as UserController::store().
+     */
+    public function store(StoreTeacherUserRequest $request): JsonResponse
+    {
+        $this->authorize('create', TeacherUser::class);
+
+        $actor = $request->user();
+        $role = Role::where('name', 'teacher')->first();
+
+        $teacher = TeacherUser::create([
+            ...$request->safe()->only(['name', 'email', 'phone', 'password']),
+            'role_id' => $role?->id,
+            'school_id' => $request->filled('school_id') ? $request->integer('school_id') : $actor->school_id,
+            'district_id' => $request->filled('district_id') ? $request->integer('district_id') : $actor->district_id,
+        ]);
+
+        return (new TeacherUserResource($teacher->load(['role.permissions', 'school', 'district'])))
+            ->response()
+            ->setStatusCode(Response::HTTP_CREATED);
+    }
+
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(UpdateTeacherUserRequest $request, TeacherUser $teacher_user): TeacherUserResource
+    {
+        $this->authorize('update', $teacher_user);
+
+        $teacher_user->update($request->safe()->only(['name', 'email', 'phone', 'password']));
+
+        return new TeacherUserResource($teacher_user->load(['role.permissions', 'school', 'district']));
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy(TeacherUser $teacher_user): Response
+    {
+        $this->authorize('delete', $teacher_user);
+
+        $teacher_user->delete();
+
+        return response()->noContent();
+    }
+}

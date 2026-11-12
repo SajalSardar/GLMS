@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\V1\StudentProfileController;
 use App\Http\Controllers\Api\V1\SubjectController;
 use App\Http\Controllers\Api\V1\SubjectTeacherAssignmentController;
 use App\Http\Controllers\Api\V1\TeacherProfileController;
+use App\Http\Controllers\Api\V1\TeacherUserController;
 use App\Http\Controllers\Api\V1\TimetableEntryController;
 use App\Http\Controllers\Api\V1\UpazilaController;
 use App\Http\Controllers\Api\V1\UserController;
@@ -142,6 +143,8 @@ Route::prefix('v1')->group(function (): void {
 
         Route::apiResource('users', UserController::class);
         Route::patch('/users/{user}/role', [UserController::class, 'assignRole']);
+
+        Route::apiResource('teacher-users', TeacherUserController::class);
 
         Route::apiResource('teacher-profiles', TeacherProfileController::class);
 
