@@ -85,4 +85,36 @@ class TeacherUserAuthorizationTest extends TestCase
 
         $this->actingAs($actorScopedToDistrictA, 'sanctum')->postJson('/api/v1/teacher-users', $payload)->assertUnprocessable();
     }
+
+    public function test_teacher_user_store_resolves_district_from_school_for_unscoped_actor(): void
+    {
+        $division = Division::create(['name' => 'Division', 'bn_name' => 'বিভাগ']);
+        $district = District::create(['division_id' => $division->id, 'name' => 'District', 'bn_name' => 'জেলা']);
+        $upazila = Upazila::create(['district_id' => $district->id, 'name' => 'Upazila', 'bn_name' => 'উপজেলা']);
+
+        $school = School::create([
+            'division_id' => $division->id,
+            'district_id' => $district->id,
+            'upazila_id' => $upazila->id,
+            'name' => 'School',
+        ]);
+
+        $unscopedActor = $this->actorWithPermissions(['users.create']);
+
+        $payload = [
+            'name' => 'New Teacher',
+            'email' => 'new-teacher@example.test',
+            'password' => 'password123',
+            'school_id' => $school->id,
+        ];
+
+        $response = $this->actingAs($unscopedActor, 'sanctum')->postJson('/api/v1/teacher-users', $payload)->assertCreated();
+
+        $response->assertJsonPath('data.district.id', $district->id);
+        $this->assertDatabaseHas('teacher_users', [
+            'email' => 'new-teacher@example.test',
+            'school_id' => $school->id,
+            'district_id' => $district->id,
+        ]);
+    }
 }

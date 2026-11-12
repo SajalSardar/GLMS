@@ -10,6 +10,7 @@ use App\Models\Role;
 use App\Models\School;
 use App\Models\TeacherUser;
 use App\Policies\Concerns\ChecksScope;
+use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
@@ -61,7 +62,7 @@ class TeacherUserController extends Controller
         $role = Role::where('name', 'teacher')->first();
 
         $schoolId = $request->filled('school_id') ? $request->integer('school_id') : $actor->school_id;
-        $districtId = $request->filled('district_id') ? $request->integer('district_id') : $actor->district_id;
+        $districtId = $this->resolveDistrictId($request, $schoolId, $actor->district_id);
 
         // A submitted school_id must actually belong to the submitted
         // district_id — otherwise a district-scoped actor could pass their
@@ -113,5 +114,24 @@ class TeacherUserController extends Controller
         $teacher_user->delete();
 
         return response()->noContent();
+    }
+
+    /**
+     * Resolve the effective district_id: an explicit district_id wins (and
+     * gets cross-checked against school_id in assertAssignable()); absent
+     * that, a given school_id's real district is authoritative rather than
+     * trusting a stale/absent client value; absent both, fall back.
+     */
+    private function resolveDistrictId(FormRequest $request, ?int $schoolId, ?int $fallback): ?int
+    {
+        if ($request->filled('district_id')) {
+            return $request->integer('district_id');
+        }
+
+        if ($schoolId !== null) {
+            return School::find($schoolId)?->district_id;
+        }
+
+        return $fallback;
     }
 }
