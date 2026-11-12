@@ -11,6 +11,7 @@ use App\Models\ContentAccessLog;
 use App\Models\Exam;
 use App\Models\ExamAttempt;
 use App\Models\StudentProfile;
+use App\Models\StudentUser;
 use App\Models\Subject;
 use Illuminate\Support\Collection;
 
@@ -74,6 +75,7 @@ class StudentDashboardBuilder
 
         $completedVideoIds = ChapterVideoProgress::query()
             ->whereIn('chapter_video_id', $videos->pluck('id'))
+            ->where('user_type', StudentUser::class)
             ->where('user_id', $userId)
             ->where('status', 'completed')
             ->pluck('chapter_video_id');
@@ -85,6 +87,7 @@ class StudentDashboardBuilder
 
         $accessedMaterialIds = ContentAccessLog::query()
             ->whereIn('chapter_material_id', $materials->pluck('id'))
+            ->where('user_type', StudentUser::class)
             ->where('user_id', $userId)
             ->distinct()
             ->pluck('chapter_material_id');

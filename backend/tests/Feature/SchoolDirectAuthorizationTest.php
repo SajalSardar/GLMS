@@ -10,6 +10,7 @@ use App\Models\School;
 use App\Models\TeacherProfile;
 use App\Models\TeacherUser;
 use App\Models\Upazila;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\CreatesAuthorizedActors;
 use Tests\TestCase;
@@ -134,5 +135,44 @@ class SchoolDirectAuthorizationTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.updated_by_type', get_class($allowed))
             ->assertJsonPath('data.updated_by_id', $allowed->id);
+    }
+
+    /**
+     * Regression test: TeacherProfileController::store() must resolve
+     * user_id against teacher_users, not the staff users table. Both
+     * tables are freshly empty at the start of this test, so the first
+     * row created in each gets id 1 — a deliberate id collision between
+     * a staff User (in a different, out-of-scope school) and the
+     * TeacherUser actually being targeted. If the controller ever looks
+     * the id up in `users` again, it will silently resolve the staff
+     * User instead, fail the in-scope check against the wrong school,
+     * and this test will catch it as a non-201 response.
+     */
+    public function test_teacher_profile_store_resolves_user_id_against_teacher_users_not_staff_users(): void
+    {
+        $otherDivision = Division::create(['name' => 'Division B', 'bn_name' => 'বিভাগ বি']);
+        $otherDistrict = District::create(['division_id' => $otherDivision->id, 'name' => 'District B', 'bn_name' => 'জেলা বি']);
+        $otherUpazila = Upazila::create(['district_id' => $otherDistrict->id, 'name' => 'Upazila B', 'bn_name' => 'উপজেলা বি']);
+        $otherSchool = School::create([
+            'division_id' => $otherDivision->id,
+            'district_id' => $otherDistrict->id,
+            'upazila_id' => $otherUpazila->id,
+            'name' => 'School B',
+        ]);
+
+        // First row in `users` — id 1 in this fresh test transaction.
+        $collidingStaffUser = User::factory()->create(['school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id]);
+        // First row in `teacher_users` — also id 1. This is the real target.
+        $teacherUser = TeacherUser::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
+        $this->assertSame($collidingStaffUser->id, $teacherUser->id);
+
+        $allowed = $this->actorWithPermissions(['teacher_profiles.create'], $this->school->id, $this->school->district_id);
+
+        $this->actingAs($allowed, 'sanctum')
+            ->postJson('/api/v1/teacher-profiles', ['user_id' => $teacherUser->id])
+            ->assertCreated()
+            ->assertJsonPath('data.user_id', $teacherUser->id)
+            ->assertJsonPath('data.school_id', $teacherUser->school_id)
+            ->assertJsonPath('data.district_id', $teacherUser->district_id);
     }
 }

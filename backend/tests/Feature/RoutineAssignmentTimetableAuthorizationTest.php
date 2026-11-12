@@ -108,6 +108,35 @@ class RoutineAssignmentTimetableAuthorizationTest extends TestCase
             ->assertJsonPath('data.updated_by_id', $allowed->id);
     }
 
+    public function test_class_routine_store_and_update_accept_teacher_from_the_class_school(): void
+    {
+        $routine = ClassRoutine::create([
+            'class_id' => $this->class->id,
+            'school_id' => $this->school->id,
+            'district_id' => $this->school->district_id,
+            'subject_id' => $this->subject->id,
+            'day_of_week' => 'sunday',
+            'period_no' => 3,
+        ]);
+        $payload = [
+            'class_id' => $this->class->id,
+            'subject_id' => $this->subject->id,
+            'teacher_id' => $this->teacher->id,
+            'day_of_week' => 'saturday',
+            'period_no' => 4,
+        ];
+
+        $allowed = $this->actorWithPermissions(['class_routines.create', 'class_routines.update']);
+
+        $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/class-routines', $payload)
+            ->assertCreated()
+            ->assertJsonPath('data.teacher.id', $this->teacher->id);
+
+        $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/class-routines/{$routine->id}", ['teacher_id' => $this->teacher->id])
+            ->assertOk()
+            ->assertJsonPath('data.teacher.id', $this->teacher->id);
+    }
+
     public function test_subject_teacher_assignment_store_and_update_are_authorized(): void
     {
         $assignment = SubjectTeacherAssignment::create([

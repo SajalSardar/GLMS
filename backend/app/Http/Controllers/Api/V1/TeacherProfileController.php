@@ -7,7 +7,7 @@ use App\Http\Requests\Api\V1\StoreTeacherProfileRequest;
 use App\Http\Requests\Api\V1\UpdateTeacherProfileRequest;
 use App\Http\Resources\Api\V1\TeacherProfileResource;
 use App\Models\TeacherProfile;
-use App\Models\User;
+use App\Models\TeacherUser;
 use App\Policies\Concerns\ChecksScope;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -60,7 +60,7 @@ class TeacherProfileController extends Controller
         $this->authorize('create', TeacherProfile::class);
 
         $actor = $request->user();
-        $targetUser = User::findOrFail($request->integer('user_id'));
+        $targetUser = TeacherUser::findOrFail($request->integer('user_id'));
 
         if (! $this->inScope($actor, $targetUser->school_id, $targetUser->district_id)) {
             throw ValidationException::withMessages([

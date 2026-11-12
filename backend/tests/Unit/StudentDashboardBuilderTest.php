@@ -22,6 +22,7 @@ use App\Models\StudentProfile;
 use App\Models\StudentUser;
 use App\Models\Subject;
 use App\Models\Upazila;
+use App\Models\User;
 use App\Support\StudentDashboardBuilder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -115,6 +116,30 @@ class StudentDashboardBuilderTest extends TestCase
         $this->assertSame(1, $chapters[0]['video_completed']);
         $this->assertSame(1, $chapters[0]['materials_total'], 'archived material excluded from total');
         $this->assertSame(1, $chapters[0]['materials_accessed']);
+    }
+
+    public function test_video_and_material_counts_exclude_rows_whose_user_type_is_not_student_user_even_with_a_matching_id(): void
+    {
+        $book = Book::create(['class_version_id' => $this->version->id, 'subject_id' => $this->subject->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Book']);
+        $chapter = Chapter::create(['book_id' => $book->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Chapter 1']);
+
+        $video = ChapterVideo::create(['chapter_id' => $chapter->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'youtube_video_id' => 'ccccccccccc', 'title' => 'Video']);
+        $material = ChapterMaterial::create(['chapter_id' => $chapter->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'type' => 'supplementary', 'title' => 'Material', 'original_filename' => 'c.pdf', 'stored_path' => 'c.pdf', 'disk' => 'local', 'mime_type' => 'application/pdf', 'size_bytes' => 10]);
+
+        // A row that numerically reuses this student's id but belongs to a
+        // different user_type (a staff User, not the StudentUser). Without
+        // a user_type guard in the query, this would be mistaken for the
+        // student's own progress/access record.
+        ChapterVideoProgress::create(['chapter_video_id' => $video->id, 'user_type' => User::class, 'user_id' => $this->studentUser->id, 'status' => 'completed']);
+        ContentAccessLog::create(['chapter_id' => $chapter->id, 'chapter_material_id' => $material->id, 'user_type' => User::class, 'user_id' => $this->studentUser->id, 'action' => 'downloaded']);
+
+        $result = (new StudentDashboardBuilder)->build($this->profile);
+        $chapters = $result['subjects'][0]['chapters'];
+
+        $this->assertSame(1, $chapters[0]['video_total']);
+        $this->assertSame(0, $chapters[0]['video_completed'], 'a progress row belonging to a different user_type must not count as this student\'s');
+        $this->assertSame(1, $chapters[0]['materials_total']);
+        $this->assertSame(0, $chapters[0]['materials_accessed'], 'an access log row belonging to a different user_type must not count as this student\'s');
     }
 
     public function test_exam_rollup_excludes_unpublished_exams_and_pairs_best_score_with_its_own_total(): void

@@ -13,7 +13,7 @@ use App\Models\SchoolClass;
 use App\Models\Section;
 use App\Models\StudentProfile;
 use App\Models\StudentSectionTransfer;
-use App\Models\User;
+use App\Models\StudentUser;
 use App\Policies\Concerns\ChecksScope;
 use App\Support\StudentDashboardBuilder;
 use Illuminate\Http\JsonResponse;
@@ -68,7 +68,7 @@ class StudentProfileController extends Controller
         $this->authorize('create', StudentProfile::class);
 
         $actor = $request->user();
-        $targetUser = User::findOrFail($request->integer('user_id'));
+        $targetUser = StudentUser::findOrFail($request->integer('user_id'));
 
         if (! $this->inScope($actor, $targetUser->school_id, $targetUser->district_id)) {
             throw ValidationException::withMessages([

@@ -10,7 +10,7 @@ use App\Models\Classroom;
 use App\Models\ClassRoutine;
 use App\Models\SchoolClass;
 use App\Models\Subject;
-use App\Models\User;
+use App\Models\TeacherUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -157,7 +157,7 @@ class ClassRoutineController extends Controller
         }
 
         if ($attributes['teacher_id'] !== null) {
-            $teacher = User::find($attributes['teacher_id']);
+            $teacher = TeacherUser::find($attributes['teacher_id']);
 
             if (! $teacher || $teacher->school_id !== $class->school_id) {
                 throw ValidationException::withMessages([
