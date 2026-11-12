@@ -12,9 +12,9 @@ use App\Models\Section;
 use App\Models\Shift;
 use App\Models\Subject;
 use App\Models\SubjectTeacherAssignment;
+use App\Models\TeacherUser;
 use App\Models\TimetableEntry;
 use App\Models\Upazila;
-use App\Models\User;
 use App\Support\TimetableConflictChecker;
 use App\Support\TimetableGenerator;
 use App\Support\TimetablePeriodGrid;
@@ -90,12 +90,12 @@ class TimetableGeneratorTest extends TestCase
         return $subject;
     }
 
-    private function makeTeacher(): User
+    private function makeTeacher(): TeacherUser
     {
-        return User::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
+        return TeacherUser::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
     }
 
-    private function assign(Section $section, Subject $subject, User $teacher): void
+    private function assign(Section $section, Subject $subject, TeacherUser $teacher): void
     {
         SubjectTeacherAssignment::create([
             'section_id' => $section->id,

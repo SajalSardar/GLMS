@@ -65,10 +65,12 @@ class ChapterControllerTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('data.school_id', $this->schoolA->id)
             ->assertJsonPath('data.district_id', $this->schoolA->district_id)
-            ->assertJsonPath('data.created_by', $allowed->id);
+            ->assertJsonPath('data.created_by_type', get_class($allowed))
+            ->assertJsonPath('data.created_by_id', $allowed->id);
         $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/chapters/{$chapter->id}", [])
             ->assertOk()
-            ->assertJsonPath('data.updated_by', $allowed->id);
+            ->assertJsonPath('data.updated_by_type', get_class($allowed))
+            ->assertJsonPath('data.updated_by_id', $allowed->id);
     }
 
     public function test_index_filters_by_book_id(): void

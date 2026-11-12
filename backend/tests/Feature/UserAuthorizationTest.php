@@ -27,10 +27,12 @@ class UserAuthorizationTest extends TestCase
         $allowed = $this->actorWithPermissions(['users.create', 'users.update']);
         $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/users', $payload)
             ->assertCreated()
-            ->assertJsonPath('data.created_by', $allowed->id);
+            ->assertJsonPath('data.created_by_type', get_class($allowed))
+            ->assertJsonPath('data.created_by_id', $allowed->id);
         $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/users/{$target->id}", [])
             ->assertOk()
-            ->assertJsonPath('data.updated_by', $allowed->id);
+            ->assertJsonPath('data.updated_by_type', get_class($allowed))
+            ->assertJsonPath('data.updated_by_id', $allowed->id);
         $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/users/{$target->id}/role", ['role_id' => $assignableRole->id])->assertOk();
     }
 }

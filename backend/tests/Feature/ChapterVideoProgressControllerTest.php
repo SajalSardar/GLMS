@@ -62,7 +62,7 @@ class ChapterVideoProgressControllerTest extends TestCase
             ->assertJsonPath('data.status', 'in_progress')
             ->assertJsonPath('data.max_position_seconds', 10);
 
-        $progress = ChapterVideoProgress::where('chapter_video_id', $this->video->id)->where('user_id', $this->student->id)->first();
+        $progress = ChapterVideoProgress::where('chapter_video_id', $this->video->id)->where('user_type', User::class)->where('user_id', $this->student->id)->first();
         $this->assertNotNull($progress->started_at);
     }
 
@@ -73,7 +73,7 @@ class ChapterVideoProgressControllerTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.status', 'completed');
 
-        $progress = ChapterVideoProgress::where('chapter_video_id', $this->video->id)->where('user_id', $this->student->id)->first();
+        $progress = ChapterVideoProgress::where('chapter_video_id', $this->video->id)->where('user_type', User::class)->where('user_id', $this->student->id)->first();
         $this->assertNotNull($progress->completed_at);
     }
 
@@ -126,7 +126,7 @@ class ChapterVideoProgressControllerTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.max_position_seconds', 100);
 
-        $progress = ChapterVideoProgress::where('chapter_video_id', $this->video->id)->where('user_id', $this->student->id)->first();
+        $progress = ChapterVideoProgress::where('chapter_video_id', $this->video->id)->where('user_type', User::class)->where('user_id', $this->student->id)->first();
         $this->assertSame(100, $progress->max_position_seconds);
     }
 
@@ -156,6 +156,7 @@ class ChapterVideoProgressControllerTest extends TestCase
             // this request's firstOrNew() lookup and its save().
             DB::table('chapter_video_progress')->insert([
                 'chapter_video_id' => $model->chapter_video_id,
+                'user_type' => $model->user_type,
                 'user_id' => $model->user_id,
                 'status' => 'in_progress',
                 'max_position_seconds' => 5,
@@ -172,7 +173,7 @@ class ChapterVideoProgressControllerTest extends TestCase
 
             $this->assertSame(
                 1,
-                ChapterVideoProgress::where('chapter_video_id', $this->video->id)->where('user_id', $this->student->id)->count()
+                ChapterVideoProgress::where('chapter_video_id', $this->video->id)->where('user_type', User::class)->where('user_id', $this->student->id)->count()
             );
         } finally {
             // This test registers a model-wide event listener; unregister
@@ -190,7 +191,7 @@ class ChapterVideoProgressControllerTest extends TestCase
         $this->actingAs($other, 'sanctum')->putJson("/api/v1/chapter-videos/{$this->video->id}/progress", ['position_seconds' => 10]);
 
         $this->assertSame(2, ChapterVideoProgress::where('chapter_video_id', $this->video->id)->count());
-        $this->assertSame(50, ChapterVideoProgress::where('user_id', $this->student->id)->first()->max_position_seconds);
-        $this->assertSame(10, ChapterVideoProgress::where('user_id', $other->id)->first()->max_position_seconds);
+        $this->assertSame(50, ChapterVideoProgress::where('user_type', User::class)->where('user_id', $this->student->id)->first()->max_position_seconds);
+        $this->assertSame(10, ChapterVideoProgress::where('user_type', User::class)->where('user_id', $other->id)->first()->max_position_seconds);
     }
 }

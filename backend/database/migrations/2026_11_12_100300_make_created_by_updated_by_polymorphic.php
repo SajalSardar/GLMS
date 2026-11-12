@@ -87,8 +87,8 @@ return new class extends Migration
             fn ($fk) => $fk['columns'] === [$column]
         );
         if ($hasForeign) {
-            Schema::table($table, function (Blueprint $blueprint) use ($table, $column) {
-                $blueprint->dropForeign(["{$table}_{$column}_foreign"]);
+            Schema::table($table, function (Blueprint $blueprint) use ($column) {
+                $blueprint->dropForeign([$column]);
             });
         }
 

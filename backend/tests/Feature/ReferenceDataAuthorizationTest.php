@@ -28,10 +28,12 @@ class ReferenceDataAuthorizationTest extends TestCase
         $allowed = $this->actorWithPermissions(['divisions.create', 'divisions.update']);
         $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/divisions', $payload)
             ->assertCreated()
-            ->assertJsonPath('data.created_by', $allowed->id);
+            ->assertJsonPath('data.created_by_type', get_class($allowed))
+            ->assertJsonPath('data.created_by_id', $allowed->id);
         $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/divisions/{$division->id}", [])
             ->assertOk()
-            ->assertJsonPath('data.updated_by', $allowed->id);
+            ->assertJsonPath('data.updated_by_type', get_class($allowed))
+            ->assertJsonPath('data.updated_by_id', $allowed->id);
     }
 
     public function test_district_store_and_update_are_authorized(): void
@@ -47,10 +49,12 @@ class ReferenceDataAuthorizationTest extends TestCase
         $allowed = $this->actorWithPermissions(['districts.create', 'districts.update']);
         $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/districts', $payload)
             ->assertCreated()
-            ->assertJsonPath('data.created_by', $allowed->id);
+            ->assertJsonPath('data.created_by_type', get_class($allowed))
+            ->assertJsonPath('data.created_by_id', $allowed->id);
         $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/districts/{$district->id}", [])
             ->assertOk()
-            ->assertJsonPath('data.updated_by', $allowed->id);
+            ->assertJsonPath('data.updated_by_type', get_class($allowed))
+            ->assertJsonPath('data.updated_by_id', $allowed->id);
     }
 
     public function test_upazila_store_and_update_are_authorized(): void
@@ -67,10 +71,12 @@ class ReferenceDataAuthorizationTest extends TestCase
         $allowed = $this->actorWithPermissions(['upazilas.create', 'upazilas.update']);
         $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/upazilas', $payload)
             ->assertCreated()
-            ->assertJsonPath('data.created_by', $allowed->id);
+            ->assertJsonPath('data.created_by_type', get_class($allowed))
+            ->assertJsonPath('data.created_by_id', $allowed->id);
         $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/upazilas/{$upazila->id}", [])
             ->assertOk()
-            ->assertJsonPath('data.updated_by', $allowed->id);
+            ->assertJsonPath('data.updated_by_type', get_class($allowed))
+            ->assertJsonPath('data.updated_by_id', $allowed->id);
     }
 
     public function test_subject_store_and_update_are_authorized(): void
@@ -85,10 +91,12 @@ class ReferenceDataAuthorizationTest extends TestCase
         $allowed = $this->actorWithPermissions(['subjects.create', 'subjects.update']);
         $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/subjects', $payload)
             ->assertCreated()
-            ->assertJsonPath('data.created_by', $allowed->id);
+            ->assertJsonPath('data.created_by_type', get_class($allowed))
+            ->assertJsonPath('data.created_by_id', $allowed->id);
         $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/subjects/{$subject->id}", [])
             ->assertOk()
-            ->assertJsonPath('data.updated_by', $allowed->id);
+            ->assertJsonPath('data.updated_by_type', get_class($allowed))
+            ->assertJsonPath('data.updated_by_id', $allowed->id);
     }
 
     public function test_guardian_store_and_update_are_authorized(): void
@@ -103,9 +111,11 @@ class ReferenceDataAuthorizationTest extends TestCase
         $allowed = $this->actorWithPermissions(['guardians.create', 'guardians.update']);
         $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/guardians', $payload)
             ->assertCreated()
-            ->assertJsonPath('data.created_by', $allowed->id);
+            ->assertJsonPath('data.created_by_type', get_class($allowed))
+            ->assertJsonPath('data.created_by_id', $allowed->id);
         $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/guardians/{$guardian->id}", [])
             ->assertOk()
-            ->assertJsonPath('data.updated_by', $allowed->id);
+            ->assertJsonPath('data.updated_by_type', get_class($allowed))
+            ->assertJsonPath('data.updated_by_id', $allowed->id);
     }
 }

@@ -91,14 +91,16 @@ class ExamControllerTest extends TestCase
         $createResponse = $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/exams', $this->examPayload())
             ->assertCreated()
             ->assertJsonPath('data.status', 'draft')
-            ->assertJsonPath('data.created_by', $allowed->id);
+            ->assertJsonPath('data.created_by_type', get_class($allowed))
+            ->assertJsonPath('data.created_by_id', $allowed->id);
         $id = $createResponse->json('data.id');
 
         $this->actingAs($allowed, 'sanctum')
             ->putJson("/api/v1/exams/{$id}", ['passing_score_percent' => 40])
             ->assertOk()
             ->assertJsonPath('data.passing_score_percent', 40)
-            ->assertJsonPath('data.updated_by', $allowed->id);
+            ->assertJsonPath('data.updated_by_type', get_class($allowed))
+            ->assertJsonPath('data.updated_by_id', $allowed->id);
     }
 
     public function test_every_role_without_exams_permissions_is_forbidden_even_with_full_questions_access(): void

@@ -27,10 +27,12 @@ class RoleAuthorizationTest extends TestCase
         $allowed = $this->actorWithPermissions(['roles.create', 'roles.update', 'classes.view']);
         $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/roles', $payload)
             ->assertCreated()
-            ->assertJsonPath('data.created_by', $allowed->id);
+            ->assertJsonPath('data.created_by_type', get_class($allowed))
+            ->assertJsonPath('data.created_by_id', $allowed->id);
         $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/roles/{$role->id}", [])
             ->assertOk()
-            ->assertJsonPath('data.updated_by', $allowed->id);
+            ->assertJsonPath('data.updated_by_type', get_class($allowed))
+            ->assertJsonPath('data.updated_by_id', $allowed->id);
         $this->actingAs($allowed, 'sanctum')->putJson("/api/v1/roles/{$role->id}/permissions", ['permissions' => [$grantablePermission->name]])->assertOk();
     }
 }

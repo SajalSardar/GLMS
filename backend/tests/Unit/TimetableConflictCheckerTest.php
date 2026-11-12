@@ -12,9 +12,9 @@ use App\Models\Section;
 use App\Models\Shift;
 use App\Models\Subject;
 use App\Models\SubjectTeacherAssignment;
+use App\Models\TeacherUser;
 use App\Models\TimetableEntry;
 use App\Models\Upazila;
-use App\Models\User;
 use App\Support\TimetableConflictChecker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -35,7 +35,7 @@ class TimetableConflictCheckerTest extends TestCase
 
     private Subject $subject;
 
-    private User $teacher;
+    private TeacherUser $teacher;
 
     private SubjectTeacherAssignment $assignment;
 
@@ -87,7 +87,7 @@ class TimetableConflictCheckerTest extends TestCase
         $this->subject = Subject::create(['name' => 'Math']);
         $this->classVersion->subjects()->attach($this->subject->id, ['required_weekly_periods' => 1]);
 
-        $this->teacher = User::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
+        $this->teacher = TeacherUser::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
 
         $this->assignment = SubjectTeacherAssignment::create([
             'section_id' => $this->section->id,
@@ -129,7 +129,7 @@ class TimetableConflictCheckerTest extends TestCase
 
     public function test_teacher_without_assignment_is_invalid(): void
     {
-        $other = User::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
+        $other = TeacherUser::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
         $attributes = [...$this->validAttributes(), 'teacher_id' => $other->id];
 
         $error = $this->checker->invalidReason($this->section, $attributes);
@@ -233,7 +233,7 @@ class TimetableConflictCheckerTest extends TestCase
         // school" check — past the earlier "teacher matches the
         // assignment" check — is to repoint the existing assignment's
         // teacher, not create a second one for the same pair.
-        $otherSchoolTeacher = User::factory()->create(['school_id' => null, 'district_id' => null]);
+        $otherSchoolTeacher = TeacherUser::factory()->create(['school_id' => null, 'district_id' => null]);
         $this->assignment->update(['teacher_id' => $otherSchoolTeacher->id]);
 
         $attributes = [...$this->validAttributes(), 'teacher_id' => $otherSchoolTeacher->id];
@@ -286,7 +286,7 @@ class TimetableConflictCheckerTest extends TestCase
             'status' => 'draft',
         ]);
 
-        $otherTeacher = User::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
+        $otherTeacher = TeacherUser::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
         $attributes = ['teacher_id' => $otherTeacher->id, 'classroom_id' => $classroom->id, 'day_of_week' => 'saturday', 'period_no' => 1];
 
         $error = $this->checker->conflictReason($attributes);

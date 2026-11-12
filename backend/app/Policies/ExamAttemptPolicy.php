@@ -4,6 +4,7 @@ namespace App\Policies;
 
 use App\Models\ExamAttempt;
 use App\Models\GuardianUser;
+use App\Models\StudentUser;
 use Illuminate\Contracts\Auth\Authenticatable;
 
 class ExamAttemptPolicy
@@ -13,10 +14,14 @@ class ExamAttemptPolicy
      * guardian, or a management/oversight role holding exam_attempts.view.
      * No flat permission is required for the first two — same "own
      * record" precedent as ChapterVideoController::updateProgress().
+     * exam_attempts.user_id is student-only (see migration
+     * 2026_11_12_100200), so the identity check must also confirm $user
+     * is a StudentUser — otherwise a same-numeric-id row in a different
+     * user table would wrongly match.
      */
     public function view(Authenticatable $user, ExamAttempt $examAttempt): bool
     {
-        if ($user->getAuthIdentifier() === $examAttempt->user_id) {
+        if ($user instanceof StudentUser && $user->getAuthIdentifier() === $examAttempt->user_id) {
             return true;
         }
 

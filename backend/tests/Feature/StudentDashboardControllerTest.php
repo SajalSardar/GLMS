@@ -7,14 +7,15 @@ use App\Models\ClassVersion;
 use App\Models\District;
 use App\Models\Division;
 use App\Models\Guardian;
+use App\Models\GuardianUser;
 use App\Models\School;
 use App\Models\SchoolClass;
 use App\Models\Section;
 use App\Models\Shift;
 use App\Models\StudentProfile;
+use App\Models\StudentUser;
 use App\Models\Subject;
 use App\Models\Upazila;
-use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\CreatesAuthorizedActors;
 use Tests\TestCase;
@@ -28,7 +29,7 @@ class StudentDashboardControllerTest extends TestCase
 
     private StudentProfile $profile;
 
-    private User $studentUser;
+    private StudentUser $studentUser;
 
     protected function setUp(): void
     {
@@ -46,7 +47,7 @@ class StudentDashboardControllerTest extends TestCase
         $shift = Shift::create(['class_version_id' => $version->id, 'academic_year_id' => $academicYear->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Shift', 'start_time' => '08:00', 'end_time' => '13:00', 'days_of_week' => ['saturday']]);
         $section = Section::create(['shift_id' => $shift->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Section A']);
 
-        $this->studentUser = User::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
+        $this->studentUser = StudentUser::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
         $this->profile = StudentProfile::create(['user_id' => $this->studentUser->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'section_id' => $section->id]);
     }
 
@@ -60,7 +61,7 @@ class StudentDashboardControllerTest extends TestCase
 
     public function test_a_linked_guardian_can_view_the_dashboard(): void
     {
-        $guardianUser = User::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
+        $guardianUser = GuardianUser::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
         $guardian = Guardian::create(['user_id' => $guardianUser->id, 'name' => 'Guardian', 'phone' => '01700000001']);
         $guardian->students()->attach($this->profile->id, ['relation' => 'father', 'is_primary' => true]);
 
@@ -71,7 +72,7 @@ class StudentDashboardControllerTest extends TestCase
 
     public function test_an_unrelated_student_is_forbidden(): void
     {
-        $otherUser = User::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
+        $otherUser = StudentUser::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
 
         $this->actingAs($otherUser, 'sanctum')
             ->getJson("/api/v1/student-profiles/{$this->profile->id}/dashboard")
@@ -102,7 +103,7 @@ class StudentDashboardControllerTest extends TestCase
 
     public function test_a_student_with_no_section_gets_an_empty_dashboard_not_an_error(): void
     {
-        $unassignedUser = User::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
+        $unassignedUser = StudentUser::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
         $unassignedProfile = StudentProfile::create(['user_id' => $unassignedUser->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
 
         $this->actingAs($unassignedUser, 'sanctum')

@@ -11,8 +11,8 @@ use App\Models\SchoolClass;
 use App\Models\Section;
 use App\Models\Shift;
 use App\Models\StudentProfile;
+use App\Models\StudentUser;
 use App\Models\Upazila;
-use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\CreatesAuthorizedActors;
 use Tests\TestCase;
@@ -70,7 +70,7 @@ class StudentProfileAuthorizationTest extends TestCase
 
     public function test_store_update_attach_guardian_and_transfer_section_are_authorized(): void
     {
-        $existingTargetUser = User::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
+        $existingTargetUser = StudentUser::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
         $profile = StudentProfile::create([
             'user_id' => $existingTargetUser->id,
             'school_id' => $this->school->id,
@@ -78,7 +78,7 @@ class StudentProfileAuthorizationTest extends TestCase
             'section_id' => $this->section->id,
         ]);
 
-        $newTargetUser = User::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
+        $newTargetUser = StudentUser::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
         $guardian = Guardian::create(['name' => 'Guardian', 'phone' => '01700000001']);
 
         $storePayload = ['user_id' => $newTargetUser->id];
@@ -94,10 +94,12 @@ class StudentProfileAuthorizationTest extends TestCase
         $allowed = $this->actorWithPermissions(['student_profiles.create', 'student_profiles.update'], $this->school->id, $this->school->district_id);
         $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/student-profiles', $storePayload)
             ->assertCreated()
-            ->assertJsonPath('data.created_by', $allowed->id);
+            ->assertJsonPath('data.created_by_type', get_class($allowed))
+            ->assertJsonPath('data.created_by_id', $allowed->id);
         $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/student-profiles/{$profile->id}", [])
             ->assertOk()
-            ->assertJsonPath('data.updated_by', $allowed->id);
+            ->assertJsonPath('data.updated_by_type', get_class($allowed))
+            ->assertJsonPath('data.updated_by_id', $allowed->id);
         $this->actingAs($allowed, 'sanctum')->postJson("/api/v1/student-profiles/{$profile->id}/guardians", $attachPayload)->assertOk();
     }
 }

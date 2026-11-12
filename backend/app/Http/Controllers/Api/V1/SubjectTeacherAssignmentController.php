@@ -8,7 +8,7 @@ use App\Http\Requests\Api\V1\UpdateSubjectTeacherAssignmentRequest;
 use App\Http\Resources\Api\V1\SubjectTeacherAssignmentResource;
 use App\Models\Section;
 use App\Models\SubjectTeacherAssignment;
-use App\Models\User;
+use App\Models\TeacherUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -125,7 +125,7 @@ class SubjectTeacherAssignmentController extends Controller
 
     private function assertTeacherBelongsToSchool(int $teacherId, int $schoolId): void
     {
-        if (User::where('id', $teacherId)->where('school_id', $schoolId)->doesntExist()) {
+        if (TeacherUser::where('id', $teacherId)->where('school_id', $schoolId)->doesntExist()) {
             throw ValidationException::withMessages([
                 'teacher_id' => ['The selected teacher does not belong to this section\'s school.'],
             ]);

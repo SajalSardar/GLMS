@@ -96,8 +96,8 @@ return new class extends Migration
     private function dropUserForeignKey(string $table): void
     {
         if ($this->hasUserForeignKey($table)) {
-            Schema::table($table, function (Blueprint $blueprint) use ($table) {
-                $blueprint->dropForeign(["{$table}_user_id_foreign"]);
+            Schema::table($table, function (Blueprint $blueprint) {
+                $blueprint->dropForeign(['user_id']);
             });
         }
     }

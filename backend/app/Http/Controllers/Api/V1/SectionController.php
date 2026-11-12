@@ -9,7 +9,7 @@ use App\Http\Resources\Api\V1\SectionResource;
 use App\Models\Classroom;
 use App\Models\Section;
 use App\Models\Shift;
-use App\Models\User;
+use App\Models\TeacherUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -128,7 +128,7 @@ class SectionController extends Controller
             return;
         }
 
-        if (User::where('id', $teacherId)->where('school_id', $schoolId)->doesntExist()) {
+        if (TeacherUser::where('id', $teacherId)->where('school_id', $schoolId)->doesntExist()) {
             throw ValidationException::withMessages([
                 'class_teacher_id' => ['The selected teacher does not belong to this section\'s school.'],
             ]);

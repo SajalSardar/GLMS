@@ -11,9 +11,9 @@ use App\Models\Section;
 use App\Models\Shift;
 use App\Models\Subject;
 use App\Models\SubjectTeacherAssignment;
+use App\Models\TeacherUser;
 use App\Models\TimetableEntry;
 use App\Models\Upazila;
-use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\CreatesAuthorizedActors;
 use Tests\TestCase;
@@ -73,7 +73,7 @@ class TimetableEntryControllerUpdateTest extends TestCase
 
         $subject = Subject::create(['name' => 'Math']);
         $classVersion->subjects()->attach($subject->id, ['required_weekly_periods' => 2]);
-        $teacher = User::factory()->create(['school_id' => $school->id, 'district_id' => $school->district_id]);
+        $teacher = TeacherUser::factory()->create(['school_id' => $school->id, 'district_id' => $school->district_id]);
         SubjectTeacherAssignment::create([
             'section_id' => $section->id,
             'school_id' => $school->id,

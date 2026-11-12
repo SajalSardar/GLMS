@@ -12,8 +12,8 @@ use App\Models\Section;
 use App\Models\Shift;
 use App\Models\Subject;
 use App\Models\SubjectTeacherAssignment;
+use App\Models\TeacherUser;
 use App\Models\Upazila;
-use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\CreatesAuthorizedActors;
 use Tests\TestCase;
@@ -31,7 +31,7 @@ class RoutineAssignmentTimetableAuthorizationTest extends TestCase
 
     private Subject $subject;
 
-    private User $teacher;
+    private TeacherUser $teacher;
 
     protected function setUp(): void
     {
@@ -78,7 +78,7 @@ class RoutineAssignmentTimetableAuthorizationTest extends TestCase
         $this->class->subjects()->attach($this->subject->id);
         $classVersion->subjects()->attach($this->subject->id);
 
-        $this->teacher = User::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
+        $this->teacher = TeacherUser::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
     }
 
     public function test_class_routine_store_and_update_are_authorized(): void
@@ -100,10 +100,12 @@ class RoutineAssignmentTimetableAuthorizationTest extends TestCase
         $allowed = $this->actorWithPermissions(['class_routines.create', 'class_routines.update']);
         $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/class-routines', $payload)
             ->assertCreated()
-            ->assertJsonPath('data.created_by', $allowed->id);
+            ->assertJsonPath('data.created_by_type', get_class($allowed))
+            ->assertJsonPath('data.created_by_id', $allowed->id);
         $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/class-routines/{$routine->id}", [])
             ->assertOk()
-            ->assertJsonPath('data.updated_by', $allowed->id);
+            ->assertJsonPath('data.updated_by_type', get_class($allowed))
+            ->assertJsonPath('data.updated_by_id', $allowed->id);
     }
 
     public function test_subject_teacher_assignment_store_and_update_are_authorized(): void
@@ -135,10 +137,12 @@ class RoutineAssignmentTimetableAuthorizationTest extends TestCase
         $allowed = $this->actorWithPermissions(['subject_teacher_assignments.create', 'subject_teacher_assignments.update']);
         $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/subject-teacher-assignments', $payload)
             ->assertCreated()
-            ->assertJsonPath('data.created_by', $allowed->id);
+            ->assertJsonPath('data.created_by_type', get_class($allowed))
+            ->assertJsonPath('data.created_by_id', $allowed->id);
         $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/subject-teacher-assignments/{$assignment->id}", ['teacher_id' => $this->teacher->id])
             ->assertOk()
-            ->assertJsonPath('data.updated_by', $allowed->id);
+            ->assertJsonPath('data.updated_by_type', get_class($allowed))
+            ->assertJsonPath('data.updated_by_id', $allowed->id);
     }
 
     public function test_timetable_entry_store_and_update_are_authorized(): void
@@ -165,11 +169,13 @@ class RoutineAssignmentTimetableAuthorizationTest extends TestCase
         $allowed = $this->actorWithPermissions(['timetable_entries.create', 'timetable_entries.update']);
         $createResponse = $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/timetable-entries', $payload)
             ->assertCreated()
-            ->assertJsonPath('data.created_by', $allowed->id);
+            ->assertJsonPath('data.created_by_type', get_class($allowed))
+            ->assertJsonPath('data.created_by_id', $allowed->id);
         $id = $createResponse->json('data.id');
 
         $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/timetable-entries/{$id}", [])
             ->assertOk()
-            ->assertJsonPath('data.updated_by', $allowed->id);
+            ->assertJsonPath('data.updated_by_type', get_class($allowed))
+            ->assertJsonPath('data.updated_by_id', $allowed->id);
     }
 }

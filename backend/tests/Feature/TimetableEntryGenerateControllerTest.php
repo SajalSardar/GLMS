@@ -11,9 +11,9 @@ use App\Models\Section;
 use App\Models\Shift;
 use App\Models\Subject;
 use App\Models\SubjectTeacherAssignment;
+use App\Models\TeacherUser;
 use App\Models\TimetableEntry;
 use App\Models\Upazila;
-use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\CreatesAuthorizedActors;
 use Tests\TestCase;
@@ -79,7 +79,7 @@ class TimetableEntryGenerateControllerTest extends TestCase
         $section = Section::create(['shift_id' => $this->shift->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'A']);
         $subject = Subject::create(['name' => 'Math']);
         $this->classVersion->subjects()->attach($subject->id, ['required_weekly_periods' => 2]);
-        $teacher = User::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
+        $teacher = TeacherUser::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
         SubjectTeacherAssignment::create([
             'section_id' => $section->id,
             'school_id' => $this->school->id,
@@ -120,7 +120,7 @@ class TimetableEntryGenerateControllerTest extends TestCase
         $sectionB = Section::create(['shift_id' => $tightShift->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'B']);
         $subject = Subject::create(['name' => 'Math']);
         $this->classVersion->subjects()->attach($subject->id, ['required_weekly_periods' => 1]);
-        $teacher = User::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
+        $teacher = TeacherUser::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
         SubjectTeacherAssignment::create([
             'section_id' => $sectionA->id,
             'school_id' => $this->school->id,

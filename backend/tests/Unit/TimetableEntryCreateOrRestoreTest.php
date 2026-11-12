@@ -11,9 +11,9 @@ use App\Models\Section;
 use App\Models\Shift;
 use App\Models\Subject;
 use App\Models\SubjectTeacherAssignment;
+use App\Models\TeacherUser;
 use App\Models\TimetableEntry;
 use App\Models\Upazila;
-use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\CreatesAuthorizedActors;
 use Tests\TestCase;
@@ -29,7 +29,7 @@ class TimetableEntryCreateOrRestoreTest extends TestCase
 
     private Subject $subject;
 
-    private User $teacher;
+    private TeacherUser $teacher;
 
     protected function setUp(): void
     {
@@ -59,7 +59,7 @@ class TimetableEntryCreateOrRestoreTest extends TestCase
         ]);
         $this->section = Section::create(['shift_id' => $shift->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Section']);
         $this->subject = Subject::create(['name' => 'Math']);
-        $this->teacher = User::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
+        $this->teacher = TeacherUser::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
         SubjectTeacherAssignment::create([
             'section_id' => $this->section->id,
             'school_id' => $this->school->id,
@@ -111,7 +111,7 @@ class TimetableEntryCreateOrRestoreTest extends TestCase
         // TimetableConflictChecker, exercised separately) — no
         // SubjectTeacherAssignment is needed to prove it overwrites
         // teacher_id correctly.
-        $otherTeacher = User::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
+        $otherTeacher = TeacherUser::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
 
         $restored = TimetableEntry::createOrRestore([
             ...$this->attributes(),

@@ -10,6 +10,7 @@ use App\Models\District;
 use App\Models\Division;
 use App\Models\Exam;
 use App\Models\Guardian;
+use App\Models\GuardianUser;
 use App\Models\Permission;
 use App\Models\Question;
 use App\Models\Role;
@@ -18,9 +19,9 @@ use App\Models\SchoolClass;
 use App\Models\Section;
 use App\Models\Shift;
 use App\Models\StudentProfile;
+use App\Models\StudentUser;
 use App\Models\Subject;
 use App\Models\Upazila;
-use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\CreatesAuthorizedActors;
 use Tests\TestCase;
@@ -71,13 +72,13 @@ class ExamAttemptControllerTest extends TestCase
         $this->manualExam->questions()->attach($question->id, ['order_index' => 0]);
     }
 
-    private function eligibleStudent(): User
+    private function eligibleStudent(): StudentUser
     {
         $role = Role::create(['name' => 'student_'.uniqid(), 'label' => 'Student']);
         $permission = Permission::firstOrCreate(['name' => 'exam_attempts.create'], ['label' => 'Start exam attempts']);
         $role->permissions()->attach($permission);
 
-        $user = User::factory()->create(['role_id' => $role->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
+        $user = StudentUser::factory()->create(['role_id' => $role->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
         StudentProfile::create(['user_id' => $user->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'section_id' => $this->section->id]);
 
         return $user;
@@ -115,7 +116,7 @@ class ExamAttemptControllerTest extends TestCase
         $role = Role::create(['name' => 'student_ineligible', 'label' => 'Student']);
         $permission = Permission::firstOrCreate(['name' => 'exam_attempts.create'], ['label' => 'Start exam attempts']);
         $role->permissions()->attach($permission);
-        $user = User::factory()->create(['role_id' => $role->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
+        $user = StudentUser::factory()->create(['role_id' => $role->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
         StudentProfile::create(['user_id' => $user->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'section_id' => $otherSection->id]);
 
         $this->actingAs($user, 'sanctum')
@@ -189,7 +190,7 @@ class ExamAttemptControllerTest extends TestCase
 
         $this->actingAs($student, 'sanctum')->getJson("/api/v1/exam-attempts/{$attemptId}")->assertOk();
 
-        $guardian = Guardian::create(['name' => 'Guardian', 'phone' => '01700000001', 'user_id' => User::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id])->id]);
+        $guardian = Guardian::create(['name' => 'Guardian', 'phone' => '01700000001', 'user_id' => GuardianUser::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id])->id]);
         $studentProfile = StudentProfile::where('user_id', $student->id)->first();
         $guardian->students()->attach($studentProfile->id, ['relation' => 'father', 'is_primary' => true]);
         $this->actingAs($guardian->user, 'sanctum')->getJson("/api/v1/exam-attempts/{$attemptId}")->assertOk();

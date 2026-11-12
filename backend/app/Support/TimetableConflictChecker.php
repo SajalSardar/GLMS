@@ -6,8 +6,8 @@ use App\Models\Classroom;
 use App\Models\Section;
 use App\Models\Shift;
 use App\Models\SubjectTeacherAssignment;
+use App\Models\TeacherUser;
 use App\Models\TimetableEntry;
-use App\Models\User;
 use Illuminate\Support\Carbon;
 
 /**
@@ -87,7 +87,7 @@ class TimetableConflictChecker
             }
         }
 
-        if (User::where('id', $attributes['teacher_id'])->where('school_id', $section->school_id)->doesntExist()) {
+        if (TeacherUser::where('id', $attributes['teacher_id'])->where('school_id', $section->school_id)->doesntExist()) {
             return ['field' => 'teacher_id', 'message' => 'The selected teacher does not belong to this section\'s school.'];
         }
 

@@ -16,6 +16,7 @@ use App\Models\Question;
 use App\Models\Role;
 use App\Models\School;
 use App\Models\SchoolClass;
+use App\Models\StudentUser;
 use App\Models\Subject;
 use App\Models\Upazila;
 use App\Models\User;
@@ -66,8 +67,8 @@ class ExamAttemptTenantScopeTest extends TestCase
         $chapter = Chapter::create(['book_id' => $book->id, 'school_id' => $this->examA->school_id, 'district_id' => $this->examA->district_id, 'name' => 'Chapter 1']);
         $this->questionA = Question::create(['chapter_id' => $chapter->id, 'school_id' => $this->examA->school_id, 'district_id' => $this->examA->district_id, 'question_type' => 'mcq_single', 'question_text' => 'Q1']);
 
-        $studentA = User::factory()->create(['school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id]);
-        $studentB = User::factory()->create(['school_id' => $schoolB->id, 'district_id' => $schoolB->district_id]);
+        $studentA = StudentUser::factory()->create(['school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id]);
+        $studentB = StudentUser::factory()->create(['school_id' => $schoolB->id, 'district_id' => $schoolB->district_id]);
 
         $this->attemptA = ExamAttempt::create([
             'exam_id' => $this->examA->id,

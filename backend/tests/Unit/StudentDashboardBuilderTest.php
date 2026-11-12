@@ -19,9 +19,9 @@ use App\Models\SchoolClass;
 use App\Models\Section;
 use App\Models\Shift;
 use App\Models\StudentProfile;
+use App\Models\StudentUser;
 use App\Models\Subject;
 use App\Models\Upazila;
-use App\Models\User;
 use App\Support\StudentDashboardBuilder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -38,7 +38,7 @@ class StudentDashboardBuilderTest extends TestCase
 
     private Subject $subject;
 
-    private User $studentUser;
+    private StudentUser $studentUser;
 
     private StudentProfile $profile;
 
@@ -62,13 +62,13 @@ class StudentDashboardBuilderTest extends TestCase
         $shift = Shift::create(['class_version_id' => $this->version->id, 'academic_year_id' => $this->academicYear->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Shift', 'start_time' => '08:00', 'end_time' => '13:00', 'days_of_week' => ['saturday']]);
         $section = Section::create(['shift_id' => $shift->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Section A']);
 
-        $this->studentUser = User::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
+        $this->studentUser = StudentUser::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
         $this->profile = StudentProfile::create(['user_id' => $this->studentUser->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'section_id' => $section->id]);
     }
 
     public function test_build_returns_empty_subjects_when_student_has_no_section(): void
     {
-        $unassigned = StudentProfile::create(['user_id' => User::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id])->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
+        $unassigned = StudentProfile::create(['user_id' => StudentUser::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id])->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
 
         $result = (new StudentDashboardBuilder)->build($unassigned);
 
@@ -100,12 +100,12 @@ class StudentDashboardBuilderTest extends TestCase
         $enabledVideo = ChapterVideo::create(['chapter_id' => $chapter->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'youtube_video_id' => 'aaaaaaaaaaa', 'title' => 'Enabled']);
         ChapterVideo::create(['chapter_id' => $chapter->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'youtube_video_id' => 'bbbbbbbbbbb', 'title' => 'Disabled', 'is_enabled' => false]);
 
-        ChapterVideoProgress::create(['chapter_video_id' => $enabledVideo->id, 'user_id' => $this->studentUser->id, 'status' => 'completed']);
+        ChapterVideoProgress::create(['chapter_video_id' => $enabledVideo->id, 'user_type' => StudentUser::class, 'user_id' => $this->studentUser->id, 'status' => 'completed']);
 
         $activeMaterial = ChapterMaterial::create(['chapter_id' => $chapter->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'type' => 'supplementary', 'title' => 'Active', 'original_filename' => 'a.pdf', 'stored_path' => 'a.pdf', 'disk' => 'local', 'mime_type' => 'application/pdf', 'size_bytes' => 10]);
         ChapterMaterial::create(['chapter_id' => $chapter->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'type' => 'supplementary', 'title' => 'Archived', 'original_filename' => 'b.pdf', 'stored_path' => 'b.pdf', 'disk' => 'local', 'mime_type' => 'application/pdf', 'size_bytes' => 10, 'status' => 'archived']);
 
-        ContentAccessLog::create(['chapter_id' => $chapter->id, 'chapter_material_id' => $activeMaterial->id, 'user_id' => $this->studentUser->id, 'action' => 'downloaded']);
+        ContentAccessLog::create(['chapter_id' => $chapter->id, 'chapter_material_id' => $activeMaterial->id, 'user_type' => StudentUser::class, 'user_id' => $this->studentUser->id, 'action' => 'downloaded']);
 
         $result = (new StudentDashboardBuilder)->build($this->profile);
         $chapters = $result['subjects'][0]['chapters'];

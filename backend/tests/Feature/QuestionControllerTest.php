@@ -80,7 +80,8 @@ class QuestionControllerTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('data.question_text', 'What is 2+2?')
             ->assertJsonCount(2, 'data.options')
-            ->assertJsonPath('data.created_by', $allowed->id);
+            ->assertJsonPath('data.created_by_type', get_class($allowed))
+            ->assertJsonPath('data.created_by_id', $allowed->id);
         $id = $createResponse->json('data.id');
 
         $this->actingAs($allowed, 'sanctum')
@@ -88,7 +89,8 @@ class QuestionControllerTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.question_text', 'What is 2+2, really?')
             ->assertJsonCount(2, 'data.options')
-            ->assertJsonPath('data.updated_by', $allowed->id);
+            ->assertJsonPath('data.updated_by_type', get_class($allowed))
+            ->assertJsonPath('data.updated_by_id', $allowed->id);
     }
 
     public function test_store_rejects_true_false_without_exactly_two_options(): void

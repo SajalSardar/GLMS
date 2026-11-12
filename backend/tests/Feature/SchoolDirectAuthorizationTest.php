@@ -8,8 +8,8 @@ use App\Models\District;
 use App\Models\Division;
 use App\Models\School;
 use App\Models\TeacherProfile;
+use App\Models\TeacherUser;
 use App\Models\Upazila;
-use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\CreatesAuthorizedActors;
 use Tests\TestCase;
@@ -55,10 +55,12 @@ class SchoolDirectAuthorizationTest extends TestCase
         $allowed = $this->actorWithPermissions(['schools.create', 'schools.update']);
         $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/schools', $payload)
             ->assertCreated()
-            ->assertJsonPath('data.created_by', $allowed->id);
+            ->assertJsonPath('data.created_by_type', get_class($allowed))
+            ->assertJsonPath('data.created_by_id', $allowed->id);
         $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/schools/{$this->school->id}", [])
             ->assertOk()
-            ->assertJsonPath('data.updated_by', $allowed->id);
+            ->assertJsonPath('data.updated_by_type', get_class($allowed))
+            ->assertJsonPath('data.updated_by_id', $allowed->id);
     }
 
     public function test_classroom_store_and_update_are_authorized(): void
@@ -73,10 +75,12 @@ class SchoolDirectAuthorizationTest extends TestCase
         $allowed = $this->actorWithPermissions(['classrooms.create', 'classrooms.update']);
         $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/classrooms', $payload)
             ->assertCreated()
-            ->assertJsonPath('data.created_by', $allowed->id);
+            ->assertJsonPath('data.created_by_type', get_class($allowed))
+            ->assertJsonPath('data.created_by_id', $allowed->id);
         $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/classrooms/{$classroom->id}", [])
             ->assertOk()
-            ->assertJsonPath('data.updated_by', $allowed->id);
+            ->assertJsonPath('data.updated_by_type', get_class($allowed))
+            ->assertJsonPath('data.updated_by_id', $allowed->id);
     }
 
     public function test_academic_year_store_and_update_are_authorized(): void
@@ -97,22 +101,24 @@ class SchoolDirectAuthorizationTest extends TestCase
         $allowed = $this->actorWithPermissions(['academic_years.create', 'academic_years.update']);
         $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/academic-years', $payload)
             ->assertCreated()
-            ->assertJsonPath('data.created_by', $allowed->id);
+            ->assertJsonPath('data.created_by_type', get_class($allowed))
+            ->assertJsonPath('data.created_by_id', $allowed->id);
         $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/academic-years/{$year->id}", [])
             ->assertOk()
-            ->assertJsonPath('data.updated_by', $allowed->id);
+            ->assertJsonPath('data.updated_by_type', get_class($allowed))
+            ->assertJsonPath('data.updated_by_id', $allowed->id);
     }
 
     public function test_teacher_profile_store_and_update_are_authorized(): void
     {
-        $existingTarget = User::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
+        $existingTarget = TeacherUser::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
         $profile = TeacherProfile::create([
             'user_id' => $existingTarget->id,
             'school_id' => $this->school->id,
             'district_id' => $this->school->district_id,
         ]);
 
-        $newTarget = User::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
+        $newTarget = TeacherUser::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
         $payload = ['user_id' => $newTarget->id];
 
         $denied = $this->actorWithNoPermissions($this->school->id, $this->school->district_id);
@@ -122,9 +128,11 @@ class SchoolDirectAuthorizationTest extends TestCase
         $allowed = $this->actorWithPermissions(['teacher_profiles.create', 'teacher_profiles.update'], $this->school->id, $this->school->district_id);
         $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/teacher-profiles', $payload)
             ->assertCreated()
-            ->assertJsonPath('data.created_by', $allowed->id);
+            ->assertJsonPath('data.created_by_type', get_class($allowed))
+            ->assertJsonPath('data.created_by_id', $allowed->id);
         $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/teacher-profiles/{$profile->id}", [])
             ->assertOk()
-            ->assertJsonPath('data.updated_by', $allowed->id);
+            ->assertJsonPath('data.updated_by_type', get_class($allowed))
+            ->assertJsonPath('data.updated_by_id', $allowed->id);
     }
 }

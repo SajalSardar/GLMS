@@ -23,6 +23,7 @@ use App\Models\SchoolClass;
 use App\Models\Section;
 use App\Models\Shift;
 use App\Models\StudentProfile;
+use App\Models\StudentUser;
 use App\Models\Subject;
 use App\Models\Upazila;
 use App\Models\User;
@@ -40,7 +41,7 @@ class ExamAttemptGradingTest extends TestCase
 
     private Exam $exam;
 
-    private User $student;
+    private StudentUser $student;
 
     private Question $singleQuestion;
 
@@ -91,7 +92,7 @@ class ExamAttemptGradingTest extends TestCase
         $role = Role::create(['name' => 'student_grading', 'label' => 'Student']);
         $permission = Permission::firstOrCreate(['name' => 'exam_attempts.create'], ['label' => 'Start exam attempts']);
         $role->permissions()->attach($permission);
-        $this->student = User::factory()->create(['role_id' => $role->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
+        $this->student = StudentUser::factory()->create(['role_id' => $role->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
         StudentProfile::create(['user_id' => $this->student->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'section_id' => $section->id]);
     }
 

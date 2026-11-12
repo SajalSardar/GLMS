@@ -57,6 +57,7 @@ class ChapterVideoProgressModelTest extends TestCase
     {
         $progress = ChapterVideoProgress::create([
             'chapter_video_id' => $this->video->id,
+            'user_type' => User::class,
             'user_id' => $this->student->id,
         ]);
 
@@ -66,10 +67,10 @@ class ChapterVideoProgressModelTest extends TestCase
 
     public function test_only_one_progress_row_per_video_and_user(): void
     {
-        ChapterVideoProgress::create(['chapter_video_id' => $this->video->id, 'user_id' => $this->student->id]);
+        ChapterVideoProgress::create(['chapter_video_id' => $this->video->id, 'user_type' => User::class, 'user_id' => $this->student->id]);
 
         $this->expectException(QueryException::class);
 
-        ChapterVideoProgress::create(['chapter_video_id' => $this->video->id, 'user_id' => $this->student->id]);
+        ChapterVideoProgress::create(['chapter_video_id' => $this->video->id, 'user_type' => User::class, 'user_id' => $this->student->id]);
     }
 }
