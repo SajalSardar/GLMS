@@ -62,20 +62,9 @@ return new class extends Migration
             });
         }
 
-        Schema::table('student_profiles', function (Blueprint $blueprint) {
-            $blueprint->dropForeign(['user_id']);
-            $blueprint->foreign('user_id')->references('id')->on('student_users')->cascadeOnDelete();
-        });
-
-        Schema::table('teacher_profiles', function (Blueprint $blueprint) {
-            $blueprint->dropForeign(['user_id']);
-            $blueprint->foreign('user_id')->references('id')->on('teacher_users')->cascadeOnDelete();
-        });
-
-        Schema::table('guardians', function (Blueprint $blueprint) {
-            $blueprint->dropForeign(['user_id']);
-            $blueprint->foreign('user_id')->references('id')->on('guardian_users')->nullOnDelete();
-        });
+        $this->retargetForeignKey('student_profiles', 'user_id', 'student_users', 'cascadeOnDelete');
+        $this->retargetForeignKey('teacher_profiles', 'user_id', 'teacher_users', 'cascadeOnDelete');
+        $this->retargetForeignKey('guardians', 'user_id', 'guardian_users', 'nullOnDelete');
     }
 
     /**
@@ -84,20 +73,9 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('student_profiles', function (Blueprint $blueprint) {
-            $blueprint->dropForeign(['user_id']);
-            $blueprint->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
-        });
-
-        Schema::table('teacher_profiles', function (Blueprint $blueprint) {
-            $blueprint->dropForeign(['user_id']);
-            $blueprint->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
-        });
-
-        Schema::table('guardians', function (Blueprint $blueprint) {
-            $blueprint->dropForeign(['user_id']);
-            $blueprint->foreign('user_id')->references('id')->on('users')->nullOnDelete();
-        });
+        $this->retargetForeignKey('student_profiles', 'user_id', 'users', 'cascadeOnDelete');
+        $this->retargetForeignKey('teacher_profiles', 'user_id', 'users', 'cascadeOnDelete');
+        $this->retargetForeignKey('guardians', 'user_id', 'users', 'nullOnDelete');
 
         foreach ($this->roleTableMap as $roleName => $table) {
             DB::transaction(function () use ($table) {
@@ -128,5 +106,40 @@ return new class extends Migration
                 DB::table($table)->delete();
             });
         }
+    }
+
+    /**
+     * Repoint $table.$column's foreign key to $target, guarding the
+     * drop and the add independently against the real current DB
+     * state (not a downstream proxy signal) so either half can be
+     * safely retried after a crash — MySQL DDL is not transactional.
+     */
+    private function retargetForeignKey(string $table, string $column, string $target, string $onDelete): void
+    {
+        if ($this->hasForeignKey($table, $column) && ! $this->hasForeignKeyReferencing($table, $column, $target)) {
+            Schema::table($table, function (Blueprint $blueprint) use ($column) {
+                $blueprint->dropForeign([$column]);
+            });
+        }
+
+        if (! $this->hasForeignKeyReferencing($table, $column, $target)) {
+            Schema::table($table, function (Blueprint $blueprint) use ($column, $target, $onDelete) {
+                $blueprint->foreign($column)->references('id')->on($target)->{$onDelete}();
+            });
+        }
+    }
+
+    private function hasForeignKey(string $table, string $column): bool
+    {
+        return collect(Schema::getForeignKeys($table))->contains(
+            fn ($foreignKey) => $foreignKey['columns'] === [$column]
+        );
+    }
+
+    private function hasForeignKeyReferencing(string $table, string $column, string $targetTable): bool
+    {
+        return collect(Schema::getForeignKeys($table))->contains(
+            fn ($foreignKey) => $foreignKey['columns'] === [$column] && $foreignKey['foreign_table'] === $targetTable
+        );
     }
 };

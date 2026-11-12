@@ -24,14 +24,19 @@ return new class extends Migration
 
     /**
      * Run the migrations.
+     *
+     * MySQL DDL is not transactional, so each retarget below is
+     * independently guarded against the real current DB state via
+     * Schema::getForeignKeys() (not a downstream proxy signal) — a
+     * crash between the dropForeign and foreign(...)->...() calls, or
+     * between iterations of the foreach, leaves the migration
+     * half-applied, and a retry must be able to resume exactly where
+     * it left off instead of failing on an FK that's already gone.
      */
     public function up(): void
     {
         foreach ($this->retargets as [$table, $column, $target, $onDelete]) {
-            Schema::table($table, function (Blueprint $blueprint) use ($column, $target, $onDelete) {
-                $blueprint->dropForeign([$column]);
-                $blueprint->foreign($column)->references('id')->on($target)->{$onDelete}();
-            });
+            $this->retargetForeignKey($table, $column, $target, $onDelete);
         }
     }
 
@@ -40,11 +45,42 @@ return new class extends Migration
      */
     public function down(): void
     {
-        foreach (array_reverse($this->retargets) as [$table, $column, $target, $onDelete]) {
-            Schema::table($table, function (Blueprint $blueprint) use ($column, $onDelete) {
+        foreach (array_reverse($this->retargets) as [$table, $column, , $onDelete]) {
+            $this->retargetForeignKey($table, $column, 'users', $onDelete);
+        }
+    }
+
+    /**
+     * Repoint $table.$column's foreign key to $target, guarding the
+     * drop and the add independently against the real current DB
+     * state so either half can be safely retried after a crash.
+     */
+    private function retargetForeignKey(string $table, string $column, string $target, string $onDelete): void
+    {
+        if ($this->hasForeignKey($table, $column) && ! $this->hasForeignKeyReferencing($table, $column, $target)) {
+            Schema::table($table, function (Blueprint $blueprint) use ($column) {
                 $blueprint->dropForeign([$column]);
-                $blueprint->foreign($column)->references('id')->on('users')->{$onDelete}();
             });
         }
+
+        if (! $this->hasForeignKeyReferencing($table, $column, $target)) {
+            Schema::table($table, function (Blueprint $blueprint) use ($column, $target, $onDelete) {
+                $blueprint->foreign($column)->references('id')->on($target)->{$onDelete}();
+            });
+        }
+    }
+
+    private function hasForeignKey(string $table, string $column): bool
+    {
+        return collect(Schema::getForeignKeys($table))->contains(
+            fn ($foreignKey) => $foreignKey['columns'] === [$column]
+        );
+    }
+
+    private function hasForeignKeyReferencing(string $table, string $column, string $targetTable): bool
+    {
+        return collect(Schema::getForeignKeys($table))->contains(
+            fn ($foreignKey) => $foreignKey['columns'] === [$column] && $foreignKey['foreign_table'] === $targetTable
+        );
     }
 };
