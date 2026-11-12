@@ -3,31 +3,31 @@
 namespace App\Policies;
 
 use App\Models\District;
-use App\Models\User;
+use Illuminate\Contracts\Auth\Authenticatable;
 
 class DistrictPolicy
 {
-    public function viewAny(User $user): bool
+    public function viewAny(Authenticatable $user): bool
     {
         return $user->hasPermission('districts.view');
     }
 
-    public function view(User $user, District $district): bool
+    public function view(Authenticatable $user, District $district): bool
     {
         return $user->hasPermission('districts.view');
     }
 
-    public function create(User $user): bool
+    public function create(Authenticatable $user): bool
     {
         return $user->hasPermission('districts.create');
     }
 
-    public function update(User $user, District $district): bool
+    public function update(Authenticatable $user, District $district): bool
     {
         return $user->hasPermission('districts.update');
     }
 
-    public function delete(User $user, District $district): bool
+    public function delete(Authenticatable $user, District $district): bool
     {
         return $user->hasPermission('districts.delete');
     }

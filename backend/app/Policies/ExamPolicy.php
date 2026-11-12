@@ -3,31 +3,31 @@
 namespace App\Policies;
 
 use App\Models\Exam;
-use App\Models\User;
+use Illuminate\Contracts\Auth\Authenticatable;
 
 class ExamPolicy
 {
-    public function viewAny(User $user): bool
+    public function viewAny(Authenticatable $user): bool
     {
         return $user->hasPermission('exams.view');
     }
 
-    public function view(User $user, Exam $exam): bool
+    public function view(Authenticatable $user, Exam $exam): bool
     {
         return $user->hasPermission('exams.view');
     }
 
-    public function create(User $user): bool
+    public function create(Authenticatable $user): bool
     {
         return $user->hasPermission('exams.create');
     }
 
-    public function update(User $user, Exam $exam): bool
+    public function update(Authenticatable $user, Exam $exam): bool
     {
         return $user->hasPermission('exams.update');
     }
 
-    public function delete(User $user, Exam $exam): bool
+    public function delete(Authenticatable $user, Exam $exam): bool
     {
         return $user->hasPermission('exams.delete');
     }

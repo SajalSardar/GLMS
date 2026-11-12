@@ -3,31 +3,31 @@
 namespace App\Policies;
 
 use App\Models\Shift;
-use App\Models\User;
+use Illuminate\Contracts\Auth\Authenticatable;
 
 class ShiftPolicy
 {
-    public function viewAny(User $user): bool
+    public function viewAny(Authenticatable $user): bool
     {
         return $user->hasPermission('shifts.view');
     }
 
-    public function view(User $user, Shift $shift): bool
+    public function view(Authenticatable $user, Shift $shift): bool
     {
         return $user->hasPermission('shifts.view');
     }
 
-    public function create(User $user): bool
+    public function create(Authenticatable $user): bool
     {
         return $user->hasPermission('shifts.create');
     }
 
-    public function update(User $user, Shift $shift): bool
+    public function update(Authenticatable $user, Shift $shift): bool
     {
         return $user->hasPermission('shifts.update');
     }
 
-    public function delete(User $user, Shift $shift): bool
+    public function delete(Authenticatable $user, Shift $shift): bool
     {
         return $user->hasPermission('shifts.delete');
     }

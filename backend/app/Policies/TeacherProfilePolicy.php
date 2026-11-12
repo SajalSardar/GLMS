@@ -3,31 +3,31 @@
 namespace App\Policies;
 
 use App\Models\TeacherProfile;
-use App\Models\User;
+use Illuminate\Contracts\Auth\Authenticatable;
 
 class TeacherProfilePolicy
 {
-    public function viewAny(User $user): bool
+    public function viewAny(Authenticatable $user): bool
     {
         return $user->hasPermission('teacher_profiles.view');
     }
 
-    public function view(User $user, TeacherProfile $profile): bool
+    public function view(Authenticatable $user, TeacherProfile $profile): bool
     {
         return $user->hasPermission('teacher_profiles.view');
     }
 
-    public function create(User $user): bool
+    public function create(Authenticatable $user): bool
     {
         return $user->hasPermission('teacher_profiles.create');
     }
 
-    public function update(User $user, TeacherProfile $profile): bool
+    public function update(Authenticatable $user, TeacherProfile $profile): bool
     {
         return $user->hasPermission('teacher_profiles.update');
     }
 
-    public function delete(User $user, TeacherProfile $profile): bool
+    public function delete(Authenticatable $user, TeacherProfile $profile): bool
     {
         return $user->hasPermission('teacher_profiles.delete');
     }

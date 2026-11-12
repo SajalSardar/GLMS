@@ -3,31 +3,31 @@
 namespace App\Policies;
 
 use App\Models\TimetableEntry;
-use App\Models\User;
+use Illuminate\Contracts\Auth\Authenticatable;
 
 class TimetableEntryPolicy
 {
-    public function viewAny(User $user): bool
+    public function viewAny(Authenticatable $user): bool
     {
         return $user->hasPermission('timetable_entries.view');
     }
 
-    public function view(User $user, TimetableEntry $entry): bool
+    public function view(Authenticatable $user, TimetableEntry $entry): bool
     {
         return $user->hasPermission('timetable_entries.view');
     }
 
-    public function create(User $user): bool
+    public function create(Authenticatable $user): bool
     {
         return $user->hasPermission('timetable_entries.create');
     }
 
-    public function update(User $user, TimetableEntry $entry): bool
+    public function update(Authenticatable $user, TimetableEntry $entry): bool
     {
         return $user->hasPermission('timetable_entries.update');
     }
 
-    public function delete(User $user, TimetableEntry $entry): bool
+    public function delete(Authenticatable $user, TimetableEntry $entry): bool
     {
         return $user->hasPermission('timetable_entries.delete');
     }
@@ -35,7 +35,7 @@ class TimetableEntryPolicy
     /**
      * Publishing/unpublishing a routine is as sensitive as updating it.
      */
-    public function publish(User $user, TimetableEntry $entry): bool
+    public function publish(Authenticatable $user, TimetableEntry $entry): bool
     {
         return $this->update($user, $entry);
     }
@@ -46,7 +46,7 @@ class TimetableEntryPolicy
      * replaces entries across every section in a shift at once, gated
      * independently of create() — it is at least as sensitive.
      */
-    public function generate(User $user): bool
+    public function generate(Authenticatable $user): bool
     {
         return $user->hasPermission('timetable_entries.generate');
     }

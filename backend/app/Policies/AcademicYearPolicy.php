@@ -3,31 +3,31 @@
 namespace App\Policies;
 
 use App\Models\AcademicYear;
-use App\Models\User;
+use Illuminate\Contracts\Auth\Authenticatable;
 
 class AcademicYearPolicy
 {
-    public function viewAny(User $user): bool
+    public function viewAny(Authenticatable $user): bool
     {
         return $user->hasPermission('academic_years.view');
     }
 
-    public function view(User $user, AcademicYear $academicYear): bool
+    public function view(Authenticatable $user, AcademicYear $academicYear): bool
     {
         return $user->hasPermission('academic_years.view');
     }
 
-    public function create(User $user): bool
+    public function create(Authenticatable $user): bool
     {
         return $user->hasPermission('academic_years.create');
     }
 
-    public function update(User $user, AcademicYear $academicYear): bool
+    public function update(Authenticatable $user, AcademicYear $academicYear): bool
     {
         return $user->hasPermission('academic_years.update');
     }
 
-    public function delete(User $user, AcademicYear $academicYear): bool
+    public function delete(Authenticatable $user, AcademicYear $academicYear): bool
     {
         return $user->hasPermission('academic_years.delete');
     }
@@ -36,7 +36,7 @@ class AcademicYearPolicy
      * Marking a year as the current one is as sensitive as updating it,
      * so it uses the same ability as `update`.
      */
-    public function setCurrent(User $user, AcademicYear $academicYear): bool
+    public function setCurrent(Authenticatable $user, AcademicYear $academicYear): bool
     {
         return $this->update($user, $academicYear);
     }

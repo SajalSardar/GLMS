@@ -3,31 +3,31 @@
 namespace App\Policies;
 
 use App\Models\Classroom;
-use App\Models\User;
+use Illuminate\Contracts\Auth\Authenticatable;
 
 class ClassroomPolicy
 {
-    public function viewAny(User $user): bool
+    public function viewAny(Authenticatable $user): bool
     {
         return $user->hasPermission('classrooms.view');
     }
 
-    public function view(User $user, Classroom $classroom): bool
+    public function view(Authenticatable $user, Classroom $classroom): bool
     {
         return $user->hasPermission('classrooms.view');
     }
 
-    public function create(User $user): bool
+    public function create(Authenticatable $user): bool
     {
         return $user->hasPermission('classrooms.create');
     }
 
-    public function update(User $user, Classroom $classroom): bool
+    public function update(Authenticatable $user, Classroom $classroom): bool
     {
         return $user->hasPermission('classrooms.update');
     }
 
-    public function delete(User $user, Classroom $classroom): bool
+    public function delete(Authenticatable $user, Classroom $classroom): bool
     {
         return $user->hasPermission('classrooms.delete');
     }

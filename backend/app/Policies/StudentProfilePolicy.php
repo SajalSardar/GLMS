@@ -3,31 +3,31 @@
 namespace App\Policies;
 
 use App\Models\StudentProfile;
-use App\Models\User;
+use Illuminate\Contracts\Auth\Authenticatable;
 
 class StudentProfilePolicy
 {
-    public function viewAny(User $user): bool
+    public function viewAny(Authenticatable $user): bool
     {
         return $user->hasPermission('student_profiles.view');
     }
 
-    public function view(User $user, StudentProfile $profile): bool
+    public function view(Authenticatable $user, StudentProfile $profile): bool
     {
         return $user->hasPermission('student_profiles.view');
     }
 
-    public function create(User $user): bool
+    public function create(Authenticatable $user): bool
     {
         return $user->hasPermission('student_profiles.create');
     }
 
-    public function update(User $user, StudentProfile $profile): bool
+    public function update(Authenticatable $user, StudentProfile $profile): bool
     {
         return $user->hasPermission('student_profiles.update');
     }
 
-    public function delete(User $user, StudentProfile $profile): bool
+    public function delete(Authenticatable $user, StudentProfile $profile): bool
     {
         return $user->hasPermission('student_profiles.delete');
     }
@@ -36,7 +36,7 @@ class StudentProfilePolicy
      * Linking a guardian to a student is as sensitive as updating the
      * profile itself, so it uses the same ability as `update`.
      */
-    public function attachGuardian(User $user, StudentProfile $profile): bool
+    public function attachGuardian(Authenticatable $user, StudentProfile $profile): bool
     {
         return $this->update($user, $profile);
     }
@@ -45,7 +45,7 @@ class StudentProfilePolicy
      * Moving a student between sections is as sensitive as updating the
      * profile itself, so it uses the same ability as `update`.
      */
-    public function transferSection(User $user, StudentProfile $profile): bool
+    public function transferSection(Authenticatable $user, StudentProfile $profile): bool
     {
         return $this->update($user, $profile);
     }
@@ -58,7 +58,7 @@ class StudentProfilePolicy
      * holds broadly and would let any student see any other student's
      * exam scores and video-watching history.
      */
-    public function viewDashboard(User $user, StudentProfile $profile): bool
+    public function viewDashboard(Authenticatable $user, StudentProfile $profile): bool
     {
         if ($user->id === $profile->user_id) {
             return true;

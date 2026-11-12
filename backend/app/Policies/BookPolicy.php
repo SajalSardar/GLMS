@@ -3,31 +3,31 @@
 namespace App\Policies;
 
 use App\Models\Book;
-use App\Models\User;
+use Illuminate\Contracts\Auth\Authenticatable;
 
 class BookPolicy
 {
-    public function viewAny(User $user): bool
+    public function viewAny(Authenticatable $user): bool
     {
         return $user->hasPermission('books.view');
     }
 
-    public function view(User $user, Book $book): bool
+    public function view(Authenticatable $user, Book $book): bool
     {
         return $user->hasPermission('books.view');
     }
 
-    public function create(User $user): bool
+    public function create(Authenticatable $user): bool
     {
         return $user->hasPermission('books.create');
     }
 
-    public function update(User $user, Book $book): bool
+    public function update(Authenticatable $user, Book $book): bool
     {
         return $user->hasPermission('books.update');
     }
 
-    public function delete(User $user, Book $book): bool
+    public function delete(Authenticatable $user, Book $book): bool
     {
         return $user->hasPermission('books.delete');
     }

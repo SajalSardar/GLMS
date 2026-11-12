@@ -11,6 +11,7 @@ use App\Models\Role;
 use App\Models\School;
 use App\Models\User;
 use App\Policies\Concerns\ChecksScope;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -174,7 +175,7 @@ class UserController extends Controller
      * (the role's permissions must be a subset of the actor's own) and no
      * placing a user outside the actor's own school/district scope.
      */
-    private function assertAssignable(User $actor, ?int $roleId, ?int $schoolId, ?int $districtId): void
+    private function assertAssignable(Authenticatable $actor, ?int $roleId, ?int $schoolId, ?int $districtId): void
     {
         if ($roleId !== null) {
             $role = Role::with('permissions')->findOrFail($roleId);

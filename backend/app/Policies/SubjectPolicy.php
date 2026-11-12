@@ -3,31 +3,31 @@
 namespace App\Policies;
 
 use App\Models\Subject;
-use App\Models\User;
+use Illuminate\Contracts\Auth\Authenticatable;
 
 class SubjectPolicy
 {
-    public function viewAny(User $user): bool
+    public function viewAny(Authenticatable $user): bool
     {
         return $user->hasPermission('subjects.view');
     }
 
-    public function view(User $user, Subject $subject): bool
+    public function view(Authenticatable $user, Subject $subject): bool
     {
         return $user->hasPermission('subjects.view');
     }
 
-    public function create(User $user): bool
+    public function create(Authenticatable $user): bool
     {
         return $user->hasPermission('subjects.create');
     }
 
-    public function update(User $user, Subject $subject): bool
+    public function update(Authenticatable $user, Subject $subject): bool
     {
         return $user->hasPermission('subjects.update');
     }
 
-    public function delete(User $user, Subject $subject): bool
+    public function delete(Authenticatable $user, Subject $subject): bool
     {
         return $user->hasPermission('subjects.delete');
     }

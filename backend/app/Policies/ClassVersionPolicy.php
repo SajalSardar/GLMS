@@ -3,31 +3,31 @@
 namespace App\Policies;
 
 use App\Models\ClassVersion;
-use App\Models\User;
+use Illuminate\Contracts\Auth\Authenticatable;
 
 class ClassVersionPolicy
 {
-    public function viewAny(User $user): bool
+    public function viewAny(Authenticatable $user): bool
     {
         return $user->hasPermission('class_versions.view');
     }
 
-    public function view(User $user, ClassVersion $classVersion): bool
+    public function view(Authenticatable $user, ClassVersion $classVersion): bool
     {
         return $user->hasPermission('class_versions.view');
     }
 
-    public function create(User $user): bool
+    public function create(Authenticatable $user): bool
     {
         return $user->hasPermission('class_versions.create');
     }
 
-    public function update(User $user, ClassVersion $classVersion): bool
+    public function update(Authenticatable $user, ClassVersion $classVersion): bool
     {
         return $user->hasPermission('class_versions.update');
     }
 
-    public function delete(User $user, ClassVersion $classVersion): bool
+    public function delete(Authenticatable $user, ClassVersion $classVersion): bool
     {
         return $user->hasPermission('class_versions.delete');
     }
@@ -36,7 +36,7 @@ class ClassVersionPolicy
      * Configuring a version's subject list is as sensitive as updating
      * the version itself, so it uses the same ability as `update`.
      */
-    public function updateSubjects(User $user, ClassVersion $classVersion): bool
+    public function updateSubjects(Authenticatable $user, ClassVersion $classVersion): bool
     {
         return $this->update($user, $classVersion);
     }

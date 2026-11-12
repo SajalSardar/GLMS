@@ -3,31 +3,31 @@
 namespace App\Policies;
 
 use App\Models\Division;
-use App\Models\User;
+use Illuminate\Contracts\Auth\Authenticatable;
 
 class DivisionPolicy
 {
-    public function viewAny(User $user): bool
+    public function viewAny(Authenticatable $user): bool
     {
         return $user->hasPermission('divisions.view');
     }
 
-    public function view(User $user, Division $division): bool
+    public function view(Authenticatable $user, Division $division): bool
     {
         return $user->hasPermission('divisions.view');
     }
 
-    public function create(User $user): bool
+    public function create(Authenticatable $user): bool
     {
         return $user->hasPermission('divisions.create');
     }
 
-    public function update(User $user, Division $division): bool
+    public function update(Authenticatable $user, Division $division): bool
     {
         return $user->hasPermission('divisions.update');
     }
 
-    public function delete(User $user, Division $division): bool
+    public function delete(Authenticatable $user, Division $division): bool
     {
         return $user->hasPermission('divisions.delete');
     }

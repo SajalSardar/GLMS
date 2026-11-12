@@ -3,14 +3,14 @@
 namespace App\Policies;
 
 use App\Models\School;
-use App\Models\User;
+use Illuminate\Contracts\Auth\Authenticatable;
 
 class SchoolPolicy
 {
     /**
      * Determine whether the user can view any models.
      */
-    public function viewAny(User $user): bool
+    public function viewAny(Authenticatable $user): bool
     {
         return $user->hasPermission('schools.view');
     }
@@ -18,7 +18,7 @@ class SchoolPolicy
     /**
      * Determine whether the user can view the model.
      */
-    public function view(User $user, School $school): bool
+    public function view(Authenticatable $user, School $school): bool
     {
         return $user->hasPermission('schools.view');
     }
@@ -26,7 +26,7 @@ class SchoolPolicy
     /**
      * Determine whether the user can create models.
      */
-    public function create(User $user): bool
+    public function create(Authenticatable $user): bool
     {
         return $user->hasPermission('schools.create');
     }
@@ -34,7 +34,7 @@ class SchoolPolicy
     /**
      * Determine whether the user can update the model.
      */
-    public function update(User $user, School $school): bool
+    public function update(Authenticatable $user, School $school): bool
     {
         return $user->hasPermission('schools.update');
     }
@@ -42,7 +42,7 @@ class SchoolPolicy
     /**
      * Determine whether the user can delete the model.
      */
-    public function delete(User $user, School $school): bool
+    public function delete(Authenticatable $user, School $school): bool
     {
         return $user->hasPermission('schools.delete');
     }

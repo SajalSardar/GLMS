@@ -2,7 +2,7 @@
 
 namespace App\Policies\Concerns;
 
-use App\Models\User;
+use Illuminate\Contracts\Auth\Authenticatable;
 
 trait ChecksScope
 {
@@ -12,7 +12,7 @@ trait ChecksScope
      * district; an unscoped user (e.g. a national administrator) has no
      * restriction.
      */
-    private function inScope(User $user, ?int $schoolId, ?int $districtId): bool
+    private function inScope(Authenticatable $user, ?int $schoolId, ?int $districtId): bool
     {
         if ($user->school_id !== null) {
             return $user->school_id === $schoolId;

@@ -3,26 +3,26 @@
 namespace App\Policies;
 
 use App\Models\Question;
-use App\Models\User;
+use Illuminate\Contracts\Auth\Authenticatable;
 
 class QuestionPolicy
 {
-    public function viewAny(User $user): bool
+    public function viewAny(Authenticatable $user): bool
     {
         return $user->hasPermission('questions.view');
     }
 
-    public function view(User $user, Question $question): bool
+    public function view(Authenticatable $user, Question $question): bool
     {
         return $user->hasPermission('questions.view');
     }
 
-    public function create(User $user): bool
+    public function create(Authenticatable $user): bool
     {
         return $user->hasPermission('questions.create');
     }
 
-    public function update(User $user, Question $question): bool
+    public function update(Authenticatable $user, Question $question): bool
     {
         return $user->hasPermission('questions.update');
     }
@@ -37,12 +37,12 @@ class QuestionPolicy
      * ArgumentCountError, not a graceful denial. See
      * ChapterVideoPolicy::reorder() for the same pattern.
      */
-    public function reorder(User $user): bool
+    public function reorder(Authenticatable $user): bool
     {
         return $user->hasPermission('questions.update');
     }
 
-    public function delete(User $user, Question $question): bool
+    public function delete(Authenticatable $user, Question $question): bool
     {
         return $user->hasPermission('questions.delete');
     }
@@ -55,7 +55,7 @@ class QuestionPolicy
      * granted to students and other non-management roles, so exporting
      * must gate on questions.update instead, same as reorder().
      */
-    public function export(User $user): bool
+    public function export(Authenticatable $user): bool
     {
         return $user->hasPermission('questions.update');
     }

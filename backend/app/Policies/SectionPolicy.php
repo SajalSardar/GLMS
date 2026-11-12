@@ -3,31 +3,31 @@
 namespace App\Policies;
 
 use App\Models\Section;
-use App\Models\User;
+use Illuminate\Contracts\Auth\Authenticatable;
 
 class SectionPolicy
 {
-    public function viewAny(User $user): bool
+    public function viewAny(Authenticatable $user): bool
     {
         return $user->hasPermission('sections.view');
     }
 
-    public function view(User $user, Section $section): bool
+    public function view(Authenticatable $user, Section $section): bool
     {
         return $user->hasPermission('sections.view');
     }
 
-    public function create(User $user): bool
+    public function create(Authenticatable $user): bool
     {
         return $user->hasPermission('sections.create');
     }
 
-    public function update(User $user, Section $section): bool
+    public function update(Authenticatable $user, Section $section): bool
     {
         return $user->hasPermission('sections.update');
     }
 
-    public function delete(User $user, Section $section): bool
+    public function delete(Authenticatable $user, Section $section): bool
     {
         return $user->hasPermission('sections.delete');
     }

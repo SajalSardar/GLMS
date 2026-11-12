@@ -3,7 +3,7 @@
 namespace App\Policies;
 
 use App\Models\Guardian;
-use App\Models\User;
+use Illuminate\Contracts\Auth\Authenticatable;
 
 class GuardianPolicy
 {
@@ -14,27 +14,27 @@ class GuardianPolicy
      * instead of the simple school_id/district_id comparison ChecksScope
      * does for other resources.
      */
-    public function viewAny(User $user): bool
+    public function viewAny(Authenticatable $user): bool
     {
         return $user->hasPermission('guardians.view');
     }
 
-    public function view(User $user, Guardian $guardian): bool
+    public function view(Authenticatable $user, Guardian $guardian): bool
     {
         return $user->hasPermission('guardians.view') && $guardian->isVisibleTo($user);
     }
 
-    public function create(User $user): bool
+    public function create(Authenticatable $user): bool
     {
         return $user->hasPermission('guardians.create');
     }
 
-    public function update(User $user, Guardian $guardian): bool
+    public function update(Authenticatable $user, Guardian $guardian): bool
     {
         return $user->hasPermission('guardians.update') && $guardian->isVisibleTo($user);
     }
 
-    public function delete(User $user, Guardian $guardian): bool
+    public function delete(Authenticatable $user, Guardian $guardian): bool
     {
         return $user->hasPermission('guardians.delete') && $guardian->isVisibleTo($user);
     }

@@ -3,26 +3,26 @@
 namespace App\Policies;
 
 use App\Models\ChapterVideo;
-use App\Models\User;
+use Illuminate\Contracts\Auth\Authenticatable;
 
 class ChapterVideoPolicy
 {
-    public function viewAny(User $user): bool
+    public function viewAny(Authenticatable $user): bool
     {
         return $user->hasPermission('chapter_videos.view');
     }
 
-    public function view(User $user, ChapterVideo $chapterVideo): bool
+    public function view(Authenticatable $user, ChapterVideo $chapterVideo): bool
     {
         return $user->hasPermission('chapter_videos.view');
     }
 
-    public function create(User $user): bool
+    public function create(Authenticatable $user): bool
     {
         return $user->hasPermission('chapter_videos.create');
     }
 
-    public function update(User $user, ChapterVideo $chapterVideo): bool
+    public function update(Authenticatable $user, ChapterVideo $chapterVideo): bool
     {
         return $user->hasPermission('chapter_videos.update');
     }
@@ -37,12 +37,12 @@ class ChapterVideoPolicy
      * parameter with no default — an ArgumentCountError, not a graceful
      * denial.
      */
-    public function reorder(User $user): bool
+    public function reorder(Authenticatable $user): bool
     {
         return $user->hasPermission('chapter_videos.update');
     }
 
-    public function delete(User $user, ChapterVideo $chapterVideo): bool
+    public function delete(Authenticatable $user, ChapterVideo $chapterVideo): bool
     {
         return $user->hasPermission('chapter_videos.delete');
     }

@@ -3,31 +3,31 @@
 namespace App\Policies;
 
 use App\Models\Role;
-use App\Models\User;
+use Illuminate\Contracts\Auth\Authenticatable;
 
 class RolePolicy
 {
-    public function viewAny(User $user): bool
+    public function viewAny(Authenticatable $user): bool
     {
         return $user->hasPermission('roles.view');
     }
 
-    public function view(User $user, Role $role): bool
+    public function view(Authenticatable $user, Role $role): bool
     {
         return $user->hasPermission('roles.view');
     }
 
-    public function create(User $user): bool
+    public function create(Authenticatable $user): bool
     {
         return $user->hasPermission('roles.create');
     }
 
-    public function update(User $user, Role $role): bool
+    public function update(Authenticatable $user, Role $role): bool
     {
         return $user->hasPermission('roles.update');
     }
 
-    public function delete(User $user, Role $role): bool
+    public function delete(Authenticatable $user, Role $role): bool
     {
         return $user->hasPermission('roles.delete');
     }
@@ -36,7 +36,7 @@ class RolePolicy
      * Updating a role's permission set is as sensitive as updating the
      * role itself, so it uses the same ability as `update`.
      */
-    public function updatePermissions(User $user, Role $role): bool
+    public function updatePermissions(Authenticatable $user, Role $role): bool
     {
         return $this->update($user, $role);
     }

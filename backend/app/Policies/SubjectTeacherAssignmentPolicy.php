@@ -3,31 +3,31 @@
 namespace App\Policies;
 
 use App\Models\SubjectTeacherAssignment;
-use App\Models\User;
+use Illuminate\Contracts\Auth\Authenticatable;
 
 class SubjectTeacherAssignmentPolicy
 {
-    public function viewAny(User $user): bool
+    public function viewAny(Authenticatable $user): bool
     {
         return $user->hasPermission('subject_teacher_assignments.view');
     }
 
-    public function view(User $user, SubjectTeacherAssignment $assignment): bool
+    public function view(Authenticatable $user, SubjectTeacherAssignment $assignment): bool
     {
         return $user->hasPermission('subject_teacher_assignments.view');
     }
 
-    public function create(User $user): bool
+    public function create(Authenticatable $user): bool
     {
         return $user->hasPermission('subject_teacher_assignments.create');
     }
 
-    public function update(User $user, SubjectTeacherAssignment $assignment): bool
+    public function update(Authenticatable $user, SubjectTeacherAssignment $assignment): bool
     {
         return $user->hasPermission('subject_teacher_assignments.update');
     }
 
-    public function delete(User $user, SubjectTeacherAssignment $assignment): bool
+    public function delete(Authenticatable $user, SubjectTeacherAssignment $assignment): bool
     {
         return $user->hasPermission('subject_teacher_assignments.delete');
     }
