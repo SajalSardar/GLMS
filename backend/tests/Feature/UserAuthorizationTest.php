@@ -40,6 +40,21 @@ class UserAuthorizationTest extends TestCase
         $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/users/{$target->id}/role", ['role_id' => $assignableRole->id])->assertOk();
     }
 
+    public function test_a_non_split_off_account_still_requires_an_eight_character_password(): void
+    {
+        $staffRole = Role::create(['name' => 'office_staff_spv', 'label' => 'Office Staff']);
+        $actor = $this->actorWithPermissions(['users.create']);
+
+        $response = $this->actingAs($actor, 'sanctum')->postJson('/api/v1/users', [
+            'name' => 'New Staff Member',
+            'email' => 'new-staff@example.test',
+            'password' => '1234',
+            'role_id' => $staffRole->id,
+        ]);
+
+        $response->assertStatus(422)->assertJsonValidationErrors('password');
+    }
+
     public function test_creating_a_users_row_with_a_split_off_role_is_rejected_even_for_a_fully_permissioned_actor(): void
     {
         $studentRole = Role::create(['name' => 'student', 'label' => 'Student']);
