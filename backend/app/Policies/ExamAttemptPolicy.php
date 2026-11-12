@@ -3,6 +3,7 @@
 namespace App\Policies;
 
 use App\Models\ExamAttempt;
+use App\Models\GuardianUser;
 use Illuminate\Contracts\Auth\Authenticatable;
 
 class ExamAttemptPolicy
@@ -15,7 +16,7 @@ class ExamAttemptPolicy
      */
     public function view(Authenticatable $user, ExamAttempt $examAttempt): bool
     {
-        if ($user->id === $examAttempt->user_id) {
+        if ($user->getAuthIdentifier() === $examAttempt->user_id) {
             return true;
         }
 
@@ -23,8 +24,11 @@ class ExamAttemptPolicy
             return true;
         }
 
-        return $user->guardian !== null
-            && $user->guardian->students()->where('user_id', $examAttempt->user_id)->exists();
+        if (! $user instanceof GuardianUser || $user->profile === null) {
+            return false;
+        }
+
+        return $user->profile->students()->where('user_id', $examAttempt->user_id)->exists();
     }
 
     /**

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\Auditable;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -44,9 +45,9 @@ class Guardian extends Model
      * freshly created guardian can still be attached); an unscoped actor
      * (e.g. national administrator) is unrestricted.
      */
-    public function scopeVisibleTo(Builder $query, User $actor): Builder
+    public function scopeVisibleTo(Builder $query, Authenticatable $actor): Builder
     {
-        $ownGuardian = $actor->guardian;
+        $ownGuardian = $actor instanceof GuardianUser ? $actor->profile : null;
 
         if ($ownGuardian !== null) {
             $sharedStudentIds = $ownGuardian->students()->pluck('student_profiles.id');
@@ -71,9 +72,9 @@ class Guardian extends Model
      * Instance-level equivalent of scopeVisibleTo(), for Policy checks on
      * a single already-loaded guardian.
      */
-    public function isVisibleTo(User $actor): bool
+    public function isVisibleTo(Authenticatable $actor): bool
     {
-        $ownGuardian = $actor->guardian;
+        $ownGuardian = $actor instanceof GuardianUser ? $actor->profile : null;
 
         if ($ownGuardian !== null) {
             $sharedStudentIds = $ownGuardian->students()->pluck('student_profiles.id');

@@ -45,7 +45,7 @@ class ExamAttemptController extends Controller
         }
 
         $user = $request->user();
-        $studentProfile = $user->studentProfile;
+        $studentProfile = $user->profile;
         $classVersionId = $studentProfile?->section?->shift?->class_version_id;
         $academicYearId = $studentProfile?->section?->shift?->academic_year_id;
 

@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Models\GuardianUser;
 use App\Models\StudentProfile;
 use Illuminate\Contracts\Auth\Authenticatable;
 
@@ -60,7 +61,7 @@ class StudentProfilePolicy
      */
     public function viewDashboard(Authenticatable $user, StudentProfile $profile): bool
     {
-        if ($user->id === $profile->user_id) {
+        if ($user->getAuthIdentifier() === $profile->user_id) {
             return true;
         }
 
@@ -68,7 +69,10 @@ class StudentProfilePolicy
             return true;
         }
 
-        return $user->guardian !== null
-            && $user->guardian->students()->where('student_profiles.id', $profile->id)->exists();
+        if (! $user instanceof GuardianUser || $user->profile === null) {
+            return false;
+        }
+
+        return $user->profile->students()->where('student_profiles.id', $profile->id)->exists();
     }
 }
