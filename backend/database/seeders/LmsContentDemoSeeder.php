@@ -17,7 +17,9 @@ use App\Models\Question;
 use App\Models\QuestionOption;
 use App\Models\SchoolClass;
 use App\Models\StudentProfile;
+use App\Models\StudentUser;
 use App\Models\Subject;
+use App\Models\TeacherUser;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Collection;
@@ -47,8 +49,8 @@ class LmsContentDemoSeeder extends Seeder
     public function run(): void
     {
         $class = SchoolClass::where('school_id', 1)->where('name', 'Class 6')->first();
-        $teacher = User::where('email', 'teacher@tlap.test')->first();
-        $studentUser = User::where('email', 'student@tlap.test')->first();
+        $teacher = TeacherUser::where('email', 'teacher@tlap.test')->first();
+        $studentUser = StudentUser::where('email', 'student@tlap.test')->first();
         $studentProfile = $studentUser ? StudentProfile::where('user_id', $studentUser->id)->first() : null;
         $academicYear = AcademicYear::where('school_id', 1)->where('is_current', true)->first();
 
@@ -62,20 +64,26 @@ class LmsContentDemoSeeder extends Seeder
             return;
         }
 
+        // books.pdf_uploaded_by_id and chapter_materials.uploaded_by_id stay
+        // FK'd to `users` (only trainer/staff accounts hold books.create /
+        // chapter_materials.create), so these two columns are stamped with
+        // the sample school_admin rather than the now-TeacherUser $teacher.
+        $staffUploader = User::where('email', 'school.admin@tlap.test')->first();
+
         $mathChapters = $this->seedBookWithChapters($version, 'Mathematics', 'Mathematics for Class 6', [
             ['name' => 'Whole Numbers', 'bn_name' => 'পূর্ণ সংখ্যা'],
             ['name' => 'Fractions', 'bn_name' => 'ভগ্নাংশ'],
             ['name' => 'Basic Geometry', 'bn_name' => 'প্রাথমিক জ্যামিতি'],
-        ], $teacher);
+        ], $staffUploader);
 
         $scienceChapters = $this->seedBookWithChapters($version, 'Science', 'General Science for Class 6', [
             ['name' => 'Our Environment', 'bn_name' => 'আমাদের পরিবেশ'],
             ['name' => 'Force and Motion', 'bn_name' => 'বল ও গতি'],
             ['name' => 'States of Matter', 'bn_name' => 'পদার্থের অবস্থা'],
-        ], $teacher);
+        ], $staffUploader);
 
-        $this->seedChapterContent($mathChapters->first(), $teacher, $studentProfile);
-        $this->seedChapterContent($scienceChapters->first(), $teacher, $studentProfile);
+        $this->seedChapterContent($mathChapters->first(), $staffUploader, $studentProfile);
+        $this->seedChapterContent($scienceChapters->first(), $staffUploader, $studentProfile);
 
         $mathQuestionsByChapter = $mathChapters->mapWithKeys(fn (Chapter $chapter) => [
             $chapter->id => $this->seedQuestions($chapter),
@@ -98,7 +106,7 @@ class LmsContentDemoSeeder extends Seeder
      * @param  list<array{name: string, bn_name: string}>  $chapterDefinitions
      * @return Collection<int, Chapter>
      */
-    private function seedBookWithChapters(ClassVersion $version, string $subjectName, string $bookName, array $chapterDefinitions, User $teacher): Collection
+    private function seedBookWithChapters(ClassVersion $version, string $subjectName, string $bookName, array $chapterDefinitions, ?User $staffUploader): Collection
     {
         $subject = Subject::where('name', $subjectName)->first();
 
@@ -119,7 +127,7 @@ class LmsContentDemoSeeder extends Seeder
                 'pdf_disk' => 'local',
                 'pdf_mime_type' => 'application/pdf',
                 'pdf_size_bytes' => 2_458_000,
-                'pdf_uploaded_by_id' => $teacher->id,
+                'pdf_uploaded_by_id' => $staffUploader?->id,
                 'pdf_uploaded_at' => now()->subMonths(2),
                 'pdf_status' => 'active',
             ],
@@ -139,7 +147,7 @@ class LmsContentDemoSeeder extends Seeder
         ));
     }
 
-    private function seedChapterContent(Chapter $chapter, User $teacher, StudentProfile $studentProfile): void
+    private function seedChapterContent(Chapter $chapter, ?User $staffUploader, StudentProfile $studentProfile): void
     {
         ChapterMaterial::updateOrCreate(
             ['chapter_id' => $chapter->id, 'type' => 'primary', 'title' => "{$chapter->name} — Lecture Notes"],
@@ -151,7 +159,7 @@ class LmsContentDemoSeeder extends Seeder
                 'disk' => 'local',
                 'mime_type' => 'application/pdf',
                 'size_bytes' => 512_000,
-                'uploaded_by_id' => $teacher->id,
+                'uploaded_by_id' => $staffUploader?->id,
                 'order_index' => 1,
                 'status' => 'active',
             ],
@@ -167,7 +175,7 @@ class LmsContentDemoSeeder extends Seeder
                 'disk' => 'local',
                 'mime_type' => 'application/pdf',
                 'size_bytes' => 128_000,
-                'uploaded_by_id' => $teacher->id,
+                'uploaded_by_id' => $staffUploader?->id,
                 'order_index' => 2,
                 'status' => 'active',
             ],
@@ -354,7 +362,7 @@ class LmsContentDemoSeeder extends Seeder
      * passed, and per-answer is_correct/marks_awarded are all computed
      * consistently rather than hand-filled.
      */
-    private function seedFinalizedAttempt(Exam $exam, User $user, int $attemptNumber, bool $answerAllButLast): void
+    private function seedFinalizedAttempt(Exam $exam, StudentUser $user, int $attemptNumber, bool $answerAllButLast): void
     {
         $attempt = ExamAttempt::updateOrCreate(
             ['exam_id' => $exam->id, 'user_id' => $user->id, 'attempt_number' => $attemptNumber],
@@ -399,7 +407,7 @@ class LmsContentDemoSeeder extends Seeder
         $attempt->finalize();
     }
 
-    private function seedFinalizedRandomAttempt(Exam $exam, User $user, int $attemptNumber): void
+    private function seedFinalizedRandomAttempt(Exam $exam, StudentUser $user, int $attemptNumber): void
     {
         $attempt = ExamAttempt::updateOrCreate(
             ['exam_id' => $exam->id, 'user_id' => $user->id, 'attempt_number' => $attemptNumber],
@@ -445,7 +453,7 @@ class LmsContentDemoSeeder extends Seeder
      * this exam" state: questions snapshotted, one answer saved, nothing
      * finalized yet.
      */
-    private function seedInProgressAttempt(Exam $exam, User $user, int $attemptNumber): void
+    private function seedInProgressAttempt(Exam $exam, StudentUser $user, int $attemptNumber): void
     {
         $attempt = ExamAttempt::updateOrCreate(
             ['exam_id' => $exam->id, 'user_id' => $user->id, 'attempt_number' => $attemptNumber],

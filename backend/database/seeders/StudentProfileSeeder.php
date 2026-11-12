@@ -4,7 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\SchoolClass;
 use App\Models\StudentProfile;
-use App\Models\User;
+use App\Models\StudentUser;
 use Illuminate\Database\Seeder;
 
 class StudentProfileSeeder extends Seeder
@@ -17,7 +17,7 @@ class StudentProfileSeeder extends Seeder
      */
     public function run(): void
     {
-        $user = User::where('email', 'student@tlap.test')->first();
+        $user = StudentUser::where('email', 'student@tlap.test')->first();
 
         if (! $user) {
             return;

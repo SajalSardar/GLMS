@@ -3,7 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\TeacherProfile;
-use App\Models\User;
+use App\Models\TeacherUser;
 use Illuminate\Database\Seeder;
 
 class TeacherProfileSeeder extends Seeder
@@ -15,7 +15,7 @@ class TeacherProfileSeeder extends Seeder
      */
     public function run(): void
     {
-        $user = User::where('email', 'teacher@tlap.test')->first();
+        $user = TeacherUser::where('email', 'teacher@tlap.test')->first();
 
         if (! $user) {
             return;

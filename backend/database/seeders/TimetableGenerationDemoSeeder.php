@@ -2,15 +2,15 @@
 
 namespace Database\Seeders;
 
-use App\Models\ClassVersion;
 use App\Models\Classroom;
+use App\Models\ClassVersion;
 use App\Models\Role;
 use App\Models\SchoolClass;
 use App\Models\Section;
 use App\Models\Shift;
 use App\Models\Subject;
 use App\Models\SubjectTeacherAssignment;
-use App\Models\User;
+use App\Models\TeacherUser;
 use Illuminate\Database\Seeder;
 
 class TimetableGenerationDemoSeeder extends Seeder
@@ -87,7 +87,7 @@ class TimetableGenerationDemoSeeder extends Seeder
                 $subject->id => ['required_weekly_periods' => $config['periods']],
             ]);
 
-            $teacher = User::updateOrCreate(
+            $teacher = TeacherUser::updateOrCreate(
                 ['email' => $config['email']],
                 [
                     'name' => $config['teacher'],

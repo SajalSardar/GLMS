@@ -23,11 +23,8 @@ class UserSeeder extends Seeder
             ['role' => 'national_admin', 'name' => 'National Admin', 'email' => 'national.admin@tlap.test', 'phone' => '01700000001'],
             ['role' => 'district_officer', 'name' => 'District Officer', 'email' => 'district.officer@tlap.test', 'phone' => '01700000002', 'district_id' => 1],
             ['role' => 'school_admin', 'name' => 'School Admin', 'email' => 'school.admin@tlap.test', 'phone' => '01700000003', 'school_id' => 1, 'district_id' => 1],
-            ['role' => 'teacher', 'name' => 'Teacher', 'email' => 'teacher@tlap.test', 'phone' => '01700000004', 'school_id' => 1, 'district_id' => 1],
-            ['role' => 'student', 'name' => 'Student', 'email' => 'student@tlap.test', 'phone' => '01700000005', 'school_id' => 1, 'district_id' => 1],
             ['role' => 'trainer', 'name' => 'Trainer', 'email' => 'trainer@tlap.test', 'phone' => '01700000006'],
             ['role' => 'office_staff', 'name' => 'Office Staff', 'email' => 'office.staff@tlap.test', 'phone' => '01700000007', 'school_id' => 1, 'district_id' => 1],
-            ['role' => 'parent_guardian', 'name' => 'Parent Guardian', 'email' => 'parent.guardian@tlap.test', 'phone' => '01700000008', 'school_id' => 1, 'district_id' => 1],
             ['role' => 'it_admin', 'name' => 'IT Admin', 'email' => 'it.admin@tlap.test', 'phone' => '01700000009'],
             ['role' => 'auditor', 'name' => 'Auditor', 'email' => 'auditor@tlap.test', 'phone' => '01700000010'],
         ];

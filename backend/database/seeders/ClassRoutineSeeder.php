@@ -7,7 +7,7 @@ use App\Models\Classroom;
 use App\Models\ClassRoutine;
 use App\Models\SchoolClass;
 use App\Models\Subject;
-use App\Models\User;
+use App\Models\TeacherUser;
 use Illuminate\Database\Seeder;
 
 class ClassRoutineSeeder extends Seeder
@@ -22,7 +22,7 @@ class ClassRoutineSeeder extends Seeder
     public function run(): void
     {
         $class = SchoolClass::where('school_id', 1)->where('name', 'Class 6')->first();
-        $teacher = User::where('email', 'teacher@tlap.test')->first();
+        $teacher = TeacherUser::where('email', 'teacher@tlap.test')->first();
         $classroom = Classroom::where('school_id', 1)->where('name', 'Room 101')->first();
         $academicYear = AcademicYear::where('school_id', 1)->where('is_current', true)->first();
 

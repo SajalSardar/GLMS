@@ -3,8 +3,8 @@
 namespace Database\Seeders;
 
 use App\Models\Guardian;
+use App\Models\GuardianUser;
 use App\Models\StudentProfile;
-use App\Models\User;
 use Illuminate\Database\Seeder;
 
 class GuardianSeeder extends Seeder
@@ -17,7 +17,7 @@ class GuardianSeeder extends Seeder
      */
     public function run(): void
     {
-        $user = User::where('email', 'parent.guardian@tlap.test')->first();
+        $user = GuardianUser::where('email', 'parent.guardian@tlap.test')->first();
 
         $guardian = Guardian::updateOrCreate(
             ['phone' => '01810000001'],
