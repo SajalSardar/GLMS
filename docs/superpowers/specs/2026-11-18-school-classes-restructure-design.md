@@ -192,16 +192,30 @@ question to ask).
   `SchoolClass::find(...)->school` — that line is replaced, not added
   alongside); denormalize `school_id`/`district_id` from the resolved
   `School` instead of from `$class`.
-- **`ClassRoutineController::assertValid()`**'s subject-validity check —
-  currently `$class->subjects()->where('subjects.id',
-  $attributes['subject_id'])->exists()`. Since `class_subjects` is now
-  school-scoped and `SchoolClass::subjects()` no longer exists as a bare
-  relation, this becomes a direct query: `DB::table('class_subjects')
-  ->where('class_id', $class->id)->where('school_id',
-  $attributes['school_id'])->where('subject_id',
-  $attributes['subject_id'])->exists()` (the method already has the
-  routine's own `school_id` in `$attributes` at this point — confirmed by
-  reading the full method).
+- **`ClassRoutineController::store()`** has the same denormalization
+  problem as `ClassVersionController::store()`, confirmed by reading the
+  full current method: it sets `'school_id' => $class->school_id,
+  'district_id' => $class->district_id,` directly from the `SchoolClass`
+  it just resolved. `StoreClassRoutineRequest` doesn't take an explicit
+  `school_id` today — it needs to gain one, validated against
+  `class_schools` the same way `StoreClassVersionRequest` is fixed above
+  (a class routine is created for one specific school's offering of a
+  class, and that pairing must exist in `class_schools` first).
+- **`ClassRoutineController::assertValid()`** has two separate problems,
+  both found by reading the full current method, not just the subject
+  check mentioned during brainstorming:
+  - The subject-validity check (`$class->subjects()->where('subjects.id',
+    $attributes['subject_id'])->exists()`) becomes a direct query once
+    `class_subjects` is school-scoped and `SchoolClass::subjects()` no
+    longer exists as a bare relation: `DB::table('class_subjects')
+    ->where('class_id', $class->id)->where('school_id',
+    $attributes['school_id'])->where('subject_id',
+    $attributes['subject_id'])->exists()`.
+  - The teacher/classroom school-match checks (`$teacher->school_id !==
+    $class->school_id`, `$classroom->school_id !== $class->school_id`)
+    also read `$class->school_id`, which is gone. Both become
+    `!== $attributes['school_id']` instead — the routine's own (now
+    explicitly-resolved, not denormalized-from-$class) `school_id`.
 - **`StudentProfileController::assertClassBelongsToSchool()`** — currently
   `SchoolClass::where('id', $classId)->where('school_id',
   $schoolId)->doesntExist()`. Becomes `ClassSchool::where('class_id',
@@ -270,7 +284,8 @@ patching:
   updated) — update their subject-validity and class-belongs-to-school
   fixtures to create the `class_schools`/`class_subjects` rows these
   checks now require, and add a test for the now-explicit "class not
-  offered by this school" rejection path on each.
+  offered by this school" rejection path on each (including
+  `ClassRoutineController::store()`'s new required `school_id` field).
 - `ClassSeederTest`/seeder-chain tests (if a general `DatabaseSeederTest`
   exercises this chain, as one already does per sub-project 1's Task 10
   findings) — confirm the rewritten seeders still produce a usable
@@ -312,9 +327,14 @@ patching:
   create/delete assignments and sync that assignment's subject list.
 - `ClassVersionController::store()` requires an explicit `school_id` and
   rejects a `(class_id, school_id)` pair absent from `class_schools`.
-- `ClassRoutineController`'s subject-validity check and
-  `StudentProfileController::assertClassBelongsToSchool()` both query
-  `class_subjects`/`class_schools` directly instead of the now-nonexistent
+- `ClassRoutineController::store()` requires an explicit `school_id`
+  (validated against `class_schools`, same as `ClassVersionController`)
+  instead of denormalizing from `$class->school_id`; its subject-validity
+  and teacher/classroom school-match checks in `assertValid()` query
+  `class_subjects`/compare against the routine's own resolved
+  `school_id` instead of the now-nonexistent `$class->school_id`.
+  `StudentProfileController::assertClassBelongsToSchool()` queries
+  `class_schools` directly instead of the now-nonexistent
   `school_classes.school_id`.
 - `ClassSeeder`/`ClassSubjectSeeder`/`SectionBackfillSeeder` are rewritten
   and the full `DatabaseSeeder` chain runs cleanly end to end.
