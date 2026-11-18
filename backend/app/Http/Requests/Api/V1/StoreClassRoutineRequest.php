@@ -3,10 +3,11 @@
 namespace App\Http\Requests\Api\V1;
 
 use App\Models\ClassRoutine;
-use App\Models\SchoolClass;
+use App\Models\ClassSchool;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class StoreClassRoutineRequest extends FormRequest
 {
@@ -15,9 +16,11 @@ class StoreClassRoutineRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        $school = SchoolClass::find($this->integer('class_id'))?->school;
+        $classSchool = ClassSchool::where('class_id', $this->integer('class_id'))
+            ->where('school_id', $this->integer('school_id'))
+            ->first();
 
-        return $school !== null && ($this->user()?->can('create', [ClassRoutine::class, $school]) ?? false);
+        return $classSchool !== null && ($this->user()?->can('create', [ClassRoutine::class, $classSchool->school]) ?? false);
     }
 
     /**
@@ -29,6 +32,7 @@ class StoreClassRoutineRequest extends FormRequest
     {
         return [
             'class_id' => ['required', 'integer', Rule::exists('school_classes', 'id')->withoutTrashed()],
+            'school_id' => ['required', 'integer', Rule::exists('schools', 'id')->withoutTrashed()],
             'subject_id' => ['required', 'integer', Rule::exists('subjects', 'id')->withoutTrashed()],
             'teacher_id' => ['nullable', 'integer', Rule::exists('teacher_users', 'id')->withoutTrashed()],
             'classroom_id' => ['nullable', 'integer', Rule::exists('classrooms', 'id')->withoutTrashed()],
@@ -44,6 +48,28 @@ class StoreClassRoutineRequest extends FormRequest
             'start_time' => ['nullable', 'date_format:H:i'],
             'end_time' => ['nullable', 'date_format:H:i', 'after:start_time'],
         ];
+    }
+
+    /**
+     * class_id/school_id existing individually isn't enough — the school
+     * must actually have adopted this class via class_schools before a
+     * routine can be created under it.
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            if ($validator->errors()->hasAny(['class_id', 'school_id'])) {
+                return;
+            }
+
+            $exists = ClassSchool::where('class_id', $this->integer('class_id'))
+                ->where('school_id', $this->integer('school_id'))
+                ->exists();
+
+            if (! $exists) {
+                $validator->errors()->add('class_id', 'This school has not adopted this class.');
+            }
+        });
     }
 
     /**

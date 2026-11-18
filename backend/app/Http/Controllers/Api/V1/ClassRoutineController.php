@@ -8,13 +8,14 @@ use App\Http\Requests\Api\V1\UpdateClassRoutineRequest;
 use App\Http\Resources\Api\V1\ClassRoutineResource;
 use App\Models\Classroom;
 use App\Models\ClassRoutine;
+use App\Models\School;
 use App\Models\SchoolClass;
-use App\Models\Subject;
 use App\Models\TeacherUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class ClassRoutineController extends Controller
@@ -61,6 +62,7 @@ class ClassRoutineController extends Controller
         $this->authorize('create', ClassRoutine::class);
 
         $class = SchoolClass::findOrFail($request->integer('class_id'));
+        $school = School::findOrFail($request->integer('school_id'));
 
         $attributes = [
             'subject_id' => $request->integer('subject_id'),
@@ -76,11 +78,11 @@ class ClassRoutineController extends Controller
             'start_time' => $request->input('start_time'),
             'end_time' => $request->input('end_time'),
             'class_id' => $class->id,
-            'school_id' => $class->school_id,
-            'district_id' => $class->district_id,
+            'school_id' => $school->id,
+            'district_id' => $school->district_id,
         ];
 
-        $this->assertValid($class, $attributes);
+        $this->assertValid($class, $attributes, $school->id);
         $this->assertNoConflicts($attributes);
 
         $routine = ClassRoutine::onlyTrashed()
@@ -120,7 +122,7 @@ class ClassRoutineController extends Controller
             'period_no' => $data['period_no'] ?? $class_routine->period_no,
         ];
 
-        $this->assertValid($class, $merged);
+        $this->assertValid($class, $merged, $class_routine->school_id);
         $this->assertNoConflicts($merged, $class_routine->id);
 
         $class_routine->update($data);
@@ -142,15 +144,21 @@ class ClassRoutineController extends Controller
 
     /**
      * Cross-tenant and configuration guards: the subject must actually be
-     * configured for this class, and a teacher/classroom given by id must
-     * belong to the same school as the class — never trusted from client
-     * input alone.
+     * configured for this school's offering of this class, and a
+     * teacher/classroom given by id must belong to the same school as the
+     * routine — never trusted from client input alone.
      *
      * @param  array<string, mixed>  $attributes
      */
-    private function assertValid(SchoolClass $class, array $attributes): void
+    private function assertValid(SchoolClass $class, array $attributes, int $schoolId): void
     {
-        if (! $class->subjects()->where('subjects.id', $attributes['subject_id'])->exists()) {
+        $subjectConfigured = DB::table('class_subjects')
+            ->where('class_id', $class->id)
+            ->where('school_id', $schoolId)
+            ->where('subject_id', $attributes['subject_id'])
+            ->exists();
+
+        if (! $subjectConfigured) {
             throw ValidationException::withMessages([
                 'subject_id' => ['This subject is not configured for the selected class.'],
             ]);
@@ -159,7 +167,7 @@ class ClassRoutineController extends Controller
         if ($attributes['teacher_id'] !== null) {
             $teacher = TeacherUser::find($attributes['teacher_id']);
 
-            if (! $teacher || $teacher->school_id !== $class->school_id) {
+            if (! $teacher || $teacher->school_id !== $schoolId) {
                 throw ValidationException::withMessages([
                     'teacher_id' => ['The selected teacher does not belong to this class\'s school.'],
                 ]);
@@ -169,7 +177,7 @@ class ClassRoutineController extends Controller
         if ($attributes['classroom_id'] !== null) {
             $classroom = Classroom::find($attributes['classroom_id']);
 
-            if (! $classroom || $classroom->school_id !== $class->school_id) {
+            if (! $classroom || $classroom->school_id !== $schoolId) {
                 throw ValidationException::withMessages([
                     'classroom_id' => ['The selected classroom does not belong to this class\'s school.'],
                 ]);

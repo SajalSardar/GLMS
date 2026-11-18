@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\AcademicYear;
 use App\Models\ClassRoutine;
+use App\Models\ClassSchool;
 use App\Models\ClassVersion;
 use App\Models\District;
 use App\Models\Division;
@@ -49,7 +50,8 @@ class RoutineAssignmentTimetableAuthorizationTest extends TestCase
             'name' => 'School A',
         ]);
 
-        $this->class = SchoolClass::create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Class']);
+        $this->class = SchoolClass::create(['name' => 'Class']);
+        ClassSchool::create(['class_id' => $this->class->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
 
         $classVersion = ClassVersion::create([
             'class_id' => $this->class->id,
@@ -94,7 +96,7 @@ class RoutineAssignmentTimetableAuthorizationTest extends TestCase
             'day_of_week' => 'sunday',
             'period_no' => 2,
         ]);
-        $payload = ['class_id' => $this->class->id, 'subject_id' => $this->subject->id, 'day_of_week' => 'saturday', 'period_no' => 1];
+        $payload = ['class_id' => $this->class->id, 'school_id' => $this->school->id, 'subject_id' => $this->subject->id, 'day_of_week' => 'saturday', 'period_no' => 1];
 
         $denied = $this->actorWithNoPermissions();
         $this->actingAs($denied, 'sanctum')->postJson('/api/v1/class-routines', $payload)->assertForbidden();
@@ -123,6 +125,7 @@ class RoutineAssignmentTimetableAuthorizationTest extends TestCase
         ]);
         $payload = [
             'class_id' => $this->class->id,
+            'school_id' => $this->school->id,
             'subject_id' => $this->subject->id,
             'teacher_id' => $this->teacher->id,
             'day_of_week' => 'saturday',
@@ -167,6 +170,7 @@ class RoutineAssignmentTimetableAuthorizationTest extends TestCase
 
         $payloadWithYear = [
             'class_id' => $this->class->id,
+            'school_id' => $this->school->id,
             'subject_id' => $this->subject->id,
             'academic_year_id' => $academicYear->id,
             'day_of_week' => 'monday',
