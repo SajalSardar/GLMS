@@ -107,6 +107,10 @@ class GuestExamAttemptControllerTest extends TestCase
 
         $response->assertJsonCount(3, 'data');
         $this->assertArrayNotHasKey('is_correct', $response->json('data.0.options.0'));
+
+        $this->assertDatabaseCount('exam_attempts', 0);
+        $this->assertDatabaseCount('exam_attempt_questions', 0);
+        $this->assertDatabaseCount('exam_attempt_answers', 0);
     }
 
     public function test_random_draw_is_rejected_for_a_non_random_exam(): void
@@ -114,6 +118,10 @@ class GuestExamAttemptControllerTest extends TestCase
         $exam = $this->publishedManualExam([$this->makeQuestion()]);
 
         $this->postJson("/api/v1/exams/{$exam->id}/random-draw")->assertUnprocessable();
+
+        $this->assertDatabaseCount('exam_attempts', 0);
+        $this->assertDatabaseCount('exam_attempt_questions', 0);
+        $this->assertDatabaseCount('exam_attempt_answers', 0);
     }
 
     public function test_random_draw_404s_for_a_draft_exam(): void
@@ -122,6 +130,10 @@ class GuestExamAttemptControllerTest extends TestCase
         $exam->update(['status' => 'draft']);
 
         $this->postJson("/api/v1/exams/{$exam->id}/random-draw")->assertNotFound();
+
+        $this->assertDatabaseCount('exam_attempts', 0);
+        $this->assertDatabaseCount('exam_attempt_questions', 0);
+        $this->assertDatabaseCount('exam_attempt_answers', 0);
     }
 
     public function test_guest_submission_grades_a_manual_exam_and_persists_nothing(): void
@@ -164,7 +176,10 @@ class GuestExamAttemptControllerTest extends TestCase
 
         $response->assertJsonPath('score', 2);
         $response->assertJsonPath('total_possible_marks', 4);
+
         $this->assertDatabaseCount('exam_attempts', 0);
+        $this->assertDatabaseCount('exam_attempt_questions', 0);
+        $this->assertDatabaseCount('exam_attempt_answers', 0);
     }
 
     public function test_guest_submission_reveals_correct_option_ids_per_question(): void
@@ -178,6 +193,10 @@ class GuestExamAttemptControllerTest extends TestCase
         ])->assertOk();
 
         $response->assertJsonPath('answers.0.correct_option_ids.0', $correctOptionId);
+
+        $this->assertDatabaseCount('exam_attempts', 0);
+        $this->assertDatabaseCount('exam_attempt_questions', 0);
+        $this->assertDatabaseCount('exam_attempt_answers', 0);
     }
 
     public function test_guest_submission_on_a_random_exam_grades_only_the_echoed_back_questions(): void
@@ -196,6 +215,10 @@ class GuestExamAttemptControllerTest extends TestCase
         // eligible questions) — $notShown must never be graded.
         $response->assertJsonPath('total_possible_marks', 3);
         $response->assertJsonPath('score', 3);
+
+        $this->assertDatabaseCount('exam_attempts', 0);
+        $this->assertDatabaseCount('exam_attempt_questions', 0);
+        $this->assertDatabaseCount('exam_attempt_answers', 0);
     }
 
     public function test_guest_submission_on_a_random_exam_rejects_more_distinct_questions_than_random_question_count(): void
@@ -210,6 +233,10 @@ class GuestExamAttemptControllerTest extends TestCase
                 ['question_id' => $second->id, 'selected_option_ids' => []],
             ],
         ])->assertUnprocessable();
+
+        $this->assertDatabaseCount('exam_attempts', 0);
+        $this->assertDatabaseCount('exam_attempt_questions', 0);
+        $this->assertDatabaseCount('exam_attempt_answers', 0);
     }
 
     public function test_guest_submission_rejects_a_question_id_that_does_not_belong_to_the_exam(): void
@@ -221,6 +248,10 @@ class GuestExamAttemptControllerTest extends TestCase
         $this->postJson("/api/v1/exams/{$exam->id}/guest-submissions", [
             'answers' => [['question_id' => $outsideExam->id, 'selected_option_ids' => []]],
         ])->assertUnprocessable();
+
+        $this->assertDatabaseCount('exam_attempts', 0);
+        $this->assertDatabaseCount('exam_attempt_questions', 0);
+        $this->assertDatabaseCount('exam_attempt_answers', 0);
     }
 
     public function test_guest_submission_404s_for_a_draft_exam(): void
@@ -232,6 +263,10 @@ class GuestExamAttemptControllerTest extends TestCase
         $this->postJson("/api/v1/exams/{$exam->id}/guest-submissions", [
             'answers' => [['question_id' => $question->id, 'selected_option_ids' => []]],
         ])->assertNotFound();
+
+        $this->assertDatabaseCount('exam_attempts', 0);
+        $this->assertDatabaseCount('exam_attempt_questions', 0);
+        $this->assertDatabaseCount('exam_attempt_answers', 0);
     }
 
     public function test_authenticated_caller_can_also_use_the_guest_endpoints_without_anything_persisting(): void
@@ -248,5 +283,7 @@ class GuestExamAttemptControllerTest extends TestCase
             ])->assertOk();
 
         $this->assertDatabaseCount('exam_attempts', 0);
+        $this->assertDatabaseCount('exam_attempt_questions', 0);
+        $this->assertDatabaseCount('exam_attempt_answers', 0);
     }
 }
