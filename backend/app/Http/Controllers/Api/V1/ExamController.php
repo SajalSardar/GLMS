@@ -56,10 +56,12 @@ class ExamController extends Controller
             // that guard (only Sanctum bearer tokens), so the global scope
             // never actually filters on this route — it's always inert
             // here. Reapply its exact branches manually against the
-            // sanctum-resolved actor so a privileged (exams.view) viewer
-            // doesn't see every school's exams nationally.
-            ->when($actor !== null && $actor->school_id !== null, fn ($query) => $query->where('school_id', $actor->school_id))
-            ->when($actor !== null && $actor->school_id === null && $actor->district_id !== null, fn ($query) => $query->where('district_id', $actor->district_id))
+            // sanctum-resolved actor, gated to the privileged (exams.view)
+            // branch only — a non-privileged actor is already restricted
+            // to published+available exams above and must see the same
+            // national list a guest would, not a tenant-filtered subset.
+            ->when($actor?->hasPermission('exams.view') && $actor->school_id !== null, fn ($query) => $query->where('school_id', $actor->school_id))
+            ->when($actor?->hasPermission('exams.view') && $actor->school_id === null && $actor->district_id !== null, fn ($query) => $query->where('district_id', $actor->district_id))
             ->orderBy('name')
             ->get();
 
