@@ -15,9 +15,9 @@ import { booksForClassAndSubject } from '../lib/resolveContent'
 
 const t = getCommonStrings('bn')
 
-// Same shape as the messageFromApiError() helper in ExamRunnerPage.tsx
-// (and the inline equivalent in BookDetailPage.tsx), but with a translated
-// `fallback` instead of the raw `error.message` — a plain fetch/network
+// Same shape as the messageFromApiError() helper in ExamRunnerPage.tsx,
+// but with a translated `fallback` instead of the raw `error.message` —
+// a plain fetch/network
 // failure on a list page has no useful backend-supplied text (unlike the
 // exam flows, where a specific 422 message is itself meaningful to show),
 // so falling back to a generic translated string avoids surfacing an
@@ -25,7 +25,13 @@ const t = getCommonStrings('bn')
 function messageFromApiError(error: unknown, fallback: string): string {
   if (error instanceof ApiError) {
     const firstFieldErrors = error.errors ? Object.values(error.errors)[0] : undefined
-    return firstFieldErrors?.[0] ?? error.message ?? fallback
+    // No `?? error.message` here: apiFetch() always supplies a message
+    // (falling back to a raw "Request to X failed with status Y" string
+    // when the response body has none), so including it would make the
+    // translated `fallback` below unreachable for any real HTTP error —
+    // exactly the untranslated-technical-message case this helper exists
+    // to avoid.
+    return firstFieldErrors?.[0] ?? fallback
   }
 
   return fallback

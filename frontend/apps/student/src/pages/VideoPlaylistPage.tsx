@@ -11,7 +11,7 @@ const t = getCommonStrings('bn')
 function messageFromApiError(error: unknown, fallback: string): string {
   if (error instanceof ApiError) {
     const firstFieldErrors = error.errors ? Object.values(error.errors)[0] : undefined
-    return firstFieldErrors?.[0] ?? error.message ?? fallback
+    return firstFieldErrors?.[0] ?? fallback
   }
 
   return fallback
@@ -37,6 +37,7 @@ export default function VideoPlaylistPage() {
     if (!id) {
       setLoading(false)
       setVideos([])
+      setError(null)
       return
     }
 
