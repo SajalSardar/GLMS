@@ -1281,7 +1281,29 @@ function schoolClassLabel(schoolClass: SchoolClass): string {
 }
 ```
 
-(Leave `classVersionLabel`'s `version.class?.school?.name` reference in this same file alone for now — read the surrounding function fully first; if it degrades the same way, apply the identical fix there too: drop the school-prefix branch, return the version's own name/class name without it, matching whatever that function's exact current body turns out to be.)
+This file also has a second, related helper, `classVersionLabel`, with the exact same dead-field problem one level removed:
+
+```tsx
+function classVersionLabel(version: ClassVersion): string {
+  const schoolName = version.class?.school?.name
+  const className = version.class?.name
+
+  if (schoolName && className) return `${schoolName} • ${className} • ${version.name}`
+  if (className) return `${className} • ${version.name}`
+  return version.name
+}
+```
+
+`version.class?.school` is always `undefined` now for the same reason. This file has no `schools` list fetched anywhere (confirmed — only `listClasses`/`listClassVersions` are imported), so faithfully restoring the school name here would mean adding a new fetch, which is out of proportion for what this task is ("label cleanup", not new data-fetching) and inconsistent with how the other three files in this task are being fixed. Simplify it the same way, accepting the same information loss as everywhere else in this task:
+
+```tsx
+function classVersionLabel(version: ClassVersion): string {
+  const className = version.class?.name
+
+  if (className) return `${className} • ${version.name}`
+  return version.name
+}
+```
 
 - [ ] **Step 3: Fix `StudentsPage.tsx`**
 
