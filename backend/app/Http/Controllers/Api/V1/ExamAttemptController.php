@@ -30,18 +30,8 @@ class ExamAttemptController extends Controller
     {
         $this->authorize('create', ExamAttempt::class);
 
-        if ($exam->status !== 'published') {
-            throw ValidationException::withMessages(['exam' => ['This exam is not published.']]);
-        }
-
-        $now = now();
-
-        if ($exam->available_from && $now->lessThan($exam->available_from)) {
-            throw ValidationException::withMessages(['exam' => ['This exam is not yet available.']]);
-        }
-
-        if ($exam->available_until && $now->greaterThan($exam->available_until)) {
-            throw ValidationException::withMessages(['exam' => ['This exam is no longer available.']]);
+        if (! $exam->isPubliclyTakeable()) {
+            throw ValidationException::withMessages(['exam' => ['This exam is not available to attempt right now.']]);
         }
 
         $user = $request->user();

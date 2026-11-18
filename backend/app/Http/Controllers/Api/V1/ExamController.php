@@ -30,22 +30,24 @@ class ExamController extends Controller
 
     public function index(Request $request): AnonymousResourceCollection
     {
-        $this->authorize('viewAny', Exam::class);
-
         $exams = Exam::query()
             ->with(self::WITH)
             ->when($request->integer('class_version_id'), fn ($query, $id) => $query->where('class_version_id', $id))
             ->when($request->integer('subject_id'), fn ($query, $id) => $query->where('subject_id', $id))
             ->when($request->integer('academic_year_id'), fn ($query, $id) => $query->where('academic_year_id', $id))
+            ->when(! $request->user()?->hasPermission('exams.view'), fn ($query) => $query
+                ->where('status', 'published')
+                ->where(fn ($q) => $q->whereNull('available_from')->orWhere('available_from', '<=', now()))
+                ->where(fn ($q) => $q->whereNull('available_until')->orWhere('available_until', '>=', now())))
             ->orderBy('name')
             ->get();
 
         return ExamResource::collection($exams);
     }
 
-    public function show(Exam $exam): ExamResource
+    public function show(Request $request, Exam $exam): ExamResource
     {
-        $this->authorize('view', $exam);
+        abort_unless($request->user()?->hasPermission('exams.view') || $exam->isPubliclyTakeable(), 404);
 
         return new ExamResource($exam->load(self::WITH));
     }

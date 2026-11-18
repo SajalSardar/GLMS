@@ -84,6 +84,34 @@ class Exam extends Model
     }
 
     /**
+     * Whether this exam is currently visible/attemptable to a viewer with
+     * no exams.view permission (which includes every unauthenticated
+     * guest) — published, and within its availability window if one is
+     * set. The single place this rule lives: ExamController::show(),
+     * ExamAttemptController::start(), and GuestExamAttemptController's
+     * two endpoints all call this instead of repeating the three checks
+     * inline.
+     */
+    public function isPubliclyTakeable(): bool
+    {
+        if ($this->status !== 'published') {
+            return false;
+        }
+
+        $now = now();
+
+        if ($this->available_from && $now->lessThan($this->available_from)) {
+            return false;
+        }
+
+        if ($this->available_until && $now->greaterThan($this->available_until)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
      * The single source of truth for "which questions can a
      * fixed_random/per_attempt_random draw pick from": every chapter
      * reachable through a book under this exam's (class_version_id,

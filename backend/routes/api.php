@@ -84,6 +84,7 @@ Route::prefix('v1')->group(function (): void {
     // caller is authenticated with timetable_entries.view — see
     // TimetableEntryController::index()/show().
     Route::apiResource('timetable-entries', TimetableEntryController::class)->only(['index', 'show']);
+    Route::apiResource('exams', ExamController::class)->only(['index', 'show']);
 
     Route::middleware('auth:sanctum')->group(function (): void {
         Route::apiResource('divisions', DivisionController::class)->only(['store', 'update', 'destroy']);
@@ -97,7 +98,7 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/questions/import', [QuestionController::class, 'import']);
         Route::apiResource('questions', QuestionController::class)->only(['store', 'update', 'destroy']);
 
-        Route::apiResource('exams', ExamController::class);
+        Route::apiResource('exams', ExamController::class)->only(['store', 'update', 'destroy']);
         Route::patch('/exams/{exam}/questions', [ExamController::class, 'setQuestions']);
         Route::patch('/exams/{exam}/random-chapters', [ExamController::class, 'setRandomChapters']);
         Route::post('/exams/{exam}/randomize', [ExamController::class, 'randomize']);

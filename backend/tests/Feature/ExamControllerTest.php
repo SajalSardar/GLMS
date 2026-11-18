@@ -74,12 +74,38 @@ class ExamControllerTest extends TestCase
         ], $overrides);
     }
 
-    public function test_index_and_show_require_authentication(): void
+    public function test_index_and_show_degrade_to_published_and_available_for_an_unauthenticated_viewer(): void
     {
-        $this->getJson('/api/v1/exams')->assertUnauthorized();
+        $draft = Exam::create($this->examPayload() + ['school_id' => $this->versionA->school_id, 'district_id' => $this->versionA->district_id]);
 
-        $exam = Exam::create($this->examPayload() + ['school_id' => $this->versionA->school_id, 'district_id' => $this->versionA->district_id]);
-        $this->getJson("/api/v1/exams/{$exam->id}")->assertUnauthorized();
+        $published = Exam::create($this->examPayload(['name' => 'Final']) + [
+            'school_id' => $this->versionA->school_id,
+            'district_id' => $this->versionA->district_id,
+            'status' => 'published',
+        ]);
+
+        $notYetAvailable = Exam::create($this->examPayload(['name' => 'Future Exam']) + [
+            'school_id' => $this->versionA->school_id,
+            'district_id' => $this->versionA->district_id,
+            'status' => 'published',
+            'available_from' => now()->addDay(),
+        ]);
+
+        $expired = Exam::create($this->examPayload(['name' => 'Past Exam']) + [
+            'school_id' => $this->versionA->school_id,
+            'district_id' => $this->versionA->district_id,
+            'status' => 'published',
+            'available_until' => now()->subDay(),
+        ]);
+
+        $index = $this->getJson('/api/v1/exams')->assertOk();
+        $index->assertJsonCount(1, 'data');
+        $index->assertJsonPath('data.0.id', $published->id);
+
+        $this->getJson("/api/v1/exams/{$published->id}")->assertOk();
+        $this->getJson("/api/v1/exams/{$draft->id}")->assertNotFound();
+        $this->getJson("/api/v1/exams/{$notYetAvailable->id}")->assertNotFound();
+        $this->getJson("/api/v1/exams/{$expired->id}")->assertNotFound();
     }
 
     public function test_store_and_update_are_authorized(): void
@@ -103,14 +129,13 @@ class ExamControllerTest extends TestCase
             ->assertJsonPath('data.updated_by_id', $allowed->id);
     }
 
-    public function test_every_role_without_exams_permissions_is_forbidden_even_with_full_questions_access(): void
+    public function test_every_role_without_exams_permissions_cannot_create_even_with_full_questions_access(): void
     {
         // Mirrors every role that gets questions.view/create/update but
         // deliberately NOT exams.* — proves the exclusion is real, not an
         // accidental gap this test suite never checked.
         $actor = $this->actorWithPermissions(['questions.view', 'questions.create', 'questions.update'], $this->schoolA->id, $this->schoolA->district_id);
 
-        $this->actingAs($actor, 'sanctum')->getJson('/api/v1/exams')->assertForbidden();
         $this->actingAs($actor, 'sanctum')->postJson('/api/v1/exams', $this->examPayload())->assertForbidden();
     }
 
@@ -199,7 +224,7 @@ class ExamControllerTest extends TestCase
             ->assertUnprocessable();
     }
 
-    public function test_show_is_forbidden_for_an_actor_with_no_exams_permission(): void
+    public function test_show_404s_a_draft_exam_for_an_actor_with_no_exams_permission(): void
     {
         $exam = Exam::create($this->examPayload() + ['school_id' => $this->versionA->school_id, 'district_id' => $this->versionA->district_id]);
 
@@ -207,7 +232,7 @@ class ExamControllerTest extends TestCase
 
         $this->actingAs($denied, 'sanctum')
             ->getJson("/api/v1/exams/{$exam->id}")
-            ->assertForbidden();
+            ->assertNotFound();
     }
 
     public function test_destroy_is_forbidden_without_exams_delete_permission(): void
