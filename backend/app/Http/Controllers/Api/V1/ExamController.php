@@ -30,12 +30,17 @@ class ExamController extends Controller
 
     public function index(Request $request): AnonymousResourceCollection
     {
+        // This route sits outside the auth:sanctum group (it must also
+        // serve anonymous requests), so the user is resolved explicitly
+        // from the sanctum guard rather than via $request->user().
+        $actor = $request->user('sanctum');
+
         $exams = Exam::query()
             ->with(self::WITH)
             ->when($request->integer('class_version_id'), fn ($query, $id) => $query->where('class_version_id', $id))
             ->when($request->integer('subject_id'), fn ($query, $id) => $query->where('subject_id', $id))
             ->when($request->integer('academic_year_id'), fn ($query, $id) => $query->where('academic_year_id', $id))
-            ->when(! $request->user()?->hasPermission('exams.view'), fn ($query) => $query
+            ->when(! $actor?->hasPermission('exams.view'), fn ($query) => $query
                 ->where('status', 'published')
                 ->where(fn ($q) => $q->whereNull('available_from')->orWhere('available_from', '<=', now()))
                 ->where(fn ($q) => $q->whereNull('available_until')->orWhere('available_until', '>=', now())))
@@ -47,7 +52,11 @@ class ExamController extends Controller
 
     public function show(Request $request, Exam $exam): ExamResource
     {
-        abort_unless($request->user()?->hasPermission('exams.view') || $exam->isPubliclyTakeable(), 404);
+        // This route sits outside the auth:sanctum group, so the user is
+        // resolved explicitly from the sanctum guard.
+        $actor = $request->user('sanctum');
+
+        abort_unless($actor?->hasPermission('exams.view') || $exam->isPubliclyTakeable(), 404);
 
         return new ExamResource($exam->load(self::WITH));
     }
