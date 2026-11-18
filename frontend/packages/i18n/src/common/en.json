@@ -39,6 +39,14 @@
   "student.books.noChapters": "No chapters have been added yet.",
   "student.books.pdfError": "Could not load the PDF right now. Please try again.",
 
+  "student.videos.title": "Video Lessons",
+  "student.videos.allClasses": "All classes",
+  "student.videos.allSubjects": "All subjects",
+  "student.videos.loading": "Loading videos...",
+  "student.videos.pickClass": "Pick a class to see its videos.",
+  "student.videos.empty": "No videos found for this selection.",
+  "student.videos.instructor": "Instructor",
+
   "landing.hero.heading1": "Education, the power to inspire,",
   "landing.hero.heading2": "move yourself forward",
   "landing.hero.sub1": "For every student from class 1 to 12",

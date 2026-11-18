@@ -39,6 +39,14 @@
   "student.books.noChapters": "এখনও কোনো অধ্যায় যোগ করা হয়নি।",
   "student.books.pdfError": "এই মুহূর্তে পিডিএফ লোড করা যায়নি। আবার চেষ্টা করুন।",
 
+  "student.videos.title": "ভিডিও লেকচার",
+  "student.videos.allClasses": "সকল শ্রেণি",
+  "student.videos.allSubjects": "সকল বিষয়",
+  "student.videos.loading": "ভিডিও লোড হচ্ছে...",
+  "student.videos.pickClass": "ভিডিও দেখতে একটি শ্রেণি নির্বাচন করুন।",
+  "student.videos.empty": "এই নির্বাচনের জন্য কোনো ভিডিও পাওয়া যায়নি।",
+  "student.videos.instructor": "প্রশিক্ষক",
+
   "landing.hero.heading1": "শিক্ষা, অনুপ্রেরণার শক্তি,",
   "landing.hero.heading2": "নিজেকে এগিয়ে নিয়ে যাও",
   "landing.hero.sub1": "১ম - ১২শ শ্রেণির সকল শিক্ষার্থীর জন্য",

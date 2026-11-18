@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  listBooks,
   listClasses,
-  listClassVersions,
   listSchools,
   listSubjects,
   type Book,
@@ -12,21 +10,9 @@ import {
   type Subject,
 } from '@ttla/api-client'
 import { getCommonStrings } from '@ttla/i18n'
+import { booksForClassAndSubject } from '../lib/resolveContent'
 
 const t = getCommonStrings('bn')
-
-async function booksForClassAndSubject(classId: number | null, subjectId: number | null): Promise<Book[]> {
-  if (!classId) return []
-
-  const versionsResult = await listClassVersions({ classId })
-  const versions = versionsResult.data
-
-  const bookLists = await Promise.all(
-    versions.map((version) => listBooks({ classVersionId: version.id, subjectId: subjectId ?? undefined })),
-  )
-
-  return bookLists.flatMap((result) => result.data)
-}
 
 export default function BooksPage() {
   const [classes, setClasses] = useState<SchoolClass[]>([])
