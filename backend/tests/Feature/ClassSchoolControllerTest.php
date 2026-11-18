@@ -11,6 +11,7 @@ use App\Models\SchoolClass;
 use App\Models\Subject;
 use App\Models\Upazila;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\Concerns\CreatesAuthorizedActors;
 use Tests\TestCase;
 
@@ -153,5 +154,58 @@ class ClassSchoolControllerTest extends TestCase
 
         $this->assertDatabaseCount('class_subjects', 1);
         $this->assertDatabaseHas('class_subjects', ['class_id' => $this->classSix->id, 'school_id' => $this->schoolA->id, 'subject_id' => $subject->id]);
+    }
+
+    /**
+     * Regression test: index() used to eager-load only ['schoolClass',
+     * 'school'] and never populate `subjects`, so the response always
+     * reported an empty subjects list regardless of what was synced via
+     * class_subjects.
+     */
+    public function test_index_includes_each_rows_subjects(): void
+    {
+        $subjectMath = Subject::create(['name' => 'Math']);
+        $subjectScience = Subject::create(['name' => 'Science']);
+        $assignment = ClassSchool::create(['class_id' => $this->classSix->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id]);
+
+        DB::table('class_subjects')->insert([
+            ['class_id' => $this->classSix->id, 'school_id' => $this->schoolA->id, 'subject_id' => $subjectMath->id, 'created_at' => now(), 'updated_at' => now()],
+            ['class_id' => $this->classSix->id, 'school_id' => $this->schoolA->id, 'subject_id' => $subjectScience->id, 'created_at' => now(), 'updated_at' => now()],
+        ]);
+
+        $actor = $this->actorWithPermissions(['class_schools.view'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $response = $this->actingAs($actor, 'sanctum')
+            ->getJson('/api/v1/class-schools')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $assignment->id)
+            ->assertJsonCount(2, 'data.0.subjects');
+
+        $subjectIds = collect($response->json('data.0.subjects'))->pluck('id')->all();
+        $this->assertEqualsCanonicalizing([$subjectMath->id, $subjectScience->id], $subjectIds);
+    }
+
+    /**
+     * Regression test: show() used to eager-load only ['schoolClass',
+     * 'school'] and never populate `subjects`, so a single-row fetch
+     * always reported an empty subjects list.
+     */
+    public function test_show_includes_the_rows_subjects(): void
+    {
+        $subject = Subject::create(['name' => 'Math']);
+        $assignment = ClassSchool::create(['class_id' => $this->classSix->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id]);
+
+        DB::table('class_subjects')->insert([
+            'class_id' => $this->classSix->id, 'school_id' => $this->schoolA->id, 'subject_id' => $subject->id, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $actor = $this->actorWithPermissions(['class_schools.view'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $this->actingAs($actor, 'sanctum')
+            ->getJson("/api/v1/class-schools/{$assignment->id}")
+            ->assertOk()
+            ->assertJsonCount(1, 'data.subjects')
+            ->assertJsonPath('data.subjects.0.id', $subject->id);
     }
 }

@@ -30,6 +30,18 @@ class ClassSchoolController extends Controller
             ->orderByDesc('id')
             ->get();
 
+        // Not loaded via ->with('subjects'): see the comment on
+        // ClassSchool::subjects() / updateSubjects() below — the relation's
+        // wherePivot('school_id', $this->school_id) constraint needs each
+        // row's own school_id, which Eloquent's eager loader can't supply
+        // (it resolves the relation once on an unhydrated instance to
+        // build a single batched query). Setting it per-row here is an
+        // acceptable N+1 given this endpoint typically returns one
+        // school's adoptions.
+        $assignments->each(function (ClassSchool $assignment): void {
+            $assignment->setRelation('subjects', $assignment->subjects()->get());
+        });
+
         return ClassSchoolResource::collection($assignments);
     }
 
@@ -38,7 +50,10 @@ class ClassSchoolController extends Controller
      */
     public function show(ClassSchool $class_school): ClassSchoolResource
     {
-        return new ClassSchoolResource($class_school->load(['schoolClass', 'school']));
+        $class_school->load(['schoolClass', 'school']);
+        $class_school->setRelation('subjects', $class_school->subjects()->get());
+
+        return new ClassSchoolResource($class_school);
     }
 
     /**
