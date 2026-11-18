@@ -51,7 +51,7 @@ class ExamQuestionsControllerTest extends TestCase
         $this->versionA = ClassVersion::create(['class_id' => $classA->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'name' => 'Bangla Version']);
 
         $book = Book::create(['class_version_id' => $this->versionA->id, 'subject_id' => $this->subject->id, 'school_id' => $this->versionA->school_id, 'district_id' => $this->versionA->district_id, 'name' => 'Mathematics Book']);
-        $this->chapterA = Chapter::create(['book_id' => $book->id, 'school_id' => $book->classVersion->school_id, 'district_id' => $book->classVersion->district_id, 'name' => 'Chapter 1']);
+        $this->chapterA = Chapter::create(['book_id' => $book->id, 'name' => 'Chapter 1']);
 
         $academicYear = AcademicYear::create(['school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'name' => '2026', 'start_date' => '2026-01-01', 'end_date' => '2026-12-31']);
 
@@ -66,8 +66,6 @@ class ExamQuestionsControllerTest extends TestCase
         for ($i = 0; $i < $count; $i++) {
             $ids[] = Question::create([
                 'chapter_id' => $this->chapterA->id,
-                'school_id' => $this->chapterA->book->classVersion->school_id,
-                'district_id' => $this->chapterA->book->classVersion->district_id,
                 'question_type' => 'mcq_single',
                 'question_text' => "Question {$i}",
                 'difficulty' => $difficulty,
@@ -84,8 +82,6 @@ class ExamQuestionsControllerTest extends TestCase
         for ($i = 0; $i < $count; $i++) {
             $ids[] = Question::create([
                 'chapter_id' => $chapter->id,
-                'school_id' => $chapter->book->classVersion->school_id,
-                'district_id' => $chapter->book->classVersion->district_id,
                 'question_type' => 'mcq_single',
                 'question_text' => "Chapter {$chapter->id} Question {$i}",
             ])->id;
@@ -111,8 +107,8 @@ class ExamQuestionsControllerTest extends TestCase
     {
         $otherSubject = Subject::create(['name' => 'Science']);
         $otherBook = Book::create(['class_version_id' => $this->versionA->id, 'subject_id' => $otherSubject->id, 'school_id' => $this->versionA->school_id, 'district_id' => $this->versionA->district_id, 'name' => 'Science Book']);
-        $otherChapter = Chapter::create(['book_id' => $otherBook->id, 'school_id' => $otherBook->classVersion->school_id, 'district_id' => $otherBook->classVersion->district_id, 'name' => 'Chapter 1']);
-        $foreignQuestion = Question::create(['chapter_id' => $otherChapter->id, 'school_id' => $otherChapter->book->classVersion->school_id, 'district_id' => $otherChapter->book->classVersion->district_id, 'question_type' => 'mcq_single', 'question_text' => 'Foreign']);
+        $otherChapter = Chapter::create(['book_id' => $otherBook->id, 'name' => 'Chapter 1']);
+        $foreignQuestion = Question::create(['chapter_id' => $otherChapter->id, 'question_type' => 'mcq_single', 'question_text' => 'Foreign']);
 
         $allowed = $this->actorWithPermissions(['exams.update'], $this->schoolA->id, $this->schoolA->district_id);
 
@@ -183,7 +179,7 @@ class ExamQuestionsControllerTest extends TestCase
 
     public function test_randomize_narrows_the_pool_to_allowed_chapters_only(): void
     {
-        $chapterB = Chapter::create(['book_id' => $this->chapterA->book_id, 'school_id' => $this->chapterA->school_id, 'district_id' => $this->chapterA->district_id, 'name' => 'Chapter 2']);
+        $chapterB = Chapter::create(['book_id' => $this->chapterA->book_id, 'name' => 'Chapter 2']);
 
         $excludedIds = $this->createQuestions(5); // chapterA — excluded by the allow-list below.
         $allowedIds = $this->createQuestionsInChapter($chapterB, 5);
@@ -205,7 +201,7 @@ class ExamQuestionsControllerTest extends TestCase
 
     public function test_randomize_draws_from_any_chapter_when_no_random_chapters_are_configured(): void
     {
-        $chapterB = Chapter::create(['book_id' => $this->chapterA->book_id, 'school_id' => $this->chapterA->school_id, 'district_id' => $this->chapterA->district_id, 'name' => 'Chapter 2']);
+        $chapterB = Chapter::create(['book_id' => $this->chapterA->book_id, 'name' => 'Chapter 2']);
 
         $chapterAIds = $this->createQuestions(10);
         $chapterBIds = $this->createQuestionsInChapter($chapterB, 10);
@@ -242,7 +238,7 @@ class ExamQuestionsControllerTest extends TestCase
 
     public function test_set_random_chapters_narrows_randomize_to_the_given_chapter(): void
     {
-        $chapterB = Chapter::create(['book_id' => $this->chapterA->book_id, 'school_id' => $this->chapterA->school_id, 'district_id' => $this->chapterA->district_id, 'name' => 'Chapter 2']);
+        $chapterB = Chapter::create(['book_id' => $this->chapterA->book_id, 'name' => 'Chapter 2']);
 
         $excludedIds = $this->createQuestions(5); // chapterA — excluded by the allow-list set below.
         $allowedIds = $this->createQuestionsInChapter($chapterB, 5);
@@ -270,7 +266,7 @@ class ExamQuestionsControllerTest extends TestCase
     {
         $otherSubject = Subject::create(['name' => 'Science']);
         $otherBook = Book::create(['class_version_id' => $this->versionA->id, 'subject_id' => $otherSubject->id, 'school_id' => $this->versionA->school_id, 'district_id' => $this->versionA->district_id, 'name' => 'Science Book']);
-        $foreignChapter = Chapter::create(['book_id' => $otherBook->id, 'school_id' => $otherBook->classVersion->school_id, 'district_id' => $otherBook->classVersion->district_id, 'name' => 'Foreign Chapter']);
+        $foreignChapter = Chapter::create(['book_id' => $otherBook->id, 'name' => 'Foreign Chapter']);
 
         $allowed = $this->actorWithPermissions(['exams.update'], $this->schoolA->id, $this->schoolA->district_id);
 
@@ -290,7 +286,7 @@ class ExamQuestionsControllerTest extends TestCase
 
     public function test_set_random_chapters_with_an_empty_array_clears_a_previous_narrowing(): void
     {
-        $chapterB = Chapter::create(['book_id' => $this->chapterA->book_id, 'school_id' => $this->chapterA->school_id, 'district_id' => $this->chapterA->district_id, 'name' => 'Chapter 2']);
+        $chapterB = Chapter::create(['book_id' => $this->chapterA->book_id, 'name' => 'Chapter 2']);
 
         $chapterAIds = $this->createQuestions(10);
         $chapterBIds = $this->createQuestionsInChapter($chapterB, 10);

@@ -130,9 +130,7 @@ class BookControllerTest extends TestCase
             'subject_id' => $this->subject->id,
             'name' => 'Mathematics',
         ]);
-        // chapters still requires school_id/district_id (NOT NULL) until Task 3
-        // de-scopes it; supply them here since Book no longer carries them.
-        $book->chapters()->create(['name' => 'Chapter 1', 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id]);
+        $book->chapters()->create(['name' => 'Chapter 1']);
 
         $actor = $this->actorWithPermissions(['books.delete'], $this->schoolA->id, $this->schoolA->district_id);
 

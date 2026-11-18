@@ -205,3 +205,12 @@ from the non-`national_admin` roles.
   academic year can be current at a time, nationally.
 - Full backend test suite passes against MySQL (not just SQLite — per
   known SQLite/MySQL migration-behavior gaps in this project).
+
+**Deployment note:** these migrations remove the tenant-filtering mechanism
+for six resources; the compensating control (restricting create/update/
+delete to `national_admin`) lives entirely in `RolePermissionSeeder`. Any
+environment with existing seeded role/permission data MUST re-run
+`php artisan db:seed --class=RolePermissionSeeder` in the same deploy as
+these migrations — otherwise roles that previously held narrower,
+tenant-filtered write access to these resources retain that write access
+with no tenant filtering at all.

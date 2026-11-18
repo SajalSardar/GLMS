@@ -116,10 +116,10 @@ class ExamTenantScopeTest extends TestCase
     public function test_total_marks_sums_attached_questions_for_manual_mode(): void
     {
         $book = Book::create(['class_version_id' => $this->versionA->id, 'subject_id' => $this->subject->id, 'school_id' => $this->versionA->school_id, 'district_id' => $this->versionA->district_id, 'name' => 'Mathematics Book']);
-        $chapter = Chapter::create(['book_id' => $book->id, 'school_id' => $book->classVersion->school_id, 'district_id' => $book->classVersion->district_id, 'name' => 'Chapter 1']);
+        $chapter = Chapter::create(['book_id' => $book->id, 'name' => 'Chapter 1']);
 
-        $q1 = Question::create(['chapter_id' => $chapter->id, 'school_id' => $chapter->book->classVersion->school_id, 'district_id' => $chapter->book->classVersion->district_id, 'question_type' => 'mcq_single', 'question_text' => 'Q1', 'marks' => 2]);
-        $q2 = Question::create(['chapter_id' => $chapter->id, 'school_id' => $chapter->book->classVersion->school_id, 'district_id' => $chapter->book->classVersion->district_id, 'question_type' => 'mcq_single', 'question_text' => 'Q2', 'marks' => 3]);
+        $q1 = Question::create(['chapter_id' => $chapter->id, 'question_type' => 'mcq_single', 'question_text' => 'Q1', 'marks' => 2]);
+        $q2 = Question::create(['chapter_id' => $chapter->id, 'question_type' => 'mcq_single', 'question_text' => 'Q2', 'marks' => 3]);
 
         $this->examA->questions()->attach([$q1->id => ['order_index' => 0], $q2->id => ['order_index' => 1]]);
 

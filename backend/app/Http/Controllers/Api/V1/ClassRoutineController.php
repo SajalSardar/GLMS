@@ -142,9 +142,9 @@ class ClassRoutineController extends Controller
 
     /**
      * Cross-tenant and configuration guards: the subject must actually be
-     * configured for this class, and a teacher/classroom/academic year
-     * given by id must belong to the same school as the class — never
-     * trusted from client input alone.
+     * configured for this class, and a teacher/classroom given by id must
+     * belong to the same school as the class — never trusted from client
+     * input alone.
      *
      * @param  array<string, mixed>  $attributes
      */

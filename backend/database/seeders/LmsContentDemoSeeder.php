@@ -29,10 +29,10 @@ class LmsContentDemoSeeder extends Seeder
      * Seed the application's database.
      *
      * Dummy data for the full content/assessment hierarchy — books,
-     * chapters, chapter materials/videos (+ one student's video
-     * progress), a question bank, and three exams (manual,
-     * per_attempt_random unrestricted, and per_attempt_random narrowed to
-     * one chapter) with real exam attempts graded via
+     * chapters, chapter materials/videos, a question bank, and three
+     * exams (manual, per_attempt_random unrestricted, and
+     * per_attempt_random narrowed to one chapter) with real exam
+     * attempts graded via
      * ExamAttempt::finalize() — against Class 6 at Debidwar Pilot
      * Government High School (school_id 1), reusing its "General"
      * ClassVersion and the sample student/teacher users already seeded.
