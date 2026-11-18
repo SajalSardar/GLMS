@@ -6,14 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\StoreShiftRequest;
 use App\Http\Requests\Api\V1\UpdateShiftRequest;
 use App\Http\Resources\Api\V1\ShiftResource;
-use App\Models\AcademicYear;
 use App\Models\ClassVersion;
 use App\Models\Shift;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
-use Illuminate\Validation\ValidationException;
 
 class ShiftController extends Controller
 {
@@ -62,8 +60,6 @@ class ShiftController extends Controller
 
         $classVersion = ClassVersion::findOrFail($request->integer('class_version_id'));
 
-        $this->assertAcademicYearBelongsToSchool($request->integer('academic_year_id') ?: null, $classVersion->school_id);
-
         $attributes = [
             ...$request->safe()->only(['name', 'bn_name', 'start_time', 'end_time', 'days_of_week', 'period_duration_minutes', 'breaks']),
             'academic_year_id' => $request->integer('academic_year_id') ?: null,
@@ -99,10 +95,6 @@ class ShiftController extends Controller
 
         $data = $request->validated();
 
-        if (array_key_exists('academic_year_id', $data)) {
-            $this->assertAcademicYearBelongsToSchool($data['academic_year_id'], $shift->school_id);
-        }
-
         $shift->update($data);
 
         return new ShiftResource($shift->load('classVersion.schoolClass.school'));
@@ -118,23 +110,5 @@ class ShiftController extends Controller
         $shift->delete();
 
         return response()->noContent();
-    }
-
-    /**
-     * An academic_year_id, when given, must belong to the shift's own
-     * school — otherwise a shift could be pinned to another school's
-     * academic calendar.
-     */
-    private function assertAcademicYearBelongsToSchool(?int $academicYearId, int $schoolId): void
-    {
-        if ($academicYearId === null) {
-            return;
-        }
-
-        if (AcademicYear::where('id', $academicYearId)->where('school_id', $schoolId)->doesntExist()) {
-            throw ValidationException::withMessages([
-                'academic_year_id' => ['The selected academic year does not belong to this shift\'s school.'],
-            ]);
-        }
     }
 }

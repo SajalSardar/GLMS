@@ -55,11 +55,6 @@ class School extends Model
         return $this->hasMany(SchoolClass::class);
     }
 
-    public function academicYears(): HasMany
-    {
-        return $this->hasMany(AcademicYear::class);
-    }
-
     public function classrooms(): HasMany
     {
         return $this->hasMany(Classroom::class);

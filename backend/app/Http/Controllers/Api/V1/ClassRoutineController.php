@@ -175,16 +175,6 @@ class ClassRoutineController extends Controller
                 ]);
             }
         }
-
-        if ($attributes['academic_year_id'] !== null) {
-            $academicYear = $class->school->academicYears()->find($attributes['academic_year_id']);
-
-            if (! $academicYear) {
-                throw ValidationException::withMessages([
-                    'academic_year_id' => ['The selected academic year does not belong to this class\'s school.'],
-                ]);
-            }
-        }
     }
 
     /**

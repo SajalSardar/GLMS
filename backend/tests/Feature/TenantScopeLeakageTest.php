@@ -58,7 +58,7 @@ class TenantScopeLeakageTest extends TestCase
         ]);
     }
 
-    public function test_actor_with_permission_can_delete_their_own_school_academic_year(): void
+    public function test_actor_with_permission_can_delete_any_national_academic_year(): void
     {
         $permission = Permission::create(['name' => 'academic_years.delete', 'label' => 'Delete academic years']);
         $role = Role::create(['name' => 'school_admin_delete', 'label' => 'School Admin']);

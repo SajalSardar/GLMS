@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AcademicYear;
 use App\Models\ClassRoutine;
 use App\Models\ClassVersion;
 use App\Models\District;
@@ -135,6 +136,50 @@ class RoutineAssignmentTimetableAuthorizationTest extends TestCase
         $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/class-routines/{$routine->id}", ['teacher_id' => $this->teacher->id])
             ->assertOk()
             ->assertJsonPath('data.teacher.id', $this->teacher->id);
+    }
+
+    /**
+     * Regression test for ClassRoutineController: a national academic_year_id must
+     * be accepted when creating or updating a class routine (previously this would fail
+     * with "does not belong to this class's school" because the school_id column no
+     * longer exists on academic_years).
+     */
+    public function test_class_routine_store_and_update_with_national_academic_year(): void
+    {
+        $academicYear = AcademicYear::create([
+            'name' => 'Academic Year 2026',
+            'start_date' => '2026-01-01',
+            'end_date' => '2026-12-31',
+        ]);
+
+        $routine = ClassRoutine::create([
+            'class_id' => $this->class->id,
+            'school_id' => $this->school->id,
+            'district_id' => $this->school->district_id,
+            'subject_id' => $this->subject->id,
+            'day_of_week' => 'sunday',
+            'period_no' => 5,
+        ]);
+
+        $allowed = $this->actorWithPermissions(['class_routines.create', 'class_routines.update']);
+
+        $payloadWithYear = [
+            'class_id' => $this->class->id,
+            'subject_id' => $this->subject->id,
+            'academic_year_id' => $academicYear->id,
+            'day_of_week' => 'monday',
+            'period_no' => 6,
+        ];
+
+        $response = $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/class-routines', $payloadWithYear)
+            ->assertCreated()
+            ->assertJsonPath('data.academic_year_id', $academicYear->id);
+
+        $routineId = $response->json('data.id');
+
+        $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/class-routines/{$routineId}", ['academic_year_id' => $academicYear->id])
+            ->assertOk()
+            ->assertJsonPath('data.academic_year_id', $academicYear->id);
     }
 
     public function test_subject_teacher_assignment_store_and_update_are_authorized(): void

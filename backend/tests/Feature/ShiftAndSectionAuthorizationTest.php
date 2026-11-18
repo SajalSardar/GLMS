@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AcademicYear;
 use App\Models\ClassVersion;
 use App\Models\District;
 use App\Models\Division;
@@ -79,6 +80,42 @@ class ShiftAndSectionAuthorizationTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.updated_by_type', get_class($allowed))
             ->assertJsonPath('data.updated_by_id', $allowed->id);
+    }
+
+    /**
+     * Regression test for ShiftController: a national academic_year_id must
+     * be accepted when creating or updating a shift (previously this would fail
+     * with "does not belong to this shift's school" because the school_id
+     * column no longer exists on academic_years).
+     */
+    public function test_shift_store_and_update_with_national_academic_year(): void
+    {
+        $academicYear = AcademicYear::create([
+            'name' => 'Academic Year 2026',
+            'start_date' => '2026-01-01',
+            'end_date' => '2026-12-31',
+        ]);
+
+        $allowed = $this->actorWithPermissions(['shifts.create', 'shifts.update']);
+
+        $payloadWithYear = [
+            'class_version_id' => $this->classVersion->id,
+            'name' => 'Shift with Year',
+            'start_time' => '08:00',
+            'end_time' => '13:00',
+            'days_of_week' => ['saturday'],
+            'academic_year_id' => $academicYear->id,
+        ];
+
+        $response = $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/shifts', $payloadWithYear)
+            ->assertCreated()
+            ->assertJsonPath('data.academic_year_id', $academicYear->id);
+
+        $shiftId = $response->json('data.id');
+
+        $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/shifts/{$shiftId}", ['academic_year_id' => $academicYear->id])
+            ->assertOk()
+            ->assertJsonPath('data.academic_year_id', $academicYear->id);
     }
 
     public function test_section_store_and_update_are_authorized(): void
