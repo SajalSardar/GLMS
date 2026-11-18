@@ -7,7 +7,6 @@ use App\Models\Book;
 use App\Models\Chapter;
 use App\Models\ChapterMaterial;
 use App\Models\ChapterVideo;
-use App\Models\ChapterVideoProgress;
 use App\Models\ClassVersion;
 use App\Models\Exam;
 use App\Models\ExamAttempt;
@@ -52,7 +51,7 @@ class LmsContentDemoSeeder extends Seeder
         $teacher = TeacherUser::where('email', 'teacher@tlap.test')->first();
         $studentUser = StudentUser::where('email', 'student@tlap.test')->first();
         $studentProfile = $studentUser ? StudentProfile::where('user_id', $studentUser->id)->first() : null;
-        $academicYear = AcademicYear::where('school_id', 1)->where('is_current', true)->first();
+        $academicYear = AcademicYear::where('is_current', true)->first();
 
         if (! $class || ! $teacher || ! $studentProfile || ! $academicYear) {
             return;
@@ -117,8 +116,6 @@ class LmsContentDemoSeeder extends Seeder
         $book = Book::updateOrCreate(
             ['class_version_id' => $version->id, 'subject_id' => $subject->id, 'name' => $bookName],
             [
-                'school_id' => $version->school_id,
-                'district_id' => $version->district_id,
                 'order_index' => 1,
                 'description' => "NCTB-aligned {$subjectName} textbook for Class 6.",
                 'is_active' => true,
@@ -136,8 +133,6 @@ class LmsContentDemoSeeder extends Seeder
         return collect($chapterDefinitions)->values()->map(fn (array $definition, int $index) => Chapter::updateOrCreate(
             ['book_id' => $book->id, 'name' => $definition['name']],
             [
-                'school_id' => $book->school_id,
-                'district_id' => $book->district_id,
                 'order_index' => $index + 1,
                 'chapter_number' => 'Chapter '.($index + 1),
                 'bn_chapter_number' => 'অধ্যায় '.($index + 1),
@@ -152,8 +147,6 @@ class LmsContentDemoSeeder extends Seeder
         ChapterMaterial::updateOrCreate(
             ['chapter_id' => $chapter->id, 'type' => 'primary', 'title' => "{$chapter->name} — Lecture Notes"],
             [
-                'school_id' => $chapter->school_id,
-                'district_id' => $chapter->district_id,
                 'original_filename' => 'lecture-notes.pdf',
                 'stored_path' => "demo/materials/chapter-{$chapter->id}-notes.pdf",
                 'disk' => 'local',
@@ -168,8 +161,6 @@ class LmsContentDemoSeeder extends Seeder
         ChapterMaterial::updateOrCreate(
             ['chapter_id' => $chapter->id, 'type' => 'supplementary', 'title' => "{$chapter->name} — Practice Worksheet"],
             [
-                'school_id' => $chapter->school_id,
-                'district_id' => $chapter->district_id,
                 'original_filename' => 'practice-worksheet.pdf',
                 'stored_path' => "demo/materials/chapter-{$chapter->id}-worksheet.pdf",
                 'disk' => 'local',
@@ -186,11 +177,9 @@ class LmsContentDemoSeeder extends Seeder
             ['youtube_video_id' => 'DemoDeepDv1', 'title' => "{$chapter->name} — Worked Examples", 'duration_seconds' => 900],
         ];
 
-        $createdVideos = collect($videos)->values()->map(fn (array $video, int $index) => ChapterVideo::updateOrCreate(
+        collect($videos)->values()->each(fn (array $video, int $index) => ChapterVideo::updateOrCreate(
             ['chapter_id' => $chapter->id, 'youtube_video_id' => $video['youtube_video_id']],
             [
-                'school_id' => $chapter->school_id,
-                'district_id' => $chapter->district_id,
                 'title' => $video['title'],
                 'instructor_name' => 'Teacher',
                 'duration_seconds' => $video['duration_seconds'],
@@ -199,30 +188,6 @@ class LmsContentDemoSeeder extends Seeder
                 'is_enabled' => true,
             ],
         ));
-
-        // The first video: fully watched. The second: half-watched.
-        $firstVideo = $createdVideos->first();
-        $secondVideo = $createdVideos->get(1);
-
-        ChapterVideoProgress::updateOrCreate(
-            ['chapter_video_id' => $firstVideo->id, 'user_id' => $studentProfile->user_id],
-            [
-                'status' => 'completed',
-                'max_position_seconds' => $firstVideo->duration_seconds,
-                'started_at' => now()->subDays(3),
-                'completed_at' => now()->subDays(3)->addMinutes(10),
-            ],
-        );
-
-        ChapterVideoProgress::updateOrCreate(
-            ['chapter_video_id' => $secondVideo->id, 'user_id' => $studentProfile->user_id],
-            [
-                'status' => 'in_progress',
-                'max_position_seconds' => intdiv($secondVideo->duration_seconds, 2),
-                'started_at' => now()->subDay(),
-                'completed_at' => null,
-            ],
-        );
     }
 
     /**
@@ -236,7 +201,7 @@ class LmsContentDemoSeeder extends Seeder
     {
         $question1 = Question::updateOrCreate(
             ['chapter_id' => $chapter->id, 'question_text' => "{$chapter->name}: which option is correct? (single choice)"],
-            ['school_id' => $chapter->school_id, 'district_id' => $chapter->district_id, 'question_type' => 'mcq_single', 'marks' => 2, 'difficulty' => 'easy', 'order_index' => 1],
+            ['question_type' => 'mcq_single', 'marks' => 2, 'difficulty' => 'easy', 'order_index' => 1],
         );
         $this->syncOptions($question1, [
             ['text' => 'Option A', 'correct' => true],
@@ -247,7 +212,7 @@ class LmsContentDemoSeeder extends Seeder
 
         $question2 = Question::updateOrCreate(
             ['chapter_id' => $chapter->id, 'question_text' => "{$chapter->name}: which options are correct? (select all that apply)"],
-            ['school_id' => $chapter->school_id, 'district_id' => $chapter->district_id, 'question_type' => 'mcq_multiple', 'marks' => 3, 'difficulty' => 'medium', 'order_index' => 2],
+            ['question_type' => 'mcq_multiple', 'marks' => 3, 'difficulty' => 'medium', 'order_index' => 2],
         );
         $this->syncOptions($question2, [
             ['text' => 'Option A', 'correct' => true],
@@ -258,7 +223,7 @@ class LmsContentDemoSeeder extends Seeder
 
         $question3 = Question::updateOrCreate(
             ['chapter_id' => $chapter->id, 'question_text' => "{$chapter->name}: true or false statement."],
-            ['school_id' => $chapter->school_id, 'district_id' => $chapter->district_id, 'question_type' => 'true_false', 'marks' => 1, 'difficulty' => 'hard', 'order_index' => 3],
+            ['question_type' => 'true_false', 'marks' => 1, 'difficulty' => 'hard', 'order_index' => 3],
         );
         $this->syncOptions($question3, [
             ['text' => 'True', 'correct' => true],
