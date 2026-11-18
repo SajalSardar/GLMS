@@ -161,6 +161,7 @@ function AdoptedClassesPanel({
   const [adopting, setAdopting] = useState(false)
   const [removingId, setRemovingId] = useState<number | null>(null)
   const [removeError, setRemoveError] = useState<string | null>(null)
+  const [removeErrorId, setRemoveErrorId] = useState<number | null>(null)
   const [managingId, setManagingId] = useState<number | null>(null)
   const [checkedSubjectIds, setCheckedSubjectIds] = useState<Set<number>>(new Set())
   const [savingSubjects, setSavingSubjects] = useState(false)
@@ -201,6 +202,7 @@ function AdoptedClassesPanel({
 
     setRemovingId(id)
     setRemoveError(null)
+    setRemoveErrorId(null)
     try {
       await deleteClassSchool(id, token)
       setRemovingId(null)
@@ -209,6 +211,7 @@ function AdoptedClassesPanel({
     } catch (error) {
       const message = error instanceof ApiError ? error.message : String(error)
       setRemoveError(message)
+      setRemoveErrorId(id)
       showToast({ type: 'error', message })
     } finally {
       setRemovingId(null)
@@ -284,7 +287,7 @@ function AdoptedClassesPanel({
                   </div>
                 </div>
 
-                {removeError && removingId === classSchool.id && (
+                {removeError && removeErrorId === classSchool.id && (
                   <p className="text-xs text-danger-500">{removeError}</p>
                 )}
 
