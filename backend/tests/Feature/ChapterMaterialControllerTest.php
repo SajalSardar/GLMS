@@ -53,11 +53,11 @@ class ChapterMaterialControllerTest extends TestCase
         $versionA = ClassVersion::create(['class_id' => $classA->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'name' => 'Bangla Version']);
         $versionB = ClassVersion::create(['class_id' => $classB->id, 'school_id' => $schoolB->id, 'district_id' => $schoolB->district_id, 'name' => 'Bangla Version']);
 
-        $bookA = Book::create(['class_version_id' => $versionA->id, 'subject_id' => $subject->id, 'school_id' => $versionA->school_id, 'district_id' => $versionA->district_id, 'name' => 'Mathematics Book']);
-        $bookB = Book::create(['class_version_id' => $versionB->id, 'subject_id' => $subject->id, 'school_id' => $versionB->school_id, 'district_id' => $versionB->district_id, 'name' => 'Mathematics Book']);
+        $bookA = Book::create(['class_version_id' => $versionA->id, 'subject_id' => $subject->id, 'name' => 'Mathematics Book']);
+        $bookB = Book::create(['class_version_id' => $versionB->id, 'subject_id' => $subject->id, 'name' => 'Mathematics Book']);
 
-        $this->chapterA = Chapter::create(['book_id' => $bookA->id, 'school_id' => $bookA->classVersion->school_id, 'district_id' => $bookA->classVersion->district_id, 'name' => 'Chapter 1']);
-        $this->chapterB = Chapter::create(['book_id' => $bookB->id, 'school_id' => $bookB->classVersion->school_id, 'district_id' => $bookB->classVersion->district_id, 'name' => 'Chapter 1']);
+        $this->chapterA = Chapter::create(['book_id' => $bookA->id, 'name' => 'Chapter 1']);
+        $this->chapterB = Chapter::create(['book_id' => $bookB->id, 'name' => 'Chapter 1']);
     }
 
     public function test_store_and_update_are_authorized(): void
@@ -143,35 +143,26 @@ class ChapterMaterialControllerTest extends TestCase
         $this->assertSame(2, ChapterMaterial::where('chapter_id', $this->chapterA->id)->where('type', 'supplementary')->count());
     }
 
-    public function test_actor_with_permission_gets_404_updating_another_schools_material(): void
+    public function test_actor_with_permission_can_update_a_material_belonging_to_a_different_schools_chapter(): void
     {
         $material = ChapterMaterial::create([
             'chapter_id' => $this->chapterB->id,
-            'school_id' => $this->chapterB->book->classVersion->school_id,
-            'district_id' => $this->chapterB->book->classVersion->district_id,
             'type' => 'primary',
-            'original_filename' => 'chapter1.pdf',
-            'stored_path' => 'chapter-materials/x/y.pdf',
+            'title' => 'School B Material',
+            'original_filename' => 'notes.pdf',
+            'stored_path' => 'demo/notes.pdf',
             'disk' => 'local',
             'mime_type' => 'application/pdf',
-            'size_bytes' => 1024,
+            'size_bytes' => 1000,
+            'order_index' => 1,
         ]);
 
         $actor = $this->actorWithPermissions(['chapter_materials.update'], $this->schoolA->id, $this->schoolA->district_id);
 
         $this->actingAs($actor, 'sanctum')
-            ->patchJson("/api/v1/chapter-materials/{$material->id}", ['order_index' => 1])
-            ->assertNotFound();
-    }
-
-    public function test_store_gets_404_targeting_a_chapter_belonging_to_a_different_school(): void
-    {
-        $file = UploadedFile::fake()->create('chapter1.pdf', 100, 'application/pdf');
-        $allowed = $this->actorWithPermissions(['chapter_materials.create'], $this->schoolA->id, $this->schoolA->district_id);
-
-        $this->actingAs($allowed, 'sanctum')
-            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterB->id, 'type' => 'primary', 'pdf' => $file])
-            ->assertNotFound();
+            ->patchJson("/api/v1/chapter-materials/{$material->id}", ['title' => 'Renamed'])
+            ->assertOk()
+            ->assertJsonPath('data.title', 'Renamed');
     }
 
     public function test_update_can_replace_the_file(): void

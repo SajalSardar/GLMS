@@ -79,7 +79,7 @@ class RolePermissionSeeder extends Seeder
                 'class_versions.view', 'shifts.view', 'sections.view', 'subject_teacher_assignments.view',
                 'subjects.view', 'subjects.create', 'subjects.update',
                 'chapter_videos.view', 'chapter_videos.create', 'chapter_videos.update',
-                'chapter_materials.view', 'chapter_materials.create', 'chapter_materials.update',
+                'chapter_materials.view',
                 'books.view',
                 'chapters.view',
                 'questions.view', 'questions.create', 'questions.update',
