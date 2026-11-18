@@ -145,6 +145,37 @@ class StudentProfileAuthorizationTest extends TestCase
             ->assertJsonPath('data.district_id', $studentUser->district_id);
     }
 
+    /**
+     * Regression/coverage test: StudentProfileController::assertClassBelongsToSchool()
+     * must reject a class_id the student's school hasn't adopted via
+     * class_schools, on both store() and update(), with a 422 (not a 403
+     * or 500) — this is a business-rule validation, not an authorization
+     * decision.
+     */
+    public function test_store_and_update_reject_a_class_id_not_adopted_by_the_students_school(): void
+    {
+        $unadoptedClass = SchoolClass::create(['name' => 'Unadopted Class']);
+
+        $newTargetUser = StudentUser::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
+        $existingTargetUser = StudentUser::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
+        $profile = StudentProfile::create([
+            'user_id' => $existingTargetUser->id,
+            'school_id' => $this->school->id,
+            'district_id' => $this->school->district_id,
+            'section_id' => $this->section->id,
+        ]);
+
+        $allowed = $this->actorWithPermissions(['student_profiles.create', 'student_profiles.update'], $this->school->id, $this->school->district_id);
+
+        $this->actingAs($allowed, 'sanctum')
+            ->postJson('/api/v1/student-profiles', ['user_id' => $newTargetUser->id, 'class_id' => $unadoptedClass->id])
+            ->assertStatus(422);
+
+        $this->actingAs($allowed, 'sanctum')
+            ->patchJson("/api/v1/student-profiles/{$profile->id}", ['class_id' => $unadoptedClass->id])
+            ->assertStatus(422);
+    }
+
     public function test_index_can_be_filtered_by_user_id(): void
     {
         $studentA = StudentUser::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);

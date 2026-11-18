@@ -20,11 +20,6 @@ class SchoolClass extends Model
         'numeric_level',
     ];
 
-    public function subjects(): BelongsToMany
-    {
-        return $this->belongsToMany(Subject::class, 'class_subjects', 'class_id', 'subject_id');
-    }
-
     public function studentProfiles(): HasMany
     {
         return $this->hasMany(StudentProfile::class, 'class_id');

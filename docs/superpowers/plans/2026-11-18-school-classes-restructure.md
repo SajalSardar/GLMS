@@ -18,7 +18,7 @@
 - This app has no `/schools/{school}/...` nested-route convention anywhere (confirmed in `routes/api.php`) — the new `class_schools` resource is a flat top-level resource (`/class-schools`), matching `/class-versions`, `/shifts`, `/sections`.
 - Follow this repo's migration convention: explicit `dropForeign(['col'])` + `dropColumn('col')` for drops; `$table->foreignId('col')->constrained()->cascadeOnDelete()` for adds.
 - Run `vendor/bin/pint --dirty --format agent` after modifying any PHP file in each task, before committing.
-- No frontend work in this plan (deferred to sub-project 4, which must explicitly pick up `ClassesPage.tsx`).
+- No frontend work in this plan (deferred to sub-project 4, which must explicitly pick up `ClassesPage.tsx`, `ClassVersionsPage.tsx` — now a hard break: it posts only `{class_id, name}` with no `school_id`, so every class-version creation will 403 once this branch merges, since `StoreClassVersionRequest::authorize()` requires `school_id` — and `StudentDetailPage.tsx`, whose class picker is now fed by the unfiltered national class list, so a user could pick a class their school hasn't adopted, which now 422s. More broadly, `GET /api/v1/classes` dropped its `school_id`/`district_id` query-param filters entirely, so any frontend code relying on implicit per-school filtering there needs to go through `/class-schools?school_id=` instead — this affects more of the frontend surface than just these three pages).
 
 ---
 

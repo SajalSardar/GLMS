@@ -297,8 +297,19 @@ patching:
 - Any frontend change (management or student) — deferred to sub-project 4,
   which must explicitly pick up `ClassesPage.tsx` (currently has a
   `school_id` required field and a school filter that will both silently
-  stop working against the new API) in addition to whatever else that
-  sub-project already covers.
+  stop working against the new API), `ClassVersionsPage.tsx` (now a hard
+  break: it posts only `{class_id, name}` with no `school_id`, so every
+  class-version creation will 403 once this branch merges, since
+  `StoreClassVersionRequest::authorize()` requires `school_id`), and
+  `StudentDetailPage.tsx` (its class picker is now fed by the unfiltered
+  national class list, so a user could pick a class their school hasn't
+  adopted, which now 422s) — in addition to whatever else that
+  sub-project already covers. More broadly, `GET /api/v1/classes` dropped
+  its `school_id`/`district_id` query-param filters entirely (it's the
+  national list now), so any frontend code that relied on implicit
+  per-school filtering there needs to go through `/class-schools?school_id=`
+  instead — this affects more of the frontend surface than just the three
+  pages named above.
 - `ClassVersion`, `Shift`, `Section` schema — these remain school-owned,
   untouched by this sub-project (only their *validation logic* against the
   new `class_schools` gate changes, not their own columns).

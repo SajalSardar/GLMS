@@ -14,6 +14,7 @@ use App\Models\SubjectTeacherAssignment;
 use App\Models\TeacherUser;
 use App\Models\Upazila;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\Concerns\CreatesAuthorizedActors;
 use Tests\TestCase;
 
@@ -64,7 +65,13 @@ class TeacherDomainFkAssignmentTest extends TestCase
         $subject = Subject::create(['name' => 'Math']);
         // class_subjects.school_id is NOT NULL as of
         // 2026_11_19_100100_add_school_id_to_class_subjects_table.php.
-        $class->subjects()->attach($subject->id, ['school_id' => $school->id]);
+        DB::table('class_subjects')->insert([
+            'class_id' => $class->id,
+            'subject_id' => $subject->id,
+            'school_id' => $school->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
         $classVersion->subjects()->attach($subject->id);
 
         $teacher = TeacherUser::factory()->create(['school_id' => $school->id, 'district_id' => $school->district_id]);
@@ -116,8 +123,20 @@ class TeacherDomainFkAssignmentTest extends TestCase
         $subject = Subject::create(['name' => 'Math']);
         // class_subjects.school_id is NOT NULL as of
         // 2026_11_19_100100_add_school_id_to_class_subjects_table.php.
-        $classA->subjects()->attach($subject->id, ['school_id' => $school->id]);
-        $classB->subjects()->attach($subject->id, ['school_id' => $school->id]);
+        DB::table('class_subjects')->insert([
+            'class_id' => $classA->id,
+            'subject_id' => $subject->id,
+            'school_id' => $school->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('class_subjects')->insert([
+            'class_id' => $classB->id,
+            'subject_id' => $subject->id,
+            'school_id' => $school->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
         $versionA->subjects()->attach($subject->id);
         $versionB->subjects()->attach($subject->id);
 

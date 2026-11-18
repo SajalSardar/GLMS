@@ -17,6 +17,7 @@ use App\Models\SubjectTeacherAssignment;
 use App\Models\TeacherUser;
 use App\Models\Upazila;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\Concerns\CreatesAuthorizedActors;
 use Tests\TestCase;
 
@@ -80,7 +81,13 @@ class RoutineAssignmentTimetableAuthorizationTest extends TestCase
         $this->subject = Subject::create(['name' => 'Math']);
         // class_subjects.school_id is NOT NULL as of
         // 2026_11_19_100100_add_school_id_to_class_subjects_table.php.
-        $this->class->subjects()->attach($this->subject->id, ['school_id' => $this->school->id]);
+        DB::table('class_subjects')->insert([
+            'class_id' => $this->class->id,
+            'subject_id' => $this->subject->id,
+            'school_id' => $this->school->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
         $classVersion->subjects()->attach($this->subject->id);
 
         $this->teacher = TeacherUser::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
@@ -221,7 +228,13 @@ class RoutineAssignmentTimetableAuthorizationTest extends TestCase
         ]);
 
         ClassSchool::create(['class_id' => $this->class->id, 'school_id' => $schoolB->id, 'district_id' => $schoolB->district_id]);
-        $this->class->subjects()->attach($this->subject->id, ['school_id' => $schoolB->id]);
+        DB::table('class_subjects')->insert([
+            'class_id' => $this->class->id,
+            'subject_id' => $this->subject->id,
+            'school_id' => $schoolB->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
         $allowed = $this->actorWithPermissions(['class_routines.create']);
 
@@ -239,6 +252,32 @@ class RoutineAssignmentTimetableAuthorizationTest extends TestCase
         $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/class-routines', $payload)
             ->assertCreated()
             ->assertJsonPath('data.school_id', $schoolB->id);
+    }
+
+    /**
+     * Regression test: StoreClassRoutineRequest::authorize() used to
+     * resolve a ClassSchool row and return false (-> 403) when the
+     * (class_id, school_id) pair hadn't adopted this class, which made
+     * withValidator()'s 422 check for the exact same condition
+     * unreachable. authorize() now resolves the school directly, so an
+     * actor who otherwise has class_routines.create and is scoped to
+     * school_id sees the business-rule 422, not a 403.
+     */
+    public function test_class_routine_store_rejects_a_class_school_pair_missing_from_class_schools(): void
+    {
+        $unadoptedClass = SchoolClass::create(['name' => 'Unadopted Class']);
+
+        $allowed = $this->actorWithPermissions(['class_routines.create'], $this->school->id, $this->school->district_id);
+
+        $payload = [
+            'class_id' => $unadoptedClass->id,
+            'school_id' => $this->school->id,
+            'subject_id' => $this->subject->id,
+            'day_of_week' => 'saturday',
+            'period_no' => 1,
+        ];
+
+        $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/class-routines', $payload)->assertStatus(422);
     }
 
     public function test_subject_teacher_assignment_store_and_update_are_authorized(): void

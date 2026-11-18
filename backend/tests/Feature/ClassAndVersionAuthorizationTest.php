@@ -81,4 +81,46 @@ class ClassAndVersionAuthorizationTest extends TestCase
             ->assertJsonPath('data.updated_by_id', $allowed->id);
         $this->actingAs($allowed, 'sanctum')->putJson("/api/v1/class-versions/{$version->id}/subjects", ['subjects' => [['subject_id' => $subject->id]]])->assertOk();
     }
+
+    /**
+     * Regression test: StoreClassVersionRequest::authorize() used to
+     * resolve a ClassSchool row and return false (-> 403) when the
+     * (class_id, school_id) pair hadn't adopted this class, which made
+     * withValidator()'s 422 check for the exact same condition
+     * unreachable. authorize() now resolves the school directly, so an
+     * actor who otherwise has class_versions.create and is scoped to
+     * school_id sees the business-rule 422, not a 403.
+     */
+    public function test_class_version_store_rejects_a_class_school_pair_missing_from_class_schools(): void
+    {
+        $unadoptedClass = SchoolClass::create(['name' => 'Unadopted Class']);
+
+        $allowed = $this->actorWithPermissions(['class_versions.create'], $this->school->id, $this->school->district_id);
+
+        $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/class-versions', [
+            'class_id' => $unadoptedClass->id,
+            'school_id' => $this->school->id,
+            'name' => 'New Version',
+        ])->assertStatus(422);
+    }
+
+    /**
+     * Regression test: ClassController::destroy() must block deleting a
+     * (national) class while any school still has it adopted via
+     * class_schools — deleting it now orphans every adopting school at
+     * once, not just one.
+     */
+    public function test_class_destroy_is_blocked_while_a_class_school_assignment_exists(): void
+    {
+        $class = SchoolClass::create(['name' => 'Adopted Class']);
+        $assignment = ClassSchool::create(['class_id' => $class->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
+
+        $allowed = $this->actorWithPermissions(['classes.delete']);
+
+        $this->actingAs($allowed, 'sanctum')->deleteJson("/api/v1/classes/{$class->id}")->assertStatus(422);
+
+        $assignment->delete();
+
+        $this->actingAs($allowed, 'sanctum')->deleteJson("/api/v1/classes/{$class->id}")->assertNoContent();
+    }
 }

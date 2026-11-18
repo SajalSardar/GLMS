@@ -23,7 +23,6 @@ class ClassResource extends JsonResource
             'name' => $this->name,
             'bn_name' => $this->bn_name,
             'numeric_level' => $this->numeric_level,
-            'subjects' => SubjectResource::collection($this->whenLoaded('subjects')),
         ];
     }
 }

@@ -38,11 +38,7 @@ class ClassSchoolControllerTest extends TestCase
         $this->schoolA = School::create(['division_id' => $division->id, 'district_id' => $districtA->id, 'upazila_id' => $upazilaA->id, 'name' => 'School A']);
         $this->schoolB = School::create(['division_id' => $division->id, 'district_id' => $districtB->id, 'upazila_id' => $upazilaB->id, 'name' => 'School B']);
 
-        // school_classes still requires school_id/district_id (NOT NULL,
-        // FK-constrained) at this point in the plan — unchanged by this
-        // task. Which school "owns" the school_classes row is irrelevant
-        // to class_schools, a separate table this test exercises.
-        $this->classSix = SchoolClass::create(['school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'name' => 'Class Six', 'numeric_level' => 6]);
+        $this->classSix = SchoolClass::create(['name' => 'Class Six', 'numeric_level' => 6]);
     }
 
     public function test_store_and_destroy_are_authorized(): void
@@ -66,6 +62,25 @@ class ClassSchoolControllerTest extends TestCase
             ->assertNoContent();
 
         $this->assertDatabaseMissing('class_schools', ['id' => $classSchoolId]);
+    }
+
+    /**
+     * Regression test: StoreClassSchoolRequest::authorize() used to only
+     * check can('create', ClassSchool::class) with no school resolved —
+     * the only thing stopping a school-A actor from creating an
+     * assignment for school B was the controller's
+     * School::findOrFail($request->integer('school_id')) happening to run
+     * under School's own TenantScope, which produced a confusing 404
+     * rather than an intentional 403. authorize() now resolves the school
+     * directly, so this is an explicit 403.
+     */
+    public function test_store_rejects_an_assignment_for_a_school_the_actor_is_not_scoped_to(): void
+    {
+        $allowed = $this->actorWithPermissions(['class_schools.create'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $this->actingAs($allowed, 'sanctum')
+            ->postJson('/api/v1/class-schools', ['class_id' => $this->classSix->id, 'school_id' => $this->schoolB->id])
+            ->assertForbidden();
     }
 
     public function test_index_is_tenant_scoped(): void

@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api\V1;
 
 use App\Models\ClassSchool;
 use App\Models\ClassVersion;
+use App\Models\School;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -16,11 +17,9 @@ class StoreClassVersionRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        $classSchool = ClassSchool::where('class_id', $this->integer('class_id'))
-            ->where('school_id', $this->integer('school_id'))
-            ->first();
+        $school = School::find($this->integer('school_id'));
 
-        return $classSchool !== null && ($this->user()?->can('create', [ClassVersion::class, $classSchool->school]) ?? false);
+        return $school !== null && ($this->user()?->can('create', [ClassVersion::class, $school]) ?? false);
     }
 
     /**
