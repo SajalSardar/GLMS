@@ -2,20 +2,30 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   ApiError,
+  createClassSchool,
+  deleteClassSchool,
   getSchool,
   listClasses,
+  listClassSchools,
   listClassVersions,
   listShifts,
   listSections,
+  listSubjects,
+  updateClassSchoolSubjects,
+  type ClassSchool,
   type ClassVersion,
   type School,
   type SchoolClass,
   type Section,
   type Shift,
+  type Subject,
 } from '@ttla/api-client'
+import { useAuth } from '@ttla/auth'
 import { getCommonStrings } from '@ttla/i18n'
+import SearchableSelect from '../components/SearchableSelect'
 import { SCHOOL_LEVELS, SCHOOL_TYPES } from '../components/schoolOptions'
-import { buttonNeutral } from '../components/styles'
+import { buttonNeutral, buttonPrimary } from '../components/styles'
+import { useToast, ToastViewport } from '../components/Toast'
 
 const t = getCommonStrings('en')
 
@@ -28,24 +38,25 @@ interface HierarchyRow {
 }
 
 function buildHierarchyRows(
-  classes: SchoolClass[],
+  classSchools: ClassSchool[],
   versions: ClassVersion[],
   shifts: Shift[],
   sections: Section[],
 ): HierarchyRow[] {
   const rows: HierarchyRow[] = []
 
-  const sortedClasses = [...classes].sort(
-    (a, b) => (a.numeric_level ?? 0) - (b.numeric_level ?? 0) || a.name.localeCompare(b.name),
+  const sortedClassSchools = [...classSchools].sort(
+    (a, b) => (a.class?.numeric_level ?? 0) - (b.class?.numeric_level ?? 0) || (a.class?.name ?? '').localeCompare(b.class?.name ?? ''),
   )
 
-  for (const schoolClass of sortedClasses) {
-    const classVersions = versions.filter((version) => version.class_id === schoolClass.id)
+  for (const classSchool of sortedClassSchools) {
+    const className = classSchool.class?.name ?? '—'
+    const classVersions = versions.filter((version) => version.class_id === classSchool.class_id)
 
     if (classVersions.length === 0) {
       rows.push({
-        key: `c${schoolClass.id}`,
-        className: schoolClass.name,
+        key: `c${classSchool.id}`,
+        className,
         versionName: '—',
         shiftName: '—',
         sectionName: '—',
@@ -59,7 +70,7 @@ function buildHierarchyRows(
       if (versionShifts.length === 0) {
         rows.push({
           key: `v${version.id}`,
-          className: schoolClass.name,
+          className,
           versionName: version.name,
           shiftName: '—',
           sectionName: '—',
@@ -74,7 +85,7 @@ function buildHierarchyRows(
 
         rows.push({
           key: `sh${shift.id}`,
-          className: schoolClass.name,
+          className,
           versionName: version.name,
           shiftName: shift.name,
           sectionName: shiftSections.length > 0 ? shiftSections.map((section) => section.name).join(', ') : '—',
@@ -132,11 +143,222 @@ function SchoolInfo({ school }: { school: School }) {
   )
 }
 
+function AdoptedClassesPanel({
+  schoolId,
+  classSchools,
+  onChanged,
+}: {
+  schoolId: number
+  classSchools: ClassSchool[]
+  onChanged: () => void
+}) {
+  const { token } = useAuth()
+  const { toast, showToast } = useToast()
+
+  const [allClasses, setAllClasses] = useState<SchoolClass[]>([])
+  const [allSubjects, setAllSubjects] = useState<Subject[]>([])
+  const [adoptClassId, setAdoptClassId] = useState('')
+  const [adopting, setAdopting] = useState(false)
+  const [removingId, setRemovingId] = useState<number | null>(null)
+  const [removeError, setRemoveError] = useState<string | null>(null)
+  const [managingId, setManagingId] = useState<number | null>(null)
+  const [checkedSubjectIds, setCheckedSubjectIds] = useState<Set<number>>(new Set())
+  const [savingSubjects, setSavingSubjects] = useState(false)
+
+  useEffect(() => {
+    listClasses({ perPage: 500 })
+      .then((result) => setAllClasses(result.data))
+      .catch(() => setAllClasses([]))
+
+    listSubjects({ perPage: 200 })
+      .then((result) => setAllSubjects(result.data))
+      .catch(() => setAllSubjects([]))
+  }, [])
+
+  const adoptedClassIds = new Set(classSchools.map((classSchool) => classSchool.class_id))
+  const adoptableOptions = allClasses
+    .filter((schoolClass) => !adoptedClassIds.has(schoolClass.id))
+    .map((schoolClass) => ({ value: String(schoolClass.id), label: schoolClass.name }))
+
+  async function handleAdopt() {
+    if (!token || !adoptClassId) return
+
+    setAdopting(true)
+    try {
+      await createClassSchool({ class_id: Number(adoptClassId), school_id: schoolId }, token)
+      setAdoptClassId('')
+      showToast({ type: 'success', message: t['management.schoolDetail.classAdopted'] })
+      onChanged()
+    } catch (error) {
+      showToast({ type: 'error', message: error instanceof ApiError ? error.message : String(error) })
+    } finally {
+      setAdopting(false)
+    }
+  }
+
+  async function handleRemove(id: number) {
+    if (!token) return
+
+    setRemovingId(id)
+    setRemoveError(null)
+    try {
+      await deleteClassSchool(id, token)
+      setRemovingId(null)
+      showToast({ type: 'success', message: t['management.schoolDetail.classRemoved'] })
+      onChanged()
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : String(error)
+      setRemoveError(message)
+      showToast({ type: 'error', message })
+    } finally {
+      setRemovingId(null)
+    }
+  }
+
+  function openManageSubjects(classSchool: ClassSchool) {
+    setManagingId(classSchool.id)
+    setCheckedSubjectIds(new Set((classSchool.subjects ?? []).map((subject) => subject.id)))
+  }
+
+  function toggleSubject(subjectId: number) {
+    setCheckedSubjectIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(subjectId)) {
+        next.delete(subjectId)
+      } else {
+        next.add(subjectId)
+      }
+      return next
+    })
+  }
+
+  async function handleSaveSubjects() {
+    if (!token || managingId === null) return
+
+    setSavingSubjects(true)
+    try {
+      await updateClassSchoolSubjects(managingId, [...checkedSubjectIds], token)
+      setManagingId(null)
+      showToast({ type: 'success', message: t['management.schoolDetail.subjectsSaved'] })
+      onChanged()
+    } catch (error) {
+      showToast({ type: 'error', message: error instanceof ApiError ? error.message : String(error) })
+    } finally {
+      setSavingSubjects(false)
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <h3 className="text-base font-semibold text-gray-800">{t['management.schoolDetail.adoptedClasses']}</h3>
+
+      <div className="rounded-md bg-white p-5 shadow-sm">
+        {classSchools.length === 0 ? (
+          <p className="text-sm text-gray-500">{t['management.schoolDetail.noAdoptedClasses']}</p>
+        ) : (
+          <ul className="divide-y divide-gray-100">
+            {classSchools.map((classSchool) => (
+              <li key={classSchool.id} className="flex flex-col gap-2 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-medium text-gray-800">{classSchool.class?.name ?? classSchool.class_id}</span>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      className="cursor-pointer text-sm text-primary-600 hover:underline"
+                      onClick={() => openManageSubjects(classSchool)}
+                    >
+                      {t['management.schoolDetail.manageSubjects']}
+                    </button>
+                    <button
+                      type="button"
+                      className="cursor-pointer text-sm text-danger-500 hover:underline disabled:opacity-60"
+                      disabled={removingId === classSchool.id}
+                      onClick={() => {
+                        if (window.confirm(t['management.schoolDetail.removeClassConfirm'])) {
+                          handleRemove(classSchool.id)
+                        }
+                      }}
+                    >
+                      {t['management.schoolDetail.removeClass']}
+                    </button>
+                  </div>
+                </div>
+
+                {removeError && removingId === classSchool.id && (
+                  <p className="text-xs text-danger-500">{removeError}</p>
+                )}
+
+                {managingId === classSchool.id && (
+                  <div className="rounded-md border border-gray-100 bg-gray-50 p-3">
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      {allSubjects.map((subject) => (
+                        <label key={subject.id} className="flex items-center gap-2 text-sm text-gray-700">
+                          <input
+                            type="checkbox"
+                            checked={checkedSubjectIds.has(subject.id)}
+                            onChange={() => toggleSubject(subject.id)}
+                          />
+                          {subject.name}
+                        </label>
+                      ))}
+                    </div>
+                    <div className="mt-3 flex justify-end gap-2">
+                      <button
+                        type="button"
+                        className="cursor-pointer text-sm text-gray-500 hover:underline"
+                        onClick={() => setManagingId(null)}
+                      >
+                        {t['management.table.cancel']}
+                      </button>
+                      <button
+                        type="button"
+                        className={buttonPrimary}
+                        disabled={savingSubjects}
+                        onClick={handleSaveSubjects}
+                      >
+                        {savingSubjects ? t['management.table.saving'] : t['management.table.save']}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <div className="mt-4 flex items-end gap-3 border-t border-gray-100 pt-4">
+          <div className="w-full sm:w-64">
+            <SearchableSelect
+              value={adoptClassId}
+              onChange={setAdoptClassId}
+              placeholder={t['management.schoolDetail.adoptClassPlaceholder']}
+              searchPlaceholder={t['management.table.search']}
+              noMatchesLabel={t['management.table.noMatches']}
+              options={adoptableOptions}
+            />
+          </div>
+          <button
+            type="button"
+            className={buttonPrimary}
+            disabled={!adoptClassId || adopting}
+            onClick={handleAdopt}
+          >
+            {adopting ? t['management.table.saving'] : t['management.schoolDetail.adopt']}
+          </button>
+        </div>
+      </div>
+
+      <ToastViewport toast={toast} />
+    </div>
+  )
+}
+
 export default function SchoolDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
 
   const [school, setSchool] = useState<School | null>(null)
+  const [classSchools, setClassSchools] = useState<ClassSchool[]>([])
   const [rows, setRows] = useState<HierarchyRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -147,15 +369,16 @@ export default function SchoolDetailPage() {
 
     Promise.all([
       getSchool(schoolId),
-      listClasses({ schoolId, perPage: 500 }),
+      listClassSchools({ schoolId, perPage: 500 }),
       listClassVersions({ schoolId, perPage: 500 }),
       listShifts({ schoolId, perPage: 500 }),
       listSections({ schoolId, perPage: 500 }),
     ])
-      .then(([schoolResult, classesResult, versionsResult, shiftsResult, sectionsResult]) => {
+      .then(([schoolResult, classSchoolsResult, versionsResult, shiftsResult, sectionsResult]) => {
         setSchool(schoolResult.data)
+        setClassSchools(classSchoolsResult.data)
         setRows(
-          buildHierarchyRows(classesResult.data, versionsResult.data, shiftsResult.data, sectionsResult.data),
+          buildHierarchyRows(classSchoolsResult.data, versionsResult.data, shiftsResult.data, sectionsResult.data),
         )
       })
       .catch((caught: unknown) => {
@@ -237,6 +460,12 @@ export default function SchoolDetailPage() {
               </table>
             </div>
           </div>
+
+          <AdoptedClassesPanel
+            schoolId={school.id}
+            classSchools={classSchools}
+            onChanged={() => loadSchool(school.id)}
+          />
         </>
       )}
     </section>
