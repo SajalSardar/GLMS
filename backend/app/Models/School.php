@@ -6,6 +6,7 @@ use App\Models\Concerns\Auditable;
 use App\Models\Concerns\TenantScoped;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -50,9 +51,9 @@ class School extends Model
         return $this->hasMany(User::class);
     }
 
-    public function classes(): HasMany
+    public function classes(): BelongsToMany
     {
-        return $this->hasMany(SchoolClass::class);
+        return $this->belongsToMany(SchoolClass::class, 'class_schools', 'school_id', 'class_id');
     }
 
     public function classrooms(): HasMany

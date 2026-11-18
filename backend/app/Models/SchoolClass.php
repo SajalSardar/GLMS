@@ -54,4 +54,9 @@ class SchoolClass extends Model
     {
         return $this->hasMany(ClassVersion::class, 'class_id');
     }
+
+    public function schools(): BelongsToMany
+    {
+        return $this->belongsToMany(School::class, 'class_schools', 'class_id', 'school_id');
+    }
 }

@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\V1\ChapterVideoController;
 use App\Http\Controllers\Api\V1\ClassController;
 use App\Http\Controllers\Api\V1\ClassroomController;
 use App\Http\Controllers\Api\V1\ClassRoutineController;
+use App\Http\Controllers\Api\V1\ClassSchoolController;
 use App\Http\Controllers\Api\V1\ClassVersionController;
 use App\Http\Controllers\Api\V1\DistrictController;
 use App\Http\Controllers\Api\V1\DivisionController;
@@ -61,6 +62,7 @@ Route::prefix('v1')->group(function (): void {
     Route::apiResource('schools', SchoolController::class)->only(['index', 'show']);
     Route::apiResource('subjects', SubjectController::class)->only(['index', 'show']);
     Route::apiResource('classes', ClassController::class)->only(['index', 'show']);
+    Route::apiResource('class-schools', ClassSchoolController::class)->only(['index', 'show']);
     Route::apiResource('books', BookController::class)->only(['index', 'show']);
     Route::apiResource('chapters', ChapterController::class)->only(['index', 'show']);
     // Must be registered before the apiResource's wildcard {question} show
@@ -119,6 +121,7 @@ Route::prefix('v1')->group(function (): void {
 
         Route::apiResource('classes', ClassController::class)->only(['store', 'update', 'destroy']);
         Route::put('/classes/{class}/subjects', [ClassController::class, 'updateSubjects']);
+        Route::apiResource('class-schools', ClassSchoolController::class)->only(['store', 'destroy']);
 
         Route::apiResource('academic-years', AcademicYearController::class)->only(['store', 'update', 'destroy']);
         Route::patch('/academic-years/{academic_year}/set-current', [AcademicYearController::class, 'setCurrent']);
