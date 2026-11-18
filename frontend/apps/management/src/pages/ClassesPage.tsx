@@ -1,38 +1,24 @@
-import { useEffect, useState, type ReactNode } from 'react'
-import {
-  createClass,
-  deleteClass,
-  listClasses,
-  listSchools,
-  updateClass,
-  type School,
-  type SchoolClass,
-} from '@ttla/api-client'
+import { type ReactNode } from 'react'
+import { createClass, deleteClass, listClasses, updateClass, type SchoolClass } from '@ttla/api-client'
 import { getCommonStrings } from '@ttla/i18n'
 import GeoCrudTable, { GeoField, type GeoColumn } from '../components/GeoCrudTable'
-import SearchableSelect from '../components/SearchableSelect'
-import { schoolLabel } from '../components/schoolOptions'
 import { inputClass } from '../components/styles'
 
 const t = getCommonStrings('en')
 
 const initialValues = {
-  school_id: '',
   name: '',
   bn_name: '',
   numeric_level: '',
-  section: '',
 }
 
-const requiredFields = ['school_id', 'name']
+const requiredFields = ['name']
 
 function toPayload(values: Record<string, string>) {
   return {
-    school_id: Number(values.school_id),
     name: values.name,
     bn_name: values.bn_name || null,
     numeric_level: values.numeric_level ? Number(values.numeric_level) : null,
-    section: values.section || null,
   }
 }
 
@@ -55,22 +41,12 @@ function ClassDetails({ schoolClass }: { schoolClass: SchoolClass }) {
       <DetailRow label={t['management.fields.name']} value={schoolClass.name} />
       <DetailRow label={t['management.fields.bnName']} value={schoolClass.bn_name ?? '—'} />
       <DetailRow label={t['management.fields.numericLevel']} value={schoolClass.numeric_level ?? '—'} />
-      <DetailRow label={t['management.fields.section']} value={schoolClass.section ?? '—'} />
-      <DetailRow label={t['management.fields.school']} value={schoolClass.school?.name ?? schoolClass.school_id} />
       <DetailRow label={t['management.fields.subjects']} value={subjectsLabel} />
     </div>
   )
 }
 
 export default function ClassesPage() {
-  const [schools, setSchools] = useState<School[]>([])
-
-  useEffect(() => {
-    listSchools({ perPage: 200 })
-      .then((result) => setSchools(result.data))
-      .catch(() => setSchools([]))
-  }, [])
-
   const columns: GeoColumn<SchoolClass>[] = [
     { key: 'name', label: t['management.fields.name'], render: (row) => row.name },
     { key: 'bn_name', label: t['management.fields.bnName'], render: (row) => row.bn_name ?? '—' },
@@ -78,12 +54,6 @@ export default function ClassesPage() {
       key: 'numeric_level',
       label: t['management.fields.numericLevel'],
       render: (row) => row.numeric_level ?? '—',
-    },
-    { key: 'section', label: t['management.fields.section'], render: (row) => row.section ?? '—' },
-    {
-      key: 'school',
-      label: t['management.fields.school'],
-      render: (row) => row.school?.name ?? row.school_id,
     },
   ]
 
@@ -94,25 +64,12 @@ export default function ClassesPage() {
       initialValues={initialValues}
       requiredFields={requiredFields}
       valuesFromRow={(row) => ({
-        school_id: String(row.school_id),
         name: row.name,
         bn_name: row.bn_name ?? '',
         numeric_level: row.numeric_level != null ? String(row.numeric_level) : '',
-        section: row.section ?? '',
       })}
       renderFields={(values, onChange, fieldErrors) => (
         <>
-          <GeoField label={t['management.fields.school']} required error={fieldErrors.school_id}>
-            <SearchableSelect
-              value={values.school_id}
-              onChange={(next) => onChange('school_id', next)}
-              placeholder={t['management.fields.school']}
-              searchPlaceholder={t['management.table.search']}
-              noMatchesLabel={t['management.table.noMatches']}
-              options={schools.map((school) => ({ value: String(school.id), label: schoolLabel(school) }))}
-            />
-          </GeoField>
-
           <GeoField label={t['management.fields.name']} required error={fieldErrors.name}>
             <input
               className={inputClass}
@@ -139,26 +96,13 @@ export default function ClassesPage() {
               onChange={(event) => onChange('numeric_level', event.target.value)}
             />
           </GeoField>
-
-          <GeoField label={t['management.fields.section']} error={fieldErrors.section}>
-            <input
-              className={inputClass}
-              value={values.section}
-              onChange={(event) => onChange('section', event.target.value)}
-            />
-          </GeoField>
         </>
       )}
-      fetchPage={(page, filters) => listClasses({ page, search: filters.search, schoolId: filters.parentId })}
+      fetchPage={(page, filters) => listClasses({ page, search: filters.search })}
       createRow={(values, token) => createClass(toPayload(values), token)}
       updateRow={(id, values, token) => updateClass(id, toPayload(values), token)}
       deleteRow={(id, token) => deleteClass(id, token)}
       renderDetails={(row) => <ClassDetails schoolClass={row} />}
-      parentFilter={{
-        label: t['management.fields.school'],
-        allLabel: t['management.fields.allSchools'],
-        options: schools.map((school) => ({ id: school.id, label: schoolLabel(school) })),
-      }}
     />
   )
 }
