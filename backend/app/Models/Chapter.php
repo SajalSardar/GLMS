@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Models\Concerns\Auditable;
-use App\Models\Concerns\TenantScoped;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -11,12 +10,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Chapter extends Model
 {
-    use Auditable, SoftDeletes, TenantScoped;
+    use Auditable, SoftDeletes;
 
     protected $fillable = [
         'book_id',
-        'school_id',
-        'district_id',
         'name',
         'bn_name',
         'order_index',

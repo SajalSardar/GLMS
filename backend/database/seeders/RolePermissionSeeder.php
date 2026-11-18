@@ -81,7 +81,7 @@ class RolePermissionSeeder extends Seeder
                 'chapter_videos.view', 'chapter_videos.create', 'chapter_videos.update',
                 'chapter_materials.view', 'chapter_materials.create', 'chapter_materials.update',
                 'books.view',
-                'chapters.view', 'chapters.create', 'chapters.update',
+                'chapters.view',
                 'questions.view', 'questions.create', 'questions.update',
                 'exams.view', 'exams.create', 'exams.update', 'exam_attempts.view', 'student_progress.view',
                 'teacher_profiles.view',

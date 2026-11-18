@@ -47,13 +47,13 @@ class ChapterControllerTest extends TestCase
         $versionA = ClassVersion::create(['class_id' => $classA->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'name' => 'Bangla Version']);
         $versionB = ClassVersion::create(['class_id' => $classB->id, 'school_id' => $schoolB->id, 'district_id' => $schoolB->district_id, 'name' => 'Bangla Version']);
 
-        $this->bookA = Book::create(['class_version_id' => $versionA->id, 'subject_id' => $subject->id, 'school_id' => $versionA->school_id, 'district_id' => $versionA->district_id, 'name' => 'Mathematics Book']);
-        $this->bookB = Book::create(['class_version_id' => $versionB->id, 'subject_id' => $subject->id, 'school_id' => $versionB->school_id, 'district_id' => $versionB->district_id, 'name' => 'Mathematics Book']);
+        $this->bookA = Book::create(['class_version_id' => $versionA->id, 'subject_id' => $subject->id, 'name' => 'Mathematics Book']);
+        $this->bookB = Book::create(['class_version_id' => $versionB->id, 'subject_id' => $subject->id, 'name' => 'Mathematics Book']);
     }
 
     public function test_store_and_update_are_authorized(): void
     {
-        $chapter = Chapter::create(['book_id' => $this->bookA->id, 'school_id' => $this->bookA->classVersion->school_id, 'district_id' => $this->bookA->classVersion->district_id, 'name' => 'Existing Chapter']);
+        $chapter = Chapter::create(['book_id' => $this->bookA->id, 'name' => 'Existing Chapter']);
         $payload = ['book_id' => $this->bookA->id, 'name' => 'New Chapter'];
 
         $denied = $this->actorWithNoPermissions($this->schoolA->id, $this->schoolA->district_id);
@@ -63,8 +63,6 @@ class ChapterControllerTest extends TestCase
         $allowed = $this->actorWithPermissions(['chapters.create', 'chapters.update'], $this->schoolA->id, $this->schoolA->district_id);
         $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/chapters', $payload)
             ->assertCreated()
-            ->assertJsonPath('data.school_id', $this->schoolA->id)
-            ->assertJsonPath('data.district_id', $this->schoolA->district_id)
             ->assertJsonPath('data.created_by_type', get_class($allowed))
             ->assertJsonPath('data.created_by_id', $allowed->id);
         $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/chapters/{$chapter->id}", [])
@@ -75,8 +73,8 @@ class ChapterControllerTest extends TestCase
 
     public function test_index_filters_by_book_id(): void
     {
-        Chapter::create(['book_id' => $this->bookA->id, 'school_id' => $this->bookA->classVersion->school_id, 'district_id' => $this->bookA->classVersion->district_id, 'name' => 'Chapter 1']);
-        Chapter::create(['book_id' => $this->bookB->id, 'school_id' => $this->bookB->classVersion->school_id, 'district_id' => $this->bookB->classVersion->district_id, 'name' => 'Chapter 1']);
+        Chapter::create(['book_id' => $this->bookA->id, 'name' => 'Chapter 1']);
+        Chapter::create(['book_id' => $this->bookB->id, 'name' => 'Chapter 1']);
 
         $actor = $this->actorWithPermissions(['chapters.view'], null, null);
 
@@ -85,20 +83,21 @@ class ChapterControllerTest extends TestCase
         $response->assertOk()->assertJsonCount(1, 'data');
     }
 
-    public function test_actor_with_permission_gets_404_updating_another_schools_chapter(): void
+    public function test_actor_with_permission_can_update_a_chapter_belonging_to_a_different_schools_book(): void
     {
-        $chapter = Chapter::create(['book_id' => $this->bookB->id, 'school_id' => $this->bookB->classVersion->school_id, 'district_id' => $this->bookB->classVersion->district_id, 'name' => 'School B Chapter']);
+        $chapter = Chapter::create(['book_id' => $this->bookB->id, 'name' => 'School B Chapter']);
 
         $actor = $this->actorWithPermissions(['chapters.update'], $this->schoolA->id, $this->schoolA->district_id);
 
         $this->actingAs($actor, 'sanctum')
-            ->patchJson("/api/v1/chapters/{$chapter->id}", ['name' => 'Hacked'])
-            ->assertNotFound();
+            ->patchJson("/api/v1/chapters/{$chapter->id}", ['name' => 'Renamed'])
+            ->assertOk()
+            ->assertJsonPath('data.name', 'Renamed');
     }
 
     public function test_update_silently_ignores_an_attempt_to_change_book_id(): void
     {
-        $chapter = Chapter::create(['book_id' => $this->bookA->id, 'school_id' => $this->bookA->classVersion->school_id, 'district_id' => $this->bookA->classVersion->district_id, 'name' => 'Chapter 1']);
+        $chapter = Chapter::create(['book_id' => $this->bookA->id, 'name' => 'Chapter 1']);
 
         $allowed = $this->actorWithPermissions(['chapters.update'], $this->schoolA->id, $this->schoolA->district_id);
 
@@ -112,7 +111,7 @@ class ChapterControllerTest extends TestCase
 
     public function test_store_restores_a_soft_deleted_chapter_with_the_same_identity(): void
     {
-        $chapter = Chapter::create(['book_id' => $this->bookA->id, 'school_id' => $this->bookA->classVersion->school_id, 'district_id' => $this->bookA->classVersion->district_id, 'name' => 'Chapter 1']);
+        $chapter = Chapter::create(['book_id' => $this->bookA->id, 'name' => 'Chapter 1']);
         $chapter->delete();
 
         $allowed = $this->actorWithPermissions(['chapters.create'], $this->schoolA->id, $this->schoolA->district_id);

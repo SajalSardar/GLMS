@@ -53,8 +53,6 @@ class ChapterController extends Controller
 
         $book = Book::findOrFail($request->integer('book_id'));
         $data = $this->applyAutoNumbering($request->validated());
-        $data['school_id'] = $book->classVersion->school_id;
-        $data['district_id'] = $book->classVersion->district_id;
 
         $chapter = Chapter::onlyTrashed()
             ->where('book_id', $book->id)
