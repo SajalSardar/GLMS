@@ -14,13 +14,20 @@ import {
   deleteClassSchool,
   deleteDivision,
   deleteSubjectTeacherAssignment,
+  getBook,
+  getBookPdfLinks,
+  getExam,
   getHealth,
   listAcademicYears,
+  listBooks,
+  listChapters,
+  listChapterVideos,
   listClasses,
   listClassSchools,
   listClassVersions,
   listDistricts,
   listDivisions,
+  listExams,
   listSchools,
   listSections,
   listShifts,
@@ -29,7 +36,12 @@ import {
   listTeacherUsers,
   listUpazilas,
   managementLogin,
+  randomDrawExamQuestions,
+  saveExamAttemptAnswer,
+  startExamAttempt,
   studentLogin,
+  submitExamAttempt,
+  submitGuestExamAttempt,
   updateClassSchoolSubjects,
   updateDivision,
   updateSchool,
@@ -676,5 +688,209 @@ describe('subject-teacher assignments', () => {
 
     expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/subject-teacher-assignments/1`)
     expect(mockFetch.mock.calls[0][1]).toMatchObject({ method: 'DELETE' })
+  })
+})
+
+describe('books', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('lists books filtered by class_version_id and subject_id', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ data: [] }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    await listBooks({ classVersionId: 5, subjectId: 2 })
+
+    expect(mockFetch.mock.calls[0][0]).toBe(
+      `${import.meta.env.VITE_API_BASE_URL}/books?class_version_id=5&subject_id=2`,
+    )
+  })
+
+  it('gets a single book', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ data: { id: 1 } }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    await getBook(1)
+
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/books/1`)
+  })
+
+  it('requests a book\'s pdf download/preview links with no token', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ download_url: 'https://x/d', preview_url: 'https://x/p' }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    await getBookPdfLinks(1)
+
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/books/1/pdf/download-link`)
+    expect(mockFetch.mock.calls[0][1]).toMatchObject({ method: 'POST' })
+  })
+})
+
+describe('chapters', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('lists chapters filtered by book_id', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ data: [] }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    await listChapters({ bookId: 3 })
+
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/chapters?book_id=3`)
+  })
+})
+
+describe('chapter videos', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('lists chapter videos filtered by chapter_id', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ data: [] }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    await listChapterVideos({ chapterId: 9 })
+
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/chapter-videos?chapter_id=9`)
+  })
+})
+
+describe('exams (public browsing)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('lists exams', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ data: [] }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    await listExams()
+
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/exams`)
+  })
+
+  it('gets a single exam', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ data: { id: 4 } }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    await getExam(4)
+
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/exams/4`)
+  })
+})
+
+describe('exam attempts (authenticated)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('starts an attempt with a token', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 201,
+      json: () => Promise.resolve({ data: { id: 1 } }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    await startExamAttempt(4, 'secret-token')
+
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/exams/4/attempts`)
+    expect(mockFetch.mock.calls[0][1]).toMatchObject({
+      method: 'POST',
+      headers: expect.objectContaining({ Authorization: 'Bearer secret-token' }),
+    })
+  })
+
+  it('saves an answer', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ question_id: 7, selected_option_ids: [1], saved_at: '2026-01-01' }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    await saveExamAttemptAnswer(10, 7, [1, 2], 'secret-token')
+
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/exam-attempts/10/answers/7`)
+    expect(mockFetch.mock.calls[0][1]).toMatchObject({
+      method: 'PUT',
+      body: JSON.stringify({ selected_option_ids: [1, 2] }),
+      headers: expect.objectContaining({ Authorization: 'Bearer secret-token' }),
+    })
+  })
+
+  it('submits an attempt', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ data: { id: 10, status: 'submitted' } }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    await submitExamAttempt(10, 'secret-token')
+
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/exam-attempts/10/submit`)
+    expect(mockFetch.mock.calls[0][1]).toMatchObject({
+      method: 'POST',
+      headers: expect.objectContaining({ Authorization: 'Bearer secret-token' }),
+    })
+  })
+})
+
+describe('guest exam attempts', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('draws random questions with no token', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ data: [] }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    await randomDrawExamQuestions(4)
+
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/exams/4/random-draw`)
+    expect(mockFetch.mock.calls[0][1]).toMatchObject({ method: 'POST' })
+  })
+
+  it('submits a guest attempt with no token', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({ exam_id: 4, score: 2, total_possible_marks: 4, passed: null, answers: [] }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    const answers = [{ question_id: 1, selected_option_ids: [3] }]
+    await submitGuestExamAttempt(4, answers)
+
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/exams/4/guest-submissions`)
+    expect(mockFetch.mock.calls[0][1]).toMatchObject({
+      method: 'POST',
+      body: JSON.stringify({ answers }),
+    })
   })
 })

@@ -624,6 +624,236 @@ export function deleteClassVersion(id: number, token: string): Promise<void> {
   return deleteGeo('class-versions', id, token)
 }
 
+// ---------- Books ----------
+
+export interface Book {
+  id: number
+  class_version_id: number
+  subject_id: number
+  name: string
+  bn_name: string | null
+  order_index: number | null
+  description: string | null
+  is_active: boolean
+  pdf_original_filename: string | null
+  pdf_mime_type: string | null
+  pdf_size_bytes: number | null
+  pdf_uploaded_at: string | null
+  pdf_status: string | null
+  has_available_pdf: boolean
+  class_version?: ClassVersion | null
+  subject?: Subject | null
+  chapters?: Chapter[] | null
+}
+
+export function listBooks(
+  params: { classVersionId?: number; subjectId?: number } = {},
+): Promise<{ data: Book[] }> {
+  const query: Record<string, string | number | undefined> = {
+    class_version_id: params.classVersionId,
+    subject_id: params.subjectId,
+  }
+
+  return apiFetch<{ data: Book[] }>(`/books${buildQuery(query)}`)
+}
+
+export function getBook(id: number): Promise<{ data: Book }> {
+  return apiFetch<{ data: Book }>(`/books/${id}`)
+}
+
+export interface BookPdfLinks {
+  download_url: string
+  preview_url: string
+}
+
+export function getBookPdfLinks(bookId: number): Promise<BookPdfLinks> {
+  return apiFetch<BookPdfLinks>(`/books/${bookId}/pdf/download-link`, {
+    method: 'POST',
+    headers: { Accept: 'application/json' },
+  })
+}
+
+// ---------- Chapters ----------
+
+export interface Chapter {
+  id: number
+  book_id: number
+  name: string
+  bn_name: string | null
+  order_index: number | null
+  chapter_number: number | null
+  bn_chapter_number: string | null
+  description: string | null
+  book?: Book | null
+}
+
+export function listChapters(params: { bookId?: number } = {}): Promise<{ data: Chapter[] }> {
+  const query: Record<string, string | number | undefined> = { book_id: params.bookId }
+
+  return apiFetch<{ data: Chapter[] }>(`/chapters${buildQuery(query)}`)
+}
+
+// ---------- Chapter videos ----------
+
+export interface ChapterVideo {
+  id: number
+  chapter_id: number
+  youtube_video_id: string
+  embed_url: string
+  title: string
+  bn_title: string | null
+  description: string | null
+  instructor_name: string | null
+  duration_seconds: number | null
+  learning_objectives: string | null
+  completion_threshold_percent: number | null
+  order_index: number | null
+  is_enabled: boolean
+  chapter?: Chapter | null
+}
+
+export function listChapterVideos(
+  params: { chapterId?: number } = {},
+): Promise<{ data: ChapterVideo[] }> {
+  const query: Record<string, string | number | undefined> = { chapter_id: params.chapterId }
+
+  return apiFetch<{ data: ChapterVideo[] }>(`/chapter-videos${buildQuery(query)}`)
+}
+
+// ---------- Exams (public browsing + attempts) ----------
+
+export interface ExamQuestionOption {
+  id: number
+  option_text: string
+  is_correct: boolean | null
+}
+
+export interface ExamQuestion {
+  id: number
+  question_type: string
+  question_text: string
+  bn_question_text?: string | null
+  marks: number
+  order_index?: number
+  options: ExamQuestionOption[]
+}
+
+export interface Exam {
+  id: number
+  class_version_id: number
+  subject_id: number
+  academic_year_id: number
+  name: string
+  selection_mode: 'manual' | 'fixed_random' | 'per_attempt_random'
+  status: string
+  available_from: string | null
+  available_until: string | null
+  random_question_count: number | null
+  marks_per_question: number | null
+  passing_score_percent: number | null
+  max_attempts: number | null
+  questions?: ExamQuestion[] | null
+}
+
+export function listExams(): Promise<{ data: Exam[] }> {
+  return apiFetch<{ data: Exam[] }>('/exams')
+}
+
+export function getExam(id: number): Promise<{ data: Exam }> {
+  return apiFetch<{ data: Exam }>(`/exams/${id}`)
+}
+
+export interface ExamAttemptQuestionResult {
+  question_id: number
+  question_type: string
+  question_text: string
+  marks: number
+  order_index: number
+  options: Array<{ id: number; option_text: string; is_correct: boolean | null }>
+  selected_option_ids: number[] | null
+  is_correct: boolean | null
+  marks_awarded: number | null
+}
+
+export interface ExamAttempt {
+  id: number
+  exam_id: number
+  user_id: number
+  attempt_number: number
+  status: 'in_progress' | 'submitted'
+  started_at: string
+  submitted_at: string | null
+  score: number | null
+  total_possible_marks: number | null
+  passed: boolean | null
+  questions?: ExamAttemptQuestionResult[] | null
+}
+
+export function startExamAttempt(examId: number, token: string): Promise<{ data: ExamAttempt }> {
+  return apiFetch<{ data: ExamAttempt }>(`/exams/${examId}/attempts`, {
+    method: 'POST',
+    headers: authHeaders(token),
+  })
+}
+
+export function saveExamAttemptAnswer(
+  attemptId: number,
+  questionId: number,
+  selectedOptionIds: number[],
+  token: string,
+): Promise<{ question_id: number; selected_option_ids: number[]; saved_at: string }> {
+  return apiFetch(`/exam-attempts/${attemptId}/answers/${questionId}`, {
+    method: 'PUT',
+    headers: authHeaders(token),
+    body: JSON.stringify({ selected_option_ids: selectedOptionIds }),
+  })
+}
+
+export function submitExamAttempt(attemptId: number, token: string): Promise<{ data: ExamAttempt }> {
+  return apiFetch<{ data: ExamAttempt }>(`/exam-attempts/${attemptId}/submit`, {
+    method: 'POST',
+    headers: authHeaders(token),
+  })
+}
+
+export function randomDrawExamQuestions(examId: number): Promise<{ data: ExamQuestion[] }> {
+  return apiFetch<{ data: ExamQuestion[] }>(`/exams/${examId}/random-draw`, {
+    method: 'POST',
+    headers: { Accept: 'application/json' },
+  })
+}
+
+export interface GuestExamAnswerInput {
+  question_id: number
+  selected_option_ids: number[]
+}
+
+export interface GuestExamAnswerResult extends GuestExamAnswerInput {
+  is_correct: boolean
+  marks_awarded: number
+  marks: number
+  correct_option_ids: number[]
+}
+
+export interface GuestExamSubmissionResult {
+  exam_id: number
+  score: number
+  total_possible_marks: number
+  passed: boolean | null
+  answers: GuestExamAnswerResult[]
+}
+
+export function submitGuestExamAttempt(
+  examId: number,
+  answers: GuestExamAnswerInput[],
+): Promise<GuestExamSubmissionResult> {
+  return apiFetch<GuestExamSubmissionResult>(`/exams/${examId}/guest-submissions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ answers }),
+  })
+}
+
 // ---------- Shifts ----------
 
 export const DAYS_OF_WEEK = [
