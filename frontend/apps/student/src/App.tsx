@@ -2,6 +2,8 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from '@ttla/auth'
 import SiteShell from './components/SiteShell'
 import LandingLogin from './pages/LandingLogin'
+import BooksPage from './pages/BooksPage'
+import BookDetailPage from './pages/BookDetailPage'
 
 function App() {
   return (
@@ -10,7 +12,9 @@ function App() {
         <Routes>
           <Route element={<SiteShell />}>
             <Route index element={<LandingLogin />} />
-            {/* Books/Videos/Exams routes are added by Tasks 4-6 */}
+            <Route path="books" element={<BooksPage />} />
+            <Route path="books/:id" element={<BookDetailPage />} />
+            {/* Videos/Exams routes are added by Tasks 5-6 */}
           </Route>
         </Routes>
       </BrowserRouter>
