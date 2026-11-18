@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
   ApiError,
@@ -112,12 +112,18 @@ async function loadQuestionsAndMaybeStartAttempt(examId: number, token: string |
         selectionMode: exam.selection_mode,
       }
     } catch (error) {
-      if (!(error instanceof ApiError) || !isEnrollmentMismatch(error)) {
+      // A 403 here means the token's role lacks `exam_attempts.create`
+      // (only the student role has it — reachable because this app shares
+      // its auth token with the teacher/management apps via the same
+      // localStorage key on a shared origin). That's functionally the
+      // same situation as "not enrolled": tracking isn't possible, but
+      // taking the exam still should be, so it falls through to the guest
+      // path below just like an enrollment mismatch does.
+      const isForbidden = error instanceof ApiError && error.status === 403
+      if (!(error instanceof ApiError) || !(isEnrollmentMismatch(error) || isForbidden)) {
         throw error
       }
-      // Falls through to the guest path below — this student is logged
-      // in but not enrolled in this exam's class/year, so tracking isn't
-      // possible; browsing/taking it still is.
+      // Falls through to the guest path below.
     }
   }
 
@@ -140,7 +146,7 @@ function resultFromAttempt(attempt: ExamAttempt): ExamResultView {
     passed: attempt.passed,
     questions: (attempt.questions ?? []).map((question) => ({
       questionId: question.question_id,
-      questionText: question.question_text,
+      questionText: question.bn_question_text ?? question.question_text,
       options: question.options,
       selectedOptionIds: question.selected_option_ids ?? [],
       correctOptionIds: question.options.filter((option) => option.is_correct).map((option) => option.id),
@@ -161,7 +167,7 @@ function resultFromGuestSubmission(result: GuestExamSubmissionResult, questions:
 
       return {
         questionId: answer.question_id,
-        questionText: question?.question_text ?? '',
+        questionText: question?.bn_question_text ?? question?.question_text ?? '',
         options: question?.options ?? [],
         selectedOptionIds: answer.selected_option_ids,
         correctOptionIds: answer.correct_option_ids,
@@ -193,6 +199,16 @@ export default function ExamRunnerPage() {
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [result, setResult] = useState<ExamResultView | null>(null)
 
+  // The latest in-flight saveExamAttemptAnswer() promise per question —
+  // handleOptionChange() fires that save on every change without awaiting
+  // it (so typing/clicking never blocks on network), which means a student
+  // selecting an answer and immediately clicking Submit could otherwise
+  // have the POST /submit land before the PUT /answers/{q} that was still
+  // in flight, grading without an answer the student visibly selected.
+  // handleSubmit() awaits every promise still in this map before
+  // submitting, on the tracked path only.
+  const savePromisesRef = useRef<Map<number, Promise<unknown>>>(new Map())
+
   // Fetches only the exam's own details for the "Start" screen — NOT
   // startExamAttempt(), which is deliberately deferred to an explicit
   // click (see handleStart below). startExamAttempt() is NOT idempotent —
@@ -217,6 +233,7 @@ export default function ExamRunnerPage() {
     setAttemptId(null)
     setAnswers({})
     setResult(null)
+    savePromisesRef.current.clear()
 
     if (!examId) {
       setExamLoadError(t['student.exams.notFound'])
@@ -270,11 +287,15 @@ export default function ExamRunnerPage() {
     setAnswers((previous) => ({ ...previous, [question.id]: next }))
 
     if (attemptId !== null && token) {
-      // Save-as-you-go convenience only — never blocks the UI, and a
-      // failure here is not worth surfacing as a user-facing error.
-      saveExamAttemptAnswer(attemptId, question.id, next, token).catch((error) => {
+      // Save-as-you-go convenience only — never awaited here, so it can't
+      // block the UI, and a failure is not worth surfacing as a
+      // user-facing error. The promise is still tracked in
+      // savePromisesRef so handleSubmit() can wait for the latest one per
+      // question before submitting — see the ref's own comment above.
+      const savePromise = saveExamAttemptAnswer(attemptId, question.id, next, token).catch((error) => {
         console.warn('Failed to save exam attempt answer', error)
       })
+      savePromisesRef.current.set(question.id, savePromise)
     }
   }
 
@@ -298,6 +319,14 @@ export default function ExamRunnerPage() {
 
     try {
       if (attemptId !== null && token) {
+        // Let every answer save still in flight land before submitting —
+        // otherwise POST /submit can race a PUT /answers/{q} that hasn't
+        // committed yet, grading without an answer the student visibly
+        // selected. The guest path below builds its payload from local
+        // `answers` state at submit time rather than saved server-side
+        // answers, so it has no equivalent race and doesn't need this.
+        await Promise.allSettled([...savePromisesRef.current.values()])
+
         const attemptResult = await submitExamAttempt(attemptId, token)
         setResult(resultFromAttempt(attemptResult.data))
       } else {
@@ -331,7 +360,7 @@ export default function ExamRunnerPage() {
           <p className="text-sm text-primary-600">{t['student.exams.loading']}</p>
         ) : (
           <>
-            <h1 className="text-2xl font-bold text-primary-800">{examPreview.name}</h1>
+            <h1 className="text-2xl font-bold text-primary-800">{examPreview.bn_name ?? examPreview.name}</h1>
 
             {setupError && <p className="mt-4 text-sm text-danger-600">{setupError}</p>}
 

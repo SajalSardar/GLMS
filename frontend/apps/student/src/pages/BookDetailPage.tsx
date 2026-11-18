@@ -51,10 +51,25 @@ export default function BookDetailPage() {
   async function handlePreview() {
     if (!book) return
     setPdfError(null)
+
+    // window.open() must happen synchronously inside the click handler —
+    // once we `await` anything first, the click's transient user-activation
+    // is gone and browsers silently block the popup (no error, nothing
+    // happens). So open a blank tab right away and point it at the real
+    // URL once the fetch resolves. `tab` is null if even this synchronous
+    // open gets blocked (e.g. a hardened popup blocker) — fall back to the
+    // pre-fix behavior in that case rather than losing the link entirely.
+    const tab = window.open('', '_blank')
+
     try {
       const links = await getBookPdfLinks(book.id)
-      window.open(links.preview_url, '_blank')
+      if (tab) {
+        tab.location.href = links.preview_url
+      } else {
+        window.open(links.preview_url, '_blank')
+      }
     } catch {
+      if (tab) tab.close()
       setPdfError(t['student.books.pdfError'])
     }
   }

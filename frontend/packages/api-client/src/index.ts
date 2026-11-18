@@ -757,6 +757,7 @@ export interface Exam {
   subject_id: number
   academic_year_id: number
   name: string
+  bn_name: string | null
   selection_mode: 'manual' | 'fixed_random' | 'per_attempt_random'
   status: string
   available_from: string | null

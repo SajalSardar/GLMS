@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
+  ApiError,
   listClasses,
   listSchools,
   listSubjects,
@@ -14,14 +15,32 @@ import { booksForClassAndSubject } from '../lib/resolveContent'
 
 const t = getCommonStrings('bn')
 
+// Same shape as the messageFromApiError() helper in ExamRunnerPage.tsx
+// (and the inline equivalent in BookDetailPage.tsx), but with a translated
+// `fallback` instead of the raw `error.message` — a plain fetch/network
+// failure on a list page has no useful backend-supplied text (unlike the
+// exam flows, where a specific 422 message is itself meaningful to show),
+// so falling back to a generic translated string avoids surfacing an
+// untranslated technical message for this case.
+function messageFromApiError(error: unknown, fallback: string): string {
+  if (error instanceof ApiError) {
+    const firstFieldErrors = error.errors ? Object.values(error.errors)[0] : undefined
+    return firstFieldErrors?.[0] ?? error.message ?? fallback
+  }
+
+  return fallback
+}
+
 export default function BooksPage() {
   const [classes, setClasses] = useState<SchoolClass[]>([])
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [schools, setSchools] = useState<School[]>([])
   const [classId, setClassId] = useState<number | null>(null)
   const [subjectId, setSubjectId] = useState<number | null>(null)
+  const [search, setSearch] = useState('')
   const [books, setBooks] = useState<Book[]>([])
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     listClasses({ perPage: 500 })
@@ -45,13 +64,17 @@ export default function BooksPage() {
   useEffect(() => {
     let active = true
     setLoading(true)
+    setError(null)
 
     booksForClassAndSubject(classId, subjectId)
       .then((result) => {
         if (active) setBooks(result)
       })
-      .catch(() => {
-        if (active) setBooks([])
+      .catch((caught) => {
+        if (active) {
+          setBooks([])
+          setError(messageFromApiError(caught, t['student.books.loadError']))
+        }
       })
       .finally(() => {
         if (active) setLoading(false)
@@ -67,6 +90,19 @@ export default function BooksPage() {
     if (!schoolId) return ''
     return schools.find((school) => school.id === schoolId)?.name ?? ''
   }
+
+  // listBooks has no `search` query param, and the cross-school merge
+  // already happens client-side in booksForClassAndSubject — so this is a
+  // simple client-side substring filter over the already-resolved list,
+  // not a server-side search.
+  const visibleBooks = search.trim()
+    ? books.filter((book) => {
+        const needle = search.trim().toLowerCase()
+        return (
+          book.name.toLowerCase().includes(needle) || (book.bn_name ?? '').toLowerCase().includes(needle)
+        )
+      })
+    : books
 
   return (
     <section className="mx-auto max-w-6xl px-4 py-8 lg:px-8">
@@ -98,18 +134,30 @@ export default function BooksPage() {
             </option>
           ))}
         </select>
+
+        <input
+          type="text"
+          className="h-10 rounded-md border border-primary-200 px-3 text-sm"
+          placeholder={t['student.books.searchPlaceholder']}
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+        />
       </div>
 
       {loading && <p className="mt-6 text-sm text-primary-600">{t['student.books.loading']}</p>}
 
-      {!loading && !classId && <p className="mt-6 text-sm text-primary-600">{t['student.books.pickClass']}</p>}
+      {!loading && error && <p className="mt-6 text-sm text-danger-600">{error}</p>}
 
-      {!loading && classId && books.length === 0 && (
+      {!loading && !error && !classId && (
+        <p className="mt-6 text-sm text-primary-600">{t['student.books.pickClass']}</p>
+      )}
+
+      {!loading && !error && classId && visibleBooks.length === 0 && (
         <p className="mt-6 text-sm text-primary-600">{t['student.books.empty']}</p>
       )}
 
       <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {books.map((book) => (
+        {visibleBooks.map((book) => (
           <Link
             key={book.id}
             to={`/books/${book.id}`}

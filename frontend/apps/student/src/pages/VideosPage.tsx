@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
+  ApiError,
   listClasses,
   listSchools,
   listSubjects,
@@ -14,6 +15,17 @@ import { chaptersWithVideosForClassAndSubject, type ChapterWithVideoCount } from
 
 const t = getCommonStrings('bn')
 
+// Same pattern as BooksPage.tsx — see the comment there for why a
+// translated `fallback` is used instead of the raw `error.message`.
+function messageFromApiError(error: unknown, fallback: string): string {
+  if (error instanceof ApiError) {
+    const firstFieldErrors = error.errors ? Object.values(error.errors)[0] : undefined
+    return firstFieldErrors?.[0] ?? error.message ?? fallback
+  }
+
+  return fallback
+}
+
 export default function VideosPage() {
   const [classes, setClasses] = useState<SchoolClass[]>([])
   const [subjects, setSubjects] = useState<Subject[]>([])
@@ -22,6 +34,7 @@ export default function VideosPage() {
   const [subjectId, setSubjectId] = useState<number | null>(null)
   const [entries, setEntries] = useState<ChapterWithVideoCount[]>([])
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     listClasses({ perPage: 500 })
@@ -44,13 +57,17 @@ export default function VideosPage() {
   useEffect(() => {
     let active = true
     setLoading(true)
+    setError(null)
 
     chaptersWithVideosForClassAndSubject(classId, subjectId)
       .then((result) => {
         if (active) setEntries(result)
       })
-      .catch(() => {
-        if (active) setEntries([])
+      .catch((caught) => {
+        if (active) {
+          setEntries([])
+          setError(messageFromApiError(caught, t['student.videos.loadError']))
+        }
       })
       .finally(() => {
         if (active) setLoading(false)
@@ -101,9 +118,13 @@ export default function VideosPage() {
 
       {loading && <p className="mt-6 text-sm text-primary-600">{t['student.videos.loading']}</p>}
 
-      {!loading && !classId && <p className="mt-6 text-sm text-primary-600">{t['student.videos.pickClass']}</p>}
+      {!loading && error && <p className="mt-6 text-sm text-danger-600">{error}</p>}
 
-      {!loading && classId && entries.length === 0 && (
+      {!loading && !error && !classId && (
+        <p className="mt-6 text-sm text-primary-600">{t['student.videos.pickClass']}</p>
+      )}
+
+      {!loading && !error && classId && entries.length === 0 && (
         <p className="mt-6 text-sm text-primary-600">{t['student.videos.empty']}</p>
       )}
 

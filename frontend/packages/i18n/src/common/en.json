@@ -38,6 +38,8 @@
   "student.books.chapters": "Chapters",
   "student.books.noChapters": "No chapters have been added yet.",
   "student.books.pdfError": "Could not load the PDF right now. Please try again.",
+  "student.books.searchPlaceholder": "Search books by name...",
+  "student.books.loadError": "Could not load books right now. Please try again.",
 
   "student.videos.title": "Video Lessons",
   "student.videos.allClasses": "All classes",
@@ -46,10 +48,12 @@
   "student.videos.pickClass": "Pick a class to see its videos.",
   "student.videos.empty": "No videos found for this selection.",
   "student.videos.instructor": "Instructor",
+  "student.videos.loadError": "Could not load videos right now. Please try again.",
 
   "student.exams.title": "Exams",
   "student.exams.loading": "Loading exam...",
   "student.exams.empty": "No exams available right now.",
+  "student.exams.loadError": "Could not load exams right now. Please try again.",
   "student.exams.notFound": "This exam could not be found.",
   "student.exams.start": "Start",
   "student.exams.noQuestions": "This exam has no questions configured.",
@@ -93,7 +97,7 @@
   "landing.login.contactNote": "For anything about your ID or password, contact your school office or class teacher.",
   "landing.login.errorGeneric": "Couldn't log you in. Please check your details and try again.",
   "landing.login.alreadyTitle": "You're already signed in",
-  "landing.login.alreadyCta": "Go to dashboard",
+  "landing.login.alreadyCta": "Start learning",
 
   "landing.features.heading": "What's on the platform",
   "landing.features.classRangeTitle": "Class 1 to 12",

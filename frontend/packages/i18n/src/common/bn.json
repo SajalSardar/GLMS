@@ -38,6 +38,8 @@
   "student.books.chapters": "অধ্যায়সমূহ",
   "student.books.noChapters": "এখনও কোনো অধ্যায় যোগ করা হয়নি।",
   "student.books.pdfError": "এই মুহূর্তে পিডিএফ লোড করা যায়নি। আবার চেষ্টা করুন।",
+  "student.books.searchPlaceholder": "বইয়ের নাম দিয়ে খুঁজুন...",
+  "student.books.loadError": "এই মুহূর্তে বই লোড করা যায়নি। আবার চেষ্টা করুন।",
 
   "student.videos.title": "ভিডিও লেকচার",
   "student.videos.allClasses": "সকল শ্রেণি",
@@ -46,10 +48,12 @@
   "student.videos.pickClass": "ভিডিও দেখতে একটি শ্রেণি নির্বাচন করুন।",
   "student.videos.empty": "এই নির্বাচনের জন্য কোনো ভিডিও পাওয়া যায়নি।",
   "student.videos.instructor": "প্রশিক্ষক",
+  "student.videos.loadError": "এই মুহূর্তে ভিডিও লোড করা যায়নি। আবার চেষ্টা করুন।",
 
   "student.exams.title": "পরীক্ষা",
   "student.exams.loading": "পরীক্ষা লোড হচ্ছে...",
   "student.exams.empty": "এই মুহূর্তে কোনো পরীক্ষা নেই।",
+  "student.exams.loadError": "এই মুহূর্তে পরীক্ষা লোড করা যায়নি। আবার চেষ্টা করুন।",
   "student.exams.notFound": "এই পরীক্ষাটি খুঁজে পাওয়া যায়নি।",
   "student.exams.start": "শুরু করুন",
   "student.exams.noQuestions": "এই পরীক্ষায় কোনো প্রশ্ন যুক্ত করা হয়নি।",
@@ -93,7 +97,7 @@
   "landing.login.contactNote": "আইডি বা পাসওয়ার্ড সংক্রান্ত সাহায্যের জন্য তোমার স্কুলের অফিসে বা শ্রেণি শিক্ষকের সাথে যোগাযোগ করো।",
   "landing.login.errorGeneric": "লগইন করা যায়নি। তথ্য যাচাই করে আবার চেষ্টা করো।",
   "landing.login.alreadyTitle": "তুমি ইতিমধ্যে লগইন করা আছো",
-  "landing.login.alreadyCta": "ড্যাশবোর্ডে যাও",
+  "landing.login.alreadyCta": "শেখা শুরু করুন",
 
   "landing.features.heading": "প্ল্যাটফর্মে যা কিছু পাবে",
   "landing.features.classRangeTitle": "১ম - ১২শ শ্রেণি",

@@ -364,7 +364,7 @@ export default function LandingLogin() {
               <p className="m-0 text-[1.2rem] font-semibold font-display">{t['landing.login.alreadyTitle']}</p>
               <Link
                 className="mt-4 block w-full rounded-[0.6rem] bg-primary-500 p-3 text-center text-base font-semibold text-white hover:bg-primary-700"
-                to="/"
+                to="/books"
               >
                 {t['landing.login.alreadyCta']}
               </Link>

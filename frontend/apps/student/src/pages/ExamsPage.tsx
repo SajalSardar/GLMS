@@ -1,19 +1,40 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { listClassVersions, listExams, listSubjects, type ClassVersion, type Exam, type Subject } from '@ttla/api-client'
+import {
+  ApiError,
+  listClassVersions,
+  listExams,
+  listSubjects,
+  type ClassVersion,
+  type Exam,
+  type Subject,
+} from '@ttla/api-client'
 import { getCommonStrings } from '@ttla/i18n'
 
 const t = getCommonStrings('bn')
+
+// Same pattern as BooksPage.tsx/VideosPage.tsx — see the comment there for
+// why a translated `fallback` is used instead of the raw `error.message`.
+function messageFromApiError(error: unknown, fallback: string): string {
+  if (error instanceof ApiError) {
+    const firstFieldErrors = error.errors ? Object.values(error.errors)[0] : undefined
+    return firstFieldErrors?.[0] ?? error.message ?? fallback
+  }
+
+  return fallback
+}
 
 export default function ExamsPage() {
   const [exams, setExams] = useState<Exam[]>([])
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [classVersions, setClassVersions] = useState<ClassVersion[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
     setLoading(true)
+    setError(null)
 
     // ExamController::index() already degrades to published+available-only
     // for an anonymous visitor (confirmed by reading
@@ -23,8 +44,11 @@ export default function ExamsPage() {
       .then((result) => {
         if (active) setExams(result.data)
       })
-      .catch(() => {
-        if (active) setExams([])
+      .catch((caught) => {
+        if (active) {
+          setExams([])
+          setError(messageFromApiError(caught, t['student.exams.loadError']))
+        }
       })
       .finally(() => {
         if (active) setLoading(false)
@@ -69,7 +93,9 @@ export default function ExamsPage() {
 
       {loading && <p className="mt-6 text-sm text-primary-600">{t['student.exams.loading']}</p>}
 
-      {!loading && exams.length === 0 && (
+      {!loading && error && <p className="mt-6 text-sm text-danger-600">{error}</p>}
+
+      {!loading && !error && exams.length === 0 && (
         <p className="mt-6 text-sm text-primary-600">{t['student.exams.empty']}</p>
       )}
 
@@ -80,7 +106,7 @@ export default function ExamsPage() {
             to={`/exams/${exam.id}`}
             className="rounded-lg border border-primary-100 p-4 shadow-sm transition hover:border-primary-300 hover:shadow"
           >
-            <p className="font-semibold text-primary-800">{exam.name}</p>
+            <p className="font-semibold text-primary-800">{exam.bn_name ?? exam.name}</p>
             <p className="mt-1 text-sm text-primary-600">{subjectNameFor(exam)}</p>
             <p className="mt-1 text-xs text-primary-500">{classVersionNameFor(exam)}</p>
           </Link>
