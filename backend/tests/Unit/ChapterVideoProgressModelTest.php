@@ -39,7 +39,7 @@ class ChapterVideoProgressModelTest extends TestCase
         $version = ClassVersion::create(['class_id' => $class->id, 'school_id' => $school->id, 'district_id' => $school->district_id, 'name' => 'Bangla Version']);
         $subject = Subject::create(['name' => 'Mathematics']);
         $book = Book::create(['class_version_id' => $version->id, 'subject_id' => $subject->id, 'school_id' => $version->school_id, 'district_id' => $version->district_id, 'name' => 'Mathematics Book']);
-        $chapter = Chapter::create(['book_id' => $book->id, 'school_id' => $book->school_id, 'district_id' => $book->district_id, 'name' => 'Chapter 1']);
+        $chapter = Chapter::create(['book_id' => $book->id, 'school_id' => $book->classVersion->school_id, 'district_id' => $book->classVersion->district_id, 'name' => 'Chapter 1']);
 
         $this->video = ChapterVideo::create([
             'chapter_id' => $chapter->id,

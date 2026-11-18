@@ -51,8 +51,8 @@ class QuestionTenantScopeTest extends TestCase
         $bookA = Book::create(['class_version_id' => $versionA->id, 'subject_id' => $subject->id, 'school_id' => $versionA->school_id, 'district_id' => $versionA->district_id, 'name' => 'Mathematics Book']);
         $bookB = Book::create(['class_version_id' => $versionB->id, 'subject_id' => $subject->id, 'school_id' => $versionB->school_id, 'district_id' => $versionB->district_id, 'name' => 'Mathematics Book']);
 
-        $chapterA = Chapter::create(['book_id' => $bookA->id, 'school_id' => $bookA->school_id, 'district_id' => $bookA->district_id, 'name' => 'Chapter 1']);
-        $chapterB = Chapter::create(['book_id' => $bookB->id, 'school_id' => $bookB->school_id, 'district_id' => $bookB->district_id, 'name' => 'Chapter 1']);
+        $chapterA = Chapter::create(['book_id' => $bookA->id, 'school_id' => $bookA->classVersion->school_id, 'district_id' => $bookA->classVersion->district_id, 'name' => 'Chapter 1']);
+        $chapterB = Chapter::create(['book_id' => $bookB->id, 'school_id' => $bookB->classVersion->school_id, 'district_id' => $bookB->classVersion->district_id, 'name' => 'Chapter 1']);
 
         $this->questionA = Question::create([
             'chapter_id' => $chapterA->id,

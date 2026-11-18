@@ -174,7 +174,7 @@ class ExamControllerTest extends TestCase
     public function test_publish_guard_reapplies_on_a_follow_up_update_with_no_status_in_the_body(): void
     {
         $book = Book::create(['class_version_id' => $this->versionA->id, 'subject_id' => $this->subject->id, 'school_id' => $this->versionA->school_id, 'district_id' => $this->versionA->district_id, 'name' => 'Mathematics Book']);
-        $chapter = Chapter::create(['book_id' => $book->id, 'school_id' => $book->school_id, 'district_id' => $book->district_id, 'name' => 'Chapter 1']);
+        $chapter = Chapter::create(['book_id' => $book->id, 'school_id' => $book->classVersion->school_id, 'district_id' => $book->classVersion->district_id, 'name' => 'Chapter 1']);
 
         // Exactly 2 matching questions available — pool size exactly 2.
         Question::create(['chapter_id' => $chapter->id, 'school_id' => $chapter->school_id, 'district_id' => $chapter->district_id, 'question_type' => 'mcq_single', 'question_text' => 'Q1']);
@@ -235,7 +235,7 @@ class ExamControllerTest extends TestCase
     public function test_is_correct_is_hidden_from_an_exam_viewer_without_questions_update(): void
     {
         $book = Book::create(['class_version_id' => $this->versionA->id, 'subject_id' => $this->subject->id, 'school_id' => $this->versionA->school_id, 'district_id' => $this->versionA->district_id, 'name' => 'Mathematics Book']);
-        $chapter = Chapter::create(['book_id' => $book->id, 'school_id' => $book->school_id, 'district_id' => $book->district_id, 'name' => 'Chapter 1']);
+        $chapter = Chapter::create(['book_id' => $book->id, 'school_id' => $book->classVersion->school_id, 'district_id' => $book->classVersion->district_id, 'name' => 'Chapter 1']);
         $question = Question::create(['chapter_id' => $chapter->id, 'school_id' => $chapter->school_id, 'district_id' => $chapter->district_id, 'question_type' => 'mcq_single', 'question_text' => 'What is 2+2?']);
         QuestionOption::create(['question_id' => $question->id, 'option_text' => '4', 'is_correct' => true]);
         QuestionOption::create(['question_id' => $question->id, 'option_text' => '3', 'is_correct' => false]);

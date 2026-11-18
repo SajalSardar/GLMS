@@ -42,7 +42,7 @@ class TeacherCreatedContentAuditTest extends TestCase
 
         $book = Book::create(['class_version_id' => $classVersion->id, 'subject_id' => $subject->id, 'school_id' => $classVersion->school_id, 'district_id' => $classVersion->district_id, 'name' => 'Mathematics Book']);
 
-        $chapter = Chapter::create(['book_id' => $book->id, 'school_id' => $book->school_id, 'district_id' => $book->district_id, 'name' => 'Chapter 1']);
+        $chapter = Chapter::create(['book_id' => $book->id, 'school_id' => $book->classVersion->school_id, 'district_id' => $book->classVersion->district_id, 'name' => 'Chapter 1']);
 
         $teacher = $this->teacherActorWithPermissions(['questions.create'], $school->id, $school->district_id);
 
