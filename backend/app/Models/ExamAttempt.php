@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\TenantScoped;
+use App\Support\ExamGrading;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -165,9 +166,6 @@ class ExamAttempt extends Model
 
     private function answerIsCorrect(ExamAttemptQuestion $attemptQuestion, ExamAttemptAnswer $answer): bool
     {
-        $correctIds = $attemptQuestion->question->options->where('is_correct', true)->pluck('id')->sort()->values()->all();
-        $selectedIds = collect($answer->selected_option_ids ?? [])->sort()->values()->all();
-
-        return $correctIds === $selectedIds;
+        return ExamGrading::isCorrect($attemptQuestion->question, $answer->selected_option_ids ?? []);
     }
 }
