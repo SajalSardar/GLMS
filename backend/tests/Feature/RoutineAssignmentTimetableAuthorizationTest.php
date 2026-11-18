@@ -76,7 +76,9 @@ class RoutineAssignmentTimetableAuthorizationTest extends TestCase
         ]);
 
         $this->subject = Subject::create(['name' => 'Math']);
-        $this->class->subjects()->attach($this->subject->id);
+        // class_subjects.school_id is NOT NULL as of
+        // 2026_11_19_100100_add_school_id_to_class_subjects_table.php.
+        $this->class->subjects()->attach($this->subject->id, ['school_id' => $this->school->id]);
         $classVersion->subjects()->attach($this->subject->id);
 
         $this->teacher = TeacherUser::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);

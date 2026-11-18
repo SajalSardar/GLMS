@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\V1\ChapterVideoController;
 use App\Http\Controllers\Api\V1\ClassController;
 use App\Http\Controllers\Api\V1\ClassroomController;
 use App\Http\Controllers\Api\V1\ClassRoutineController;
+use App\Http\Controllers\Api\V1\ClassSchoolController;
 use App\Http\Controllers\Api\V1\ClassVersionController;
 use App\Http\Controllers\Api\V1\DistrictController;
 use App\Http\Controllers\Api\V1\DivisionController;
@@ -97,11 +98,14 @@ class ControllerAuthorizationConventionTest extends TestCase
             [ClassController::class, 'store'],
             [ClassController::class, 'update'],
             [ClassController::class, 'destroy'],
-            [ClassController::class, 'updateSubjects'],
 
             [ClassRoutineController::class, 'store'],
             [ClassRoutineController::class, 'update'],
             [ClassRoutineController::class, 'destroy'],
+
+            [ClassSchoolController::class, 'store'],
+            [ClassSchoolController::class, 'destroy'],
+            [ClassSchoolController::class, 'updateSubjects'],
 
             [ClassVersionController::class, 'store'],
             [ClassVersionController::class, 'update'],

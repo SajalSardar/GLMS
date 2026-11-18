@@ -20,7 +20,14 @@ class ClassSubjectSeeder extends Seeder
         SchoolClass::all()->each(function (SchoolClass $class) {
             $subjectIds = Subject::whereIn('name', $this->subjectsFor($class->numeric_level))->pluck('id');
 
-            $class->subjects()->sync($subjectIds);
+            // class_subjects.school_id is now NOT NULL (see
+            // 2026_11_19_100100_add_school_id_to_class_subjects_table.php)
+            // — this class's own still-present school_id column (not
+            // cut over until Task 3) is the only per-school context
+            // available here, so each row is attributed to it.
+            $class->subjects()->sync($subjectIds->mapWithKeys(fn (int $subjectId) => [
+                $subjectId => ['school_id' => $class->school_id],
+            ]));
         });
     }
 

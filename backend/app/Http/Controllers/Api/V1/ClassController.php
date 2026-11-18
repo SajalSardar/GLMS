@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\StoreClassRequest;
 use App\Http\Requests\Api\V1\UpdateClassRequest;
-use App\Http\Requests\Api\V1\UpdateClassSubjectsRequest;
 use App\Http\Resources\Api\V1\ClassResource;
 use App\Models\School;
 use App\Models\SchoolClass;
@@ -101,17 +100,5 @@ class ClassController extends Controller
         $class->delete();
 
         return response()->noContent();
-    }
-
-    /**
-     * Replace the class's configured subject list.
-     */
-    public function updateSubjects(UpdateClassSubjectsRequest $request, SchoolClass $class): ClassResource
-    {
-        $this->authorize('updateSubjects', $class);
-
-        $class->subjects()->sync($request->validated('subject_ids'));
-
-        return new ClassResource($class->load(['school', 'subjects']));
     }
 }

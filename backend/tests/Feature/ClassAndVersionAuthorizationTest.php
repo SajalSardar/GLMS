@@ -36,16 +36,14 @@ class ClassAndVersionAuthorizationTest extends TestCase
         ]);
     }
 
-    public function test_class_store_update_and_update_subjects_are_authorized(): void
+    public function test_class_store_and_update_are_authorized(): void
     {
         $class = SchoolClass::create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Existing Class']);
-        $subject = Subject::create(['name' => 'Math']);
         $payload = ['school_id' => $this->school->id, 'name' => 'New Class'];
 
         $denied = $this->actorWithNoPermissions();
         $this->actingAs($denied, 'sanctum')->postJson('/api/v1/classes', $payload)->assertForbidden();
         $this->actingAs($denied, 'sanctum')->patchJson("/api/v1/classes/{$class->id}", [])->assertForbidden();
-        $this->actingAs($denied, 'sanctum')->putJson("/api/v1/classes/{$class->id}/subjects", ['subject_ids' => [$subject->id]])->assertForbidden();
 
         $allowed = $this->actorWithPermissions(['classes.create', 'classes.update']);
         $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/classes', $payload)
@@ -56,7 +54,6 @@ class ClassAndVersionAuthorizationTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.updated_by_type', get_class($allowed))
             ->assertJsonPath('data.updated_by_id', $allowed->id);
-        $this->actingAs($allowed, 'sanctum')->putJson("/api/v1/classes/{$class->id}/subjects", ['subject_ids' => [$subject->id]])->assertOk();
     }
 
     public function test_class_version_store_update_and_update_subjects_are_authorized(): void

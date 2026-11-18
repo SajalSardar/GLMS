@@ -38,7 +38,7 @@ class RolePermissionSeeder extends Seeder
                 'divisions.view', 'districts.view', 'upazilas.view',
                 'schools.view', 'schools.update',
                 'classes.view', 'classes.create', 'classes.update', 'classes.delete',
-                'class_schools.view', 'class_schools.create', 'class_schools.delete',
+                'class_schools.view', 'class_schools.create', 'class_schools.delete', 'class_schools.updateSubjects',
                 'subjects.view', 'chapter_videos.view', 'chapter_materials.view', 'books.view', 'chapters.view', 'questions.view',
                 'exams.view', 'exams.create', 'exams.update', 'exam_attempts.view', 'student_progress.view',
                 'academic_years.view',

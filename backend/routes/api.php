@@ -120,8 +120,8 @@ Route::prefix('v1')->group(function (): void {
         Route::apiResource('chapter-videos', ChapterVideoController::class)->only(['store', 'update', 'destroy']);
 
         Route::apiResource('classes', ClassController::class)->only(['store', 'update', 'destroy']);
-        Route::put('/classes/{class}/subjects', [ClassController::class, 'updateSubjects']);
         Route::apiResource('class-schools', ClassSchoolController::class)->only(['store', 'destroy']);
+        Route::put('/class-schools/{class_school}/subjects', [ClassSchoolController::class, 'updateSubjects']);
 
         Route::apiResource('academic-years', AcademicYearController::class)->only(['store', 'update', 'destroy']);
         Route::patch('/academic-years/{academic_year}/set-current', [AcademicYearController::class, 'setCurrent']);

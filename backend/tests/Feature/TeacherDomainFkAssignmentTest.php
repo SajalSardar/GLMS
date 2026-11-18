@@ -62,7 +62,9 @@ class TeacherDomainFkAssignmentTest extends TestCase
         ]);
 
         $subject = Subject::create(['name' => 'Math']);
-        $class->subjects()->attach($subject->id);
+        // class_subjects.school_id is NOT NULL as of
+        // 2026_11_19_100100_add_school_id_to_class_subjects_table.php.
+        $class->subjects()->attach($subject->id, ['school_id' => $school->id]);
         $classVersion->subjects()->attach($subject->id);
 
         $teacher = TeacherUser::factory()->create(['school_id' => $school->id, 'district_id' => $school->district_id]);
@@ -112,8 +114,10 @@ class TeacherDomainFkAssignmentTest extends TestCase
         $sectionB = Section::create(['shift_id' => $shiftB->id, 'school_id' => $school->id, 'district_id' => $school->district_id, 'name' => 'Section']);
 
         $subject = Subject::create(['name' => 'Math']);
-        $classA->subjects()->attach($subject->id);
-        $classB->subjects()->attach($subject->id);
+        // class_subjects.school_id is NOT NULL as of
+        // 2026_11_19_100100_add_school_id_to_class_subjects_table.php.
+        $classA->subjects()->attach($subject->id, ['school_id' => $school->id]);
+        $classB->subjects()->attach($subject->id, ['school_id' => $school->id]);
         $versionA->subjects()->attach($subject->id);
         $versionB->subjects()->attach($subject->id);
 

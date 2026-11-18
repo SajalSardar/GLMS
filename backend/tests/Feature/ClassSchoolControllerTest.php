@@ -8,6 +8,7 @@ use App\Models\District;
 use App\Models\Division;
 use App\Models\School;
 use App\Models\SchoolClass;
+use App\Models\Subject;
 use App\Models\Upazila;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\CreatesAuthorizedActors;
@@ -102,5 +103,40 @@ class ClassSchoolControllerTest extends TestCase
         $this->actingAs($allowed, 'sanctum')
             ->deleteJson("/api/v1/class-schools/{$assignment->id}")
             ->assertUnprocessable();
+    }
+
+    public function test_update_subjects_is_authorized_and_syncs_the_schools_offering(): void
+    {
+        $subjectMath = Subject::create(['name' => 'Math']);
+        $subjectScience = Subject::create(['name' => 'Science']);
+        $assignment = ClassSchool::create(['class_id' => $this->classSix->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id]);
+
+        $denied = $this->actorWithNoPermissions($this->schoolA->id, $this->schoolA->district_id);
+        $this->actingAs($denied, 'sanctum')
+            ->putJson("/api/v1/class-schools/{$assignment->id}/subjects", ['subject_ids' => [$subjectMath->id]])
+            ->assertForbidden();
+
+        $allowed = $this->actorWithPermissions(['class_schools.updateSubjects'], $this->schoolA->id, $this->schoolA->district_id);
+        $this->actingAs($allowed, 'sanctum')
+            ->putJson("/api/v1/class-schools/{$assignment->id}/subjects", ['subject_ids' => [$subjectMath->id, $subjectScience->id]])
+            ->assertOk()
+            ->assertJsonCount(2, 'data.subjects');
+
+        $this->assertDatabaseHas('class_subjects', ['class_id' => $this->classSix->id, 'school_id' => $this->schoolA->id, 'subject_id' => $subjectMath->id]);
+    }
+
+    public function test_update_subjects_does_not_affect_another_schools_offering_of_the_same_class(): void
+    {
+        $subject = Subject::create(['name' => 'Math']);
+        $assignmentA = ClassSchool::create(['class_id' => $this->classSix->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id]);
+        ClassSchool::create(['class_id' => $this->classSix->id, 'school_id' => $this->schoolB->id, 'district_id' => $this->schoolB->district_id]);
+
+        $allowed = $this->actorWithPermissions(['class_schools.updateSubjects'], $this->schoolA->id, $this->schoolA->district_id);
+        $this->actingAs($allowed, 'sanctum')
+            ->putJson("/api/v1/class-schools/{$assignmentA->id}/subjects", ['subject_ids' => [$subject->id]])
+            ->assertOk();
+
+        $this->assertDatabaseCount('class_subjects', 1);
+        $this->assertDatabaseHas('class_subjects', ['class_id' => $this->classSix->id, 'school_id' => $this->schoolA->id, 'subject_id' => $subject->id]);
     }
 }

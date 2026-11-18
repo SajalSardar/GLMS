@@ -23,6 +23,7 @@ class ClassSchoolResource extends JsonResource
             'district_id' => $this->district_id,
             'class' => new ClassResource($this->whenLoaded('schoolClass')),
             'school' => new SchoolResource($this->whenLoaded('school')),
+            'subjects' => SubjectResource::collection($this->whenLoaded('subjects')),
         ];
     }
 }

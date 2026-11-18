@@ -26,4 +26,14 @@ class ClassSchoolPolicy
     {
         return $user->hasPermission('class_schools.delete');
     }
+
+    /**
+     * Configuring this assignment's subject list is as sensitive as
+     * creating/deleting the assignment itself, so it gets its own
+     * permission rather than reusing create/delete.
+     */
+    public function updateSubjects(Authenticatable $user, ClassSchool $classSchool): bool
+    {
+        return $user->hasPermission('class_schools.updateSubjects');
+    }
 }

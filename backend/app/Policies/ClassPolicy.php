@@ -31,13 +31,4 @@ class ClassPolicy
     {
         return $user->hasPermission('classes.delete');
     }
-
-    /**
-     * Configuring a class's subject list is as sensitive as updating the
-     * class itself, so it uses the same ability as `update`.
-     */
-    public function updateSubjects(Authenticatable $user, SchoolClass $class): bool
-    {
-        return $this->update($user, $class);
-    }
 }

@@ -45,6 +45,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'class_schools.view', 'label' => 'View class-school assignments'],
             ['name' => 'class_schools.create', 'label' => 'Assign a class to a school'],
             ['name' => 'class_schools.delete', 'label' => 'Unassign a class from a school'],
+            ['name' => 'class_schools.updateSubjects', 'label' => 'Configure a school\'s subject list for a class'],
 
             ['name' => 'subjects.view', 'label' => 'View subjects'],
             ['name' => 'subjects.create', 'label' => 'Create subjects'],
