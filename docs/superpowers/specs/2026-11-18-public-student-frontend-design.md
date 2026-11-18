@@ -168,40 +168,65 @@ icon style, spacing) carries over from the rewritten landing page's
 Tailwind palette, so the whole site reads as one product, not a landing
 page bolted onto a separate app shell.
 
+## Content source across schools
+
+**Decision confirmed during brainstorming, resolving a finding made
+while researching this spec:** `Book.class_version_id` still points at
+a `ClassVersion`, and `ClassVersion` is still per-school (`TenantScoped`,
+unchanged by sub-project 1 or 2 — sub-project 1's own brainstorming
+explicitly chose to keep this parent key rather than restructure it).
+There is no single national "the" book per class+subject — each school
+that has authored content has its own separate books/chapters/videos
+under its own class-versions, and no seed data designates a reference
+school. The public site shows content from **every** school, merged by
+Class + Subject, with no school picker in the UI. The fetch shape this
+implies, since the backend has no single endpoint for "all books for
+this class across every school": resolve every `ClassVersion` matching
+the chosen `class_id` via `GET /class-versions?class_id=` (already
+returns every school's version of that class — confirmed it filters by
+`class_id` alone, not school-scoped), then fetch
+`GET /books?class_version_id=&subject_id=` once per returned version ID
+and merge the results client-side. This is a real N+1 from the
+frontend's perspective, not a mistake to optimize away in this spec —
+it's the direct, honest consequence of the chosen cross-school merge
+semantics against the backend's current shape, and the typical case (a
+handful of schools' versions per class) keeps it cheap. When two merged
+results share the same book name (the common case — most schools
+author similarly-named content for a given class+subject), show both
+with a school label so the duplication is visible rather than silently
+collapsed.
+
 ## Books feature
 
 - `/books`: a filter bar (class, subject — populated from the already-
-  public `GET /classes`/`GET /subjects`) plus a search input, backed by
-  `GET /books?class_version_id=&subject_id=&search=`. **Note:** books
-  are keyed by `class_version_id`, not a bare class — the filter UI
-  therefore needs a class → class-version resolution step, same shape
-  the management frontend's `ClassVersionsPage` already established
-  (pick a class, then the version follows, or — simpler for this
-  public-facing case, since there's usually one "version" per class —
-  resolve the first/only active `ClassVersion` for the chosen class
-  transparently and hide version choice from the UI entirely unless a
-  class genuinely has more than one). Each result card shows the book's
-  name/cover-less placeholder, subject, and whether a PDF is available
+  public `GET /classes`/`GET /subjects`) plus a search input, using the
+  cross-school resolve-and-merge strategy above. Each result card shows
+  the book's name, subject, owning school's name (so visible duplicates
+  across schools are distinguishable), and whether a PDF is available
   (`has_available_pdf`).
-- `/books/:id`: fetches `GET /books/{id}?include=chapters` (or however
-  the plan's research confirms chapters are eager-loaded — check
-  `BookController::show()`'s actual query before assuming a query
-  param), lists its chapters in order, and offers "Preview" / "Download"
-  actions when `has_available_pdf` is true. Both actions first call the
-  (now-public, per the backend fix) `POST /books/{book}/pdf/download-link`
-  to get a signed URL, then navigate to it (preview) or trigger a browser
-  download (download) — no separate "download" button logic beyond that,
-  since the signed URL itself handles the actual file serving.
+- `/books/:id`: fetches `GET /books/{id}` (confirm during planning
+  whether `BookController::show()`'s `['classVersion', 'subject']`
+  eager-load already includes chapters, or whether a separate
+  `GET /chapters?book_id=` call is needed — the controller code should
+  settle this exactly, not a guess here), lists its chapters in order,
+  and offers "Preview" / "Download" actions when `has_available_pdf` is
+  true. Both actions first call the (now-public, per the backend fix)
+  `POST /books/{book}/pdf/download-link` to get a signed URL, then
+  navigate to it (preview) or trigger a browser download (download) —
+  no separate "download" button logic beyond that, since the signed URL
+  itself handles the actual file serving.
 
 ## Videos feature
 
-- `/videos`: same class/subject filter pattern as Books, backed by
-  `GET /chapters?book_id=` scoped through the chosen book (or, if the
-  plan's research shows chapter-videos can be filtered directly by
-  class/subject without going through a book first, prefer that — the
-  exact query path is an implementation-plan-level detail, not a design
-  commitment here). Chapters with at least one `chapter_videos` row show
-  up as a card; clicking one goes to `/videos/:chapterId`.
+- `/videos`: same class/subject filter and cross-school merge pattern as
+  Books, but one level deeper — confirmed `GET /chapters` only filters
+  by `book_id` (no direct class/subject param) and `GET /chapter-videos`
+  only filters by `chapter_id`, so there is no shortcut: resolve
+  class-versions → books (as above) → `GET /chapters?book_id=` per
+  resolved book → keep only chapters that have at least one video. A
+  chapter with videos shows up as a card (labeled with its book's name
+  and owning school, same reasoning as Books); clicking one goes to
+  `/videos/:chapterId`.
 - `/videos/:chapterId`: `GET /chapter-videos?chapter_id={id}`, ordered by
   `order_index`. A playlist sidebar/list (title, duration, instructor)
   next to a main area showing the selected video's `embed_url` in an
