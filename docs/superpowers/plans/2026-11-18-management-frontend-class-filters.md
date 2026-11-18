@@ -15,7 +15,7 @@
 - No backend changes anywhere in this plan — sub-project 2 already finished and merged everything this depends on.
 - Do not wire up `PUT /class-versions/{class_version}/subjects` — that gap predates sub-project 2 and is explicitly out of scope here.
 - Every new/changed function in `frontend/packages/api-client/src/index.ts` needs a corresponding test in `index.test.ts`, matching that file's existing `vi.stubGlobal('fetch', ...)` mocking pattern exactly.
-- After every task that touches `.tsx`/`.ts` files, run `npx tsc -b` from `frontend/` to confirm no new type errors anywhere in the workspace (not just the file you changed — these are shared types).
+- After every task that touches `.tsx`/`.ts` files, run `npx tsc -b apps/management/tsconfig.json` from `frontend/` to confirm no new type errors anywhere in the workspace (not just the file you changed — these are shared types). There is no root `tsconfig.json` in this repo, so a bare `npx tsc -b` fails immediately with `TS5083` — always pass the management app's project file explicitly.
 - After every task that touches a page's user-facing behavior, manually verify it in the dev server (`npm run dev:management` from `frontend/`) before considering the task done. State what you checked in your report.
 - Add new i18n keys to **both** `frontend/packages/i18n/src/common/en.json` and `frontend/packages/i18n/src/common/bn.json` — `bn.json` is actively used by `ManagementLogin.tsx` and kept in sync with `en.json` throughout this codebase.
 - `management.fields.section`/`management.fields.allSections` i18n keys **must not be deleted** — `SectionsPage.tsx` uses them for the real, unrelated `Section` (timetable) entity. Only `ClassesPage.tsx`'s *usage* of `management.fields.section` for the dropped curriculum-stream field is removed.
@@ -291,7 +291,7 @@ Expected: PASS
 
 - [ ] **Step 5: Type-check the workspace**
 
-Run: `npx tsc -b` (from `frontend/`)
+Run: `npx tsc -b apps/management/tsconfig.json` (from `frontend/`)
 Expected: many errors, in every file this plan still needs to fix (`ClassesPage.tsx`, `ClassVersionsPage.tsx`, `SchoolDetailPage.tsx`, `StudentDetailPage.tsx`, `SectionsPage.tsx`, `ShiftsPage.tsx`, `StudentsPage.tsx`, `SubjectTeacherAssignmentsPage.tsx`) — this is expected at this point in the plan; each subsequent task fixes its own file's errors. Confirm the errors are all in those named files and relate to the removed `SchoolClass` fields / new `ClassVersionPayload` field, not somewhere unexpected.
 
 - [ ] **Step 6: Commit**
@@ -431,7 +431,7 @@ This component now needs no state or effects at all (no `schools` fetch, no pare
 
 - [ ] **Step 2: Type-check**
 
-Run: `npx tsc -b` (from `frontend/`)
+Run: `npx tsc -b apps/management/tsconfig.json` (from `frontend/`)
 Expected: no errors in `ClassesPage.tsx` anymore (errors in other not-yet-fixed files are still expected).
 
 - [ ] **Step 3: Manually verify in the dev server**
@@ -704,7 +704,7 @@ Note the `valuesFromRow` callback now has a side effect (`setFormSchoolId`) in a
 
 - [ ] **Step 2: Type-check**
 
-Run: `npx tsc -b` (from `frontend/`)
+Run: `npx tsc -b apps/management/tsconfig.json` (from `frontend/`)
 Expected: no errors in `ClassVersionsPage.tsx` anymore.
 
 - [ ] **Step 3: Manually verify in the dev server**
@@ -798,7 +798,7 @@ replace with:
 
 - [ ] **Step 2: Type-check**
 
-Run: `npx tsc -b` (from `frontend/`)
+Run: `npx tsc -b apps/management/tsconfig.json` (from `frontend/`)
 Expected: no errors in `StudentDetailPage.tsx` anymore.
 
 - [ ] **Step 3: Manually verify in the dev server**
@@ -1220,7 +1220,7 @@ In `SchoolDetailPage`'s JSX, add the panel right after the existing hierarchy ta
 
 - [ ] **Step 2: Type-check**
 
-Run: `npx tsc -b` (from `frontend/`)
+Run: `npx tsc -b apps/management/tsconfig.json` (from `frontend/`)
 Expected: no errors in `SchoolDetailPage.tsx` anymore.
 
 - [ ] **Step 3: Manually verify in the dev server**
@@ -1315,8 +1315,8 @@ function schoolClassLabel(schoolClass: SchoolClass): string {
 
 - [ ] **Step 5: Type-check**
 
-Run: `npx tsc -b` (from `frontend/`)
-Expected: no errors remaining anywhere in the workspace — this should be the task that brings the full `npx tsc -b` run to a clean pass, since every file this plan identified has now been fixed.
+Run: `npx tsc -b apps/management/tsconfig.json` (from `frontend/`)
+Expected: no errors remaining anywhere in the workspace — this should be the task that brings the full `npx tsc -b apps/management/tsconfig.json` run to a clean pass, since every file this plan identified has now been fixed.
 
 - [ ] **Step 6: Manually verify in the dev server**
 
@@ -1342,7 +1342,7 @@ git commit -m "Drop dead schoolClass.school label prefix in four class-filter dr
 
 - [ ] **Step 1: Full workspace type-check**
 
-Run: `npx tsc -b` (from `frontend/`, after a clean `npx tsc -b --force` or deleting any stale `.tsbuildinfo` if a prior run's cache could mask a real error)
+Run: `npx tsc -b apps/management/tsconfig.json` (from `frontend/`, after a clean `npx tsc -b apps/management/tsconfig.json --force` or deleting any stale `.tsbuildinfo` if a prior run's cache could mask a real error)
 Expected: clean, zero errors across the entire frontend workspace.
 
 - [ ] **Step 2: Full `api-client` test suite**
