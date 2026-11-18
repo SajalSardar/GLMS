@@ -47,7 +47,7 @@ class LmsContentDemoSeeder extends Seeder
      */
     public function run(): void
     {
-        $class = SchoolClass::where('school_id', 1)->where('name', 'Class 6')->first();
+        $class = SchoolClass::where('name', 'Class 6')->first();
         $teacher = TeacherUser::where('email', 'teacher@tlap.test')->first();
         $studentUser = StudentUser::where('email', 'student@tlap.test')->first();
         $studentProfile = $studentUser ? StudentProfile::where('user_id', $studentUser->id)->first() : null;
@@ -57,7 +57,11 @@ class LmsContentDemoSeeder extends Seeder
             return;
         }
 
-        $version = ClassVersion::where('class_id', $class->id)->where('name', 'General')->first();
+        // school_classes.name is national now, so this looks up Class 6's
+        // ClassVersion by the sample student's own school_id rather than
+        // a hardcoded school — the student's own profile is the only
+        // school context this seeder has left once $class carries none.
+        $version = ClassVersion::where('class_id', $class->id)->where('school_id', $studentProfile->school_id)->where('name', 'General')->first();
 
         if (! $version) {
             return;

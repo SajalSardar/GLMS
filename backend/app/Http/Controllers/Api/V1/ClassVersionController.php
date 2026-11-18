@@ -64,6 +64,7 @@ class ClassVersionController extends Controller
 
         $version = ClassVersion::onlyTrashed()
             ->where('class_id', $attributes['class_id'])
+            ->where('school_id', $attributes['school_id'])
             ->where('name', $attributes['name'])
             ->first();
 

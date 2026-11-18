@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\ClassSchool;
 use App\Models\District;
 use App\Models\Division;
 use App\Models\School;
@@ -232,8 +233,10 @@ class StudentUserAuthorizationTest extends TestCase
             'name' => 'School',
         ]);
 
-        $classSix = SchoolClass::create(['school_id' => $school->id, 'district_id' => $district->id, 'name' => 'Class Six']);
-        $classSeven = SchoolClass::create(['school_id' => $school->id, 'district_id' => $district->id, 'name' => 'Class Seven']);
+        $classSix = SchoolClass::create(['name' => 'Class Six']);
+        $classSeven = SchoolClass::create(['name' => 'Class Seven']);
+        ClassSchool::create(['class_id' => $classSix->id, 'school_id' => $school->id, 'district_id' => $district->id]);
+        ClassSchool::create(['class_id' => $classSeven->id, 'school_id' => $school->id, 'district_id' => $district->id]);
 
         $studentInSix = StudentUser::factory()->create(['school_id' => $school->id, 'district_id' => $district->id]);
         $studentInSeven = StudentUser::factory()->create(['school_id' => $school->id, 'district_id' => $district->id]);

@@ -44,8 +44,8 @@ class BookControllerTest extends TestCase
 
         $this->subject = Subject::create(['name' => 'Mathematics']);
 
-        $classA = SchoolClass::create(['school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'name' => 'Class 6']);
-        $classB = SchoolClass::create(['school_id' => $this->schoolB->id, 'district_id' => $this->schoolB->district_id, 'name' => 'Class 6']);
+        $classA = SchoolClass::create(['name' => 'Class 6']);
+        $classB = SchoolClass::create(['name' => 'Class 6 B']);
 
         $this->versionA = ClassVersion::create(['class_id' => $classA->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'name' => 'Bangla Version']);
         $this->versionB = ClassVersion::create(['class_id' => $classB->id, 'school_id' => $this->schoolB->id, 'district_id' => $this->schoolB->district_id, 'name' => 'Bangla Version']);

@@ -13,7 +13,8 @@ class StudentProfileSeeder extends Seeder
      * Seed the application's database.
      *
      * Attaches a profile to the sample student user created by UserSeeder,
-     * placed in the school's Class 6 seeded by ClassSeeder.
+     * placed in Class 6 seeded by ClassSeeder — a national class name now,
+     * so it's looked up without a school_id filter.
      */
     public function run(): void
     {
@@ -23,7 +24,7 @@ class StudentProfileSeeder extends Seeder
             return;
         }
 
-        $class = SchoolClass::where('school_id', $user->school_id)->where('name', 'Class 6')->first();
+        $class = SchoolClass::where('name', 'Class 6')->first();
 
         StudentProfile::updateOrCreate(
             ['user_id' => $user->id],

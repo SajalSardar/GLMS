@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Classroom;
 use App\Models\ClassVersion;
 use App\Models\Role;
+use App\Models\School;
 use App\Models\SchoolClass;
 use App\Models\Section;
 use App\Models\Shift;
@@ -35,13 +36,14 @@ class TimetableGenerationDemoSeeder extends Seeder
      */
     public function run(): void
     {
-        $class = SchoolClass::where('school_id', 1)->where('name', 'Class 7')->first();
+        $class = SchoolClass::where('name', 'Class 7')->first();
+        $school = School::find(1);
 
-        if (! $class) {
+        if (! $class || ! $school) {
             return;
         }
 
-        $version = ClassVersion::where('class_id', $class->id)->where('name', 'General')->first();
+        $version = ClassVersion::where('class_id', $class->id)->where('school_id', $school->id)->where('name', 'General')->first();
         $shift = $version ? Shift::where('class_version_id', $version->id)->where('name', 'Day Shift')->first() : null;
         $section = $shift ? Section::where('shift_id', $shift->id)->first() : null;
 
@@ -57,7 +59,7 @@ class TimetableGenerationDemoSeeder extends Seeder
             'breaks' => [['start_time' => '10:30', 'end_time' => '10:45', 'label' => 'Tiffin']],
         ]);
 
-        $classroom = Classroom::where('school_id', $class->school_id)->where('name', 'Room 102')->first();
+        $classroom = Classroom::where('school_id', $school->id)->where('name', 'Room 102')->first();
         $section->update(['default_classroom_id' => $classroom?->id]);
 
         $teacherRoleId = Role::where('name', 'teacher')->value('id');
@@ -93,8 +95,8 @@ class TimetableGenerationDemoSeeder extends Seeder
                     'name' => $config['teacher'],
                     'password' => 'password',
                     'role_id' => $teacherRoleId,
-                    'school_id' => $class->school_id,
-                    'district_id' => $class->district_id,
+                    'school_id' => $school->id,
+                    'district_id' => $school->district_id,
                     'email_verified_at' => now(),
                 ],
             );

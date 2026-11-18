@@ -9,7 +9,7 @@ use App\Http\Requests\Api\V1\TransferStudentSectionRequest;
 use App\Http\Requests\Api\V1\UpdateStudentProfileRequest;
 use App\Http\Resources\Api\V1\StudentProfileResource;
 use App\Http\Resources\Api\V1\StudentSectionTransferResource;
-use App\Models\SchoolClass;
+use App\Models\ClassSchool;
 use App\Models\Section;
 use App\Models\StudentProfile;
 use App\Models\StudentSectionTransfer;
@@ -236,9 +236,9 @@ class StudentProfileController extends Controller
             return;
         }
 
-        if (SchoolClass::where('id', $classId)->where('school_id', $schoolId)->doesntExist()) {
+        if (ClassSchool::where('class_id', $classId)->where('school_id', $schoolId)->doesntExist()) {
             throw ValidationException::withMessages([
-                'class_id' => ['The selected class does not belong to the student\'s school.'],
+                'class_id' => ['The selected class has not been adopted by the student\'s school.'],
             ]);
         }
     }

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\ClassSchool;
 use App\Models\ClassVersion;
 use App\Models\District;
 use App\Models\Division;
@@ -42,7 +43,8 @@ class StudentProfileAuthorizationTest extends TestCase
             'name' => 'School A',
         ]);
 
-        $class = SchoolClass::create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Class']);
+        $class = SchoolClass::create(['name' => 'Class']);
+        ClassSchool::create(['class_id' => $class->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
 
         $classVersion = ClassVersion::create([
             'class_id' => $class->id,

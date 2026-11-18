@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\ClassSchool;
 use App\Models\School;
 use App\Models\SchoolClass;
 use Illuminate\Database\Seeder;
@@ -11,16 +12,25 @@ class ClassSeeder extends Seeder
     /**
      * Seed the application's database.
      *
-     * One class per grade level for every school seeded by SchoolSeeder,
-     * ranged by the school's `level` field.
+     * Each class name is created once, nationally — then every school is
+     * assigned to the grade levels its own `level` field implies, via
+     * class_schools. The grade-band logic itself is unchanged from
+     * before this class became national content.
      */
     public function run(): void
     {
-        School::all()->each(function (School $school) {
+        $classesByLevel = collect($this->grades())->mapWithKeys(
+            fn (array $grade, int $numericLevel) => [$numericLevel => SchoolClass::updateOrCreate(
+                ['name' => $grade['name']],
+                ['bn_name' => $grade['bn_name'], 'numeric_level' => $numericLevel],
+            )]
+        );
+
+        School::all()->each(function (School $school) use ($classesByLevel) {
             foreach ($this->gradesFor($school->level) as $numericLevel => $grade) {
-                SchoolClass::updateOrCreate(
-                    ['school_id' => $school->id, 'name' => $grade['name'], 'section' => null],
-                    ['district_id' => $school->district_id, 'bn_name' => $grade['bn_name'], 'numeric_level' => $numericLevel],
+                ClassSchool::firstOrCreate(
+                    ['class_id' => $classesByLevel[$numericLevel]->id, 'school_id' => $school->id],
+                    ['district_id' => $school->district_id],
                 );
             }
         });
@@ -29,9 +39,9 @@ class ClassSeeder extends Seeder
     /**
      * @return array<int, array{name: string, bn_name: string}> numeric_level => grade
      */
-    private function gradesFor(string $schoolLevel): array
+    private function grades(): array
     {
-        $grades = [
+        return [
             1 => ['name' => 'Class 1', 'bn_name' => 'প্রথম শ্রেণি'],
             2 => ['name' => 'Class 2', 'bn_name' => 'দ্বিতীয় শ্রেণি'],
             3 => ['name' => 'Class 3', 'bn_name' => 'তৃতীয় শ্রেণি'],
@@ -45,7 +55,13 @@ class ClassSeeder extends Seeder
             11 => ['name' => 'HSC 1st Year', 'bn_name' => 'একাদশ শ্রেণি'],
             12 => ['name' => 'HSC 2nd Year', 'bn_name' => 'দ্বাদশ শ্রেণি'],
         ];
+    }
 
+    /**
+     * @return array<int, array{name: string, bn_name: string}> numeric_level => grade
+     */
+    private function gradesFor(string $schoolLevel): array
+    {
         $levels = match ($schoolLevel) {
             'primary' => [1, 2, 3, 4, 5],
             'secondary' => [6, 7, 8, 9, 10],
@@ -54,6 +70,6 @@ class ClassSeeder extends Seeder
             default => [],
         };
 
-        return array_intersect_key($grades, array_flip($levels));
+        return array_intersect_key($this->grades(), array_flip($levels));
     }
 }
