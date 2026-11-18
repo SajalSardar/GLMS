@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
   ApiError,
@@ -12,6 +12,7 @@ import {
   type ExamAttempt,
   type ExamAttemptQuestionResult,
   type ExamQuestion,
+  type ExamQuestionLink,
   type ExamQuestionOption,
   type GuestExamAnswerInput,
   type GuestExamSubmissionResult,
@@ -70,7 +71,7 @@ function questionFromAttemptQuestion(question: ExamAttemptQuestionResult): ExamQ
     id: question.question_id,
     question_type: question.question_type,
     question_text: question.question_text,
-    bn_question_text: null,
+    bn_question_text: question.bn_question_text,
     marks: question.marks,
     order_index: question.order_index,
     options: question.options,
@@ -79,18 +80,16 @@ function questionFromAttemptQuestion(question: ExamAttemptQuestionResult): ExamQ
 
 /**
  * The manual/fixed_random branch below reads `exam.questions` (from
- * getExam()), which the backend serializes via ExamQuestionResource —
- * `{ id: <pivot id>, order_index: <pivot order>, question: QuestionResource }`
- * (confirmed by reading
- * backend/app/Http/Resources/Api/V1/ExamQuestionResource.php) — not the
- * flat shape the api-client's `ExamQuestion` type declares (which is what
- * randomDrawExamQuestions()/the tracked attempt's `questions` actually
- * return). Unwrap that nesting here so every path feeds the same flat
- * shape into the rest of this component.
+ * getExam()), which is an `ExamQuestionLink[]` — the `exam_questions` pivot
+ * row wrapping each actual question (confirmed by reading
+ * backend/app/Http/Resources/Api/V1/ExamQuestionResource.php). Unwrap it
+ * here into the flat `ExamQuestion` shape every other path already
+ * produces, keeping the pivot's own `order_index` (the question's position
+ * within THIS exam) rather than the question's own `order_index` (its
+ * position within its chapter's question bank).
  */
-function normalizeManualQuestion(raw: ExamQuestion): ExamQuestion {
-  const nested = (raw as unknown as { question?: ExamQuestion }).question
-  return nested ? { ...nested, order_index: raw.order_index } : raw
+function questionFromExamQuestionLink(link: ExamQuestionLink): ExamQuestion {
+  return { ...link.question, order_index: link.order_index }
 }
 
 interface LoadResult {
@@ -128,7 +127,7 @@ async function loadQuestionsAndMaybeStartAttempt(examId: number, token: string |
   }
 
   return {
-    questions: (exam.questions ?? []).map(normalizeManualQuestion),
+    questions: (exam.questions ?? []).map(questionFromExamQuestionLink),
     attemptId: null,
     selectionMode: exam.selection_mode,
   }
@@ -178,6 +177,14 @@ export default function ExamRunnerPage() {
   const { token } = useAuth()
 
   const [status, setStatus] = useState<RunnerStatus>('setup')
+  // The setup screen's own exam-preview fetch (name only, for the "Start"
+  // screen) — separate from `setupError` below, which is specifically
+  // about a failed START attempt. This fetch is a plain GET with no side
+  // effects, so it's safe to run eagerly on mount/examId change, unlike
+  // starting an attempt.
+  const [examPreview, setExamPreview] = useState<Exam | null>(null)
+  const [examLoadError, setExamLoadError] = useState<string | null>(null)
+  const [starting, setStarting] = useState(false)
   const [setupError, setSetupError] = useState<string | null>(null)
   const [questions, setQuestions] = useState<ExamQuestion[]>([])
   const [attemptId, setAttemptId] = useState<number | null>(null)
@@ -186,61 +193,68 @@ export default function ExamRunnerPage() {
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [result, setResult] = useState<ExamResultView | null>(null)
 
-  // startExamAttempt() is NOT idempotent — every call creates a brand new
-  // ExamAttempt row and consumes one of the exam's max_attempts. React 19's
-  // StrictMode intentionally double-invokes effects in dev (mount -> fake
-  // cleanup -> mount again) to surface exactly this kind of bug; without
-  // this guard, that double-invoke created two real tracked attempts from
-  // a single page load (confirmed against the isolated verification
-  // backend — see the task report).
-  //
-  // The in-flight/resolved promise itself (not just a boolean) is cached
-  // on this ref, keyed by (examId, token): the first effect invocation
-  // creates it and kicks off the one real network call; StrictMode's
-  // synthetic second invocation reuses the SAME promise instead of
-  // starting another attempt. Both invocations still attach their own
-  // .then/.catch below, each gated by its own `active` closure — the
-  // first invocation's `active` is flipped false by StrictMode's fake
-  // cleanup before the promise resolves, so only the second (real,
-  // surviving) invocation ends up applying the result to state. A
-  // genuine new mount (actually navigating away and back) gets a fresh
-  // ref and starts its own attempt.
-  const attemptPromiseRef = useRef<{ key: string; promise: Promise<LoadResult> } | null>(null)
-
+  // Fetches only the exam's own details for the "Start" screen — NOT
+  // startExamAttempt(), which is deliberately deferred to an explicit
+  // click (see handleStart below). startExamAttempt() is NOT idempotent —
+  // every call creates a brand new ExamAttempt row and consumes one of
+  // the exam's max_attempts — so firing it automatically on mount meant
+  // an ordinary browser refresh on this page silently burned one of the
+  // student's attempts (confirmed during verification: this is exactly
+  // how an exhausted-attempts dead end was reached without the student
+  // ever clicking anything). Gating the real start behind a user click
+  // also means React StrictMode's dev-mode double-invoked effects can no
+  // longer double-fire it, since effects no longer call it at all.
   useEffect(() => {
+    // Reset all per-exam state when navigating from one exam straight to
+    // another — ExamRunnerPage is the same mounted component instance for
+    // every `exams/:id` route, so without this, answers/attemptId/result
+    // from the previous exam would still be visible for the new one.
+    setStatus('setup')
+    setExamPreview(null)
+    setExamLoadError(null)
+    setSetupError(null)
+    setQuestions([])
+    setAttemptId(null)
+    setAnswers({})
+    setResult(null)
+
     if (!examId) {
-      setSetupError(t['student.exams.empty'])
+      setExamLoadError(t['student.exams.notFound'])
       return
     }
 
-    const startKey = `${examId}:${token ?? ''}`
-
-    if (attemptPromiseRef.current?.key !== startKey) {
-      attemptPromiseRef.current = { key: startKey, promise: loadQuestionsAndMaybeStartAttempt(examId, token) }
-    }
-
-    const { promise } = attemptPromiseRef.current
     let active = true
-    setStatus('setup')
-    setSetupError(null)
 
-    promise
-      .then((loaded) => {
-        if (!active) return
-        setQuestions(loaded.questions)
-        setAttemptId(loaded.attemptId)
-        setStatus('in_progress')
+    getExam(examId)
+      .then((result) => {
+        if (active) setExamPreview(result.data)
       })
       .catch((error) => {
-        if (!active) return
-        attemptPromiseRef.current = null
-        setSetupError(messageFromApiError(error))
+        if (active) setExamLoadError(messageFromApiError(error))
       })
 
     return () => {
       active = false
     }
-  }, [examId, token])
+  }, [examId])
+
+  async function handleStart() {
+    if (starting) return // guards against a double-click firing two real attempts
+
+    setStarting(true)
+    setSetupError(null)
+
+    try {
+      const loaded = await loadQuestionsAndMaybeStartAttempt(examId, token)
+      setQuestions(loaded.questions)
+      setAttemptId(loaded.attemptId)
+      setStatus('in_progress')
+    } catch (error) {
+      setSetupError(messageFromApiError(error))
+    } finally {
+      setStarting(false)
+    }
+  }
 
   function handleOptionChange(question: ExamQuestion, optionId: number, checked: boolean) {
     const current = answers[question.id] ?? []
@@ -265,6 +279,20 @@ export default function ExamRunnerPage() {
   }
 
   async function handleSubmit() {
+    // The tracked path can never reach here with zero questions —
+    // ExamAttemptController::start() already rejects that case with
+    // 'This exam has no questions configured.' before an attempt is even
+    // created. The guest path has no equivalent guard on the backend: a
+    // manual/fixed_random exam with zero configured questions reaches
+    // 'in_progress' successfully with an empty question list, and
+    // submitting an empty `answers: []` array would otherwise fail on
+    // SubmitGuestExamAttemptRequest's generic 'answers' validation
+    // message instead of a clear explanation. Catch it here instead.
+    if (attemptId === null && questions.length === 0) {
+      setSubmitError(t['student.exams.noQuestions'])
+      return
+    }
+
     setSubmitting(true)
     setSubmitError(null)
 
@@ -292,15 +320,30 @@ export default function ExamRunnerPage() {
   if (status === 'setup') {
     return (
       <section className="mx-auto max-w-3xl px-4 py-8 lg:px-8">
-        {setupError ? (
+        {examLoadError ? (
           <>
-            <p className="text-sm text-danger-600">{setupError}</p>
+            <p className="text-sm text-danger-600">{examLoadError}</p>
             <Link to="/exams" className="mt-4 inline-block text-sm font-semibold text-primary-700 underline">
               {t['student.exams.title']}
             </Link>
           </>
-        ) : (
+        ) : !examPreview ? (
           <p className="text-sm text-primary-600">{t['student.exams.loading']}</p>
+        ) : (
+          <>
+            <h1 className="text-2xl font-bold text-primary-800">{examPreview.name}</h1>
+
+            {setupError && <p className="mt-4 text-sm text-danger-600">{setupError}</p>}
+
+            <button
+              type="button"
+              onClick={handleStart}
+              disabled={starting}
+              className="mt-6 cursor-pointer rounded-md bg-primary-500 px-4 py-2 text-sm font-semibold text-white hover:enabled:bg-primary-600 disabled:cursor-default disabled:bg-primary-300"
+            >
+              {starting ? t['student.exams.loading'] : t['student.exams.start']}
+            </button>
+          </>
         )}
       </section>
     )

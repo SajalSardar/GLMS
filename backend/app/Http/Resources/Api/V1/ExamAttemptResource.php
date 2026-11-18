@@ -42,6 +42,7 @@ class ExamAttemptResource extends JsonResource
                             'question_id' => $question->id,
                             'question_type' => $question->question_type,
                             'question_text' => $question->question_text,
+                            'bn_question_text' => $question->bn_question_text,
                             'marks' => $attemptQuestion->marks,
                             'order_index' => $attemptQuestion->order_index,
                             'options' => $question->options->map(fn ($option) => [

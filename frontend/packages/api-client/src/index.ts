@@ -738,6 +738,19 @@ export interface ExamQuestion {
   options: ExamQuestionOption[]
 }
 
+// The `exam_questions` pivot row wrapping a question within an Exam's
+// manual/fixed_random question list — ExamQuestionResource.php serializes
+// Exam.questions this way: `{ id: <pivot id, NOT the question id>,
+// order_index: <pivot order>, question: <the actual question> }`. Confirmed
+// against the live backend; `randomDrawExamQuestions()` and a tracked
+// ExamAttempt's own `questions` field are NOT affected by this — both of
+// those return the flat `ExamQuestion` shape directly.
+export interface ExamQuestionLink {
+  id: number
+  order_index: number
+  question: ExamQuestion
+}
+
 export interface Exam {
   id: number
   class_version_id: number
@@ -752,7 +765,7 @@ export interface Exam {
   marks_per_question: number | null
   passing_score_percent: number | null
   max_attempts: number | null
-  questions?: ExamQuestion[] | null
+  questions?: ExamQuestionLink[] | null
 }
 
 export function listExams(): Promise<{ data: Exam[] }> {
@@ -767,6 +780,7 @@ export interface ExamAttemptQuestionResult {
   question_id: number
   question_type: string
   question_text: string
+  bn_question_text: string | null
   marks: number
   order_index: number
   options: Array<{ id: number; option_text: string; is_correct: boolean | null }>
