@@ -165,6 +165,38 @@ class BookPdfControllerTest extends TestCase
         $this->assertSame($allowed->id, $log->user_id);
     }
 
+    public function test_download_link_works_for_an_unauthenticated_guest(): void
+    {
+        $allowed = $this->actorWithPermissions(['books.update'], $this->school->id, $this->school->district_id);
+        $file = UploadedFile::fake()->create('math.pdf', 100, 'application/pdf');
+        $this->actingAs($allowed, 'sanctum')->post("/api/v1/books/{$this->book->id}/pdf", ['pdf' => $file]);
+
+        // actingAs() caches the user on the 'sanctum' guard instance for
+        // the rest of this test, so without forgetting it here the
+        // "unauthenticated" request below would still resolve $allowed
+        // via $request->user('sanctum') regardless of headers sent.
+        $this->app['auth']->forgetGuards();
+
+        $response = $this->postJson("/api/v1/books/{$this->book->id}/pdf/download-link")
+            ->assertOk();
+
+        $url = $response->json('download_url');
+        $this->assertNotNull($url);
+
+        $this->get($url)->assertOk();
+
+        $log = ContentAccessLog::where('book_id', $this->book->id)->where('action', 'downloaded')->first();
+        $this->assertNotNull($log);
+        $this->assertNull($log->user_id);
+        $this->assertNull($log->user_type);
+    }
+
+    public function test_download_link_still_requires_an_available_pdf_for_a_guest(): void
+    {
+        $this->postJson("/api/v1/books/{$this->book->id}/pdf/download-link")
+            ->assertUnprocessable();
+    }
+
     public function test_preview_link_returns_a_working_signed_url_that_logs_access(): void
     {
         $allowed = $this->actorWithPermissions(['books.update', 'books.view'], $this->school->id, $this->school->district_id);

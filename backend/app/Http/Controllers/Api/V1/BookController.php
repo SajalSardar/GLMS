@@ -174,16 +174,34 @@ class BookController extends Controller
 
     public function pdfDownloadLink(Request $request, Book $book): JsonResponse
     {
-        $this->authorize('view', $book);
-
         if (! $book->hasAvailablePdf()) {
             throw ValidationException::withMessages([
                 'pdf' => ['This book has no available PDF to download.'],
             ]);
         }
 
+        // This route sits outside the auth:sanctum group (it must also
+        // serve anonymous requests), so the user is resolved explicitly
+        // from the sanctum guard rather than via $request->user() —
+        // same pattern as TimetableEntryController's public routes.
+        // A guest produces no actor_type/actor params at all, which
+        // downloadPdf()/previewPdf() already handle gracefully (their
+        // existing `?: null` fallback), matching books/chapters/other
+        // public content endpoints' already-established "no permission
+        // gate on read access" precedent — this method never called
+        // $this->authorize() for any other reason either; the removed
+        // `$this->authorize('view', $book)` call was the only gate, and
+        // it's dropped here to match index()/show()'s existing shape,
+        // not reintroduced with a null-guard workaround.
+        $actor = $request->user('sanctum');
+
         $expiry = now()->addMinutes(config('content.signed_download_expiry_minutes'));
-        $params = ['book' => $book->id, 'actor_type' => get_class($request->user()), 'actor' => $request->user()->id];
+        $params = ['book' => $book->id];
+
+        if ($actor !== null) {
+            $params['actor_type'] = get_class($actor);
+            $params['actor'] = $actor->id;
+        }
 
         return response()->json([
             'download_url' => URL::temporarySignedRoute('books.pdf.download', $expiry, $params),

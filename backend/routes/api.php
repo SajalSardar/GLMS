@@ -65,6 +65,7 @@ Route::prefix('v1')->group(function (): void {
     Route::apiResource('classes', ClassController::class)->only(['index', 'show']);
     Route::apiResource('class-schools', ClassSchoolController::class)->only(['index', 'show']);
     Route::apiResource('books', BookController::class)->only(['index', 'show']);
+    Route::post('/books/{book}/pdf/download-link', [BookController::class, 'pdfDownloadLink']);
     Route::apiResource('chapters', ChapterController::class)->only(['index', 'show']);
     // Must be registered before the apiResource's wildcard {question} show
     // route below, or "export" would be matched as a question ID and
@@ -115,7 +116,6 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/books/{book}/pdf', [BookController::class, 'uploadPdf']);
         Route::patch('/books/{book}/pdf/status', [BookController::class, 'updatePdfStatus']);
         Route::delete('/books/{book}/pdf', [BookController::class, 'deletePdf']);
-        Route::post('/books/{book}/pdf/download-link', [BookController::class, 'pdfDownloadLink']);
 
         Route::apiResource('chapter-materials', ChapterMaterialController::class)->only(['store', 'update', 'destroy']);
         Route::post('/chapter-materials/{chapter_material}/download-link', [ChapterMaterialController::class, 'downloadLink']);
