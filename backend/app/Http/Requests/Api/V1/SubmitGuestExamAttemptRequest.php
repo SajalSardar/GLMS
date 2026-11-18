@@ -21,9 +21,9 @@ class SubmitGuestExamAttemptRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'answers' => ['required', 'array'],
+            'answers' => ['required', 'array', 'max:200'],
             'answers.*.question_id' => ['required', 'integer'],
-            'answers.*.selected_option_ids' => ['present', 'array'],
+            'answers.*.selected_option_ids' => ['present', 'array', 'max:50'],
             'answers.*.selected_option_ids.*' => ['integer'],
         ];
     }

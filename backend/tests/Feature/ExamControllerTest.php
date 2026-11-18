@@ -280,4 +280,27 @@ class ExamControllerTest extends TestCase
             ->assertOk();
         $this->assertArrayHasKey('is_correct', $response->json('data.questions.0.question.options.0'));
     }
+
+    public function test_index_and_show_still_respect_tenant_scope_for_an_actor_with_exams_view(): void
+    {
+        $ownDraft = Exam::create($this->examPayload(['name' => 'Own Draft']) + [
+            'school_id' => $this->versionA->school_id,
+            'district_id' => $this->versionA->district_id,
+        ]);
+
+        $otherSchoolExam = Exam::create($this->examPayload(['name' => 'Other School', 'class_version_id' => $this->versionB->id]) + [
+            'school_id' => $this->versionB->school_id,
+            'district_id' => $this->versionB->district_id,
+            'status' => 'published',
+        ]);
+
+        $actor = $this->actorWithPermissions(['exams.view'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $index = $this->actingAs($actor, 'sanctum')->getJson('/api/v1/exams')->assertOk();
+        $index->assertJsonCount(1, 'data');
+        $index->assertJsonPath('data.0.id', $ownDraft->id);
+
+        $this->actingAs($actor, 'sanctum')->getJson("/api/v1/exams/{$ownDraft->id}")->assertOk();
+        $this->actingAs($actor, 'sanctum')->getJson("/api/v1/exams/{$otherSchoolExam->id}")->assertNotFound();
+    }
 }

@@ -50,7 +50,7 @@ class GuestExamAttemptController extends Controller
         abort_unless($exam->isPubliclyTakeable(), 404);
 
         $answers = collect($request->validated('answers'))->keyBy('question_id');
-        $submittedIds = $answers->keys()->unique()->values();
+        $submittedIds = $answers->keys()->values();
 
         if ($exam->selection_mode === 'per_attempt_random') {
             $eligible = $exam->eligibleRandomQuestionIds();
@@ -81,7 +81,12 @@ class GuestExamAttemptController extends Controller
         $graded = [];
 
         foreach ($gradeIds as $questionId) {
-            $question = $questions[$questionId];
+            $question = $questions->get($questionId);
+
+            if ($question === null) {
+                continue;
+            }
+
             $marks = $exam->selection_mode === 'per_attempt_random' ? $exam->marks_per_question : $question->marks;
             $selectedOptionIds = $answers[$questionId]['selected_option_ids'] ?? [];
             $isCorrect = ExamGrading::isCorrect($question, $selectedOptionIds);

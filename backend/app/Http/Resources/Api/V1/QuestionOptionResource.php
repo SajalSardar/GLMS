@@ -19,8 +19,13 @@ class QuestionOptionResource extends JsonResource
             'order_index' => $this->order_index,
             // A student fetching exam questions must never see which
             // option is flagged correct through this same resource class.
+            // This resource is reachable from the public GET /exams/{exam}
+            // route (and the guest random-draw endpoint), which sits
+            // outside the auth:sanctum group, so the user is resolved
+            // explicitly from the sanctum guard rather than via
+            // $request->user().
             'is_correct' => $this->when(
-                $request->user()?->hasPermission('questions.update') ?? false,
+                $request->user('sanctum')?->hasPermission('questions.update') ?? false,
                 $this->is_correct
             ),
         ];
