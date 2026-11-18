@@ -48,11 +48,11 @@ class QuestionImportExportTest extends TestCase
         $versionA = ClassVersion::create(['class_id' => $classA->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'name' => 'Bangla Version']);
         $versionB = ClassVersion::create(['class_id' => $classB->id, 'school_id' => $schoolB->id, 'district_id' => $schoolB->district_id, 'name' => 'Bangla Version']);
 
-        $bookA = Book::create(['class_version_id' => $versionA->id, 'subject_id' => $subject->id, 'school_id' => $versionA->school_id, 'district_id' => $versionA->district_id, 'name' => 'Mathematics Book']);
-        $bookB = Book::create(['class_version_id' => $versionB->id, 'subject_id' => $subject->id, 'school_id' => $versionB->school_id, 'district_id' => $versionB->district_id, 'name' => 'Mathematics Book']);
+        $bookA = Book::create(['class_version_id' => $versionA->id, 'subject_id' => $subject->id, 'name' => 'Mathematics Book']);
+        $bookB = Book::create(['class_version_id' => $versionB->id, 'subject_id' => $subject->id, 'name' => 'Mathematics Book']);
 
-        $this->chapterA = Chapter::create(['book_id' => $bookA->id, 'school_id' => $bookA->classVersion->school_id, 'district_id' => $bookA->classVersion->district_id, 'name' => 'Chapter 1']);
-        $this->chapterB = Chapter::create(['book_id' => $bookB->id, 'school_id' => $bookB->classVersion->school_id, 'district_id' => $bookB->classVersion->district_id, 'name' => 'Chapter 1']);
+        $this->chapterA = Chapter::create(['book_id' => $bookA->id, 'name' => 'Chapter 1']);
+        $this->chapterB = Chapter::create(['book_id' => $bookB->id, 'name' => 'Chapter 1']);
     }
 
     private function csvFile(string $content): UploadedFile
@@ -112,7 +112,7 @@ class QuestionImportExportTest extends TestCase
         $this->assertDatabaseCount('questions', 2);
     }
 
-    public function test_import_cannot_target_a_chapter_outside_the_actors_tenant(): void
+    public function test_import_succeeds_for_a_chapter_belonging_to_a_different_school(): void
     {
         $allowed = $this->actorWithPermissions(['questions.create'], $this->schoolA->id, $this->schoolA->district_id);
 
@@ -123,9 +123,9 @@ class QuestionImportExportTest extends TestCase
             ->post('/api/v1/questions/import', ['file' => $this->csvFile($csv)])
             ->assertOk();
 
-        $response->assertJsonPath('imported', 0);
-        $response->assertJsonPath('failed', 1);
-        $this->assertDatabaseCount('questions', 0);
+        $response->assertJsonPath('imported', 1);
+        $response->assertJsonPath('failed', 0);
+        $this->assertDatabaseCount('questions', 1);
     }
 
     public function test_import_is_forbidden_without_create_permission(): void

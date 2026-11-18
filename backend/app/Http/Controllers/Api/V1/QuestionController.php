@@ -85,23 +85,14 @@ class QuestionController extends Controller
             try {
                 $parsed = QuestionCsvImporter::parseRow($row);
                 $chapter = Chapter::find($parsed['question']['chapter_id']);
-                $classVersion = $chapter?->book->classVersion;
 
-                if (! $classVersion) {
-                    // Either the chapter doesn't exist, or (now that Chapter
-                    // is national content and no longer tenant-scoped) it
-                    // belongs to a class version outside this actor's own
-                    // tenant — ClassVersion is still TenantScoped, so the
-                    // relation resolves to null for that case instead of
-                    // Chapter::find() itself returning null as it used to.
+                if (! $chapter) {
                     throw new InvalidArgumentException('chapter_id does not exist or is not accessible.');
                 }
 
-                $question = DB::transaction(function () use ($parsed, $classVersion) {
+                $question = DB::transaction(function () use ($parsed) {
                     $question = Question::create([
                         ...$parsed['question'],
-                        'school_id' => $classVersion->school_id,
-                        'district_id' => $classVersion->district_id,
                     ]);
 
                     foreach ($parsed['options'] as $option) {
@@ -176,15 +167,7 @@ class QuestionController extends Controller
         $this->authorize('create', Question::class);
 
         $chapter = Chapter::findOrFail($request->integer('chapter_id'));
-        // ClassVersion is still TenantScoped, so this resolves to null
-        // (not an exception) for a chapter outside this actor's own
-        // tenant — Chapter itself is national content and no longer
-        // tenant-scoped, so that check can no longer happen implicitly
-        // via Chapter::findOrFail() the way it used to.
-        $classVersion = $chapter->book->classVersion ?? abort(404);
         $data = $request->safe()->except(['image', 'options']);
-        $data['school_id'] = $classVersion->school_id;
-        $data['district_id'] = $classVersion->district_id;
 
         if ($request->hasFile('image')) {
             $disk = config('content.question_image_disk');

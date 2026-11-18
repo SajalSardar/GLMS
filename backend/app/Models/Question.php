@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Models\Concerns\Auditable;
-use App\Models\Concerns\TenantScoped;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -11,7 +10,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Question extends Model
 {
-    use Auditable, SoftDeletes, TenantScoped;
+    use Auditable, SoftDeletes;
 
     /**
      * In-memory defaults mirroring the migration's column defaults, so a
@@ -27,8 +26,6 @@ class Question extends Model
 
     protected $fillable = [
         'chapter_id',
-        'school_id',
-        'district_id',
         'question_type',
         'question_text',
         'bn_question_text',
