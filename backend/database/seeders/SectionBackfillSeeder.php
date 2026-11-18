@@ -62,7 +62,7 @@ class SectionBackfillSeeder extends Seeder
             $schoolId = $assignment->school_id;
             $districtId = $assignment->district_id;
 
-            $academicYearId = AcademicYear::where('school_id', $schoolId)->where('is_current', true)->value('id');
+            $academicYearId = AcademicYear::where('is_current', true)->value('id');
 
             $version = ClassVersion::firstOrCreate(
                 ['class_id' => $class->id, 'school_id' => $schoolId, 'name' => 'General'],
