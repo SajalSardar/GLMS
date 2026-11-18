@@ -9,7 +9,7 @@ import { listBooks, listChapters, listChapterVideos, listClassVersions, type Boo
 export async function booksForClassAndSubject(classId: number | null, subjectId: number | null): Promise<Book[]> {
   if (!classId) return []
 
-  const versionsResult = await listClassVersions({ classId })
+  const versionsResult = await listClassVersions({ classId, perPage: 500 })
   const versions = versionsResult.data
 
   const bookLists = await Promise.all(
