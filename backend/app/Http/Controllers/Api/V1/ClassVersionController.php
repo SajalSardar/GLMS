@@ -8,7 +8,7 @@ use App\Http\Requests\Api\V1\UpdateClassVersionRequest;
 use App\Http\Requests\Api\V1\UpdateVersionSubjectsRequest;
 use App\Http\Resources\Api\V1\ClassVersionResource;
 use App\Models\ClassVersion;
-use App\Models\SchoolClass;
+use App\Models\School;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -51,19 +51,19 @@ class ClassVersionController extends Controller
     {
         $this->authorize('create', ClassVersion::class);
 
-        $class = SchoolClass::findOrFail($request->integer('class_id'));
+        $school = School::findOrFail($request->integer('school_id'));
 
         $attributes = [
             'name' => $request->string('name')->toString(),
             'bn_name' => $request->input('bn_name'),
             'is_active' => $request->boolean('is_active', true),
-            'class_id' => $class->id,
-            'school_id' => $class->school_id,
-            'district_id' => $class->district_id,
+            'class_id' => $request->integer('class_id'),
+            'school_id' => $school->id,
+            'district_id' => $school->district_id,
         ];
 
         $version = ClassVersion::onlyTrashed()
-            ->where('class_id', $class->id)
+            ->where('class_id', $attributes['class_id'])
             ->where('name', $attributes['name'])
             ->first();
 

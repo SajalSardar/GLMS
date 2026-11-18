@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\ClassSchool;
 use App\Models\ClassVersion;
 use App\Models\District;
 use App\Models\Division;
@@ -58,10 +59,11 @@ class ClassAndVersionAuthorizationTest extends TestCase
 
     public function test_class_version_store_update_and_update_subjects_are_authorized(): void
     {
-        $class = SchoolClass::create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Class']);
+        $class = SchoolClass::create(['name' => 'Class']);
+        ClassSchool::create(['class_id' => $class->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
         $version = ClassVersion::create(['class_id' => $class->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Existing Version']);
         $subject = Subject::create(['name' => 'Math']);
-        $payload = ['class_id' => $class->id, 'name' => 'New Version'];
+        $payload = ['class_id' => $class->id, 'school_id' => $this->school->id, 'name' => 'New Version'];
 
         $denied = $this->actorWithNoPermissions();
         $this->actingAs($denied, 'sanctum')->postJson('/api/v1/class-versions', $payload)->assertForbidden();
