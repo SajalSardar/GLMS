@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, NavLink, Outlet } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '@ttla/auth'
 import { getCommonStrings } from '@ttla/i18n'
 
@@ -15,6 +15,13 @@ const NAV_ITEMS = [
 export default function SiteShell() {
   const { token, clearToken } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
+  const { pathname } = useLocation()
+  // The landing page (`/`) already renders its own complete footer (brand,
+  // quick links, help, copyright) — this thin site-wide footer is only for
+  // routes that don't have one of their own (Books/Videos/Exams, added by
+  // later tasks). Without this guard, `/` would show two footers stacked
+  // back-to-back.
+  const showFooter = pathname !== '/'
 
   return (
     <div className="flex min-h-screen flex-col bg-white text-primary-900">
@@ -127,9 +134,11 @@ export default function SiteShell() {
         <Outlet />
       </main>
 
-      <footer className="border-t border-primary-100 bg-primary-50 px-4 py-6 text-center text-sm text-primary-700 lg:px-8">
-        © {new Date().getFullYear()} {t['landing.brand']}
-      </footer>
+      {showFooter && (
+        <footer className="border-t border-primary-100 bg-primary-50 px-4 py-6 text-center text-sm text-primary-700 lg:px-8">
+          © {new Date().getFullYear()} {t['landing.brand']}
+        </footer>
+      )}
     </div>
   )
 }
