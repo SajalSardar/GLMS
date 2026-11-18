@@ -202,6 +202,31 @@ class ExamAttemptControllerTest extends TestCase
         $this->actingAs($unrelatedStudent, 'sanctum')->getJson("/api/v1/exam-attempts/{$attemptId}")->assertForbidden();
     }
 
+    public function test_submitted_attempt_includes_bn_question_text(): void
+    {
+        $question = Question::create([
+            'chapter_id' => $this->chapter->id,
+            'school_id' => $this->school->id,
+            'district_id' => $this->school->district_id,
+            'question_type' => 'mcq_single',
+            'question_text' => 'What is 2+2?',
+            'bn_question_text' => 'দুই যোগ দুই কত?',
+            'marks' => 5,
+        ]);
+        $exam = Exam::create(['class_version_id' => $this->version->id, 'subject_id' => $this->subject->id, 'academic_year_id' => $this->academicYear->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Bangla Exam', 'selection_mode' => 'manual', 'status' => 'published']);
+        $exam->questions()->attach($question->id, ['order_index' => 0]);
+
+        $student = $this->eligibleStudent();
+        $attemptId = $this->actingAs($student, 'sanctum')->postJson("/api/v1/exams/{$exam->id}/attempts")->json('data.id');
+
+        $response = $this->actingAs($student, 'sanctum')
+            ->postJson("/api/v1/exam-attempts/{$attemptId}/submit")
+            ->assertOk();
+
+        $response->assertJsonPath('data.questions.0.question_text', $question->question_text);
+        $response->assertJsonPath('data.questions.0.bn_question_text', $question->bn_question_text);
+    }
+
     public function test_index_lists_attempts_for_management_but_not_for_a_student(): void
     {
         $student = $this->eligibleStudent();
