@@ -27,8 +27,13 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('class_versions', function (Blueprint $table) {
+            // Same MySQL/InnoDB index-vs-foreign-key requirement as
+            // 2026_11_19_100100_add_school_id_to_class_subjects_table —
+            // see that migration's comment.
+            $table->index('class_id', 'class_versions_class_id_index');
             $table->dropUnique(['class_id', 'name']);
             $table->unique(['class_id', 'school_id', 'name']);
+            $table->dropIndex('class_versions_class_id_index');
         });
     }
 
@@ -38,8 +43,10 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('class_versions', function (Blueprint $table) {
+            $table->index('class_id', 'class_versions_class_id_index');
             $table->dropUnique(['class_id', 'school_id', 'name']);
             $table->unique(['class_id', 'name']);
+            $table->dropIndex('class_versions_class_id_index');
         });
     }
 };

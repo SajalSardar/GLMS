@@ -31,7 +31,7 @@ class ClassRoutineSeeder extends Seeder
         $school = School::find(1);
         $teacher = TeacherUser::where('email', 'teacher@tlap.test')->first();
         $classroom = Classroom::where('school_id', 1)->where('name', 'Room 101')->first();
-        $academicYear = AcademicYear::where('school_id', 1)->where('is_current', true)->first();
+        $academicYear = AcademicYear::where('is_current', true)->first();
 
         if (! $class || ! $school) {
             return;
