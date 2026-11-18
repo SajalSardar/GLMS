@@ -3,9 +3,11 @@ import {
   createClassVersion,
   deleteClassVersion,
   listClasses,
+  listClassSchools,
   listClassVersions,
   listSchools,
   updateClassVersion,
+  type ClassSchool,
   type ClassVersion,
   type School,
   type SchoolClass,
@@ -19,17 +21,19 @@ import { inputClass } from '../components/styles'
 const t = getCommonStrings('en')
 
 const initialValues = {
+  school_id: '',
   class_id: '',
   name: '',
   bn_name: '',
   is_active: 'true',
 }
 
-const requiredFields = ['class_id', 'name']
+const requiredFields = ['school_id', 'class_id', 'name']
 
 function toPayload(values: Record<string, string>) {
   return {
     class_id: Number(values.class_id),
+    school_id: Number(values.school_id),
     name: values.name,
     bn_name: values.bn_name || null,
     is_active: values.is_active === 'true',
@@ -57,37 +61,59 @@ function DetailRow({ label, value }: { label: string; value: ReactNode }) {
   )
 }
 
-function ClassVersionDetails({ version }: { version: ClassVersion }) {
-  const subjectsLabel = version.class ? version.class.name : String(version.class_id)
+function ClassVersionDetails({ version, schools }: { version: ClassVersion; schools: School[] }) {
+  const school = schools.find((candidate) => candidate.id === version.school_id)
 
   return (
     <div className="flex flex-col gap-1">
       <DetailRow label={t['management.fields.name']} value={version.name} />
       <DetailRow label={t['management.fields.bnName']} value={version.bn_name ?? '—'} />
-      <DetailRow label={t['management.fields.class']} value={subjectsLabel} />
-      <DetailRow label={t['management.fields.school']} value={version.class?.school?.name ?? '—'} />
+      <DetailRow label={t['management.fields.class']} value={version.class?.name ?? version.class_id} />
+      <DetailRow label={t['management.fields.school']} value={school ? schoolLabel(school) : version.school_id} />
       <DetailRow label={t['management.fields.isActive']} value={<ActiveBadge isActive={version.is_active} />} />
     </div>
   )
 }
 
 export default function ClassVersionsPage() {
-  const [classes, setClasses] = useState<SchoolClass[]>([])
+  // The full national class-name list — used only for the page-level
+  // filter ("find every version of Class Six across every school") and
+  // for the detail/table views, which never create anything and so
+  // don't need the adoption gate.
+  const [allClasses, setAllClasses] = useState<SchoolClass[]>([])
   const [schools, setSchools] = useState<School[]>([])
+  // The create/edit form's Class dropdown, re-fetched whenever the
+  // form's School field changes. Scoped to that school's actual
+  // adoptions so it's structurally impossible to submit a
+  // (class_id, school_id) pair absent from class_schools.
+  const [adoptedClasses, setAdoptedClasses] = useState<ClassSchool[]>([])
+  const [formSchoolId, setFormSchoolId] = useState('')
 
   useEffect(() => {
-    listClasses({ perPage: 200 })
-      .then((result) => setClasses(result.data))
-      .catch(() => setClasses([]))
+    listClasses({ perPage: 500 })
+      .then((result) => setAllClasses(result.data))
+      .catch(() => setAllClasses([]))
 
     listSchools({ perPage: 200 })
       .then((result) => setSchools(result.data))
       .catch(() => setSchools([]))
   }, [])
 
-  const classOptions = classes.map((schoolClass) => ({
-    value: String(schoolClass.id),
-    label: schoolClass.school ? `${schoolClass.school.name} • ${schoolClass.name}` : schoolClass.name,
+  useEffect(() => {
+    if (!formSchoolId) {
+      setAdoptedClasses([])
+      return
+    }
+
+    listClassSchools({ schoolId: Number(formSchoolId), perPage: 500 })
+      .then((result) => setAdoptedClasses(result.data))
+      .catch(() => setAdoptedClasses([]))
+  }, [formSchoolId])
+
+  const schoolOptions = schools.map((school) => ({ value: String(school.id), label: schoolLabel(school) }))
+  const adoptedClassOptions = adoptedClasses.map((classSchool) => ({
+    value: String(classSchool.class_id),
+    label: classSchool.class?.name ?? String(classSchool.class_id),
   }))
 
   const columns: GeoColumn<ClassVersion>[] = [
@@ -101,7 +127,10 @@ export default function ClassVersionsPage() {
     {
       key: 'school',
       label: t['management.fields.school'],
-      render: (row) => row.class?.school?.name ?? '—',
+      render: (row) => {
+        const school = schools.find((candidate) => candidate.id === row.school_id)
+        return school ? schoolLabel(school) : row.school_id
+      },
     },
     {
       key: 'is_active',
@@ -116,14 +145,33 @@ export default function ClassVersionsPage() {
       columns={columns}
       initialValues={initialValues}
       requiredFields={requiredFields}
-      valuesFromRow={(row) => ({
-        class_id: String(row.class_id),
-        name: row.name,
-        bn_name: row.bn_name ?? '',
-        is_active: String(row.is_active),
-      })}
+      valuesFromRow={(row) => {
+        setFormSchoolId(String(row.school_id))
+        return {
+          school_id: String(row.school_id),
+          class_id: String(row.class_id),
+          name: row.name,
+          bn_name: row.bn_name ?? '',
+          is_active: String(row.is_active),
+        }
+      }}
       renderFields={(values, onChange, fieldErrors) => (
         <>
+          <GeoField label={t['management.fields.school']} required error={fieldErrors.school_id}>
+            <SearchableSelect
+              value={values.school_id}
+              onChange={(next) => {
+                onChange('school_id', next)
+                onChange('class_id', '')
+                setFormSchoolId(next)
+              }}
+              placeholder={t['management.fields.school']}
+              searchPlaceholder={t['management.table.search']}
+              noMatchesLabel={t['management.table.noMatches']}
+              options={schoolOptions}
+            />
+          </GeoField>
+
           <GeoField label={t['management.fields.class']} required error={fieldErrors.class_id}>
             <SearchableSelect
               value={values.class_id}
@@ -131,7 +179,8 @@ export default function ClassVersionsPage() {
               placeholder={t['management.fields.class']}
               searchPlaceholder={t['management.table.search']}
               noMatchesLabel={t['management.table.noMatches']}
-              options={classOptions}
+              options={adoptedClassOptions}
+              className={!values.school_id ? `${inputClass} cursor-not-allowed opacity-60` : undefined}
             />
           </GeoField>
 
@@ -172,7 +221,7 @@ export default function ClassVersionsPage() {
       createRow={(values, token) => createClassVersion(toPayload(values), token)}
       updateRow={(id, values, token) => updateClassVersion(id, toPayload(values), token)}
       deleteRow={(id, token) => deleteClassVersion(id, token)}
-      renderDetails={(row) => <ClassVersionDetails version={row} />}
+      renderDetails={(row) => <ClassVersionDetails version={row} schools={schools} />}
       parentFilter={{
         label: t['management.fields.school'],
         allLabel: t['management.fields.allSchools'],
@@ -181,10 +230,7 @@ export default function ClassVersionsPage() {
       secondaryFilter={{
         label: t['management.fields.class'],
         allLabel: t['management.fields.allClasses'],
-        options: classes.map((schoolClass) => ({
-          id: schoolClass.id,
-          label: schoolClass.school ? `${schoolClass.school.name} • ${schoolClass.name}` : schoolClass.name,
-        })),
+        options: allClasses.map((schoolClass) => ({ id: schoolClass.id, label: schoolClass.name })),
       }}
     />
   )
