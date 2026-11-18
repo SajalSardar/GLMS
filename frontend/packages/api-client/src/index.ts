@@ -423,33 +423,25 @@ export function deleteSchool(id: number, token: string): Promise<void> {
 
 export interface SchoolClass {
   id: number
-  school_id: number
-  district_id: number
   name: string
   bn_name: string | null
   numeric_level: number | null
-  section: string | null
-  school?: School | null
   subjects?: Array<{ id: number; name: string; bn_name: string | null }> | null
 }
 
 export interface SchoolClassPayload {
-  school_id: number
   name: string
   bn_name?: string | null
   numeric_level?: number | null
-  section?: string | null
 }
 
 export function listClasses(
-  params: { page?: number; perPage?: number; search?: string; schoolId?: number; districtId?: number } = {},
+  params: { page?: number; perPage?: number; search?: string } = {},
 ): Promise<PaginatedResponse<SchoolClass>> {
   const query: Record<string, string | number | undefined> = {
     page: params.page,
     per_page: params.perPage,
     search: params.search || undefined,
-    school_id: params.schoolId,
-    district_id: params.districtId,
   }
 
   return apiFetch<PaginatedResponse<SchoolClass>>(`/classes${buildQuery(query)}`)
@@ -469,6 +461,56 @@ export function updateClass(
 
 export function deleteClass(id: number, token: string): Promise<void> {
   return deleteGeo('classes', id, token)
+}
+
+// ---------- Class schools ----------
+
+export interface ClassSchool {
+  id: number
+  class_id: number
+  school_id: number
+  district_id: number
+  class?: SchoolClass | null
+  school?: School | null
+  subjects?: Subject[] | null
+}
+
+export interface ClassSchoolPayload {
+  class_id: number
+  school_id: number
+}
+
+export function listClassSchools(
+  params: { page?: number; perPage?: number; schoolId?: number; classId?: number } = {},
+): Promise<PaginatedResponse<ClassSchool>> {
+  const query: Record<string, string | number | undefined> = {
+    page: params.page,
+    per_page: params.perPage,
+    school_id: params.schoolId,
+    class_id: params.classId,
+  }
+
+  return apiFetch<PaginatedResponse<ClassSchool>>(`/class-schools${buildQuery(query)}`)
+}
+
+export function createClassSchool(payload: ClassSchoolPayload, token: string): Promise<{ data: ClassSchool }> {
+  return createGeo<ClassSchool, ClassSchoolPayload>('class-schools', payload, token)
+}
+
+export function deleteClassSchool(id: number, token: string): Promise<void> {
+  return deleteGeo('class-schools', id, token)
+}
+
+export function updateClassSchoolSubjects(
+  id: number,
+  subjectIds: number[],
+  token: string,
+): Promise<{ data: ClassSchool }> {
+  return apiFetch<{ data: ClassSchool }>(`/class-schools/${id}/subjects`, {
+    method: 'PUT',
+    headers: authHeaders(token),
+    body: JSON.stringify({ subject_ids: subjectIds }),
+  })
 }
 
 // ---------- Academic years ----------
@@ -543,6 +585,7 @@ export interface ClassVersion {
 
 export interface ClassVersionPayload {
   class_id: number
+  school_id: number
   name: string
   bn_name?: string | null
   is_active?: boolean

@@ -4,17 +4,20 @@ import {
   apiFetch,
   createAcademicYear,
   createClass,
+  createClassSchool,
   createClassVersion,
   createDivision,
   createSchool,
   createSection,
   createShift,
   createSubjectTeacherAssignment,
+  deleteClassSchool,
   deleteDivision,
   deleteSubjectTeacherAssignment,
   getHealth,
   listAcademicYears,
   listClasses,
+  listClassSchools,
   listClassVersions,
   listDistricts,
   listDivisions,
@@ -27,6 +30,7 @@ import {
   listUpazilas,
   managementLogin,
   studentLogin,
+  updateClassSchoolSubjects,
   updateDivision,
   updateSchool,
   updateSubjectTeacherAssignment,
@@ -331,19 +335,19 @@ describe('school classes', () => {
     vi.unstubAllGlobals()
   })
 
-  it('lists classes filtered by school_id', async () => {
+  it('lists classes with no school filter', async () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ data: [], meta: { current_page: 1, last_page: 1, per_page: 15, total: 0 } }),
     })
     vi.stubGlobal('fetch', mockFetch)
 
-    await listClasses({ schoolId: 5 })
+    await listClasses({ search: 'six' })
 
-    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/classes?school_id=5`)
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/classes?search=six`)
   })
 
-  it('creates a class with a JSON body', async () => {
+  it('creates a class with no school_id in the body', async () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
       status: 201,
@@ -351,12 +355,78 @@ describe('school classes', () => {
     })
     vi.stubGlobal('fetch', mockFetch)
 
-    await createClass({ school_id: 5, name: 'Class Six' }, 'secret-token')
+    await createClass({ name: 'Class Six' }, 'secret-token')
 
     expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/classes`)
     expect(mockFetch.mock.calls[0][1]).toMatchObject({
       method: 'POST',
-      body: JSON.stringify({ school_id: 5, name: 'Class Six' }),
+      body: JSON.stringify({ name: 'Class Six' }),
+      headers: expect.objectContaining({ Authorization: 'Bearer secret-token' }),
+    })
+  })
+})
+
+describe('class schools', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('lists class schools filtered by school_id', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ data: [], meta: { current_page: 1, last_page: 1, per_page: 15, total: 0 } }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    await listClassSchools({ schoolId: 5 })
+
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/class-schools?school_id=5`)
+  })
+
+  it('creates a class school with a JSON body', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 201,
+      json: () => Promise.resolve({ data: { id: 1 } }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    await createClassSchool({ class_id: 7, school_id: 5 }, 'secret-token')
+
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/class-schools`)
+    expect(mockFetch.mock.calls[0][1]).toMatchObject({
+      method: 'POST',
+      body: JSON.stringify({ class_id: 7, school_id: 5 }),
+      headers: expect.objectContaining({ Authorization: 'Bearer secret-token' }),
+    })
+  })
+
+  it('deletes a class school', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 204 })
+    vi.stubGlobal('fetch', mockFetch)
+
+    await deleteClassSchool(9, 'secret-token')
+
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/class-schools/9`)
+    expect(mockFetch.mock.calls[0][1]).toMatchObject({
+      method: 'DELETE',
+      headers: expect.objectContaining({ Authorization: 'Bearer secret-token' }),
+    })
+  })
+
+  it('syncs a class school\'s subjects with a JSON body', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ data: { id: 9 } }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    await updateClassSchoolSubjects(9, [1, 2, 3], 'secret-token')
+
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/class-schools/9/subjects`)
+    expect(mockFetch.mock.calls[0][1]).toMatchObject({
+      method: 'PUT',
+      body: JSON.stringify({ subject_ids: [1, 2, 3] }),
       headers: expect.objectContaining({ Authorization: 'Bearer secret-token' }),
     })
   })
@@ -424,12 +494,12 @@ describe('class versions', () => {
     })
     vi.stubGlobal('fetch', mockFetch)
 
-    await createClassVersion({ class_id: 5, name: 'English Version' }, 'secret-token')
+    await createClassVersion({ class_id: 5, school_id: 3, name: 'English Version' }, 'secret-token')
 
     expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/class-versions`)
     expect(mockFetch.mock.calls[0][1]).toMatchObject({
       method: 'POST',
-      body: JSON.stringify({ class_id: 5, name: 'English Version' }),
+      body: JSON.stringify({ class_id: 5, school_id: 3, name: 'English Version' }),
       headers: expect.objectContaining({ Authorization: 'Bearer secret-token' }),
     })
   })
