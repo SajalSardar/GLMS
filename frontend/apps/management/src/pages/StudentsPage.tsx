@@ -19,7 +19,7 @@ import { schoolLabel } from '../components/schoolOptions'
 const t = getCommonStrings('en')
 
 function schoolClassLabel(schoolClass: SchoolClass): string {
-  return schoolClass.school ? `${schoolClass.school.name} • ${schoolClass.name}` : schoolClass.name
+  return schoolClass.name
 }
 
 export default function StudentsPage() {

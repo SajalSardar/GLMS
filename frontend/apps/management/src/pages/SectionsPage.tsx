@@ -43,10 +43,8 @@ function toPayload(values: Record<string, string>) {
 }
 
 function shiftLabel(shift: Shift): string {
-  const schoolName = shift.class_version?.class?.school?.name
   const classVersionName = shift.class_version?.name
 
-  if (schoolName && classVersionName) return `${schoolName} • ${classVersionName} • ${shift.name}`
   if (classVersionName) return `${classVersionName} • ${shift.name}`
   return shift.name
 }
@@ -56,8 +54,7 @@ function classLabel(shift?: Shift | null): string {
 }
 
 function schoolClassLabel(schoolClass: SchoolClass): string {
-  const schoolName = schoolClass.school?.name
-  return schoolName ? `${schoolName} • ${schoolClass.name}` : schoolClass.name
+  return schoolClass.name
 }
 
 function ActiveBadge({ isActive }: { isActive: boolean }) {

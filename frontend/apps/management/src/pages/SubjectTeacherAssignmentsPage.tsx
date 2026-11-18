@@ -34,12 +34,11 @@ const initialValues = {
 const requiredFields = ['section_id', 'subject_id', 'teacher_id']
 
 function sectionLabel(section: Section): string {
-  const schoolName = section.shift?.class_version?.class?.school?.name
   const className = section.shift?.class_version?.class?.name
   const versionName = section.shift?.class_version?.name
   const shiftName = section.shift?.name
 
-  const parts = [schoolName, className, versionName, shiftName, section.name].filter(
+  const parts = [className, versionName, shiftName, section.name].filter(
     (part): part is string => Boolean(part),
   )
 
@@ -47,7 +46,7 @@ function sectionLabel(section: Section): string {
 }
 
 function schoolClassLabel(schoolClass: SchoolClass): string {
-  return schoolClass.school ? `${schoolClass.school.name} • ${schoolClass.name}` : schoolClass.name
+  return schoolClass.name
 }
 
 function toPayload(values: Record<string, string>) {

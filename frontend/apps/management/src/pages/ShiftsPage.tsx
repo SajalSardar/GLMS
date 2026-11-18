@@ -67,10 +67,8 @@ function toPayload(values: Record<string, string>) {
 }
 
 function classVersionLabel(version: ClassVersion): string {
-  const schoolName = version.class?.school?.name
   const className = version.class?.name
 
-  if (schoolName && className) return `${schoolName} • ${className} • ${version.name}`
   if (className) return `${className} • ${version.name}`
   return version.name
 }
@@ -80,7 +78,7 @@ function daysLabel(days: DayOfWeek[]): string {
 }
 
 function schoolClassLabel(schoolClass: SchoolClass): string {
-  return schoolClass.school ? `${schoolClass.school.name} • ${schoolClass.name}` : schoolClass.name
+  return schoolClass.name
 }
 
 function DetailRow({ label, value }: { label: string; value: ReactNode }) {
