@@ -2,15 +2,32 @@
 @source '../../../packages/ui/src';
 
 @theme {
-  --color-primary-50: #ecf0ff;
-  --color-primary-100: #dde4ff;
-  --color-primary-200: #c2cdff;
-  --color-primary-300: #9caaff;
-  --color-primary-400: #757dff;
-  --color-primary-500: #605dff;
-  --color-primary-600: #4936f5;
-  --color-primary-700: #3e2ad8;
-  --color-primary-800: #3225ae;
+  /* Green brand ramp, bracketing this app's actual primary green (#0f6b4c).
+     50/500/700 are pinned to the exact hex values the reference design
+     already uses (--color-primary-tint / --color-primary / --color-primary-dark
+     below), the rest are interpolated to match the same kind of ramp shape
+     the old indigo scale used. */
+  --color-primary-50: #e8f5ee;
+  --color-primary-100: #bfd9ce;
+  --color-primary-200: #93bead;
+  --color-primary-300: #67a28d;
+  --color-primary-400: #3b876c;
+  --color-primary-500: #0f6b4c;
+  --color-primary-600: #0d5c42;
+  --color-primary-700: #0a4d37;
+  --color-primary-800: #083e2d;
+  --color-primary-900: #062f23;
+
+  /* Tone colors, copied verbatim from the old LandingLogin.css `.landing`
+     block — every badge/card/icon accent color across the site. */
+  --color-tone-violet: #7c3aed;
+  --color-tone-green: #16a34a;
+  --color-tone-amber: #f2a93b;
+  --color-tone-blue: #2563eb;
+  --color-tone-rose: #e11d48;
+  --color-tone-teal: #0ea5a4;
+  --color-tone-red: #dc2626;
+  --color-tone-muted: #94a3b8;
 
   --color-success-50: #eeffe5;
   --color-success-100: #d8ffc8;
@@ -25,6 +42,8 @@
 
   --color-warning-50: #fff8e1;
   --color-warning-500: #ffc107;
+
+  --font-display: 'Baloo Da 2', 'Hind Siliguri', system-ui, sans-serif;
 }
 
 :root {
@@ -41,7 +60,6 @@
   --color-muted: #4b5d57;
   --color-surface: #ffffff;
   --color-border: #d8e8e0;
-  --font-display: 'Baloo Da 2', 'Hind Siliguri', system-ui, sans-serif;
 }
 
 * {
@@ -51,19 +69,4 @@
 body {
   margin: 0;
   background-color: var(--color-gray-50);
-}
-
-.status-card {
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 1rem;
-  max-width: 420px;
-}
-
-.status-card.status-ok {
-  border-color: #22c55e;
-}
-
-.status-card.status-error {
-  border-color: #ef4444;
 }
