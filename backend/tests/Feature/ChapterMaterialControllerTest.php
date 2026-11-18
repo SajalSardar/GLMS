@@ -164,6 +164,16 @@ class ChapterMaterialControllerTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_store_gets_404_targeting_a_chapter_belonging_to_a_different_school(): void
+    {
+        $file = UploadedFile::fake()->create('chapter1.pdf', 100, 'application/pdf');
+        $allowed = $this->actorWithPermissions(['chapter_materials.create'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $this->actingAs($allowed, 'sanctum')
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterB->id, 'type' => 'primary', 'pdf' => $file])
+            ->assertNotFound();
+    }
+
     public function test_update_can_replace_the_file(): void
     {
         $allowed = $this->actorWithPermissions(['chapter_materials.create', 'chapter_materials.update'], $this->schoolA->id, $this->schoolA->district_id);

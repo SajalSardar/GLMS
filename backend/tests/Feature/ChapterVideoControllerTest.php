@@ -114,6 +114,15 @@ class ChapterVideoControllerTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_store_gets_404_targeting_a_chapter_belonging_to_a_different_school(): void
+    {
+        $allowed = $this->actorWithPermissions(['chapter_videos.create'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $this->actingAs($allowed, 'sanctum')
+            ->postJson('/api/v1/chapter-videos', ['chapter_id' => $this->chapterB->id, 'youtube_url' => 'https://youtu.be/dQw4w9WgXcQ', 'title' => 'Intro'])
+            ->assertNotFound();
+    }
+
     public function test_reorder_sets_order_index_from_the_given_sequence(): void
     {
         $allowed = $this->actorWithPermissions(['chapter_videos.create', 'chapter_videos.update'], $this->schoolA->id, $this->schoolA->district_id);

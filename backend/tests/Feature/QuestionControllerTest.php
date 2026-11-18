@@ -189,6 +189,15 @@ class QuestionControllerTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_store_gets_404_targeting_a_chapter_belonging_to_a_different_school(): void
+    {
+        $allowed = $this->actorWithPermissions(['questions.create'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $this->actingAs($allowed, 'sanctum')
+            ->postJson('/api/v1/questions', $this->mcqPayload(['chapter_id' => $this->chapterB->id]))
+            ->assertNotFound();
+    }
+
     public function test_index_excludes_inactive_questions_unless_the_caller_can_manage_them(): void
     {
         $enabled = Question::create(['chapter_id' => $this->chapterA->id, 'school_id' => $this->chapterA->book->classVersion->school_id, 'district_id' => $this->chapterA->book->classVersion->district_id, 'question_type' => 'mcq_single', 'question_text' => 'Enabled']);
