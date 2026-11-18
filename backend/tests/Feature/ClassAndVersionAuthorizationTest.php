@@ -38,8 +38,8 @@ class ClassAndVersionAuthorizationTest extends TestCase
 
     public function test_class_store_and_update_are_authorized(): void
     {
-        $class = SchoolClass::create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Existing Class']);
-        $payload = ['school_id' => $this->school->id, 'name' => 'New Class'];
+        $class = SchoolClass::create(['name' => 'Existing Class']);
+        $payload = ['name' => 'New Class'];
 
         $denied = $this->actorWithNoPermissions();
         $this->actingAs($denied, 'sanctum')->postJson('/api/v1/classes', $payload)->assertForbidden();

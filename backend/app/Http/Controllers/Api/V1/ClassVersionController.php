@@ -22,7 +22,7 @@ class ClassVersionController extends Controller
     public function index(Request $request): AnonymousResourceCollection
     {
         $versions = ClassVersion::query()
-            ->with(['schoolClass.school', 'subjects'])
+            ->with(['schoolClass', 'subjects'])
             ->when($request->integer('class_id'), fn ($query, $classId) => $query->where('class_id', $classId))
             ->when($request->integer('school_id'), fn ($query, $schoolId) => $query->where('school_id', $schoolId))
             ->when($request->string('search')->toString(), fn ($query, $search) => $query->where('name', 'like', "%{$search}%"))
@@ -37,7 +37,7 @@ class ClassVersionController extends Controller
      */
     public function show(ClassVersion $class_version): ClassVersionResource
     {
-        return new ClassVersionResource($class_version->load(['schoolClass.school', 'subjects', 'shifts']));
+        return new ClassVersionResource($class_version->load(['schoolClass', 'subjects', 'shifts']));
     }
 
     /**
@@ -74,7 +74,7 @@ class ClassVersionController extends Controller
             $version = ClassVersion::create($attributes);
         }
 
-        return (new ClassVersionResource($version->load('schoolClass.school')))
+        return (new ClassVersionResource($version->load('schoolClass')))
             ->response()
             ->setStatusCode(Response::HTTP_CREATED);
     }
@@ -88,7 +88,7 @@ class ClassVersionController extends Controller
 
         $class_version->update($request->validated());
 
-        return new ClassVersionResource($class_version->load('schoolClass.school'));
+        return new ClassVersionResource($class_version->load('schoolClass'));
     }
 
     /**

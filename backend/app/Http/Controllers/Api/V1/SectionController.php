@@ -24,7 +24,7 @@ class SectionController extends Controller
     public function index(Request $request): AnonymousResourceCollection
     {
         $sections = Section::query()
-            ->with(['shift.classVersion.schoolClass.school', 'classTeacher', 'defaultClassroom'])
+            ->with(['shift.classVersion.schoolClass', 'classTeacher', 'defaultClassroom'])
             ->when($request->integer('shift_id'), fn ($query, $id) => $query->where('shift_id', $id))
             ->when($request->integer('school_id'), fn ($query, $schoolId) => $query->where('school_id', $schoolId))
             ->when(
@@ -46,7 +46,7 @@ class SectionController extends Controller
      */
     public function show(Section $section): SectionResource
     {
-        return new SectionResource($section->load(['shift.classVersion.schoolClass.school', 'classTeacher', 'defaultClassroom']));
+        return new SectionResource($section->load(['shift.classVersion.schoolClass', 'classTeacher', 'defaultClassroom']));
     }
 
     /**
@@ -90,7 +90,7 @@ class SectionController extends Controller
             $section = Section::create($attributes);
         }
 
-        return (new SectionResource($section->load(['shift.classVersion.schoolClass.school', 'classTeacher', 'defaultClassroom'])))
+        return (new SectionResource($section->load(['shift.classVersion.schoolClass', 'classTeacher', 'defaultClassroom'])))
             ->response()
             ->setStatusCode(Response::HTTP_CREATED);
     }
@@ -114,7 +114,7 @@ class SectionController extends Controller
 
         $section->update($data);
 
-        return new SectionResource($section->load(['shift.classVersion.schoolClass.school', 'classTeacher', 'defaultClassroom']));
+        return new SectionResource($section->load(['shift.classVersion.schoolClass', 'classTeacher', 'defaultClassroom']));
     }
 
     /**
