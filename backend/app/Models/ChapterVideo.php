@@ -5,7 +5,6 @@ namespace App\Models;
 use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ChapterVideo extends Model
@@ -45,10 +44,5 @@ class ChapterVideo extends Model
     public function chapter(): BelongsTo
     {
         return $this->belongsTo(Chapter::class);
-    }
-
-    public function progressRecords(): HasMany
-    {
-        return $this->hasMany(ChapterVideoProgress::class);
     }
 }

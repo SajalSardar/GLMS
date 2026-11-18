@@ -5,7 +5,6 @@ namespace App\Support;
 use App\Models\Chapter;
 use App\Models\ChapterMaterial;
 use App\Models\ChapterVideo;
-use App\Models\ChapterVideoProgress;
 use App\Models\ClassVersion;
 use App\Models\ContentAccessLog;
 use App\Models\Exam;
@@ -73,13 +72,6 @@ class StudentDashboardBuilder
             ->where('is_enabled', true)
             ->get(['id', 'chapter_id']);
 
-        $completedVideoIds = ChapterVideoProgress::query()
-            ->whereIn('chapter_video_id', $videos->pluck('id'))
-            ->where('user_type', StudentUser::class)
-            ->where('user_id', $userId)
-            ->where('status', 'completed')
-            ->pluck('chapter_video_id');
-
         $materials = ChapterMaterial::query()
             ->whereIn('chapter_id', $chapterIds)
             ->where('status', 'active')
@@ -95,7 +87,7 @@ class StudentDashboardBuilder
         $videosByChapter = $videos->groupBy('chapter_id');
         $materialsByChapter = $materials->groupBy('chapter_id');
 
-        $chapterRollups = $chapters->map(function ($chapter) use ($videosByChapter, $materialsByChapter, $completedVideoIds, $accessedMaterialIds) {
+        $chapterRollups = $chapters->map(function ($chapter) use ($videosByChapter, $materialsByChapter, $accessedMaterialIds) {
             /** @var Collection $chapterVideos */
             $chapterVideos = $videosByChapter->get($chapter->id, collect());
             /** @var Collection $chapterMaterials */
@@ -105,7 +97,6 @@ class StudentDashboardBuilder
                 'chapter_id' => $chapter->id,
                 'chapter_name' => $chapter->name,
                 'video_total' => $chapterVideos->count(),
-                'video_completed' => $chapterVideos->filter(fn ($video) => $completedVideoIds->contains($video->id))->count(),
                 'materials_total' => $chapterMaterials->count(),
                 'materials_accessed' => $chapterMaterials->filter(fn ($material) => $accessedMaterialIds->contains($material->id))->count(),
             ];

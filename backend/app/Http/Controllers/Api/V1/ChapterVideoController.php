@@ -5,15 +5,11 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\ReorderChapterVideosRequest;
 use App\Http\Requests\Api\V1\StoreChapterVideoRequest;
-use App\Http\Requests\Api\V1\UpdateChapterVideoProgressRequest;
 use App\Http\Requests\Api\V1\UpdateChapterVideoRequest;
-use App\Http\Resources\Api\V1\ChapterVideoProgressResource;
 use App\Http\Resources\Api\V1\ChapterVideoResource;
 use App\Models\Chapter;
 use App\Models\ChapterVideo;
-use App\Models\ChapterVideoProgress;
 use App\Support\YoutubeUrl;
-use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -99,89 +95,5 @@ class ChapterVideoController extends Controller
         });
 
         return response()->json(['message' => 'Reordered.']);
-    }
-
-    public function updateProgress(UpdateChapterVideoProgressRequest $request, ChapterVideo $chapter_video): JsonResponse
-    {
-        $position = $request->integer('position_seconds');
-        $reportedDuration = $request->input('duration_seconds');
-
-        // Only backfill the shared duration from a client report when it's
-        // internally consistent with the position being reported in the
-        // same request — otherwise a single bad/short report could
-        // permanently corrupt the completion calculation for every student
-        // watching this video.
-        if ($reportedDuration && $reportedDuration >= $position && ! $chapter_video->duration_seconds) {
-            $chapter_video->update(['duration_seconds' => $reportedDuration]);
-        }
-
-        $duration = $chapter_video->duration_seconds ?? $reportedDuration;
-
-        // Never persist a reported position beyond the known duration.
-        $position = $duration ? min($position, $duration) : $position;
-
-        $threshold = $chapter_video->completion_threshold_percent ?? config('content.video_completion_threshold_percent');
-
-        $progress = ChapterVideoProgress::firstOrNew([
-            'chapter_video_id' => $chapter_video->id,
-            'user_type' => get_class($request->user()),
-            'user_id' => $request->user()->id,
-        ]);
-
-        $this->applyVideoProgress($progress, $position, $duration, $threshold);
-
-        try {
-            $progress->save();
-        } catch (QueryException $e) {
-            // Two near-simultaneous first-time reports for the same
-            // (chapter_video_id, user_id) pair can both pass the
-            // firstOrNew() lookup above before either has saved. Only one
-            // insert wins the unique constraint; retry as a read-then-update
-            // against the row the other request just created.
-            if (! str_contains($e->getMessage(), 'UNIQUE constraint') && $e->getCode() !== '23000') {
-                throw $e;
-            }
-
-            $progress = ChapterVideoProgress::where('chapter_video_id', $chapter_video->id)
-                ->where('user_type', get_class($request->user()))
-                ->where('user_id', $request->user()->id)
-                ->first();
-
-            $this->applyVideoProgress($progress, $position, $duration, $threshold);
-            $progress->save();
-        }
-
-        // Force 200: Laravel's resource response otherwise returns 201 when
-        // the underlying progress record was just created by firstOrNew(),
-        // but this endpoint represents "report state" at a URI scoped to
-        // the video, not creation of a progress resource.
-        return (new ChapterVideoProgressResource($progress))
-            ->response()
-            ->setStatusCode(Response::HTTP_OK);
-    }
-
-    /**
-     * Apply the high-water-mark position and completion status logic to a
-     * progress record, without saving it. Shared by the happy path and the
-     * unique-constraint race-recovery path in updateProgress(), so both
-     * apply identical rules to whichever row ends up being the record of
-     * truth.
-     */
-    private function applyVideoProgress(ChapterVideoProgress $progress, int $position, ?int $duration, int $threshold): void
-    {
-        if ($position > $progress->max_position_seconds) {
-            $progress->max_position_seconds = $position;
-        }
-
-        $progress->started_at ??= now();
-
-        if ($progress->status !== 'completed') {
-            if ($duration && $duration > 0 && ($progress->max_position_seconds / $duration) * 100 >= $threshold) {
-                $progress->status = 'completed';
-                $progress->completed_at = now();
-            } else {
-                $progress->status = 'in_progress';
-            }
-        }
     }
 }
