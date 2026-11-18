@@ -56,16 +56,16 @@ class QuestionTenantScopeTest extends TestCase
 
         $this->questionA = Question::create([
             'chapter_id' => $chapterA->id,
-            'school_id' => $chapterA->school_id,
-            'district_id' => $chapterA->district_id,
+            'school_id' => $chapterA->book->classVersion->school_id,
+            'district_id' => $chapterA->book->classVersion->district_id,
             'question_type' => 'mcq_single',
             'question_text' => 'What is 2+2?',
         ]);
 
         Question::create([
             'chapter_id' => $chapterB->id,
-            'school_id' => $chapterB->school_id,
-            'district_id' => $chapterB->district_id,
+            'school_id' => $chapterB->book->classVersion->school_id,
+            'district_id' => $chapterB->book->classVersion->district_id,
             'question_type' => 'mcq_single',
             'question_text' => 'What is 3+3?',
         ]);
@@ -118,16 +118,17 @@ class QuestionTenantScopeTest extends TestCase
 
     /**
      * Confirms the denormalize-at-creation pattern was followed
-     * correctly, mirroring the same check Book/Chapter's own test suite
-     * runs for their denormalized school_id/district_id.
+     * correctly. Chapter no longer carries its own school_id/district_id
+     * (de-scoped to national content), so the ultimate source of truth is
+     * the chapter's book's class version.
      */
     public function test_denormalized_tenant_columns_match_the_parent_chapter(): void
     {
         // No actor is logged in at this point in the test, so TenantScope
         // is inactive and the relation loads unfiltered.
-        $chapter = $this->questionA->chapter;
+        $classVersion = $this->questionA->chapter->book->classVersion;
 
-        $this->assertSame($chapter->school_id, $this->questionA->school_id);
-        $this->assertSame($chapter->district_id, $this->questionA->district_id);
+        $this->assertSame($classVersion->school_id, $this->questionA->school_id);
+        $this->assertSame($classVersion->district_id, $this->questionA->district_id);
     }
 }

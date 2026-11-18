@@ -43,14 +43,20 @@ class ChapterMaterialController extends Controller
         $this->authorize('create', ChapterMaterial::class);
 
         $chapter = Chapter::findOrFail($request->integer('chapter_id'));
+        // ClassVersion is still TenantScoped, so this resolves to null
+        // (not an exception) for a chapter outside this actor's own
+        // tenant — Chapter itself is national content and no longer
+        // tenant-scoped, so that check can no longer happen implicitly
+        // via Chapter::findOrFail() the way it used to.
+        $classVersion = $chapter->book->classVersion ?? abort(404);
         $disk = config('content.pdf_disk');
         $file = $request->file('pdf');
         $path = $file->storeAs("chapter-materials/{$chapter->id}", Str::uuid().'.pdf', $disk);
 
         $material = ChapterMaterial::create([
             'chapter_id' => $chapter->id,
-            'school_id' => $chapter->school_id,
-            'district_id' => $chapter->district_id,
+            'school_id' => $classVersion->school_id,
+            'district_id' => $classVersion->district_id,
             'type' => $request->input('type'),
             'title' => $request->input('title'),
             'original_filename' => $file->getClientOriginalName(),

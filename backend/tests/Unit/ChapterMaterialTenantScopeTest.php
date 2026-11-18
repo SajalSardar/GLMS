@@ -55,8 +55,8 @@ class ChapterMaterialTenantScopeTest extends TestCase
 
         $this->materialA = ChapterMaterial::create([
             'chapter_id' => $chapterA->id,
-            'school_id' => $chapterA->school_id,
-            'district_id' => $chapterA->district_id,
+            'school_id' => $chapterA->book->classVersion->school_id,
+            'district_id' => $chapterA->book->classVersion->district_id,
             'type' => 'primary',
             'original_filename' => 'chapter1.pdf',
             'stored_path' => 'chapter-materials/1/abc.pdf',
@@ -67,8 +67,8 @@ class ChapterMaterialTenantScopeTest extends TestCase
 
         ChapterMaterial::create([
             'chapter_id' => $chapterB->id,
-            'school_id' => $chapterB->school_id,
-            'district_id' => $chapterB->district_id,
+            'school_id' => $chapterB->book->classVersion->school_id,
+            'district_id' => $chapterB->book->classVersion->district_id,
             'type' => 'primary',
             'original_filename' => 'chapter1.pdf',
             'stored_path' => 'chapter-materials/2/def.pdf',

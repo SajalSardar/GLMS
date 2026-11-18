@@ -55,8 +55,8 @@ class ChapterVideoTenantScopeTest extends TestCase
 
         $this->videoA = ChapterVideo::create([
             'chapter_id' => $chapterA->id,
-            'school_id' => $chapterA->school_id,
-            'district_id' => $chapterA->district_id,
+            'school_id' => $chapterA->book->classVersion->school_id,
+            'district_id' => $chapterA->book->classVersion->district_id,
             'youtube_video_id' => 'dQw4w9WgXcQ',
             'title' => 'Intro video',
             'order_index' => 1,
@@ -64,8 +64,8 @@ class ChapterVideoTenantScopeTest extends TestCase
 
         ChapterVideo::create([
             'chapter_id' => $chapterB->id,
-            'school_id' => $chapterB->school_id,
-            'district_id' => $chapterB->district_id,
+            'school_id' => $chapterB->book->classVersion->school_id,
+            'district_id' => $chapterB->book->classVersion->district_id,
             'youtube_video_id' => 'dQw4w9WgXcQ',
             'title' => 'Intro video',
             'order_index' => 1,

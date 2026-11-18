@@ -176,8 +176,8 @@ class QuestionControllerTest extends TestCase
     {
         $question = Question::create([
             'chapter_id' => $this->chapterB->id,
-            'school_id' => $this->chapterB->school_id,
-            'district_id' => $this->chapterB->district_id,
+            'school_id' => $this->chapterB->book->classVersion->school_id,
+            'district_id' => $this->chapterB->book->classVersion->district_id,
             'question_type' => 'mcq_single',
             'question_text' => 'School B question',
         ]);
@@ -191,8 +191,8 @@ class QuestionControllerTest extends TestCase
 
     public function test_index_excludes_inactive_questions_unless_the_caller_can_manage_them(): void
     {
-        $enabled = Question::create(['chapter_id' => $this->chapterA->id, 'school_id' => $this->chapterA->school_id, 'district_id' => $this->chapterA->district_id, 'question_type' => 'mcq_single', 'question_text' => 'Enabled']);
-        $disabled = Question::create(['chapter_id' => $this->chapterA->id, 'school_id' => $this->chapterA->school_id, 'district_id' => $this->chapterA->district_id, 'question_type' => 'mcq_single', 'question_text' => 'Disabled', 'is_active' => false]);
+        $enabled = Question::create(['chapter_id' => $this->chapterA->id, 'school_id' => $this->chapterA->book->classVersion->school_id, 'district_id' => $this->chapterA->book->classVersion->district_id, 'question_type' => 'mcq_single', 'question_text' => 'Enabled']);
+        $disabled = Question::create(['chapter_id' => $this->chapterA->id, 'school_id' => $this->chapterA->book->classVersion->school_id, 'district_id' => $this->chapterA->book->classVersion->district_id, 'question_type' => 'mcq_single', 'question_text' => 'Disabled', 'is_active' => false]);
 
         $ids = $this->getJson('/api/v1/questions')->assertOk()->json('data.*.id');
         $this->assertContains($enabled->id, $ids);
@@ -283,8 +283,8 @@ class QuestionControllerTest extends TestCase
     {
         $allowed = $this->actorWithPermissions(['questions.create', 'questions.update'], $this->schoolA->id, $this->schoolA->district_id);
 
-        $first = Question::create(['chapter_id' => $this->chapterA->id, 'school_id' => $this->chapterA->school_id, 'district_id' => $this->chapterA->district_id, 'question_type' => 'mcq_single', 'question_text' => 'First', 'order_index' => 0]);
-        $second = Question::create(['chapter_id' => $this->chapterA->id, 'school_id' => $this->chapterA->school_id, 'district_id' => $this->chapterA->district_id, 'question_type' => 'mcq_single', 'question_text' => 'Second', 'order_index' => 1]);
+        $first = Question::create(['chapter_id' => $this->chapterA->id, 'school_id' => $this->chapterA->book->classVersion->school_id, 'district_id' => $this->chapterA->book->classVersion->district_id, 'question_type' => 'mcq_single', 'question_text' => 'First', 'order_index' => 0]);
+        $second = Question::create(['chapter_id' => $this->chapterA->id, 'school_id' => $this->chapterA->book->classVersion->school_id, 'district_id' => $this->chapterA->book->classVersion->district_id, 'question_type' => 'mcq_single', 'question_text' => 'Second', 'order_index' => 1]);
 
         $this->actingAs($allowed, 'sanctum')
             ->patchJson('/api/v1/questions/reorder', ['chapter_id' => $this->chapterA->id, 'ordered_ids' => [$second->id, $first->id]])
@@ -298,8 +298,8 @@ class QuestionControllerTest extends TestCase
     {
         $allowed = $this->actorWithPermissions(['questions.update'], $this->schoolA->id, $this->schoolA->district_id);
 
-        $foreign = Question::create(['chapter_id' => $this->chapterB->id, 'school_id' => $this->chapterB->school_id, 'district_id' => $this->chapterB->district_id, 'question_type' => 'mcq_single', 'question_text' => 'Foreign']);
-        $own = Question::create(['chapter_id' => $this->chapterA->id, 'school_id' => $this->chapterA->school_id, 'district_id' => $this->chapterA->district_id, 'question_type' => 'mcq_single', 'question_text' => 'Own']);
+        $foreign = Question::create(['chapter_id' => $this->chapterB->id, 'school_id' => $this->chapterB->book->classVersion->school_id, 'district_id' => $this->chapterB->book->classVersion->district_id, 'question_type' => 'mcq_single', 'question_text' => 'Foreign']);
+        $own = Question::create(['chapter_id' => $this->chapterA->id, 'school_id' => $this->chapterA->book->classVersion->school_id, 'district_id' => $this->chapterA->book->classVersion->district_id, 'question_type' => 'mcq_single', 'question_text' => 'Own']);
 
         $this->actingAs($allowed, 'sanctum')
             ->patchJson('/api/v1/questions/reorder', ['chapter_id' => $this->chapterA->id, 'ordered_ids' => [$own->id, $foreign->id]])

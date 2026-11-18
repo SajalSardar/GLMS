@@ -177,8 +177,8 @@ class ExamControllerTest extends TestCase
         $chapter = Chapter::create(['book_id' => $book->id, 'school_id' => $book->classVersion->school_id, 'district_id' => $book->classVersion->district_id, 'name' => 'Chapter 1']);
 
         // Exactly 2 matching questions available — pool size exactly 2.
-        Question::create(['chapter_id' => $chapter->id, 'school_id' => $chapter->school_id, 'district_id' => $chapter->district_id, 'question_type' => 'mcq_single', 'question_text' => 'Q1']);
-        Question::create(['chapter_id' => $chapter->id, 'school_id' => $chapter->school_id, 'district_id' => $chapter->district_id, 'question_type' => 'mcq_single', 'question_text' => 'Q2']);
+        Question::create(['chapter_id' => $chapter->id, 'school_id' => $chapter->book->classVersion->school_id, 'district_id' => $chapter->book->classVersion->district_id, 'question_type' => 'mcq_single', 'question_text' => 'Q1']);
+        Question::create(['chapter_id' => $chapter->id, 'school_id' => $chapter->book->classVersion->school_id, 'district_id' => $chapter->book->classVersion->district_id, 'question_type' => 'mcq_single', 'question_text' => 'Q2']);
 
         $allowed = $this->actorWithPermissions(['exams.create', 'exams.update'], $this->schoolA->id, $this->schoolA->district_id);
         $id = $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/exams', $this->examPayload([
@@ -236,7 +236,7 @@ class ExamControllerTest extends TestCase
     {
         $book = Book::create(['class_version_id' => $this->versionA->id, 'subject_id' => $this->subject->id, 'school_id' => $this->versionA->school_id, 'district_id' => $this->versionA->district_id, 'name' => 'Mathematics Book']);
         $chapter = Chapter::create(['book_id' => $book->id, 'school_id' => $book->classVersion->school_id, 'district_id' => $book->classVersion->district_id, 'name' => 'Chapter 1']);
-        $question = Question::create(['chapter_id' => $chapter->id, 'school_id' => $chapter->school_id, 'district_id' => $chapter->district_id, 'question_type' => 'mcq_single', 'question_text' => 'What is 2+2?']);
+        $question = Question::create(['chapter_id' => $chapter->id, 'school_id' => $chapter->book->classVersion->school_id, 'district_id' => $chapter->book->classVersion->district_id, 'question_type' => 'mcq_single', 'question_text' => 'What is 2+2?']);
         QuestionOption::create(['question_id' => $question->id, 'option_text' => '4', 'is_correct' => true]);
         QuestionOption::create(['question_id' => $question->id, 'option_text' => '3', 'is_correct' => false]);
 

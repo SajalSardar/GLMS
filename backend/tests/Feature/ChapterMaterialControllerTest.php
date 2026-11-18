@@ -147,8 +147,8 @@ class ChapterMaterialControllerTest extends TestCase
     {
         $material = ChapterMaterial::create([
             'chapter_id' => $this->chapterB->id,
-            'school_id' => $this->chapterB->school_id,
-            'district_id' => $this->chapterB->district_id,
+            'school_id' => $this->chapterB->book->classVersion->school_id,
+            'district_id' => $this->chapterB->book->classVersion->district_id,
             'type' => 'primary',
             'original_filename' => 'chapter1.pdf',
             'stored_path' => 'chapter-materials/x/y.pdf',

@@ -66,8 +66,8 @@ class ExamQuestionsControllerTest extends TestCase
         for ($i = 0; $i < $count; $i++) {
             $ids[] = Question::create([
                 'chapter_id' => $this->chapterA->id,
-                'school_id' => $this->chapterA->school_id,
-                'district_id' => $this->chapterA->district_id,
+                'school_id' => $this->chapterA->book->classVersion->school_id,
+                'district_id' => $this->chapterA->book->classVersion->district_id,
                 'question_type' => 'mcq_single',
                 'question_text' => "Question {$i}",
                 'difficulty' => $difficulty,
@@ -84,8 +84,8 @@ class ExamQuestionsControllerTest extends TestCase
         for ($i = 0; $i < $count; $i++) {
             $ids[] = Question::create([
                 'chapter_id' => $chapter->id,
-                'school_id' => $chapter->school_id,
-                'district_id' => $chapter->district_id,
+                'school_id' => $chapter->book->classVersion->school_id,
+                'district_id' => $chapter->book->classVersion->district_id,
                 'question_type' => 'mcq_single',
                 'question_text' => "Chapter {$chapter->id} Question {$i}",
             ])->id;
@@ -112,7 +112,7 @@ class ExamQuestionsControllerTest extends TestCase
         $otherSubject = Subject::create(['name' => 'Science']);
         $otherBook = Book::create(['class_version_id' => $this->versionA->id, 'subject_id' => $otherSubject->id, 'school_id' => $this->versionA->school_id, 'district_id' => $this->versionA->district_id, 'name' => 'Science Book']);
         $otherChapter = Chapter::create(['book_id' => $otherBook->id, 'school_id' => $otherBook->classVersion->school_id, 'district_id' => $otherBook->classVersion->district_id, 'name' => 'Chapter 1']);
-        $foreignQuestion = Question::create(['chapter_id' => $otherChapter->id, 'school_id' => $otherChapter->school_id, 'district_id' => $otherChapter->district_id, 'question_type' => 'mcq_single', 'question_text' => 'Foreign']);
+        $foreignQuestion = Question::create(['chapter_id' => $otherChapter->id, 'school_id' => $otherChapter->book->classVersion->school_id, 'district_id' => $otherChapter->book->classVersion->district_id, 'question_type' => 'mcq_single', 'question_text' => 'Foreign']);
 
         $allowed = $this->actorWithPermissions(['exams.update'], $this->schoolA->id, $this->schoolA->district_id);
 

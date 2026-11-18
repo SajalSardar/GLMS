@@ -43,8 +43,8 @@ class ChapterVideoProgressModelTest extends TestCase
 
         $this->video = ChapterVideo::create([
             'chapter_id' => $chapter->id,
-            'school_id' => $chapter->school_id,
-            'district_id' => $chapter->district_id,
+            'school_id' => $chapter->book->classVersion->school_id,
+            'district_id' => $chapter->book->classVersion->district_id,
             'youtube_video_id' => 'dQw4w9WgXcQ',
             'title' => 'Intro video',
         ]);
