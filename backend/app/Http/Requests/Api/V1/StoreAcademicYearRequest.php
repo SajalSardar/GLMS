@@ -3,7 +3,6 @@
 namespace App\Http\Requests\Api\V1;
 
 use App\Models\AcademicYear;
-use App\Models\School;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -15,9 +14,7 @@ class StoreAcademicYearRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        $school = School::find($this->integer('school_id'));
-
-        return $school !== null && ($this->user()?->can('create', [AcademicYear::class, $school]) ?? false);
+        return $this->user()?->can('create', AcademicYear::class) ?? false;
     }
 
     /**
@@ -28,11 +25,7 @@ class StoreAcademicYearRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'school_id' => ['required', 'integer', Rule::exists('schools', 'id')->withoutTrashed()],
-            'name' => [
-                'required', 'string', 'max:255',
-                Rule::unique('academic_years', 'name')->withoutTrashed()->where('school_id', $this->integer('school_id')),
-            ],
+            'name' => ['required', 'string', 'max:255', Rule::unique('academic_years', 'name')->withoutTrashed()],
             'start_date' => ['required', 'date'],
             'end_date' => ['required', 'date', 'after:start_date'],
             'is_current' => ['boolean'],

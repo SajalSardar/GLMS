@@ -57,8 +57,8 @@ class ExamAttemptTenantScopeTest extends TestCase
         $versionA = ClassVersion::create(['class_id' => $classA->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'name' => 'Bangla Version']);
         $versionB = ClassVersion::create(['class_id' => $classB->id, 'school_id' => $schoolB->id, 'district_id' => $schoolB->district_id, 'name' => 'Bangla Version']);
 
-        $academicYearA = AcademicYear::create(['school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'name' => '2026', 'start_date' => '2026-01-01', 'end_date' => '2026-12-31']);
-        $academicYearB = AcademicYear::create(['school_id' => $schoolB->id, 'district_id' => $schoolB->district_id, 'name' => '2026', 'start_date' => '2026-01-01', 'end_date' => '2026-12-31']);
+        $academicYearA = AcademicYear::create(['name' => '2026', 'start_date' => '2026-01-01', 'end_date' => '2026-12-31']);
+        $academicYearB = AcademicYear::create(['name' => '2027', 'start_date' => '2027-01-01', 'end_date' => '2027-12-31']);
 
         $this->examA = Exam::create(['class_version_id' => $versionA->id, 'subject_id' => $subject->id, 'academic_year_id' => $academicYearA->id, 'school_id' => $versionA->school_id, 'district_id' => $versionA->district_id, 'name' => 'Midterm', 'selection_mode' => 'manual']);
         $examB = Exam::create(['class_version_id' => $versionB->id, 'subject_id' => $subject->id, 'academic_year_id' => $academicYearB->id, 'school_id' => $versionB->school_id, 'district_id' => $versionB->district_id, 'name' => 'Midterm', 'selection_mode' => 'manual']);

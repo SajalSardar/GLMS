@@ -87,22 +87,18 @@ class TenantScopeTest extends TestCase
         $this->assertCount(2, School::all());
     }
 
-    public function test_school_scoped_actor_sees_only_their_own_school_academic_years(): void
+    public function test_academic_years_is_national_not_scoped_by_school(): void
     {
         AcademicYear::create([
-            'school_id' => $this->schoolA->id,
-            'district_id' => $this->schoolA->district_id,
             'name' => 'Year A',
             'start_date' => '2026-01-01',
             'end_date' => '2026-12-31',
         ]);
 
         AcademicYear::create([
-            'school_id' => $this->schoolB->id,
-            'district_id' => $this->schoolB->district_id,
             'name' => 'Year B',
-            'start_date' => '2026-01-01',
-            'end_date' => '2026-12-31',
+            'start_date' => '2027-01-01',
+            'end_date' => '2027-12-31',
         ]);
 
         $role = Role::create(['name' => 'school_admin_ay', 'label' => 'School Admin']);
@@ -112,7 +108,8 @@ class TenantScopeTest extends TestCase
 
         $visible = AcademicYear::all();
 
-        $this->assertCount(1, $visible);
-        $this->assertSame('Year A', $visible->first()->name);
+        // academic_years is now national content, not scoped by school_id — so both
+        // years are visible to any actor, school_scoped or not.
+        $this->assertCount(2, $visible);
     }
 }

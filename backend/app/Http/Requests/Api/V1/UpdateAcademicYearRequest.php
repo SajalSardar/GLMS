@@ -33,7 +33,7 @@ class UpdateAcademicYearRequest extends FormRequest
         return [
             'name' => [
                 'sometimes', 'required', 'string', 'max:255',
-                Rule::unique('academic_years', 'name')->ignore($academicYear)->where('school_id', $academicYear->school_id),
+                Rule::unique('academic_years', 'name')->ignore($academicYear),
             ],
             'start_date' => ['sometimes', 'required', 'date'],
             'end_date' => ['sometimes', 'required', 'date'],

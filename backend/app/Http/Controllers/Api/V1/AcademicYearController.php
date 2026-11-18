@@ -7,7 +7,6 @@ use App\Http\Requests\Api\V1\StoreAcademicYearRequest;
 use App\Http\Requests\Api\V1\UpdateAcademicYearRequest;
 use App\Http\Resources\Api\V1\AcademicYearResource;
 use App\Models\AcademicYear;
-use App\Models\School;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -22,9 +21,6 @@ class AcademicYearController extends Controller
     public function index(Request $request): AnonymousResourceCollection
     {
         $academicYears = AcademicYear::query()
-            ->with('school')
-            ->when($request->integer('school_id'), fn ($query, $schoolId) => $query->where('school_id', $schoolId))
-            ->when($request->integer('district_id'), fn ($query, $districtId) => $query->where('district_id', $districtId))
             ->when($request->boolean('current_only'), fn ($query) => $query->where('is_current', true))
             ->when($request->string('search')->toString(), fn ($query, $search) => $query->where('name', 'like', "%{$search}%"))
             ->orderByDesc('id')
@@ -38,39 +34,34 @@ class AcademicYearController extends Controller
      */
     public function show(AcademicYear $academic_year): AcademicYearResource
     {
-        return new AcademicYearResource($academic_year->load('school'));
+        return new AcademicYearResource($academic_year);
     }
 
     /**
      * Store a newly created resource in storage.
      *
-     * A soft-deleted year with the same (school_id, name) is restored and
-     * updated in place, rather than attempting a second insert that would
-     * collide with the still-present unique index on a trashed row.
+     * A soft-deleted year with the same name is restored and updated in
+     * place, rather than attempting a second insert that would collide
+     * with the still-present unique index on a trashed row.
      */
     public function store(StoreAcademicYearRequest $request): JsonResponse
     {
         $this->authorize('create', AcademicYear::class);
 
-        $school = School::findOrFail($request->integer('school_id'));
-
         $attributes = [
             ...$request->safe()->only(['name', 'start_date', 'end_date', 'description']),
-            'school_id' => $school->id,
-            'district_id' => $school->district_id,
             // Explicit rather than relying on the DB column default, so the
             // model attribute returned in the response matches what's
             // actually stored instead of being left unset in memory.
             'is_current' => $request->boolean('is_current'),
         ];
 
-        $academicYear = DB::transaction(function () use ($school, $attributes) {
+        $academicYear = DB::transaction(function () use ($attributes) {
             if ($attributes['is_current'] ?? false) {
-                $this->unsetOtherCurrentYears($school->id);
+                $this->unsetOtherCurrentYears();
             }
 
             $academicYear = AcademicYear::onlyTrashed()
-                ->where('school_id', $school->id)
                 ->where('name', $attributes['name'])
                 ->first();
 
@@ -84,7 +75,7 @@ class AcademicYearController extends Controller
             return $academicYear;
         });
 
-        return (new AcademicYearResource($academicYear->load('school')))
+        return (new AcademicYearResource($academicYear))
             ->response()
             ->setStatusCode(Response::HTTP_CREATED);
     }
@@ -100,13 +91,13 @@ class AcademicYearController extends Controller
 
         DB::transaction(function () use ($academic_year, $data) {
             if ($data['is_current'] ?? false) {
-                $this->unsetOtherCurrentYears($academic_year->school_id, $academic_year->id);
+                $this->unsetOtherCurrentYears($academic_year->id);
             }
 
             $academic_year->update($data);
         });
 
-        return new AcademicYearResource($academic_year->load('school'));
+        return new AcademicYearResource($academic_year);
     }
 
     /**
@@ -122,28 +113,27 @@ class AcademicYearController extends Controller
     }
 
     /**
-     * Mark this academic year as the school's current one, unsetting any
-     * other year previously marked current for the same school.
+     * Mark this academic year as the current one nationally, unsetting
+     * any other year previously marked current.
      */
     public function setCurrent(AcademicYear $academic_year): AcademicYearResource
     {
         $this->authorize('setCurrent', $academic_year);
 
         DB::transaction(function () use ($academic_year) {
-            $this->unsetOtherCurrentYears($academic_year->school_id, $academic_year->id);
+            $this->unsetOtherCurrentYears($academic_year->id);
             $academic_year->update(['is_current' => true]);
         });
 
-        return new AcademicYearResource($academic_year->load('school'));
+        return new AcademicYearResource($academic_year);
     }
 
     /**
-     * Only one academic year per school may be marked current at a time.
+     * Only one academic year nationally may be marked current at a time.
      */
-    private function unsetOtherCurrentYears(int $schoolId, ?int $exceptId = null): void
+    private function unsetOtherCurrentYears(?int $exceptId = null): void
     {
-        AcademicYear::where('school_id', $schoolId)
-            ->where('is_current', true)
+        AcademicYear::where('is_current', true)
             ->when($exceptId, fn ($query, $exceptId) => $query->whereKeyNot($exceptId))
             ->update(['is_current' => false]);
     }

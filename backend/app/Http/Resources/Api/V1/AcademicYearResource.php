@@ -20,15 +20,11 @@ class AcademicYearResource extends JsonResource
             'created_by_id' => $this->created_by_id,
             'updated_by_type' => $this->updated_by_type,
             'updated_by_id' => $this->updated_by_id,
-            'school_id' => $this->school_id,
-            'district_id' => $this->district_id,
             'name' => $this->name,
             'start_date' => $this->start_date?->toDateString(),
             'end_date' => $this->end_date?->toDateString(),
             'is_current' => $this->is_current,
             'description' => $this->description,
-            'school' => new SchoolResource($this->whenLoaded('school')),
-            'district' => new DistrictResource($this->whenLoaded('district')),
         ];
     }
 }

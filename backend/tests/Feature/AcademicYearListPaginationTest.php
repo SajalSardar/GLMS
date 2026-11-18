@@ -3,10 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\AcademicYear;
-use App\Models\District;
-use App\Models\Division;
-use App\Models\School;
-use App\Models\Upazila;
+use App\Models\Permission;
+use App\Models\Role;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -14,30 +13,10 @@ class AcademicYearListPaginationTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function makeSchool(): School
+    public function test_academic_year_index_is_paginated(): void
     {
-        $division = Division::create(['name' => 'Division', 'bn_name' => 'বিভাগ']);
-        $district = District::create(['division_id' => $division->id, 'name' => 'District', 'bn_name' => 'জেলা']);
-        $upazila = Upazila::create(['district_id' => $district->id, 'name' => 'Upazila', 'bn_name' => 'উপজেলা']);
-
-        return School::create([
-            'division_id' => $division->id,
-            'district_id' => $district->id,
-            'upazila_id' => $upazila->id,
-            'name' => 'School A',
-            'type' => 'government',
-            'level' => 'secondary',
-        ]);
-    }
-
-    public function test_academic_year_index_is_paginated_and_includes_its_school(): void
-    {
-        $school = $this->makeSchool();
-
         for ($i = 1; $i <= 18; $i++) {
             AcademicYear::create([
-                'school_id' => $school->id,
-                'district_id' => $school->district_id,
                 'name' => "Year {$i}",
                 'start_date' => "202{$i}-01-01",
                 'end_date' => "202{$i}-12-31",
@@ -49,34 +28,34 @@ class AcademicYearListPaginationTest extends TestCase
         $response->assertOk();
         $response->assertJsonCount(15, 'data');
         $response->assertJsonPath('meta.total', 18);
-        $response->assertJsonPath('data.0.school.id', $school->id);
-    }
-
-    public function test_academic_year_index_filters_by_school_id_while_paginated(): void
-    {
-        $schoolA = $this->makeSchool();
-        $schoolB = $this->makeSchool();
-
-        AcademicYear::create(['school_id' => $schoolA->id, 'district_id' => $schoolA->district_id, 'name' => 'A1', 'start_date' => '2026-01-01', 'end_date' => '2026-12-31']);
-        AcademicYear::create(['school_id' => $schoolA->id, 'district_id' => $schoolA->district_id, 'name' => 'A2', 'start_date' => '2027-01-01', 'end_date' => '2027-12-31']);
-        AcademicYear::create(['school_id' => $schoolB->id, 'district_id' => $schoolB->district_id, 'name' => 'B1', 'start_date' => '2026-01-01', 'end_date' => '2026-12-31']);
-
-        $this->getJson("/api/v1/academic-years?school_id={$schoolA->id}")
-            ->assertOk()
-            ->assertJsonCount(2, 'data')
-            ->assertJsonPath('meta.total', 2);
     }
 
     public function test_academic_year_index_filters_by_search(): void
     {
-        $school = $this->makeSchool();
-
-        AcademicYear::create(['school_id' => $school->id, 'district_id' => $school->district_id, 'name' => 'Session 2026', 'start_date' => '2026-01-01', 'end_date' => '2026-12-31']);
-        AcademicYear::create(['school_id' => $school->id, 'district_id' => $school->district_id, 'name' => 'Session 2027', 'start_date' => '2027-01-01', 'end_date' => '2027-12-31']);
+        AcademicYear::create(['name' => 'Session 2026', 'start_date' => '2026-01-01', 'end_date' => '2026-12-31']);
+        AcademicYear::create(['name' => 'Session 2027', 'start_date' => '2027-01-01', 'end_date' => '2027-12-31']);
 
         $this->getJson('/api/v1/academic-years?search=2026')
             ->assertOk()
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.name', 'Session 2026');
+    }
+
+    public function test_set_current_endpoint_unsets_any_other_year_nationally(): void
+    {
+        $yearA = AcademicYear::create(['name' => 'Year A', 'start_date' => '2026-01-01', 'end_date' => '2026-12-31', 'is_current' => true]);
+        $yearB = AcademicYear::create(['name' => 'Year B', 'start_date' => '2027-01-01', 'end_date' => '2027-12-31']);
+
+        $role = Role::create(['name' => 'role_academic_year_test', 'label' => 'Test Role']);
+        $permission = Permission::firstOrCreate(['name' => 'academic_years.update'], ['label' => 'academic_years.update']);
+        $role->permissions()->attach($permission);
+        $actor = User::factory()->create(['role_id' => $role->id]);
+
+        $this->actingAs($actor, 'sanctum')
+            ->patchJson("/api/v1/academic-years/{$yearB->id}/set-current")
+            ->assertOk();
+
+        $this->assertFalse($yearA->refresh()->is_current);
+        $this->assertTrue($yearB->refresh()->is_current);
     }
 }

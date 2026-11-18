@@ -40,7 +40,7 @@ class RolePermissionSeeder extends Seeder
                 'classes.view', 'classes.create', 'classes.update', 'classes.delete',
                 'subjects.view', 'chapter_videos.view', 'chapter_materials.view', 'books.view', 'chapters.view', 'questions.view',
                 'exams.view', 'exams.create', 'exams.update', 'exam_attempts.view', 'student_progress.view',
-                'academic_years.view', 'academic_years.create', 'academic_years.update', 'academic_years.delete',
+                'academic_years.view',
                 'classrooms.view', 'classrooms.create', 'classrooms.update', 'classrooms.delete',
                 'class_routines.view', 'class_routines.create', 'class_routines.update', 'class_routines.delete',
                 'class_versions.view', 'class_versions.create', 'class_versions.update', 'class_versions.delete',

@@ -46,19 +46,15 @@ class TenantScopeLeakageTest extends TestCase
         ]);
 
         $this->yearA = AcademicYear::create([
-            'school_id' => $this->schoolA->id,
-            'district_id' => $this->schoolA->district_id,
             'name' => 'Year A',
             'start_date' => '2026-01-01',
             'end_date' => '2026-12-31',
         ]);
 
         $this->yearB = AcademicYear::create([
-            'school_id' => $schoolB->id,
-            'district_id' => $schoolB->district_id,
             'name' => 'Year B',
-            'start_date' => '2026-01-01',
-            'end_date' => '2026-12-31',
+            'start_date' => '2027-01-01',
+            'end_date' => '2027-12-31',
         ]);
     }
 
@@ -76,8 +72,11 @@ class TenantScopeLeakageTest extends TestCase
         $response->assertNoContent();
     }
 
-    public function test_actor_with_permission_gets_404_deleting_another_schools_academic_year(): void
+    public function test_school_scoped_actor_can_delete_any_national_academic_year_with_permission(): void
     {
+        // academic_years is now national content — not scoped by school_id — so any
+        // school-scoped actor with academic_years.delete permission can delete any
+        // academic year, not just years associated with their school.
         $permission = Permission::create(['name' => 'academic_years.delete', 'label' => 'Delete academic years']);
         $role = Role::create(['name' => 'school_admin_delete_2', 'label' => 'School Admin']);
         $role->permissions()->attach($permission);
@@ -87,7 +86,7 @@ class TenantScopeLeakageTest extends TestCase
         $response = $this->actingAs($actor, 'sanctum')
             ->deleteJson("/api/v1/academic-years/{$this->yearB->id}");
 
-        $response->assertNotFound();
+        $response->assertNoContent();
     }
 
     public function test_actor_without_permission_gets_403_deleting_their_own_school_academic_year(): void
