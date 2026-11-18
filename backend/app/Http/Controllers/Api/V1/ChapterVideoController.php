@@ -52,17 +52,9 @@ class ChapterVideoController extends Controller
         $this->authorize('create', ChapterVideo::class);
 
         $chapter = Chapter::findOrFail($request->integer('chapter_id'));
-        // ClassVersion is still TenantScoped, so this resolves to null
-        // (not an exception) for a chapter outside this actor's own
-        // tenant — Chapter itself is national content and no longer
-        // tenant-scoped, so that check can no longer happen implicitly
-        // via Chapter::findOrFail() the way it used to.
-        $classVersion = $chapter->book->classVersion ?? abort(404);
         $data = $request->validated();
         $data['youtube_video_id'] = YoutubeUrl::extractVideoId($data['youtube_url']);
         unset($data['youtube_url']);
-        $data['school_id'] = $classVersion->school_id;
-        $data['district_id'] = $classVersion->district_id;
 
         $video = ChapterVideo::create($data);
 

@@ -48,11 +48,11 @@ class ChapterVideoControllerTest extends TestCase
         $versionA = ClassVersion::create(['class_id' => $classA->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'name' => 'Bangla Version']);
         $versionB = ClassVersion::create(['class_id' => $classB->id, 'school_id' => $schoolB->id, 'district_id' => $schoolB->district_id, 'name' => 'Bangla Version']);
 
-        $bookA = Book::create(['class_version_id' => $versionA->id, 'subject_id' => $subject->id, 'school_id' => $versionA->school_id, 'district_id' => $versionA->district_id, 'name' => 'Mathematics Book']);
-        $bookB = Book::create(['class_version_id' => $versionB->id, 'subject_id' => $subject->id, 'school_id' => $versionB->school_id, 'district_id' => $versionB->district_id, 'name' => 'Mathematics Book']);
+        $bookA = Book::create(['class_version_id' => $versionA->id, 'subject_id' => $subject->id, 'name' => 'Mathematics Book']);
+        $bookB = Book::create(['class_version_id' => $versionB->id, 'subject_id' => $subject->id, 'name' => 'Mathematics Book']);
 
-        $this->chapterA = Chapter::create(['book_id' => $bookA->id, 'school_id' => $bookA->classVersion->school_id, 'district_id' => $bookA->classVersion->district_id, 'name' => 'Chapter 1']);
-        $this->chapterB = Chapter::create(['book_id' => $bookB->id, 'school_id' => $bookB->classVersion->school_id, 'district_id' => $bookB->classVersion->district_id, 'name' => 'Chapter 1']);
+        $this->chapterA = Chapter::create(['book_id' => $bookA->id, 'name' => 'Chapter 1']);
+        $this->chapterB = Chapter::create(['book_id' => $bookB->id, 'name' => 'Chapter 1']);
     }
 
     public function test_store_and_update_are_authorized(): void
@@ -97,38 +97,28 @@ class ChapterVideoControllerTest extends TestCase
             ->assertUnprocessable();
     }
 
-    public function test_actor_with_permission_gets_404_updating_another_schools_video(): void
+    public function test_actor_with_permission_can_update_a_video_belonging_to_a_different_schools_chapter(): void
     {
         $video = ChapterVideo::create([
             'chapter_id' => $this->chapterB->id,
-            'school_id' => $this->chapterB->book->classVersion->school_id,
-            'district_id' => $this->chapterB->book->classVersion->district_id,
-            'youtube_video_id' => 'dQw4w9WgXcQ',
-            'title' => 'School B video',
+            'youtube_video_id' => 'hhhhhhhhhhh',
+            'title' => 'School B Video',
         ]);
 
         $actor = $this->actorWithPermissions(['chapter_videos.update'], $this->schoolA->id, $this->schoolA->district_id);
 
         $this->actingAs($actor, 'sanctum')
-            ->patchJson("/api/v1/chapter-videos/{$video->id}", ['title' => 'Hacked'])
-            ->assertNotFound();
-    }
-
-    public function test_store_gets_404_targeting_a_chapter_belonging_to_a_different_school(): void
-    {
-        $allowed = $this->actorWithPermissions(['chapter_videos.create'], $this->schoolA->id, $this->schoolA->district_id);
-
-        $this->actingAs($allowed, 'sanctum')
-            ->postJson('/api/v1/chapter-videos', ['chapter_id' => $this->chapterB->id, 'youtube_url' => 'https://youtu.be/dQw4w9WgXcQ', 'title' => 'Intro'])
-            ->assertNotFound();
+            ->patchJson("/api/v1/chapter-videos/{$video->id}", ['title' => 'Renamed'])
+            ->assertOk()
+            ->assertJsonPath('data.title', 'Renamed');
     }
 
     public function test_reorder_sets_order_index_from_the_given_sequence(): void
     {
         $allowed = $this->actorWithPermissions(['chapter_videos.create', 'chapter_videos.update'], $this->schoolA->id, $this->schoolA->district_id);
 
-        $first = ChapterVideo::create(['chapter_id' => $this->chapterA->id, 'school_id' => $this->chapterA->book->classVersion->school_id, 'district_id' => $this->chapterA->book->classVersion->district_id, 'youtube_video_id' => 'aaaaaaaaaaa', 'title' => 'First', 'order_index' => 0]);
-        $second = ChapterVideo::create(['chapter_id' => $this->chapterA->id, 'school_id' => $this->chapterA->book->classVersion->school_id, 'district_id' => $this->chapterA->book->classVersion->district_id, 'youtube_video_id' => 'bbbbbbbbbbb', 'title' => 'Second', 'order_index' => 1]);
+        $first = ChapterVideo::create(['chapter_id' => $this->chapterA->id, 'youtube_video_id' => 'aaaaaaaaaaa', 'title' => 'First', 'order_index' => 0]);
+        $second = ChapterVideo::create(['chapter_id' => $this->chapterA->id, 'youtube_video_id' => 'bbbbbbbbbbb', 'title' => 'Second', 'order_index' => 1]);
 
         $this->actingAs($allowed, 'sanctum')
             ->patchJson('/api/v1/chapter-videos/reorder', ['chapter_id' => $this->chapterA->id, 'ordered_ids' => [$second->id, $first->id]])
@@ -142,8 +132,8 @@ class ChapterVideoControllerTest extends TestCase
     {
         $allowed = $this->actorWithPermissions(['chapter_videos.update'], $this->schoolA->id, $this->schoolA->district_id);
 
-        $foreign = ChapterVideo::create(['chapter_id' => $this->chapterB->id, 'school_id' => $this->chapterB->book->classVersion->school_id, 'district_id' => $this->chapterB->book->classVersion->district_id, 'youtube_video_id' => 'ccccccccccc', 'title' => 'Foreign']);
-        $own = ChapterVideo::create(['chapter_id' => $this->chapterA->id, 'school_id' => $this->chapterA->book->classVersion->school_id, 'district_id' => $this->chapterA->book->classVersion->district_id, 'youtube_video_id' => 'ddddddddddd', 'title' => 'Own']);
+        $foreign = ChapterVideo::create(['chapter_id' => $this->chapterB->id, 'youtube_video_id' => 'ccccccccccc', 'title' => 'Foreign']);
+        $own = ChapterVideo::create(['chapter_id' => $this->chapterA->id, 'youtube_video_id' => 'ddddddddddd', 'title' => 'Own']);
 
         $this->actingAs($allowed, 'sanctum')
             ->patchJson('/api/v1/chapter-videos/reorder', ['chapter_id' => $this->chapterA->id, 'ordered_ids' => [$own->id, $foreign->id]])
@@ -152,8 +142,8 @@ class ChapterVideoControllerTest extends TestCase
 
     public function test_index_excludes_disabled_videos_unless_the_caller_can_manage_them(): void
     {
-        $enabled = ChapterVideo::create(['chapter_id' => $this->chapterA->id, 'school_id' => $this->chapterA->book->classVersion->school_id, 'district_id' => $this->chapterA->book->classVersion->district_id, 'youtube_video_id' => 'eeeeeeeeeee', 'title' => 'Enabled']);
-        $disabled = ChapterVideo::create(['chapter_id' => $this->chapterA->id, 'school_id' => $this->chapterA->book->classVersion->school_id, 'district_id' => $this->chapterA->book->classVersion->district_id, 'youtube_video_id' => 'fffffffffff', 'title' => 'Disabled', 'is_enabled' => false]);
+        $enabled = ChapterVideo::create(['chapter_id' => $this->chapterA->id, 'youtube_video_id' => 'eeeeeeeeeee', 'title' => 'Enabled']);
+        $disabled = ChapterVideo::create(['chapter_id' => $this->chapterA->id, 'youtube_video_id' => 'fffffffffff', 'title' => 'Disabled', 'is_enabled' => false]);
 
         $ids = $this->getJson('/api/v1/chapter-videos')->assertOk()->json('data.*.id');
         $this->assertContains($enabled->id, $ids);
@@ -166,7 +156,7 @@ class ChapterVideoControllerTest extends TestCase
 
     public function test_show_404s_a_disabled_video_unless_the_caller_can_manage_it(): void
     {
-        $disabled = ChapterVideo::create(['chapter_id' => $this->chapterA->id, 'school_id' => $this->chapterA->book->classVersion->school_id, 'district_id' => $this->chapterA->book->classVersion->district_id, 'youtube_video_id' => 'ggggggggggg', 'title' => 'Disabled', 'is_enabled' => false]);
+        $disabled = ChapterVideo::create(['chapter_id' => $this->chapterA->id, 'youtube_video_id' => 'ggggggggggg', 'title' => 'Disabled', 'is_enabled' => false]);
 
         $this->getJson("/api/v1/chapter-videos/{$disabled->id}")->assertNotFound();
 
