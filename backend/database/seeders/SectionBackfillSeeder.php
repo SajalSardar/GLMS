@@ -12,6 +12,7 @@ use App\Models\StudentProfile;
 use App\Models\SubjectTeacherAssignment;
 use App\Models\TimetableEntry;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 class SectionBackfillSeeder extends Seeder
 {
@@ -40,8 +41,24 @@ class SectionBackfillSeeder extends Seeder
      */
     public function run(): void
     {
-        ClassSchool::with(['schoolClass', 'subjects'])->get()->each(function (ClassSchool $assignment) {
+        // 'subjects' is deliberately NOT eager-loaded here: ClassSchool::subjects()
+        // ends in ->wherePivot('school_id', $this->school_id), and Eloquent's
+        // eager loader resolves that relation method once on a fresh,
+        // unhydrated model to build one batched query — so school_id would
+        // bind as null there and the eager path would silently match zero
+        // rows for every assignment. See ClassSchoolController::updateSubjects()
+        // for the same pitfall documented in this same branch. class_subjects
+        // is queried directly below instead, exactly like ClassSubjectSeeder.
+        ClassSchool::with('schoolClass')->get()->each(function (ClassSchool $assignment) {
             $class = $assignment->schoolClass;
+
+            if (! $class) {
+                // The SchoolClass was soft-deleted; class_schools rows
+                // aren't cascade-deleted alongside it (SoftDeletes has no
+                // DB cascade), so this assignment is now orphaned.
+                return;
+            }
+
             $schoolId = $assignment->school_id;
             $districtId = $assignment->district_id;
 
@@ -82,8 +99,13 @@ class SectionBackfillSeeder extends Seeder
             // uses — left null (unconfigured) when there's no existing data.
             $weeklyCounts = $routines->groupBy('subject_id')->map->count();
 
-            $subjectSync = $assignment->subjects->mapWithKeys(fn ($subject) => [
-                $subject->id => ['required_weekly_periods' => $weeklyCounts->get($subject->id)],
+            $subjectIds = DB::table('class_subjects')
+                ->where('class_id', $class->id)
+                ->where('school_id', $schoolId)
+                ->pluck('subject_id');
+
+            $subjectSync = $subjectIds->mapWithKeys(fn (int $subjectId) => [
+                $subjectId => ['required_weekly_periods' => $weeklyCounts->get($subjectId)],
             ]);
             $version->subjects()->syncWithoutDetaching($subjectSync->all());
 

@@ -54,9 +54,8 @@ class ClassRoutineSeeder extends Seeder
                 }
 
                 ClassRoutine::updateOrCreate(
-                    ['class_id' => $class->id, 'day_of_week' => $day, 'period_no' => $period['period_no']],
+                    ['class_id' => $class->id, 'school_id' => $school->id, 'day_of_week' => $day, 'period_no' => $period['period_no']],
                     [
-                        'school_id' => $school->id,
                         'district_id' => $school->district_id,
                         'subject_id' => $subject->id,
                         'teacher_id' => $teacher?->id,

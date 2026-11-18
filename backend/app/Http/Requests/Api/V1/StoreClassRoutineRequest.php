@@ -41,6 +41,7 @@ class StoreClassRoutineRequest extends FormRequest
                 'required', 'string', Rule::in(ClassRoutine::DAYS_OF_WEEK),
                 Rule::unique('class_routines', 'day_of_week')->withoutTrashed()->where(function ($query) {
                     $query->where('class_id', $this->integer('class_id'))
+                        ->where('school_id', $this->integer('school_id'))
                         ->where('period_no', $this->integer('period_no'));
                 }),
             ],

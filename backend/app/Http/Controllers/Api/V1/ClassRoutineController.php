@@ -52,10 +52,10 @@ class ClassRoutineController extends Controller
     /**
      * Store a newly created resource in storage.
      *
-     * A soft-deleted entry with the same (class_id, day_of_week, period_no)
-     * is restored and updated in place, rather than attempting a second
-     * insert that would collide with the still-present unique index on a
-     * trashed row.
+     * A soft-deleted entry with the same (class_id, school_id, day_of_week,
+     * period_no) is restored and updated in place, rather than attempting
+     * a second insert that would collide with the still-present unique
+     * index on a trashed row.
      */
     public function store(StoreClassRoutineRequest $request): JsonResponse
     {
@@ -87,6 +87,7 @@ class ClassRoutineController extends Controller
 
         $routine = ClassRoutine::onlyTrashed()
             ->where('class_id', $class->id)
+            ->where('school_id', $school->id)
             ->where('day_of_week', $attributes['day_of_week'])
             ->where('period_no', $attributes['period_no'])
             ->first();

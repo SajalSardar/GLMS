@@ -188,6 +188,59 @@ class RoutineAssignmentTimetableAuthorizationTest extends TestCase
             ->assertJsonPath('data.academic_year_id', $academicYear->id);
     }
 
+    /**
+     * Regression test: school_classes.name is national now, so the same
+     * class_id can be adopted by more than one school via class_schools.
+     * Two different schools scheduling the identical (day_of_week,
+     * period_no) slot for that shared class must not collide with each
+     * other - only a slot the SAME school has already filled should be
+     * rejected. Guards against class_routines' unique index (and this
+     * request's own uniqueness rule) being scoped by class_id alone
+     * instead of (class_id, school_id).
+     */
+    public function test_class_routine_store_allows_two_schools_to_share_the_same_class_day_and_period(): void
+    {
+        ClassRoutine::create([
+            'class_id' => $this->class->id,
+            'school_id' => $this->school->id,
+            'district_id' => $this->school->district_id,
+            'subject_id' => $this->subject->id,
+            'day_of_week' => 'sunday',
+            'period_no' => 7,
+        ]);
+
+        $divisionB = Division::create(['name' => 'Division B', 'bn_name' => 'বিভাগ বি']);
+        $districtB = District::create(['division_id' => $divisionB->id, 'name' => 'District B', 'bn_name' => 'জেলা বি']);
+        $upazilaB = Upazila::create(['district_id' => $districtB->id, 'name' => 'Upazila B', 'bn_name' => 'উপজেলা বি']);
+
+        $schoolB = School::create([
+            'division_id' => $divisionB->id,
+            'district_id' => $districtB->id,
+            'upazila_id' => $upazilaB->id,
+            'name' => 'School B',
+        ]);
+
+        ClassSchool::create(['class_id' => $this->class->id, 'school_id' => $schoolB->id, 'district_id' => $schoolB->district_id]);
+        $this->class->subjects()->attach($this->subject->id, ['school_id' => $schoolB->id]);
+
+        $allowed = $this->actorWithPermissions(['class_routines.create']);
+
+        // Same class_id, same day_of_week, same period_no as School A's
+        // routine above - but for School B, so this must succeed rather
+        // than be rejected as "already scheduled".
+        $payload = [
+            'class_id' => $this->class->id,
+            'school_id' => $schoolB->id,
+            'subject_id' => $this->subject->id,
+            'day_of_week' => 'sunday',
+            'period_no' => 7,
+        ];
+
+        $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/class-routines', $payload)
+            ->assertCreated()
+            ->assertJsonPath('data.school_id', $schoolB->id);
+    }
+
     public function test_subject_teacher_assignment_store_and_update_are_authorized(): void
     {
         $assignment = SubjectTeacherAssignment::create([

@@ -43,9 +43,10 @@ class ClassVersionController extends Controller
     /**
      * Store a newly created resource in storage.
      *
-     * A soft-deleted version with the same (class_id, name) is restored
-     * and updated in place, rather than attempting a second insert that
-     * would collide with the still-present unique index on a trashed row.
+     * A soft-deleted version with the same (class_id, school_id, name) is
+     * restored and updated in place, rather than attempting a second
+     * insert that would collide with the still-present unique index on a
+     * trashed row.
      */
     public function store(StoreClassVersionRequest $request): JsonResponse
     {
