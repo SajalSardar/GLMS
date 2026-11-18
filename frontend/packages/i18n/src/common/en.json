@@ -296,7 +296,6 @@
   "management.schoolDetail.loading": "Loading school...",
   "management.schoolDetail.adoptedClasses": "Adopted classes",
   "management.schoolDetail.noAdoptedClasses": "No classes adopted yet.",
-  "management.schoolDetail.adoptClass": "Adopt a class",
   "management.schoolDetail.adoptClassPlaceholder": "Select a class to adopt",
   "management.schoolDetail.adopt": "Adopt",
   "management.schoolDetail.manageSubjects": "Manage subjects",

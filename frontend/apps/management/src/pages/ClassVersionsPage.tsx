@@ -100,21 +100,42 @@ export default function ClassVersionsPage() {
   }, [])
 
   useEffect(() => {
+    // No school selected: nothing to fetch. `adoptedClassOptions` below
+    // already derives an empty list whenever `formSchoolId` is falsy,
+    // so there's no need to reset `adoptedClasses` here too.
     if (!formSchoolId) {
-      setAdoptedClasses([])
       return
     }
 
+    // Guards against a slower, earlier response landing after a faster,
+    // later one if the form's School field is switched quickly —
+    // without this, a stale class list from the previously-selected
+    // school could overwrite the correct one.
+    let active = true
+
     listClassSchools({ schoolId: Number(formSchoolId), perPage: 500 })
-      .then((result) => setAdoptedClasses(result.data))
-      .catch(() => setAdoptedClasses([]))
+      .then((result) => {
+        if (active) setAdoptedClasses(result.data)
+      })
+      .catch(() => {
+        if (active) setAdoptedClasses([])
+      })
+
+    return () => {
+      active = false
+    }
   }, [formSchoolId])
 
   const schoolOptions = schools.map((school) => ({ value: String(school.id), label: schoolLabel(school) }))
-  const adoptedClassOptions = adoptedClasses.map((classSchool) => ({
-    value: String(classSchool.class_id),
-    label: classSchool.class?.name ?? String(classSchool.class_id),
-  }))
+  // Derived rather than reset via the effect above: with no school
+  // selected there's nothing to offer, regardless of whatever
+  // `adoptedClasses` still holds from a previous selection.
+  const adoptedClassOptions = formSchoolId
+    ? adoptedClasses.map((classSchool) => ({
+        value: String(classSchool.class_id),
+        label: classSchool.class?.name ?? String(classSchool.class_id),
+      }))
+    : []
 
   const columns: GeoColumn<ClassVersion>[] = [
     { key: 'name', label: t['management.fields.name'], render: (row) => row.name },
@@ -146,6 +167,10 @@ export default function ClassVersionsPage() {
       initialValues={initialValues}
       requiredFields={requiredFields}
       valuesFromRow={(row) => {
+        // Safe: GeoCrudTable calls valuesFromRow only from its own
+        // openEditForm(), which itself only runs from a button's
+        // onClick handler — never during a render pass — so this
+        // setState call never happens inside React's render phase.
         setFormSchoolId(String(row.school_id))
         return {
           school_id: String(row.school_id),
@@ -155,61 +180,78 @@ export default function ClassVersionsPage() {
           is_active: String(row.is_active),
         }
       }}
-      renderFields={(values, onChange, fieldErrors) => (
-        <>
-          <GeoField label={t['management.fields.school']} required error={fieldErrors.school_id}>
-            <SearchableSelect
-              value={values.school_id}
-              onChange={(next) => {
-                onChange('school_id', next)
-                onChange('class_id', '')
-                setFormSchoolId(next)
-              }}
-              placeholder={t['management.fields.school']}
-              searchPlaceholder={t['management.table.search']}
-              noMatchesLabel={t['management.table.noMatches']}
-              options={schoolOptions}
-            />
-          </GeoField>
+      renderFields={(values, onChange, fieldErrors) => {
+        // `adoptedClasses`/`adoptedClassOptions` are fetched by the
+        // effect above, keyed off `formSchoolId` — but GeoCrudTable's
+        // own "Add new" button opens a fresh create form by calling its
+        // internal openCreateForm() directly, with no way to notify this
+        // page, so `formSchoolId` has no chance to reset on that path
+        // (only the edit path, via valuesFromRow, and this field's own
+        // onChange below ever set it). Comparing the live `values.school_id`
+        // against `formSchoolId` here detects exactly that mismatch —
+        // a fresh create form showing an empty School field while
+        // `formSchoolId` still points at a previously-edited row's
+        // school — and falls back to an empty list instead of
+        // displaying another school's classes against an empty School
+        // field.
+        const classOptionsForSchool = values.school_id === formSchoolId ? adoptedClassOptions : []
 
-          <GeoField label={t['management.fields.class']} required error={fieldErrors.class_id}>
-            <SearchableSelect
-              value={values.class_id}
-              onChange={(next) => onChange('class_id', next)}
-              placeholder={t['management.fields.class']}
-              searchPlaceholder={t['management.table.search']}
-              noMatchesLabel={t['management.table.noMatches']}
-              options={adoptedClassOptions}
-              className={!values.school_id ? `${inputClass} cursor-not-allowed opacity-60` : undefined}
-            />
-          </GeoField>
+        return (
+          <>
+            <GeoField label={t['management.fields.school']} required error={fieldErrors.school_id}>
+              <SearchableSelect
+                value={values.school_id}
+                onChange={(next) => {
+                  onChange('school_id', next)
+                  onChange('class_id', '')
+                  setFormSchoolId(next)
+                }}
+                placeholder={t['management.fields.school']}
+                searchPlaceholder={t['management.table.search']}
+                noMatchesLabel={t['management.table.noMatches']}
+                options={schoolOptions}
+              />
+            </GeoField>
 
-          <GeoField label={t['management.fields.name']} required error={fieldErrors.name}>
-            <input
-              className={inputClass}
-              value={values.name}
-              onChange={(event) => onChange('name', event.target.value)}
-            />
-          </GeoField>
+            <GeoField label={t['management.fields.class']} required error={fieldErrors.class_id}>
+              <SearchableSelect
+                value={values.class_id}
+                onChange={(next) => onChange('class_id', next)}
+                placeholder={t['management.fields.class']}
+                searchPlaceholder={t['management.table.search']}
+                noMatchesLabel={t['management.table.noMatches']}
+                options={classOptionsForSchool}
+                className={!values.school_id ? `${inputClass} cursor-not-allowed opacity-60` : undefined}
+              />
+            </GeoField>
 
-          <GeoField label={t['management.fields.bnName']} error={fieldErrors.bn_name}>
-            <input
-              className={inputClass}
-              value={values.bn_name}
-              onChange={(event) => onChange('bn_name', event.target.value)}
-            />
-          </GeoField>
+            <GeoField label={t['management.fields.name']} required error={fieldErrors.name}>
+              <input
+                className={inputClass}
+                value={values.name}
+                onChange={(event) => onChange('name', event.target.value)}
+              />
+            </GeoField>
 
-          <label className="flex items-center gap-2 text-sm text-gray-700">
-            <input
-              type="checkbox"
-              checked={values.is_active === 'true'}
-              onChange={(event) => onChange('is_active', String(event.target.checked))}
-            />
-            {t['management.fields.isActive']}
-          </label>
-        </>
-      )}
+            <GeoField label={t['management.fields.bnName']} error={fieldErrors.bn_name}>
+              <input
+                className={inputClass}
+                value={values.bn_name}
+                onChange={(event) => onChange('bn_name', event.target.value)}
+              />
+            </GeoField>
+
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={values.is_active === 'true'}
+                onChange={(event) => onChange('is_active', String(event.target.checked))}
+              />
+              {t['management.fields.isActive']}
+            </label>
+          </>
+        )
+      }}
       fetchPage={(page, filters) =>
         listClassVersions({
           page,

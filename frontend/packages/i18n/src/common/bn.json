@@ -296,7 +296,6 @@
   "management.schoolDetail.loading": "স্কুলের তথ্য লোড হচ্ছে...",
   "management.schoolDetail.adoptedClasses": "গৃহীত ক্লাস",
   "management.schoolDetail.noAdoptedClasses": "এখনও কোনো ক্লাস গ্রহণ করা হয়নি।",
-  "management.schoolDetail.adoptClass": "একটি ক্লাস গ্রহণ করুন",
   "management.schoolDetail.adoptClassPlaceholder": "গ্রহণ করার জন্য একটি ক্লাস নির্বাচন করুন",
   "management.schoolDetail.adopt": "গ্রহণ করুন",
   "management.schoolDetail.manageSubjects": "বিষয় পরিচালনা করুন",

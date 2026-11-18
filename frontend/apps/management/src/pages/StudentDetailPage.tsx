@@ -994,21 +994,42 @@ export default function StudentDetailPage() {
   }, [])
 
   useEffect(() => {
+    // No school selected: nothing to fetch. `classOptions` below already
+    // derives an empty list whenever `values.school_id` is falsy, so
+    // there's no need to reset `schoolClasses` here too.
     if (!values.school_id) {
-      setSchoolClasses([])
       return
     }
 
+    // Guards against a slower, earlier response landing after a faster,
+    // later one if the school is switched quickly — without this, a
+    // stale class list from the previously-selected school could
+    // overwrite the correct one.
+    let active = true
+
     listClassSchools({ schoolId: Number(values.school_id), perPage: 500 })
-      .then((result) => setSchoolClasses(result.data))
-      .catch(() => setSchoolClasses([]))
+      .then((result) => {
+        if (active) setSchoolClasses(result.data)
+      })
+      .catch(() => {
+        if (active) setSchoolClasses([])
+      })
+
+    return () => {
+      active = false
+    }
   }, [values.school_id])
 
   const schoolOptions = schools.map((school) => ({ value: String(school.id), label: schoolLabel(school) }))
-  const classOptions = schoolClasses.map((classSchool) => ({
-    value: String(classSchool.class_id),
-    label: classSchool.class?.name ?? String(classSchool.class_id),
-  }))
+  // Derived rather than reset via the effect above: with no school
+  // selected there's nothing to offer, regardless of whatever
+  // `schoolClasses` still holds from a previous selection.
+  const classOptions = values.school_id
+    ? schoolClasses.map((classSchool) => ({
+        value: String(classSchool.class_id),
+        label: classSchool.class?.name ?? String(classSchool.class_id),
+      }))
+    : []
 
   function startEdit() {
     setFormError(null)

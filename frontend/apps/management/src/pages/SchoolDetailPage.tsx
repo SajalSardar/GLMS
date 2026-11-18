@@ -188,6 +188,11 @@ function AdoptedClassesPanel({
     try {
       await createClassSchool({ class_id: Number(adoptClassId), school_id: schoolId }, token)
       setAdoptClassId('')
+      // A failed removal's inline error is scoped to this panel, not to
+      // the row it came from — clear it on any other successful action
+      // so it doesn't linger on screen through an unrelated success.
+      setRemoveError(null)
+      setRemoveErrorId(null)
       showToast({ type: 'success', message: t['management.schoolDetail.classAdopted'] })
       onChanged()
     } catch (error) {
@@ -242,6 +247,10 @@ function AdoptedClassesPanel({
     try {
       await updateClassSchoolSubjects(managingId, [...checkedSubjectIds], token)
       setManagingId(null)
+      // See handleAdopt above: clear a stale remove-error on any other
+      // successful action in this panel.
+      setRemoveError(null)
+      setRemoveErrorId(null)
       showToast({ type: 'success', message: t['management.schoolDetail.subjectsSaved'] })
       onChanged()
     } catch (error) {
