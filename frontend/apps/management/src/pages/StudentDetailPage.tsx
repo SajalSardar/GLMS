@@ -8,16 +8,16 @@ import {
   createStudentUser,
   detachGuardianFromStudent,
   getStudentUser,
-  listClasses,
+  listClassSchools,
   listSchools,
   listStudentProfiles,
   updateGuardian,
   updateStudentProfile,
   updateStudentUser,
+  type ClassSchool,
   type Guardian,
   type GuardianRelation,
   type School,
-  type SchoolClass,
   type StudentProfile,
   type StudentUser,
 } from '@ttla/api-client'
@@ -932,7 +932,7 @@ export default function StudentDetailPage() {
   const [student, setStudent] = useState<StudentUser | null>(null)
   const [profile, setProfile] = useState<StudentProfile | null>(null)
   const [schools, setSchools] = useState<School[]>([])
-  const [classes, setClasses] = useState<SchoolClass[]>([])
+  const [schoolClasses, setSchoolClasses] = useState<ClassSchool[]>([])
   const [loading, setLoading] = useState(!isCreate)
   const [loadError, setLoadError] = useState<string | null>(null)
 
@@ -991,16 +991,24 @@ export default function StudentDetailPage() {
     listSchools({ perPage: 200 })
       .then((result) => setSchools(result.data))
       .catch(() => setSchools([]))
-
-    listClasses({ perPage: 500 })
-      .then((result) => setClasses(result.data))
-      .catch(() => setClasses([]))
   }, [])
 
+  useEffect(() => {
+    if (!values.school_id) {
+      setSchoolClasses([])
+      return
+    }
+
+    listClassSchools({ schoolId: Number(values.school_id), perPage: 500 })
+      .then((result) => setSchoolClasses(result.data))
+      .catch(() => setSchoolClasses([]))
+  }, [values.school_id])
+
   const schoolOptions = schools.map((school) => ({ value: String(school.id), label: schoolLabel(school) }))
-  const classOptions = classes
-    .filter((schoolClass) => String(schoolClass.school_id) === values.school_id)
-    .map((schoolClass) => ({ value: String(schoolClass.id), label: schoolClass.name }))
+  const classOptions = schoolClasses.map((classSchool) => ({
+    value: String(classSchool.class_id),
+    label: classSchool.class?.name ?? String(classSchool.class_id),
+  }))
 
   function startEdit() {
     setFormError(null)
