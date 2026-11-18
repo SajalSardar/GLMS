@@ -22,8 +22,6 @@ class BookResource extends JsonResource
             'updated_by_id' => $this->updated_by_id,
             'class_version_id' => $this->class_version_id,
             'subject_id' => $this->subject_id,
-            'school_id' => $this->school_id,
-            'district_id' => $this->district_id,
             'name' => $this->name,
             'bn_name' => $this->bn_name,
             'order_index' => $this->order_index,

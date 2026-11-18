@@ -56,8 +56,6 @@ class BookControllerTest extends TestCase
         $book = Book::create([
             'class_version_id' => $this->versionA->id,
             'subject_id' => $this->subject->id,
-            'school_id' => $this->versionA->school_id,
-            'district_id' => $this->versionA->district_id,
             'name' => 'Existing Book',
         ]);
         $payload = ['class_version_id' => $this->versionA->id, 'subject_id' => $this->subject->id, 'name' => 'New Book'];
@@ -69,8 +67,6 @@ class BookControllerTest extends TestCase
         $allowed = $this->actorWithPermissions(['books.create', 'books.update'], $this->schoolA->id, $this->schoolA->district_id);
         $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/books', $payload)
             ->assertCreated()
-            ->assertJsonPath('data.school_id', $this->schoolA->id)
-            ->assertJsonPath('data.district_id', $this->schoolA->district_id)
             ->assertJsonPath('data.created_by_type', get_class($allowed))
             ->assertJsonPath('data.created_by_id', $allowed->id);
         $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/books/{$book->id}", [])
@@ -94,21 +90,20 @@ class BookControllerTest extends TestCase
         $this->assertSame(2, Book::where('class_version_id', $this->versionA->id)->where('subject_id', $this->subject->id)->count());
     }
 
-    public function test_actor_with_permission_gets_404_updating_another_schools_book(): void
+    public function test_actor_with_permission_can_update_a_book_belonging_to_a_different_schools_version(): void
     {
         $book = Book::create([
             'class_version_id' => $this->versionB->id,
             'subject_id' => $this->subject->id,
-            'school_id' => $this->versionB->school_id,
-            'district_id' => $this->versionB->district_id,
             'name' => 'School B Book',
         ]);
 
         $actor = $this->actorWithPermissions(['books.update'], $this->schoolA->id, $this->schoolA->district_id);
 
         $this->actingAs($actor, 'sanctum')
-            ->patchJson("/api/v1/books/{$book->id}", ['name' => 'Hacked'])
-            ->assertNotFound();
+            ->patchJson("/api/v1/books/{$book->id}", ['name' => 'Renamed'])
+            ->assertOk()
+            ->assertJsonPath('data.name', 'Renamed');
     }
 
     public function test_store_restores_a_soft_deleted_book_with_the_same_identity(): void
@@ -116,8 +111,6 @@ class BookControllerTest extends TestCase
         $book = Book::create([
             'class_version_id' => $this->versionA->id,
             'subject_id' => $this->subject->id,
-            'school_id' => $this->versionA->school_id,
-            'district_id' => $this->versionA->district_id,
             'name' => 'Mathematics',
         ]);
         $book->delete();
@@ -135,15 +128,11 @@ class BookControllerTest extends TestCase
         $book = Book::create([
             'class_version_id' => $this->versionA->id,
             'subject_id' => $this->subject->id,
-            'school_id' => $this->versionA->school_id,
-            'district_id' => $this->versionA->district_id,
             'name' => 'Mathematics',
         ]);
-        $book->chapters()->create([
-            'name' => 'Chapter 1',
-            'school_id' => $book->school_id,
-            'district_id' => $book->district_id,
-        ]);
+        // chapters still requires school_id/district_id (NOT NULL) until Task 3
+        // de-scopes it; supply them here since Book no longer carries them.
+        $book->chapters()->create(['name' => 'Chapter 1', 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id]);
 
         $actor = $this->actorWithPermissions(['books.delete'], $this->schoolA->id, $this->schoolA->district_id);
 

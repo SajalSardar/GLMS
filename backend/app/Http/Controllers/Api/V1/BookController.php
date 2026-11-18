@@ -65,8 +65,6 @@ class BookController extends Controller
         Subject::findOrFail($request->integer('subject_id'));
 
         $data = $request->validated();
-        $data['school_id'] = $classVersion->school_id;
-        $data['district_id'] = $classVersion->district_id;
 
         $book = Book::onlyTrashed()
             ->where('class_version_id', $data['class_version_id'])
