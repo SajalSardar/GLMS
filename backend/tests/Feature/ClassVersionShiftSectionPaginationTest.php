@@ -158,4 +158,43 @@ class ClassVersionShiftSectionPaginationTest extends TestCase
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.name', 'A Section');
     }
+
+    public function test_shift_index_filters_by_class_id_while_paginated(): void
+    {
+        $classA = $this->makeClass();
+        $classB = $this->makeClass();
+        $versionA = ClassVersion::create(['class_id' => $classA->id, 'school_id' => $classA->school_id, 'district_id' => $classA->district_id, 'name' => 'English']);
+        $versionB = ClassVersion::create(['class_id' => $classB->id, 'school_id' => $classB->school_id, 'district_id' => $classB->district_id, 'name' => 'English']);
+
+        $this->makeShift($versionA);
+        Shift::create([
+            'class_version_id' => $versionA->id, 'school_id' => $versionA->school_id, 'district_id' => $versionA->district_id,
+            'name' => 'Day', 'start_time' => '13:00', 'end_time' => '17:00', 'days_of_week' => ['sunday'],
+        ]);
+        $this->makeShift($versionB);
+
+        $this->getJson("/api/v1/shifts?class_id={$classA->id}")
+            ->assertOk()
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('meta.total', 2);
+    }
+
+    public function test_section_index_filters_by_class_id_while_paginated(): void
+    {
+        $classA = $this->makeClass();
+        $classB = $this->makeClass();
+        $versionA = ClassVersion::create(['class_id' => $classA->id, 'school_id' => $classA->school_id, 'district_id' => $classA->district_id, 'name' => 'English']);
+        $versionB = ClassVersion::create(['class_id' => $classB->id, 'school_id' => $classB->school_id, 'district_id' => $classB->district_id, 'name' => 'English']);
+        $shiftA = $this->makeShift($versionA);
+        $shiftB = $this->makeShift($versionB);
+
+        Section::create(['shift_id' => $shiftA->id, 'school_id' => $shiftA->school_id, 'district_id' => $shiftA->district_id, 'name' => 'A Section']);
+        Section::create(['shift_id' => $shiftA->id, 'school_id' => $shiftA->school_id, 'district_id' => $shiftA->district_id, 'name' => 'B Section']);
+        Section::create(['shift_id' => $shiftB->id, 'school_id' => $shiftB->school_id, 'district_id' => $shiftB->district_id, 'name' => 'C Section']);
+
+        $this->getJson("/api/v1/sections?class_id={$classA->id}")
+            ->assertOk()
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('meta.total', 2);
+    }
 }

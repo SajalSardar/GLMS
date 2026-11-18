@@ -4,6 +4,7 @@ import { useAuth } from '@ttla/auth'
 import { getCommonStrings } from '@ttla/i18n'
 import SearchableSelect from './SearchableSelect'
 import { buttonNeutral, buttonPrimary, inputClass } from './styles'
+import { useToast, ToastViewport } from './Toast'
 
 const t = getCommonStrings('en')
 
@@ -16,6 +17,8 @@ export interface GeoColumn<T> {
 export interface GeoFilters {
   search: string
   parentId?: number
+  secondaryParentId?: number
+  tertiaryParentId?: number
 }
 
 export interface GeoParentFilter {
@@ -29,14 +32,16 @@ export function GeoField({
   required,
   error,
   children,
+  className,
 }: {
   label: string
   required?: boolean
   error?: string
   children: ReactNode
+  className?: string
 }) {
   return (
-    <label className="flex flex-col gap-1.5 text-sm">
+    <label className={`flex flex-col gap-1.5 text-sm${className ? ` ${className}` : ''}`}>
       <span className="font-medium text-gray-700">
         {label}
         {required && <span className="text-danger-500"> *</span>}
@@ -54,21 +59,31 @@ export function GeoField({
 export interface GeoCrudTableProps<T extends { id: number }> {
   title: string
   columns: GeoColumn<T>[]
-  initialValues: Record<string, string>
-  requiredFields: string[]
-  valuesFromRow: (row: T) => Record<string, string>
-  renderFields: (
+  // The six props below drive the built-in add/edit modal. They're optional
+  // because a page that fully replaces add/edit with its own page (via
+  // `onAdd`/`onEdit`, below) never opens that modal, so it never needs them.
+  initialValues?: Record<string, string>
+  requiredFields?: string[]
+  valuesFromRow?: (row: T) => Record<string, string>
+  renderFields?: (
     values: Record<string, string>,
     onChange: (key: string, value: string) => void,
     fieldErrors: Record<string, string>,
+    editingId: number | null,
   ) => ReactNode
   fetchPage: (page: number, filters: GeoFilters) => Promise<PaginatedResponse<T>>
-  createRow: (values: Record<string, string>, token: string) => Promise<unknown>
-  updateRow: (id: number, values: Record<string, string>, token: string) => Promise<unknown>
+  createRow?: (values: Record<string, string>, token: string) => Promise<unknown>
+  updateRow?: (id: number, values: Record<string, string>, token: string) => Promise<unknown>
   deleteRow: (id: number, token: string) => Promise<void>
   parentFilter?: GeoParentFilter
+  secondaryFilter?: GeoParentFilter
+  tertiaryFilter?: GeoParentFilter
   renderDetails?: (row: T) => ReactNode
   onView?: (row: T) => void
+  // Override the "Add new" button / row's edit (pencil) button to navigate
+  // elsewhere (e.g. a dedicated page) instead of opening the built-in modal.
+  onAdd?: () => void
+  onEdit?: (row: T) => void
 }
 
 const REQUIRED_MESSAGE = 'This field is required.'
@@ -108,8 +123,12 @@ export default function GeoCrudTable<T extends { id: number }>({
   updateRow,
   deleteRow,
   parentFilter,
+  secondaryFilter,
+  tertiaryFilter,
   renderDetails,
   onView,
+  onAdd,
+  onEdit,
 }: GeoCrudTableProps<T>) {
   const { token } = useAuth()
 
@@ -123,10 +142,12 @@ export default function GeoCrudTable<T extends { id: number }>({
 
   const [search, setSearch] = useState('')
   const [parentId, setParentId] = useState('')
+  const [secondaryParentId, setSecondaryParentId] = useState('')
+  const [tertiaryParentId, setTertiaryParentId] = useState('')
 
   const [formOpen, setFormOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
-  const [values, setValues] = useState<Record<string, string>>(initialValues)
+  const [values, setValues] = useState<Record<string, string>>(initialValues ?? {})
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
@@ -137,12 +158,19 @@ export default function GeoCrudTable<T extends { id: number }>({
 
   const [viewingRow, setViewingRow] = useState<T | null>(null)
 
+  const { toast, showToast } = useToast()
+
   const load = useCallback(
     (targetPage: number) => {
       setLoading(true)
       setListError(null)
 
-      fetchPage(targetPage, { search, parentId: parentId ? Number(parentId) : undefined })
+      fetchPage(targetPage, {
+        search,
+        parentId: parentId ? Number(parentId) : undefined,
+        secondaryParentId: secondaryParentId ? Number(secondaryParentId) : undefined,
+        tertiaryParentId: tertiaryParentId ? Number(tertiaryParentId) : undefined,
+      })
         .then((result) => {
           setRows(result.data)
           setLastPage(result.meta.last_page)
@@ -155,7 +183,7 @@ export default function GeoCrudTable<T extends { id: number }>({
         })
         .finally(() => setLoading(false))
     },
-    [fetchPage, search, parentId],
+    [fetchPage, search, parentId, secondaryParentId, tertiaryParentId],
   )
 
   // `load` (and the `fetchPage` prop it wraps) gets a new identity on every
@@ -183,7 +211,7 @@ export default function GeoCrudTable<T extends { id: number }>({
 
   function openCreateForm() {
     setEditingId(null)
-    setValues(initialValues)
+    setValues(initialValues ?? {})
     setFormError(null)
     setFieldErrors({})
     setFormOpen(true)
@@ -191,7 +219,7 @@ export default function GeoCrudTable<T extends { id: number }>({
 
   function openEditForm(row: T) {
     setEditingId(row.id)
-    setValues(valuesFromRow(row))
+    setValues(valuesFromRow ? valuesFromRow(row) : {})
     setFormError(null)
     setFieldErrors({})
     setFormOpen(true)
@@ -218,7 +246,10 @@ export default function GeoCrudTable<T extends { id: number }>({
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key !== 'Escape') return
-      if (formOpen) closeForm()
+      // The create/edit form is deliberately excluded here and from the
+      // backdrop's onClick below — it only closes via its own Cancel/×
+      // button, so an accidental Escape or outside click never discards
+      // form progress.
       if (deletingId !== null) closeDeleteConfirm()
       if (viewingRow !== null) setViewingRow(null)
     }
@@ -231,7 +262,7 @@ export default function GeoCrudTable<T extends { id: number }>({
     if (!token) return
 
     const missing: Record<string, string> = {}
-    for (const key of requiredFields) {
+    for (const key of requiredFields ?? []) {
       if (!values[key]?.trim()) {
         missing[key] = REQUIRED_MESSAGE
       }
@@ -249,12 +280,16 @@ export default function GeoCrudTable<T extends { id: number }>({
 
     try {
       if (editingId) {
-        await updateRow(editingId, values, token)
+        await updateRow?.(editingId, values, token)
       } else {
-        await createRow(values, token)
+        await createRow?.(values, token)
       }
 
       setFormOpen(false)
+      showToast({
+        type: 'success',
+        message: editingId ? t['management.table.updatedSuccess'] : t['management.table.createdSuccess'],
+      })
       load(editingId ? page : 1)
     } catch (error) {
       if (error instanceof ApiError && error.errors) {
@@ -264,7 +299,9 @@ export default function GeoCrudTable<T extends { id: number }>({
         }
         setFieldErrors(mapped)
       } else {
-        setFormError(error instanceof ApiError ? error.message : String(error))
+        const message = error instanceof ApiError ? error.message : String(error)
+        setFormError(message)
+        showToast({ type: 'error', message })
       }
     } finally {
       setSubmitting(false)
@@ -281,8 +318,11 @@ export default function GeoCrudTable<T extends { id: number }>({
       await deleteRow(deletingId, token)
       setDeletingId(null)
       load(rows.length === 1 && page > 1 ? page - 1 : page)
+      showToast({ type: 'success', message: t['management.table.deletedSuccess'] })
     } catch (error) {
-      setDeleteError(error instanceof ApiError ? error.message : String(error))
+      const message = error instanceof ApiError ? error.message : String(error)
+      setDeleteError(message)
+      showToast({ type: 'error', message })
     } finally {
       setDeleting(false)
     }
@@ -292,7 +332,11 @@ export default function GeoCrudTable<T extends { id: number }>({
     <section className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-semibold text-gray-800">{title}</h2>
-        <button type="button" className={`${buttonPrimary} inline-flex items-center gap-1.5`} onClick={openCreateForm}>
+        <button
+          type="button"
+          className={`${buttonPrimary} inline-flex items-center gap-1.5`}
+          onClick={() => (onAdd ? onAdd() : openCreateForm())}
+        >
           <span className="material-symbols-outlined !text-[18px] leading-none">add</span>
           {t['management.table.addNew']}
         </button>
@@ -317,6 +361,36 @@ export default function GeoCrudTable<T extends { id: number }>({
               options={[
                 { value: '', label: parentFilter.allLabel },
                 ...parentFilter.options.map((option) => ({ value: String(option.id), label: option.label })),
+              ]}
+            />
+          </div>
+        )}
+        {secondaryFilter && (
+          <div className="w-full sm:w-56">
+            <SearchableSelect
+              value={secondaryParentId}
+              onChange={setSecondaryParentId}
+              placeholder={secondaryFilter.allLabel}
+              searchPlaceholder={t['management.table.search']}
+              noMatchesLabel={t['management.table.noMatches']}
+              options={[
+                { value: '', label: secondaryFilter.allLabel },
+                ...secondaryFilter.options.map((option) => ({ value: String(option.id), label: option.label })),
+              ]}
+            />
+          </div>
+        )}
+        {tertiaryFilter && (
+          <div className="w-full sm:w-56">
+            <SearchableSelect
+              value={tertiaryParentId}
+              onChange={setTertiaryParentId}
+              placeholder={tertiaryFilter.allLabel}
+              searchPlaceholder={t['management.table.search']}
+              noMatchesLabel={t['management.table.noMatches']}
+              options={[
+                { value: '', label: tertiaryFilter.allLabel },
+                ...tertiaryFilter.options.map((option) => ({ value: String(option.id), label: option.label })),
               ]}
             />
           </div>
@@ -358,7 +432,7 @@ export default function GeoCrudTable<T extends { id: number }>({
               rows.map((row, index) => (
                 <tr key={row.id} className="border-t border-gray-100">
                   <td className="px-5 py-3.5 whitespace-nowrap text-gray-500">
-                    {(page - 1) * perPage + index + 1}
+                    {total - ((page - 1) * perPage + index)}
                   </td>
                   {columns.map((column) => (
                     <td key={column.key} className="px-5 py-3.5 whitespace-nowrap text-gray-700">
@@ -380,7 +454,7 @@ export default function GeoCrudTable<T extends { id: number }>({
                       <button
                         type="button"
                         className="cursor-pointer leading-none text-gray-500 transition-colors duration-150 hover:text-primary-500"
-                        onClick={() => openEditForm(row)}
+                        onClick={() => (onEdit ? onEdit(row) : openEditForm(row))}
                         aria-label={t['management.table.edit']}
                       >
                         <span className="material-symbols-outlined !text-md">edit</span>
@@ -453,10 +527,9 @@ export default function GeoCrudTable<T extends { id: number }>({
       </div>
 
       {formOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-5" onClick={closeForm}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-5">
           <div
-            className="flex max-h-[calc(100vh-2.5rem)] w-full max-w-md flex-col overflow-hidden rounded-md bg-white shadow-2xl"
-            onClick={(event) => event.stopPropagation()}
+            className="flex max-h-[calc(100vh-2.5rem)] w-full max-w-2xl flex-col overflow-hidden rounded-md bg-white shadow-2xl"
             role="dialog"
             aria-modal="true"
             aria-label={editingId ? t['management.table.edit'] : t['management.table.addNew']}
@@ -476,7 +549,12 @@ export default function GeoCrudTable<T extends { id: number }>({
             </div>
 
             <div className="flex flex-col gap-4 overflow-y-auto p-5">
-              {renderFields(values, (key, value) => setValues((prev) => ({ ...prev, [key]: value })), fieldErrors)}
+              {renderFields?.(
+                values,
+                (key, value) => setValues((prev) => ({ ...prev, [key]: value })),
+                fieldErrors,
+                editingId,
+              )}
 
               {formError && <p className="rounded-md bg-danger-50 px-4 py-3 text-sm text-danger-600">{formError}</p>}
             </div>
@@ -565,6 +643,8 @@ export default function GeoCrudTable<T extends { id: number }>({
           </div>
         </div>
       )}
+
+      <ToastViewport toast={toast} />
     </section>
   )
 }

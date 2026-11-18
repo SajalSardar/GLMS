@@ -92,7 +92,7 @@ class GuardianUserController extends Controller
         }
 
         $attributes = [
-            ...$request->safe()->only(['name', 'email', 'phone', 'password']),
+            ...$request->safe()->only(['name', 'bn_name', 'email', 'phone', 'password']),
             'role_id' => $role?->id,
             'school_id' => $schoolId,
             'district_id' => $districtId,
@@ -134,7 +134,7 @@ class GuardianUserController extends Controller
     {
         $this->authorize('update', $guardian_user);
 
-        $guardian_user->update($request->safe()->only(['name', 'email', 'phone', 'password']));
+        $guardian_user->update($request->safe()->only(['name', 'bn_name', 'email', 'phone', 'password']));
 
         return new GuardianUserResource($guardian_user->load(['role.permissions', 'school', 'district']));
     }

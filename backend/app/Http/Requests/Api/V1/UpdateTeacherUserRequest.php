@@ -20,6 +20,7 @@ class UpdateTeacherUserRequest extends FormRequest
     {
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
+            'bn_name' => ['nullable', 'string', 'max:255'],
             'email' => [
                 'sometimes', 'required', 'email', 'max:255',
                 Rule::unique('teacher_users', 'email')->ignore($this->route('teacher_user')),

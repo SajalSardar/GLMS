@@ -142,4 +142,48 @@ class StudentProfileAuthorizationTest extends TestCase
             ->assertJsonPath('data.school_id', $studentUser->school_id)
             ->assertJsonPath('data.district_id', $studentUser->district_id);
     }
+
+    public function test_index_can_be_filtered_by_user_id(): void
+    {
+        $studentA = StudentUser::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
+        $studentB = StudentUser::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
+
+        $profileA = StudentProfile::create(['user_id' => $studentA->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
+        StudentProfile::create(['user_id' => $studentB->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
+
+        $actor = $this->actorWithPermissions(['student_profiles.view'], $this->school->id, $this->school->district_id);
+
+        $response = $this->actingAs($actor, 'sanctum')
+            ->getJson("/api/v1/student-profiles?user_id={$studentA->id}")
+            ->assertOk();
+
+        $response->assertJsonCount(1, 'data');
+        $response->assertJsonPath('data.0.id', $profileA->id);
+    }
+
+    /**
+     * Regression test: the frontend's student detail page fetches a
+     * student's profile via this index endpoint (filtered by user_id),
+     * not via show() — so an attached guardian has to survive that same
+     * endpoint's eager-loading, not just show()'s.
+     */
+    public function test_index_includes_attached_guardians(): void
+    {
+        $student = StudentUser::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
+        $profile = StudentProfile::create(['user_id' => $student->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
+        $guardian = Guardian::create(['name' => 'Abdul Karim', 'phone' => '01700000002']);
+
+        $profile->guardians()->attach($guardian->id, ['relation' => 'father', 'is_primary' => true]);
+
+        $actor = $this->actorWithPermissions(['student_profiles.view'], $this->school->id, $this->school->district_id);
+
+        $response = $this->actingAs($actor, 'sanctum')
+            ->getJson("/api/v1/student-profiles?user_id={$student->id}")
+            ->assertOk();
+
+        $response->assertJsonCount(1, 'data.0.guardians');
+        $response->assertJsonPath('data.0.guardians.0.id', $guardian->id);
+        $response->assertJsonPath('data.0.guardians.0.relation', 'father');
+        $response->assertJsonPath('data.0.guardians.0.is_primary', true);
+    }
 }

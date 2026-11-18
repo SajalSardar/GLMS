@@ -30,6 +30,29 @@ class TeacherUserAuthorizationTest extends TestCase
         $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/teacher-users/{$target->id}", [])->assertOk();
     }
 
+    public function test_bn_name_round_trips_through_store_and_update(): void
+    {
+        $allowed = $this->actorWithPermissions(['users.create', 'users.update']);
+
+        $payload = [
+            'name' => 'New Teacher',
+            'bn_name' => 'নতুন শিক্ষক',
+            'email' => 'new-teacher@example.test',
+            'password' => 'password123',
+        ];
+
+        $created = $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/teacher-users', $payload)
+            ->assertCreated()
+            ->assertJsonPath('data.bn_name', 'নতুন শিক্ষক');
+
+        $teacherId = $created->json('data.id');
+
+        $this->actingAs($allowed, 'sanctum')
+            ->patchJson("/api/v1/teacher-users/{$teacherId}", ['bn_name' => 'হালনাগাদকৃত নাম'])
+            ->assertOk()
+            ->assertJsonPath('data.bn_name', 'হালনাগাদকৃত নাম');
+    }
+
     public function test_school_scoped_actor_cannot_create_teacher_in_different_school(): void
     {
         $division = Division::create(['name' => 'Division', 'bn_name' => 'বিভাগ']);
@@ -177,5 +200,93 @@ class TeacherUserAuthorizationTest extends TestCase
             'school_id' => $schoolA->id,
         ]);
         $this->assertSoftDeleted('teacher_users', ['id' => $teacherId]);
+    }
+
+    public function test_index_can_be_filtered_by_school_id(): void
+    {
+        $division = Division::create(['name' => 'Division', 'bn_name' => 'বিভাগ']);
+        $district = District::create(['division_id' => $division->id, 'name' => 'District', 'bn_name' => 'জেলা']);
+        $upazila = Upazila::create(['district_id' => $district->id, 'name' => 'Upazila', 'bn_name' => 'উপজেলা']);
+
+        $schoolA = School::create([
+            'division_id' => $division->id,
+            'district_id' => $district->id,
+            'upazila_id' => $upazila->id,
+            'name' => 'School A',
+        ]);
+
+        $schoolB = School::create([
+            'division_id' => $division->id,
+            'district_id' => $district->id,
+            'upazila_id' => $upazila->id,
+            'name' => 'School B',
+        ]);
+
+        $teacherInA = TeacherUser::factory()->create(['school_id' => $schoolA->id, 'district_id' => $district->id]);
+        TeacherUser::factory()->create(['school_id' => $schoolB->id, 'district_id' => $district->id]);
+
+        $unscopedActor = $this->actorWithPermissions(['users.view']);
+
+        $response = $this->actingAs($unscopedActor, 'sanctum')
+            ->getJson("/api/v1/teacher-users?school_id={$schoolA->id}")
+            ->assertOk();
+
+        $response->assertJsonCount(1, 'data');
+        $response->assertJsonPath('data.0.id', $teacherInA->id);
+    }
+
+    public function test_index_can_be_filtered_by_district_id(): void
+    {
+        $divisionA = Division::create(['name' => 'Division A', 'bn_name' => 'বিভাগ ক']);
+        $districtA = District::create(['division_id' => $divisionA->id, 'name' => 'District A', 'bn_name' => 'জেলা ক']);
+        $upazilaA = Upazila::create(['district_id' => $districtA->id, 'name' => 'Upazila A', 'bn_name' => 'উপজেলা ক']);
+        $schoolA = School::create([
+            'division_id' => $divisionA->id,
+            'district_id' => $districtA->id,
+            'upazila_id' => $upazilaA->id,
+            'name' => 'School A',
+        ]);
+
+        $divisionB = Division::create(['name' => 'Division B', 'bn_name' => 'বিভাগ খ']);
+        $districtB = District::create(['division_id' => $divisionB->id, 'name' => 'District B', 'bn_name' => 'জেলা খ']);
+        $upazilaB = Upazila::create(['district_id' => $districtB->id, 'name' => 'Upazila B', 'bn_name' => 'উপজেলা খ']);
+        $schoolB = School::create([
+            'division_id' => $divisionB->id,
+            'district_id' => $districtB->id,
+            'upazila_id' => $upazilaB->id,
+            'name' => 'School B',
+        ]);
+
+        $teacherInA = TeacherUser::factory()->create(['school_id' => $schoolA->id, 'district_id' => $districtA->id]);
+        TeacherUser::factory()->create(['school_id' => $schoolB->id, 'district_id' => $districtB->id]);
+
+        $unscopedActor = $this->actorWithPermissions(['users.view']);
+
+        $response = $this->actingAs($unscopedActor, 'sanctum')
+            ->getJson("/api/v1/teacher-users?district_id={$districtA->id}")
+            ->assertOk();
+
+        $response->assertJsonCount(1, 'data');
+        $response->assertJsonPath('data.0.id', $teacherInA->id);
+    }
+
+    public function test_index_can_be_filtered_by_search_on_name_or_email(): void
+    {
+        TeacherUser::factory()->create(['name' => 'Rafiq Islam', 'email' => 'rafiq@example.test']);
+        TeacherUser::factory()->create(['name' => 'Karim Ahmed', 'email' => 'karim@example.test']);
+
+        $unscopedActor = $this->actorWithPermissions(['users.view']);
+
+        $this->actingAs($unscopedActor, 'sanctum')
+            ->getJson('/api/v1/teacher-users?search=Rafiq')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.name', 'Rafiq Islam');
+
+        $this->actingAs($unscopedActor, 'sanctum')
+            ->getJson('/api/v1/teacher-users?search=karim@example.test')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.name', 'Karim Ahmed');
     }
 }

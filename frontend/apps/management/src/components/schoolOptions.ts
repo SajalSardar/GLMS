@@ -1,7 +1,15 @@
-import type { SchoolLevel, SchoolType } from '@ttla/api-client'
+import type { School, SchoolLevel, SchoolType } from '@ttla/api-client'
 import { getCommonStrings } from '@ttla/i18n'
 
 const t = getCommonStrings('en')
+
+// Same school name can recur across districts, so every school picker
+// disambiguates by appending the district — consistent with the
+// "X • Y" convention used for class/shift/section labels elsewhere.
+export function schoolLabel(school: School): string {
+  const districtName = school.district?.name
+  return districtName ? `${school.name} • ${districtName}` : school.name
+}
 
 export const SCHOOL_TYPES: Array<{ value: SchoolType; label: string }> = [
   { value: 'government', label: t['management.schoolType.government'] },

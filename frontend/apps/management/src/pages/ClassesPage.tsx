@@ -11,6 +11,7 @@ import {
 import { getCommonStrings } from '@ttla/i18n'
 import GeoCrudTable, { GeoField, type GeoColumn } from '../components/GeoCrudTable'
 import SearchableSelect from '../components/SearchableSelect'
+import { schoolLabel } from '../components/schoolOptions'
 import { inputClass } from '../components/styles'
 
 const t = getCommonStrings('en')
@@ -108,7 +109,7 @@ export default function ClassesPage() {
               placeholder={t['management.fields.school']}
               searchPlaceholder={t['management.table.search']}
               noMatchesLabel={t['management.table.noMatches']}
-              options={schools.map((school) => ({ value: String(school.id), label: school.name }))}
+              options={schools.map((school) => ({ value: String(school.id), label: schoolLabel(school) }))}
             />
           </GeoField>
 
@@ -156,7 +157,7 @@ export default function ClassesPage() {
       parentFilter={{
         label: t['management.fields.school'],
         allLabel: t['management.fields.allSchools'],
-        options: schools.map((school) => ({ id: school.id, label: school.name })),
+        options: schools.map((school) => ({ id: school.id, label: schoolLabel(school) })),
       }}
     />
   )

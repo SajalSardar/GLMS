@@ -4,13 +4,16 @@ import {
   deleteClassVersion,
   listClasses,
   listClassVersions,
+  listSchools,
   updateClassVersion,
   type ClassVersion,
+  type School,
   type SchoolClass,
 } from '@ttla/api-client'
 import { getCommonStrings } from '@ttla/i18n'
 import GeoCrudTable, { GeoField, type GeoColumn } from '../components/GeoCrudTable'
 import SearchableSelect from '../components/SearchableSelect'
+import { schoolLabel } from '../components/schoolOptions'
 import { inputClass } from '../components/styles'
 
 const t = getCommonStrings('en')
@@ -70,11 +73,16 @@ function ClassVersionDetails({ version }: { version: ClassVersion }) {
 
 export default function ClassVersionsPage() {
   const [classes, setClasses] = useState<SchoolClass[]>([])
+  const [schools, setSchools] = useState<School[]>([])
 
   useEffect(() => {
     listClasses({ perPage: 200 })
       .then((result) => setClasses(result.data))
       .catch(() => setClasses([]))
+
+    listSchools({ perPage: 200 })
+      .then((result) => setSchools(result.data))
+      .catch(() => setSchools([]))
   }, [])
 
   const classOptions = classes.map((schoolClass) => ({
@@ -153,12 +161,24 @@ export default function ClassVersionsPage() {
           </label>
         </>
       )}
-      fetchPage={(page, filters) => listClassVersions({ page, search: filters.search, classId: filters.parentId })}
+      fetchPage={(page, filters) =>
+        listClassVersions({
+          page,
+          search: filters.search,
+          schoolId: filters.parentId,
+          classId: filters.secondaryParentId,
+        })
+      }
       createRow={(values, token) => createClassVersion(toPayload(values), token)}
       updateRow={(id, values, token) => updateClassVersion(id, toPayload(values), token)}
       deleteRow={(id, token) => deleteClassVersion(id, token)}
       renderDetails={(row) => <ClassVersionDetails version={row} />}
       parentFilter={{
+        label: t['management.fields.school'],
+        allLabel: t['management.fields.allSchools'],
+        options: schools.map((school) => ({ id: school.id, label: schoolLabel(school) })),
+      }}
+      secondaryFilter={{
         label: t['management.fields.class'],
         allLabel: t['management.fields.allClasses'],
         options: classes.map((schoolClass) => ({

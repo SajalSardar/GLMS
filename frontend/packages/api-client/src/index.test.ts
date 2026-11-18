@@ -9,7 +9,9 @@ import {
   createSchool,
   createSection,
   createShift,
+  createSubjectTeacherAssignment,
   deleteDivision,
+  deleteSubjectTeacherAssignment,
   getHealth,
   listAcademicYears,
   listClasses,
@@ -19,12 +21,15 @@ import {
   listSchools,
   listSections,
   listShifts,
+  listSubjectTeacherAssignments,
   listSubjects,
+  listTeacherUsers,
   listUpazilas,
   managementLogin,
   studentLogin,
   updateDivision,
   updateSchool,
+  updateSubjectTeacherAssignment,
 } from './index'
 
 describe('apiFetch', () => {
@@ -506,5 +511,100 @@ describe('sections', () => {
       body: JSON.stringify({ shift_id: 5, name: 'A' }),
       headers: expect.objectContaining({ Authorization: 'Bearer secret-token' }),
     })
+  })
+})
+
+describe('teacher users', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('lists teacher users filtered by school_id, with a bearer token when given', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ data: [], meta: { current_page: 1, last_page: 1, per_page: 15, total: 0 } }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    await listTeacherUsers({ schoolId: 5 }, 'secret-token')
+
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/teacher-users?school_id=5`)
+    expect(mockFetch.mock.calls[0][1]).toMatchObject({
+      headers: { Authorization: 'Bearer secret-token' },
+    })
+  })
+
+  it('omits the Authorization header when no token is given', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ data: [], meta: { current_page: 1, last_page: 1, per_page: 15, total: 0 } }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    await listTeacherUsers({ schoolId: 5 })
+
+    expect(mockFetch.mock.calls[0][1]).toMatchObject({ headers: undefined })
+  })
+})
+
+describe('subject-teacher assignments', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('lists assignments filtered by section_id', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ data: [], meta: { current_page: 1, last_page: 1, per_page: 15, total: 0 } }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    await listSubjectTeacherAssignments({ sectionId: 7 })
+
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/subject-teacher-assignments?section_id=7`)
+  })
+
+  it('creates an assignment with a JSON body', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 201,
+      json: () => Promise.resolve({ data: { id: 1 } }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    await createSubjectTeacherAssignment({ section_id: 7, subject_id: 2, teacher_id: 3 }, 'secret-token')
+
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/subject-teacher-assignments`)
+    expect(mockFetch.mock.calls[0][1]).toMatchObject({
+      method: 'POST',
+      body: JSON.stringify({ section_id: 7, subject_id: 2, teacher_id: 3 }),
+      headers: expect.objectContaining({ Authorization: 'Bearer secret-token' }),
+    })
+  })
+
+  it('updates an assignment with only teacher_id', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ data: { id: 1 } }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    await updateSubjectTeacherAssignment(1, { teacher_id: 9 }, 'secret-token')
+
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/subject-teacher-assignments/1`)
+    expect(mockFetch.mock.calls[0][1]).toMatchObject({
+      method: 'PATCH',
+      body: JSON.stringify({ teacher_id: 9 }),
+    })
+  })
+
+  it('deletes an assignment', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 204 })
+    vi.stubGlobal('fetch', mockFetch)
+
+    await deleteSubjectTeacherAssignment(1, 'secret-token')
+
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/subject-teacher-assignments/1`)
+    expect(mockFetch.mock.calls[0][1]).toMatchObject({ method: 'DELETE' })
   })
 })

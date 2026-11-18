@@ -3,18 +3,23 @@ import {
   createShift,
   deleteShift,
   listAcademicYears,
+  listClasses,
   listClassVersions,
+  listSchools,
   listShifts,
   updateShift,
   DAYS_OF_WEEK,
   type AcademicYear,
   type ClassVersion,
   type DayOfWeek,
+  type School,
+  type SchoolClass,
   type Shift,
 } from '@ttla/api-client'
 import { getCommonStrings } from '@ttla/i18n'
 import GeoCrudTable, { GeoField, type GeoColumn } from '../components/GeoCrudTable'
 import SearchableSelect from '../components/SearchableSelect'
+import { schoolLabel } from '../components/schoolOptions'
 import { inputClass } from '../components/styles'
 
 const t = getCommonStrings('en')
@@ -74,6 +79,10 @@ function daysLabel(days: DayOfWeek[]): string {
   return days.map((day) => dayLabels[day]).join(', ')
 }
 
+function schoolClassLabel(schoolClass: SchoolClass): string {
+  return schoolClass.school ? `${schoolClass.school.name} • ${schoolClass.name}` : schoolClass.name
+}
+
 function DetailRow({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-4 border-b border-gray-100 py-2 last:border-0">
@@ -107,6 +116,8 @@ function ShiftDetails({ shift }: { shift: Shift }) {
 export default function ShiftsPage() {
   const [classVersions, setClassVersions] = useState<ClassVersion[]>([])
   const [academicYears, setAcademicYears] = useState<AcademicYear[]>([])
+  const [schools, setSchools] = useState<School[]>([])
+  const [classes, setClasses] = useState<SchoolClass[]>([])
 
   useEffect(() => {
     listClassVersions({ perPage: 200 })
@@ -116,6 +127,14 @@ export default function ShiftsPage() {
     listAcademicYears({ perPage: 200 })
       .then((result) => setAcademicYears(result.data))
       .catch(() => setAcademicYears([]))
+
+    listSchools({ perPage: 200 })
+      .then((result) => setSchools(result.data))
+      .catch(() => setSchools([]))
+
+    listClasses({ perPage: 200 })
+      .then((result) => setClasses(result.data))
+      .catch(() => setClasses([]))
   }, [])
 
   const classVersionOptions = classVersions.map((version) => ({
@@ -266,13 +285,29 @@ export default function ShiftsPage() {
         )
       }}
       fetchPage={(page, filters) =>
-        listShifts({ page, search: filters.search, classVersionId: filters.parentId })
+        listShifts({
+          page,
+          search: filters.search,
+          schoolId: filters.parentId,
+          classId: filters.secondaryParentId,
+          classVersionId: filters.tertiaryParentId,
+        })
       }
       createRow={(values, token) => createShift(toPayload(values), token)}
       updateRow={(id, values, token) => updateShift(id, toPayload(values), token)}
       deleteRow={(id, token) => deleteShift(id, token)}
       renderDetails={(row) => <ShiftDetails shift={row} />}
       parentFilter={{
+        label: t['management.fields.school'],
+        allLabel: t['management.fields.allSchools'],
+        options: schools.map((school) => ({ id: school.id, label: schoolLabel(school) })),
+      }}
+      secondaryFilter={{
+        label: t['management.fields.class'],
+        allLabel: t['management.fields.allClasses'],
+        options: classes.map((schoolClass) => ({ id: schoolClass.id, label: schoolClassLabel(schoolClass) })),
+      }}
+      tertiaryFilter={{
         label: t['management.fields.classVersion'],
         allLabel: t['management.fields.allClassVersions'],
         options: classVersions.map((version) => ({ id: version.id, label: classVersionLabel(version) })),

@@ -13,12 +13,28 @@ import SchoolDetailPage from './pages/SchoolDetailPage'
 import SchoolsPage from './pages/SchoolsPage'
 import SectionsPage from './pages/SectionsPage'
 import ShiftsPage from './pages/ShiftsPage'
+import StudentDetailPage from './pages/StudentDetailPage'
+import StudentsPage from './pages/StudentsPage'
 import SubjectsPage from './pages/SubjectsPage'
+import SubjectTeacherAssignmentsPage from './pages/SubjectTeacherAssignmentsPage'
+import TeacherDetailPage from './pages/TeacherDetailPage'
+import TeachersPage from './pages/TeachersPage'
 import UpazilasPage from './pages/UpazilasPage'
 
 const t = getCommonStrings('en')
 
-const baseNavItems: SidebarItem[] = [{ to: '/dashboard', label: 'Dashboard', icon: 'dashboard' }]
+const baseNavItems: SidebarItem[] = [{ to: '/dashboard', label: 'Dashboard', icon: 'dashboard', end: true }]
+
+// Teacher accounts are managed by the same roles that manage sections/
+// shifts/etc. (school_admin and national_admin — see RolePermissionSeeder's
+// users.* grants), but sit as their own top-level item right after
+// Dashboard rather than nested under schoolManagedNavItems/System Setup,
+// per the explicit request to place it there.
+const teachersNavItem: SidebarItem = { to: '/dashboard/teachers', label: t['management.nav.teachers'], icon: 'person' }
+
+// Same placement reasoning as teachersNavItem above — student accounts
+// share the same users.* grants and sit as their own top-level item too.
+const studentsNavItem: SidebarItem = { to: '/dashboard/students', label: t['management.nav.students'], icon: 'face' }
 
 // Classes and academic years are configured per-school, not only by a
 // national admin — the backend grants school_admin create/update/delete
@@ -33,6 +49,11 @@ const schoolManagedNavItems: SidebarItem[] = [
   { to: '/dashboard/class-versions', label: t['management.nav.classVersions'], icon: 'layers' },
   { to: '/dashboard/shifts', label: t['management.nav.shifts'], icon: 'schedule' },
   { to: '/dashboard/sections', label: t['management.nav.sections'], icon: 'groups' },
+  {
+    to: '/dashboard/subject-teacher-assignments',
+    label: t['management.nav.subjectTeacherAssignments'],
+    icon: 'assignment_ind',
+  },
 ]
 
 const systemSetupItem: SidebarItem = {
@@ -106,6 +127,7 @@ function DashboardLayout() {
 
   const navItems = [
     ...baseNavItems,
+    ...(role === 'national_admin' || role === 'school_admin' ? [teachersNavItem, studentsNavItem] : []),
     ...(role === 'national_admin' ? [systemSetupItem] : role === 'school_admin' ? schoolManagedNavItems : []),
   ]
 
@@ -131,11 +153,18 @@ function App() {
             <Route path="/dashboard" element={<DashboardLayout />}>
               <Route index element={<DashboardPlaceholder />} />
               <Route element={<RequireSchoolManager />}>
+                <Route path="teachers" element={<TeachersPage />} />
+                <Route path="teachers/new" element={<TeacherDetailPage />} />
+                <Route path="teachers/:id" element={<TeacherDetailPage />} />
+                <Route path="students" element={<StudentsPage />} />
+                <Route path="students/new" element={<StudentDetailPage />} />
+                <Route path="students/:id" element={<StudentDetailPage />} />
                 <Route path="classes" element={<ClassesPage />} />
                 <Route path="academic-years" element={<AcademicYearsPage />} />
                 <Route path="class-versions" element={<ClassVersionsPage />} />
                 <Route path="shifts" element={<ShiftsPage />} />
                 <Route path="sections" element={<SectionsPage />} />
+                <Route path="subject-teacher-assignments" element={<SubjectTeacherAssignmentsPage />} />
               </Route>
               <Route path="system-setup" element={<RequireNationalAdmin />}>
                 <Route path="divisions" element={<DivisionsPage />} />

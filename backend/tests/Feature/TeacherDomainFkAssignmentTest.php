@@ -79,4 +79,58 @@ class TeacherDomainFkAssignmentTest extends TestCase
         $this->assertInstanceOf(TeacherUser::class, $assignment->teacher);
         $this->assertSame($teacher->id, $assignment->teacher->id);
     }
+
+    public function test_subject_teacher_assignment_index_filters_by_class_id(): void
+    {
+        $division = Division::create(['name' => 'Division', 'bn_name' => 'বিভাগ']);
+        $district = District::create(['division_id' => $division->id, 'name' => 'District', 'bn_name' => 'জেলা']);
+        $upazila = Upazila::create(['district_id' => $district->id, 'name' => 'Upazila', 'bn_name' => 'উপজেলা']);
+
+        $school = School::create([
+            'division_id' => $division->id,
+            'district_id' => $district->id,
+            'upazila_id' => $upazila->id,
+            'name' => 'School',
+        ]);
+
+        $classA = SchoolClass::create(['school_id' => $school->id, 'district_id' => $school->district_id, 'name' => 'Class A']);
+        $classB = SchoolClass::create(['school_id' => $school->id, 'district_id' => $school->district_id, 'name' => 'Class B']);
+
+        $versionA = ClassVersion::create(['class_id' => $classA->id, 'school_id' => $school->id, 'district_id' => $school->district_id, 'name' => 'Version']);
+        $versionB = ClassVersion::create(['class_id' => $classB->id, 'school_id' => $school->id, 'district_id' => $school->district_id, 'name' => 'Version']);
+
+        $shiftA = Shift::create([
+            'class_version_id' => $versionA->id, 'school_id' => $school->id, 'district_id' => $school->district_id,
+            'name' => 'Shift', 'start_time' => '08:00', 'end_time' => '13:00', 'days_of_week' => ['saturday'],
+        ]);
+        $shiftB = Shift::create([
+            'class_version_id' => $versionB->id, 'school_id' => $school->id, 'district_id' => $school->district_id,
+            'name' => 'Shift', 'start_time' => '08:00', 'end_time' => '13:00', 'days_of_week' => ['saturday'],
+        ]);
+
+        $sectionA = Section::create(['shift_id' => $shiftA->id, 'school_id' => $school->id, 'district_id' => $school->district_id, 'name' => 'Section']);
+        $sectionB = Section::create(['shift_id' => $shiftB->id, 'school_id' => $school->id, 'district_id' => $school->district_id, 'name' => 'Section']);
+
+        $subject = Subject::create(['name' => 'Math']);
+        $classA->subjects()->attach($subject->id);
+        $classB->subjects()->attach($subject->id);
+        $versionA->subjects()->attach($subject->id);
+        $versionB->subjects()->attach($subject->id);
+
+        $teacher = TeacherUser::factory()->create(['school_id' => $school->id, 'district_id' => $school->district_id]);
+
+        SubjectTeacherAssignment::create([
+            'section_id' => $sectionA->id, 'subject_id' => $subject->id, 'teacher_id' => $teacher->id,
+            'school_id' => $school->id, 'district_id' => $school->district_id,
+        ]);
+        SubjectTeacherAssignment::create([
+            'section_id' => $sectionB->id, 'subject_id' => $subject->id, 'teacher_id' => $teacher->id,
+            'school_id' => $school->id, 'district_id' => $school->district_id,
+        ]);
+
+        $this->getJson("/api/v1/subject-teacher-assignments?class_id={$classA->id}")
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.section_id', $sectionA->id);
+    }
 }

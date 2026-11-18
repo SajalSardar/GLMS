@@ -174,6 +174,39 @@ class RoutineAssignmentTimetableAuthorizationTest extends TestCase
             ->assertJsonPath('data.updated_by_id', $allowed->id);
     }
 
+    public function test_subject_teacher_assignment_index_is_paginated_and_filterable_by_section(): void
+    {
+        $otherSection = Section::create([
+            'shift_id' => $this->section->shift_id,
+            'school_id' => $this->school->id,
+            'district_id' => $this->school->district_id,
+            'name' => 'Section B',
+        ]);
+
+        SubjectTeacherAssignment::create([
+            'section_id' => $this->section->id,
+            'school_id' => $this->school->id,
+            'district_id' => $this->school->district_id,
+            'subject_id' => $this->subject->id,
+            'teacher_id' => $this->teacher->id,
+        ]);
+        SubjectTeacherAssignment::create([
+            'section_id' => $otherSection->id,
+            'school_id' => $this->school->id,
+            'district_id' => $this->school->district_id,
+            'subject_id' => $this->subject->id,
+            'teacher_id' => $this->teacher->id,
+        ]);
+
+        $response = $this->getJson('/api/v1/subject-teacher-assignments')->assertOk();
+        $response->assertJsonCount(2, 'data');
+        $response->assertJsonPath('meta.total', 2);
+
+        $filtered = $this->getJson("/api/v1/subject-teacher-assignments?section_id={$this->section->id}")->assertOk();
+        $filtered->assertJsonCount(1, 'data');
+        $filtered->assertJsonPath('data.0.section_id', $this->section->id);
+    }
+
     public function test_timetable_entry_store_and_update_are_authorized(): void
     {
         SubjectTeacherAssignment::create([

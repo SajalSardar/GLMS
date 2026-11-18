@@ -21,6 +21,7 @@ class StoreGuardianUserRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
+            'bn_name' => ['nullable', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', Rule::unique('guardian_users', 'email')->withoutTrashed()],
             'phone' => ['nullable', 'string', 'max:20', Rule::unique('guardian_users', 'phone')->withoutTrashed()],
             'password' => ['required', 'string', 'min:8'],

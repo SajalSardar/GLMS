@@ -538,6 +538,7 @@ export interface ClassVersion {
   bn_name: string | null
   is_active: boolean
   class?: SchoolClass | null
+  subjects?: Subject[] | null
 }
 
 export interface ClassVersionPayload {
@@ -623,7 +624,14 @@ export interface ShiftPayload {
 }
 
 export function listShifts(
-  params: { page?: number; perPage?: number; search?: string; classVersionId?: number; schoolId?: number } = {},
+  params: {
+    page?: number
+    perPage?: number
+    search?: string
+    classVersionId?: number
+    schoolId?: number
+    classId?: number
+  } = {},
 ): Promise<PaginatedResponse<Shift>> {
   const query: Record<string, string | number | undefined> = {
     page: params.page,
@@ -631,6 +639,7 @@ export function listShifts(
     search: params.search || undefined,
     class_version_id: params.classVersionId,
     school_id: params.schoolId,
+    class_id: params.classId,
   }
 
   return apiFetch<PaginatedResponse<Shift>>(`/shifts${buildQuery(query)}`)
@@ -679,7 +688,14 @@ export interface SectionPayload {
 }
 
 export function listSections(
-  params: { page?: number; perPage?: number; search?: string; shiftId?: number; schoolId?: number } = {},
+  params: {
+    page?: number
+    perPage?: number
+    search?: string
+    shiftId?: number
+    schoolId?: number
+    classId?: number
+  } = {},
 ): Promise<PaginatedResponse<Section>> {
   const query: Record<string, string | number | undefined> = {
     page: params.page,
@@ -687,6 +703,7 @@ export function listSections(
     search: params.search || undefined,
     shift_id: params.shiftId,
     school_id: params.schoolId,
+    class_id: params.classId,
   }
 
   return apiFetch<PaginatedResponse<Section>>(`/sections${buildQuery(query)}`)
@@ -706,4 +723,419 @@ export function updateSection(
 
 export function deleteSection(id: number, token: string): Promise<void> {
   return deleteGeo('sections', id, token)
+}
+
+// ---------- Teacher users ----------
+
+export interface TeacherUser {
+  id: number
+  name: string
+  bn_name: string | null
+  email: string | null
+  phone: string | null
+  school?: School | null
+  district?: District | null
+}
+
+export interface TeacherUserPayload {
+  name: string
+  bn_name?: string | null
+  email: string
+  phone?: string | null
+  password?: string
+  school_id?: number | null
+  district_id?: number | null
+}
+
+export function listTeacherUsers(
+  params: { page?: number; perPage?: number; search?: string; schoolId?: number; districtId?: number } = {},
+  token?: string,
+): Promise<PaginatedResponse<TeacherUser>> {
+  const query: Record<string, string | number | undefined> = {
+    page: params.page,
+    per_page: params.perPage,
+    search: params.search || undefined,
+    school_id: params.schoolId,
+    district_id: params.districtId,
+  }
+
+  // Unlike the geographic/academic reference lists above, /teacher-users
+  // requires authentication (it's registered inside the auth:sanctum
+  // group), so a bearer token must be sent when the caller has one.
+  return apiFetch<PaginatedResponse<TeacherUser>>(`/teacher-users${buildQuery(query)}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  })
+}
+
+export function getTeacherUser(id: number, token: string): Promise<{ data: TeacherUser }> {
+  return apiFetch<{ data: TeacherUser }>(`/teacher-users/${id}`, {
+    headers: authHeaders(token),
+  })
+}
+
+export function createTeacherUser(payload: TeacherUserPayload, token: string): Promise<{ data: TeacherUser }> {
+  return createGeo<TeacherUser, TeacherUserPayload>('teacher-users', payload, token)
+}
+
+export function updateTeacherUser(
+  id: number,
+  payload: Partial<TeacherUserPayload>,
+  token: string,
+): Promise<{ data: TeacherUser }> {
+  return updateGeo<TeacherUser, Partial<TeacherUserPayload>>('teacher-users', id, payload, token)
+}
+
+export function deleteTeacherUser(id: number, token: string): Promise<void> {
+  return deleteGeo('teacher-users', id, token)
+}
+
+// ---------- Teacher profiles ----------
+
+export interface TeacherProfile {
+  id: number
+  user_id: number
+  school_id: number
+  district_id: number
+  employee_id: string | null
+  designation: string | null
+  subject_specialization: string | null
+  qualification: string | null
+  joining_date: string | null
+  nid_number: string | null
+  phone: string | null
+  blood_group: string | null
+  present_address: string | null
+  permanent_address: string | null
+  photo_path: string | null
+}
+
+export interface TeacherProfilePayload {
+  user_id: number
+  employee_id?: string | null
+  designation?: string | null
+  subject_specialization?: string | null
+  qualification?: string | null
+  joining_date?: string | null
+  nid_number?: string | null
+  phone?: string | null
+  blood_group?: string | null
+  present_address?: string | null
+  permanent_address?: string | null
+  photo_path?: string | null
+}
+
+export function listTeacherProfiles(
+  params: { page?: number; perPage?: number; userId?: number; schoolId?: number; districtId?: number } = {},
+  token?: string,
+): Promise<PaginatedResponse<TeacherProfile>> {
+  const query: Record<string, string | number | undefined> = {
+    page: params.page,
+    per_page: params.perPage,
+    user_id: params.userId,
+    school_id: params.schoolId,
+    district_id: params.districtId,
+  }
+
+  return apiFetch<PaginatedResponse<TeacherProfile>>(`/teacher-profiles${buildQuery(query)}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  })
+}
+
+export function createTeacherProfile(payload: TeacherProfilePayload, token: string): Promise<{ data: TeacherProfile }> {
+  return createGeo<TeacherProfile, TeacherProfilePayload>('teacher-profiles', payload, token)
+}
+
+export function updateTeacherProfile(
+  id: number,
+  payload: Partial<Omit<TeacherProfilePayload, 'user_id'>>,
+  token: string,
+): Promise<{ data: TeacherProfile }> {
+  return updateGeo<TeacherProfile, Partial<Omit<TeacherProfilePayload, 'user_id'>>>('teacher-profiles', id, payload, token)
+}
+
+// ---------- Subject-teacher assignments ----------
+
+export interface SubjectTeacherAssignment {
+  id: number
+  section_id: number
+  subject_id: number
+  teacher_id: number
+  school_id: number
+  district_id: number
+  section?: Section | null
+  subject?: Subject | null
+  teacher?: { id: number; name: string } | null
+}
+
+export interface SubjectTeacherAssignmentPayload {
+  section_id: number
+  subject_id: number
+  teacher_id: number
+}
+
+export function listSubjectTeacherAssignments(
+  params: {
+    page?: number
+    perPage?: number
+    sectionId?: number
+    subjectId?: number
+    teacherId?: number
+    schoolId?: number
+    classId?: number
+  } = {},
+): Promise<PaginatedResponse<SubjectTeacherAssignment>> {
+  const query: Record<string, string | number | undefined> = {
+    page: params.page,
+    per_page: params.perPage,
+    section_id: params.sectionId,
+    subject_id: params.subjectId,
+    teacher_id: params.teacherId,
+    school_id: params.schoolId,
+    class_id: params.classId,
+  }
+
+  return apiFetch<PaginatedResponse<SubjectTeacherAssignment>>(`/subject-teacher-assignments${buildQuery(query)}`)
+}
+
+export function createSubjectTeacherAssignment(
+  payload: SubjectTeacherAssignmentPayload,
+  token: string,
+): Promise<{ data: SubjectTeacherAssignment }> {
+  return createGeo<SubjectTeacherAssignment, SubjectTeacherAssignmentPayload>(
+    'subject-teacher-assignments',
+    payload,
+    token,
+  )
+}
+
+export function updateSubjectTeacherAssignment(
+  id: number,
+  payload: Pick<SubjectTeacherAssignmentPayload, 'teacher_id'>,
+  token: string,
+): Promise<{ data: SubjectTeacherAssignment }> {
+  return updateGeo<SubjectTeacherAssignment, Pick<SubjectTeacherAssignmentPayload, 'teacher_id'>>(
+    'subject-teacher-assignments',
+    id,
+    payload,
+    token,
+  )
+}
+
+export function deleteSubjectTeacherAssignment(id: number, token: string): Promise<void> {
+  return deleteGeo('subject-teacher-assignments', id, token)
+}
+
+// ---------- Student users ----------
+
+export interface StudentUser {
+  id: number
+  name: string
+  bn_name: string | null
+  email: string | null
+  phone: string | null
+  school?: School | null
+  district?: District | null
+  class?: SchoolClass | null
+}
+
+export interface StudentUserPayload {
+  name: string
+  bn_name?: string | null
+  email?: string | null
+  phone?: string | null
+  password?: string
+  school_id?: number | null
+  district_id?: number | null
+}
+
+export function listStudentUsers(
+  params: {
+    page?: number
+    perPage?: number
+    search?: string
+    schoolId?: number
+    districtId?: number
+    classId?: number
+  } = {},
+  token?: string,
+): Promise<PaginatedResponse<StudentUser>> {
+  const query: Record<string, string | number | undefined> = {
+    page: params.page,
+    per_page: params.perPage,
+    search: params.search || undefined,
+    school_id: params.schoolId,
+    district_id: params.districtId,
+    class_id: params.classId,
+  }
+
+  return apiFetch<PaginatedResponse<StudentUser>>(`/student-users${buildQuery(query)}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  })
+}
+
+export function getStudentUser(id: number, token: string): Promise<{ data: StudentUser }> {
+  return apiFetch<{ data: StudentUser }>(`/student-users/${id}`, {
+    headers: authHeaders(token),
+  })
+}
+
+export function createStudentUser(payload: StudentUserPayload, token: string): Promise<{ data: StudentUser }> {
+  return createGeo<StudentUser, StudentUserPayload>('student-users', payload, token)
+}
+
+export function updateStudentUser(
+  id: number,
+  payload: Partial<StudentUserPayload>,
+  token: string,
+): Promise<{ data: StudentUser }> {
+  return updateGeo<StudentUser, Partial<StudentUserPayload>>('student-users', id, payload, token)
+}
+
+export function deleteStudentUser(id: number, token: string): Promise<void> {
+  return deleteGeo('student-users', id, token)
+}
+
+// ---------- Guardians (contact/profile records — distinct from guardian-user logins) ----------
+
+export type GuardianRelation = 'father' | 'mother' | 'guardian' | 'other'
+
+export interface Guardian {
+  id: number
+  user_id: number | null
+  name: string
+  bn_name: string | null
+  phone: string
+  email: string | null
+  nid_number: string | null
+  occupation: string | null
+  present_address: string | null
+  // Only present on a guardian returned nested inside a StudentProfile's
+  // `guardians` list — the pivot's own columns, flattened onto the record.
+  relation?: GuardianRelation
+  is_primary?: boolean
+}
+
+export interface GuardianPayload {
+  name: string
+  phone: string
+  bn_name?: string | null
+  email?: string | null
+  nid_number?: string | null
+  occupation?: string | null
+  present_address?: string | null
+}
+
+export function listGuardians(
+  params: { page?: number; perPage?: number } = {},
+  token?: string,
+): Promise<PaginatedResponse<Guardian>> {
+  const query: Record<string, string | number | undefined> = {
+    page: params.page,
+    per_page: params.perPage,
+  }
+
+  return apiFetch<PaginatedResponse<Guardian>>(`/guardians${buildQuery(query)}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  })
+}
+
+export function createGuardian(payload: GuardianPayload, token: string): Promise<{ data: Guardian }> {
+  return createGeo<Guardian, GuardianPayload>('guardians', payload, token)
+}
+
+export function updateGuardian(
+  id: number,
+  payload: Partial<GuardianPayload>,
+  token: string,
+): Promise<{ data: Guardian }> {
+  return updateGeo<Guardian, Partial<GuardianPayload>>('guardians', id, payload, token)
+}
+
+// ---------- Student profiles ----------
+
+export interface StudentProfile {
+  id: number
+  user_id: number
+  school_id: number
+  district_id: number
+  class_id: number | null
+  section_id: number | null
+  student_id: string | null
+  roll_number: string | null
+  admission_date: string | null
+  date_of_birth: string | null
+  gender: 'male' | 'female' | 'other' | null
+  blood_group: string | null
+  present_address: string | null
+  permanent_address: string | null
+  photo_path: string | null
+  user?: { id: number; name: string; email: string | null; phone: string | null } | null
+  school?: School | null
+  district?: District | null
+  class?: SchoolClass | null
+  section?: Section | null
+  guardians?: Guardian[]
+}
+
+export interface StudentProfilePayload {
+  user_id: number
+  class_id?: number | null
+  student_id?: string | null
+  roll_number?: string | null
+  admission_date?: string | null
+  date_of_birth?: string | null
+  gender?: 'male' | 'female' | 'other' | null
+  blood_group?: string | null
+  present_address?: string | null
+  permanent_address?: string | null
+  photo_path?: string | null
+}
+
+export function listStudentProfiles(
+  params: { page?: number; perPage?: number; userId?: number; schoolId?: number; districtId?: number; classId?: number } = {},
+  token?: string,
+): Promise<PaginatedResponse<StudentProfile>> {
+  const query: Record<string, string | number | undefined> = {
+    page: params.page,
+    per_page: params.perPage,
+    user_id: params.userId,
+    school_id: params.schoolId,
+    district_id: params.districtId,
+    class_id: params.classId,
+  }
+
+  return apiFetch<PaginatedResponse<StudentProfile>>(`/student-profiles${buildQuery(query)}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  })
+}
+
+export function createStudentProfile(payload: StudentProfilePayload, token: string): Promise<{ data: StudentProfile }> {
+  return createGeo<StudentProfile, StudentProfilePayload>('student-profiles', payload, token)
+}
+
+export function updateStudentProfile(
+  id: number,
+  payload: Partial<Omit<StudentProfilePayload, 'user_id'>>,
+  token: string,
+): Promise<{ data: StudentProfile }> {
+  return updateGeo<StudentProfile, Partial<Omit<StudentProfilePayload, 'user_id'>>>('student-profiles', id, payload, token)
+}
+
+export function attachGuardianToStudent(
+  studentProfileId: number,
+  payload: { guardian_id: number; relation: GuardianRelation; is_primary?: boolean },
+  token: string,
+): Promise<{ data: StudentProfile }> {
+  return apiFetch<{ data: StudentProfile }>(`/student-profiles/${studentProfileId}/guardians`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  })
+}
+
+export function detachGuardianFromStudent(studentProfileId: number, guardianId: number, token: string): Promise<void> {
+  return apiFetch<void>(`/student-profiles/${studentProfileId}/guardians/${guardianId}`, {
+    method: 'DELETE',
+    headers: authHeaders(token),
+  })
 }

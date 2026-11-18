@@ -13,6 +13,7 @@ use App\Models\StudentUser;
 use App\Policies\Concerns\ChecksScope;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
@@ -25,14 +26,26 @@ class StudentUserController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(): AnonymousResourceCollection
+    public function index(Request $request): AnonymousResourceCollection
     {
         $this->authorize('viewAny', StudentUser::class);
 
         $students = StudentUser::query()
-            ->with(['role.permissions', 'school', 'district'])
-            ->orderBy('name')
-            ->paginate(request()->integer('per_page', 15));
+            ->with(['role.permissions', 'school', 'district', 'profile.schoolClass'])
+            ->when($request->integer('school_id'), fn ($query, $schoolId) => $query->where('school_id', $schoolId))
+            ->when($request->integer('district_id'), fn ($query, $districtId) => $query->where('district_id', $districtId))
+            ->when(
+                $request->integer('class_id'),
+                fn ($query, $classId) => $query->whereHas('profile', fn ($profileQuery) => $profileQuery->where('class_id', $classId)),
+            )
+            ->when(
+                $request->string('search')->toString(),
+                fn ($query, $search) => $query->where(
+                    fn ($nameOrEmail) => $nameOrEmail->where('name', 'like', "%{$search}%")->orWhere('email', 'like', "%{$search}%"),
+                ),
+            )
+            ->orderByDesc('id')
+            ->paginate($request->integer('per_page', 15));
 
         return StudentUserResource::collection($students);
     }
@@ -91,7 +104,7 @@ class StudentUserController extends Controller
         }
 
         $attributes = [
-            ...$request->safe()->only(['name', 'email', 'phone', 'password']),
+            ...$request->safe()->only(['name', 'bn_name', 'email', 'phone', 'password']),
             'role_id' => $role?->id,
             'school_id' => $schoolId,
             'district_id' => $districtId,
@@ -135,7 +148,7 @@ class StudentUserController extends Controller
     {
         $this->authorize('update', $student_user);
 
-        $student_user->update($request->safe()->only(['name', 'email', 'phone', 'password']));
+        $student_user->update($request->safe()->only(['name', 'bn_name', 'email', 'phone', 'password']));
 
         return new StudentUserResource($student_user->load(['role.permissions', 'school', 'district']));
     }

@@ -26,6 +26,13 @@ class ShiftController extends Controller
             ->with(['classVersion.schoolClass.school', 'academicYear'])
             ->when($request->integer('class_version_id'), fn ($query, $id) => $query->where('class_version_id', $id))
             ->when($request->integer('school_id'), fn ($query, $schoolId) => $query->where('school_id', $schoolId))
+            ->when(
+                $request->integer('class_id'),
+                fn ($query, $classId) => $query->whereHas(
+                    'classVersion',
+                    fn ($versionQuery) => $versionQuery->where('class_id', $classId),
+                ),
+            )
             ->when($request->string('search')->toString(), fn ($query, $search) => $query->where('name', 'like', "%{$search}%"))
             ->orderByDesc('id')
             ->paginate($request->integer('per_page', 15));

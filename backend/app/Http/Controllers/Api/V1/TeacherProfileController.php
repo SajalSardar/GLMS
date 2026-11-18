@@ -30,6 +30,7 @@ class TeacherProfileController extends Controller
             ->with(['user', 'school', 'district'])
             ->when($request->integer('school_id'), fn ($query, $schoolId) => $query->where('school_id', $schoolId))
             ->when($request->integer('district_id'), fn ($query, $districtId) => $query->where('district_id', $districtId))
+            ->when($request->integer('user_id'), fn ($query, $userId) => $query->where('user_id', $userId))
             ->orderBy('id')
             ->paginate($request->integer('per_page', 15));
 

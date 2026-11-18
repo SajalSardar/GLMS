@@ -27,6 +27,13 @@ class SectionController extends Controller
             ->with(['shift.classVersion.schoolClass.school', 'classTeacher', 'defaultClassroom'])
             ->when($request->integer('shift_id'), fn ($query, $id) => $query->where('shift_id', $id))
             ->when($request->integer('school_id'), fn ($query, $schoolId) => $query->where('school_id', $schoolId))
+            ->when(
+                $request->integer('class_id'),
+                fn ($query, $classId) => $query->whereHas(
+                    'shift.classVersion',
+                    fn ($versionQuery) => $versionQuery->where('class_id', $classId),
+                ),
+            )
             ->when($request->string('search')->toString(), fn ($query, $search) => $query->where('name', 'like', "%{$search}%"))
             ->orderByDesc('id')
             ->paginate($request->integer('per_page', 15));

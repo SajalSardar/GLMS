@@ -20,6 +20,7 @@ class UpdateStudentUserRequest extends FormRequest
     {
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
+            'bn_name' => ['nullable', 'string', 'max:255'],
             'email' => [
                 'sometimes', 'nullable', 'email', 'max:255',
                 Rule::unique('student_users', 'email')->ignore($this->route('student_user')),

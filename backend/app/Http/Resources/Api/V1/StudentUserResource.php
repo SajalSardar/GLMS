@@ -15,6 +15,7 @@ class StudentUserResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
+            'bn_name' => $this->bn_name,
             'email' => $this->email,
             'phone' => $this->phone,
             'role' => $this->whenLoaded('role', fn () => [
@@ -25,6 +26,12 @@ class StudentUserResource extends JsonResource
             ]),
             'school' => new SchoolResource($this->whenLoaded('school')),
             'district' => new DistrictResource($this->whenLoaded('district')),
+            // The student's current class, via its profile — null when no
+            // profile has been created yet, or the profile has no class set.
+            'class' => $this->whenLoaded(
+                'profile',
+                fn () => $this->profile?->schoolClass ? new ClassResource($this->profile->schoolClass) : null,
+            ),
         ];
     }
 }

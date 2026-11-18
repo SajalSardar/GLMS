@@ -20,6 +20,7 @@ class UpdateGuardianUserRequest extends FormRequest
     {
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
+            'bn_name' => ['nullable', 'string', 'max:255'],
             'email' => [
                 'sometimes', 'required', 'email', 'max:255',
                 Rule::unique('guardian_users', 'email')->ignore($this->route('guardian_user')),

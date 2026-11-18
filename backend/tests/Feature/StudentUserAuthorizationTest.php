@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Models\District;
 use App\Models\Division;
 use App\Models\School;
+use App\Models\SchoolClass;
+use App\Models\StudentProfile;
 use App\Models\StudentUser;
 use App\Models\Upazila;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -176,5 +178,78 @@ class StudentUserAuthorizationTest extends TestCase
             'school_id' => $schoolA->id,
         ]);
         $this->assertSoftDeleted('student_users', ['id' => $studentId]);
+    }
+
+    public function test_index_can_be_filtered_by_school_id_and_search_and_orders_newest_first(): void
+    {
+        $division = Division::create(['name' => 'Division', 'bn_name' => 'বিভাগ']);
+        $district = District::create(['division_id' => $division->id, 'name' => 'District', 'bn_name' => 'জেলা']);
+        $upazila = Upazila::create(['district_id' => $district->id, 'name' => 'Upazila', 'bn_name' => 'উপজেলা']);
+
+        $schoolA = School::create([
+            'division_id' => $division->id,
+            'district_id' => $district->id,
+            'upazila_id' => $upazila->id,
+            'name' => 'School A',
+        ]);
+
+        $schoolB = School::create([
+            'division_id' => $division->id,
+            'district_id' => $district->id,
+            'upazila_id' => $upazila->id,
+            'name' => 'School B',
+        ]);
+
+        $studentA1 = StudentUser::factory()->create(['name' => 'Rafiq Islam', 'email' => 'rafiq@example.test', 'school_id' => $schoolA->id, 'district_id' => $district->id]);
+        $studentA2 = StudentUser::factory()->create(['name' => 'Karim Ahmed', 'school_id' => $schoolA->id, 'district_id' => $district->id]);
+        StudentUser::factory()->create(['school_id' => $schoolB->id, 'district_id' => $district->id]);
+
+        $unscopedActor = $this->actorWithPermissions(['users.view']);
+
+        $bySchool = $this->actingAs($unscopedActor, 'sanctum')
+            ->getJson("/api/v1/student-users?school_id={$schoolA->id}")
+            ->assertOk();
+        $bySchool->assertJsonCount(2, 'data');
+        $bySchool->assertJsonPath('data.0.id', $studentA2->id);
+
+        $this->actingAs($unscopedActor, 'sanctum')
+            ->getJson('/api/v1/student-users?search=rafiq@example.test')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $studentA1->id);
+    }
+
+    public function test_index_can_be_filtered_by_class_id_and_returns_the_current_class(): void
+    {
+        $division = Division::create(['name' => 'Division', 'bn_name' => 'বিভাগ']);
+        $district = District::create(['division_id' => $division->id, 'name' => 'District', 'bn_name' => 'জেলা']);
+        $upazila = Upazila::create(['district_id' => $district->id, 'name' => 'Upazila', 'bn_name' => 'উপজেলা']);
+
+        $school = School::create([
+            'division_id' => $division->id,
+            'district_id' => $district->id,
+            'upazila_id' => $upazila->id,
+            'name' => 'School',
+        ]);
+
+        $classSix = SchoolClass::create(['school_id' => $school->id, 'district_id' => $district->id, 'name' => 'Class Six']);
+        $classSeven = SchoolClass::create(['school_id' => $school->id, 'district_id' => $district->id, 'name' => 'Class Seven']);
+
+        $studentInSix = StudentUser::factory()->create(['school_id' => $school->id, 'district_id' => $district->id]);
+        $studentInSeven = StudentUser::factory()->create(['school_id' => $school->id, 'district_id' => $district->id]);
+
+        StudentProfile::create(['user_id' => $studentInSix->id, 'school_id' => $school->id, 'district_id' => $district->id, 'class_id' => $classSix->id]);
+        StudentProfile::create(['user_id' => $studentInSeven->id, 'school_id' => $school->id, 'district_id' => $district->id, 'class_id' => $classSeven->id]);
+
+        $actor = $this->actorWithPermissions(['users.view']);
+
+        $response = $this->actingAs($actor, 'sanctum')
+            ->getJson("/api/v1/student-users?class_id={$classSix->id}")
+            ->assertOk();
+
+        $response->assertJsonCount(1, 'data');
+        $response->assertJsonPath('data.0.id', $studentInSix->id);
+        $response->assertJsonPath('data.0.class.id', $classSix->id);
+        $response->assertJsonPath('data.0.class.name', 'Class Six');
     }
 }

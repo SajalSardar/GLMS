@@ -23,13 +23,20 @@ class SubjectTeacherAssignmentController extends Controller
     public function index(Request $request): AnonymousResourceCollection
     {
         $assignments = SubjectTeacherAssignment::query()
-            ->with(['section', 'subject', 'teacher'])
+            ->with(['section.shift.classVersion.schoolClass.school', 'subject', 'teacher'])
             ->when($request->integer('section_id'), fn ($query, $id) => $query->where('section_id', $id))
             ->when($request->integer('subject_id'), fn ($query, $id) => $query->where('subject_id', $id))
             ->when($request->integer('teacher_id'), fn ($query, $id) => $query->where('teacher_id', $id))
             ->when($request->integer('school_id'), fn ($query, $schoolId) => $query->where('school_id', $schoolId))
+            ->when(
+                $request->integer('class_id'),
+                fn ($query, $classId) => $query->whereHas(
+                    'section.shift.classVersion',
+                    fn ($versionQuery) => $versionQuery->where('class_id', $classId),
+                ),
+            )
             ->orderBy('section_id')
-            ->get();
+            ->paginate($request->integer('per_page', 15));
 
         return SubjectTeacherAssignmentResource::collection($assignments);
     }
@@ -39,7 +46,7 @@ class SubjectTeacherAssignmentController extends Controller
      */
     public function show(SubjectTeacherAssignment $subject_teacher_assignment): SubjectTeacherAssignmentResource
     {
-        return new SubjectTeacherAssignmentResource($subject_teacher_assignment->load(['section', 'subject', 'teacher']));
+        return new SubjectTeacherAssignmentResource($subject_teacher_assignment->load(['section.shift.classVersion.schoolClass.school', 'subject', 'teacher']));
     }
 
     /**
@@ -81,7 +88,7 @@ class SubjectTeacherAssignmentController extends Controller
             $assignment = SubjectTeacherAssignment::create($attributes);
         }
 
-        return (new SubjectTeacherAssignmentResource($assignment->load(['section', 'subject', 'teacher'])))
+        return (new SubjectTeacherAssignmentResource($assignment->load(['section.shift.classVersion.schoolClass.school', 'subject', 'teacher'])))
             ->response()
             ->setStatusCode(Response::HTTP_CREATED);
     }
@@ -97,7 +104,7 @@ class SubjectTeacherAssignmentController extends Controller
 
         $subject_teacher_assignment->update($request->validated());
 
-        return new SubjectTeacherAssignmentResource($subject_teacher_assignment->load(['section', 'subject', 'teacher']));
+        return new SubjectTeacherAssignmentResource($subject_teacher_assignment->load(['section.shift.classVersion.schoolClass.school', 'subject', 'teacher']));
     }
 
     /**

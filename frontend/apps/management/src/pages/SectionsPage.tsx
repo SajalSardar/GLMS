@@ -2,15 +2,20 @@ import { useEffect, useState, type ReactNode } from 'react'
 import {
   createSection,
   deleteSection,
+  listClasses,
+  listSchools,
   listShifts,
   listSections,
   updateSection,
+  type School,
+  type SchoolClass,
   type Section,
   type Shift,
 } from '@ttla/api-client'
 import { getCommonStrings } from '@ttla/i18n'
 import GeoCrudTable, { GeoField, type GeoColumn } from '../components/GeoCrudTable'
 import SearchableSelect from '../components/SearchableSelect'
+import { schoolLabel } from '../components/schoolOptions'
 import { inputClass } from '../components/styles'
 
 const t = getCommonStrings('en')
@@ -46,6 +51,15 @@ function shiftLabel(shift: Shift): string {
   return shift.name
 }
 
+function classLabel(shift?: Shift | null): string {
+  return shift?.class_version?.class?.name ?? '—'
+}
+
+function schoolClassLabel(schoolClass: SchoolClass): string {
+  const schoolName = schoolClass.school?.name
+  return schoolName ? `${schoolName} • ${schoolClass.name}` : schoolClass.name
+}
+
 function ActiveBadge({ isActive }: { isActive: boolean }) {
   return (
     <span
@@ -74,6 +88,7 @@ function SectionDetails({ section }: { section: Section }) {
       <DetailRow label={t['management.fields.bnName']} value={section.bn_name ?? '—'} />
       <DetailRow label={t['management.fields.code']} value={section.code ?? '—'} />
       <DetailRow label={t['management.fields.capacity']} value={section.capacity ?? '—'} />
+      <DetailRow label={t['management.fields.class']} value={classLabel(section.shift)} />
       <DetailRow
         label={t['management.fields.shift']}
         value={section.shift ? shiftLabel(section.shift) : section.shift_id}
@@ -85,11 +100,21 @@ function SectionDetails({ section }: { section: Section }) {
 
 export default function SectionsPage() {
   const [shifts, setShifts] = useState<Shift[]>([])
+  const [schools, setSchools] = useState<School[]>([])
+  const [classes, setClasses] = useState<SchoolClass[]>([])
 
   useEffect(() => {
     listShifts({ perPage: 200 })
       .then((result) => setShifts(result.data))
       .catch(() => setShifts([]))
+
+    listSchools({ perPage: 200 })
+      .then((result) => setSchools(result.data))
+      .catch(() => setSchools([]))
+
+    listClasses({ perPage: 200 })
+      .then((result) => setClasses(result.data))
+      .catch(() => setClasses([]))
   }, [])
 
   const shiftOptions = shifts.map((shift) => ({ value: String(shift.id), label: shiftLabel(shift) }))
@@ -98,6 +123,11 @@ export default function SectionsPage() {
     { key: 'name', label: t['management.fields.name'], render: (row) => row.name },
     { key: 'code', label: t['management.fields.code'], render: (row) => row.code ?? '—' },
     { key: 'capacity', label: t['management.fields.capacity'], render: (row) => row.capacity ?? '—' },
+    {
+      key: 'class',
+      label: t['management.fields.class'],
+      render: (row) => classLabel(row.shift),
+    },
     {
       key: 'shift',
       label: t['management.fields.shift'],
@@ -182,15 +212,27 @@ export default function SectionsPage() {
           </label>
         </>
       )}
-      fetchPage={(page, filters) => listSections({ page, search: filters.search, shiftId: filters.parentId })}
+      fetchPage={(page, filters) =>
+        listSections({
+          page,
+          search: filters.search,
+          schoolId: filters.parentId,
+          classId: filters.secondaryParentId,
+        })
+      }
       createRow={(values, token) => createSection(toPayload(values), token)}
       updateRow={(id, values, token) => updateSection(id, toPayload(values), token)}
       deleteRow={(id, token) => deleteSection(id, token)}
       renderDetails={(row) => <SectionDetails section={row} />}
       parentFilter={{
-        label: t['management.fields.shift'],
-        allLabel: t['management.fields.allShifts'],
-        options: shifts.map((shift) => ({ id: shift.id, label: shiftLabel(shift) })),
+        label: t['management.fields.school'],
+        allLabel: t['management.fields.allSchools'],
+        options: schools.map((school) => ({ id: school.id, label: schoolLabel(school) })),
+      }}
+      secondaryFilter={{
+        label: t['management.fields.class'],
+        allLabel: t['management.fields.allClasses'],
+        options: classes.map((schoolClass) => ({ id: schoolClass.id, label: schoolClassLabel(schoolClass) })),
       }}
     />
   )
