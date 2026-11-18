@@ -47,6 +47,17 @@
   "student.videos.empty": "এই নির্বাচনের জন্য কোনো ভিডিও পাওয়া যায়নি।",
   "student.videos.instructor": "প্রশিক্ষক",
 
+  "student.exams.title": "পরীক্ষা",
+  "student.exams.loading": "পরীক্ষা লোড হচ্ছে...",
+  "student.exams.empty": "এই মুহূর্তে কোনো পরীক্ষা নেই।",
+  "student.exams.submit": "জমা দিন",
+  "student.exams.submitting": "জমা দেওয়া হচ্ছে...",
+  "student.exams.score": "স্কোর",
+  "student.exams.passed": "উত্তীর্ণ",
+  "student.exams.failed": "অনুত্তীর্ণ",
+  "student.exams.correctAnswer": "সঠিক উত্তর",
+  "student.exams.yourAnswer": "তোমার উত্তর",
+
   "landing.hero.heading1": "শিক্ষা, অনুপ্রেরণার শক্তি,",
   "landing.hero.heading2": "নিজেকে এগিয়ে নিয়ে যাও",
   "landing.hero.sub1": "১ম - ১২শ শ্রেণির সকল শিক্ষার্থীর জন্য",

@@ -6,6 +6,8 @@ import BooksPage from './pages/BooksPage'
 import BookDetailPage from './pages/BookDetailPage'
 import VideosPage from './pages/VideosPage'
 import VideoPlaylistPage from './pages/VideoPlaylistPage'
+import ExamsPage from './pages/ExamsPage'
+import ExamRunnerPage from './pages/ExamRunnerPage'
 
 function App() {
   return (
@@ -18,7 +20,8 @@ function App() {
             <Route path="books/:id" element={<BookDetailPage />} />
             <Route path="videos" element={<VideosPage />} />
             <Route path="videos/:chapterId" element={<VideoPlaylistPage />} />
-            {/* Exams routes are added by Task 6 */}
+            <Route path="exams" element={<ExamsPage />} />
+            <Route path="exams/:id" element={<ExamRunnerPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

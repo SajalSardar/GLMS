@@ -732,9 +732,9 @@ export interface ExamQuestion {
   id: number
   question_type: string
   question_text: string
-  bn_question_text?: string | null
+  bn_question_text: string | null
   marks: number
-  order_index?: number
+  order_index: number
   options: ExamQuestionOption[]
 }
 

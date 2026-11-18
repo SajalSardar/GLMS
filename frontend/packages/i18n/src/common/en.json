@@ -47,6 +47,17 @@
   "student.videos.empty": "No videos found for this selection.",
   "student.videos.instructor": "Instructor",
 
+  "student.exams.title": "Exams",
+  "student.exams.loading": "Loading exam...",
+  "student.exams.empty": "No exams available right now.",
+  "student.exams.submit": "Submit",
+  "student.exams.submitting": "Submitting...",
+  "student.exams.score": "Score",
+  "student.exams.passed": "Passed",
+  "student.exams.failed": "Not passed",
+  "student.exams.correctAnswer": "Correct answer",
+  "student.exams.yourAnswer": "Your answer",
+
   "landing.hero.heading1": "Education, the power to inspire,",
   "landing.hero.heading2": "move yourself forward",
   "landing.hero.sub1": "For every student from class 1 to 12",
