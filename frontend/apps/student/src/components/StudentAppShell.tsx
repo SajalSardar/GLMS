@@ -55,6 +55,7 @@ export default function StudentAppShell() {
   const navItems: SidebarItem[] = [
     { to: '/dashboard', label: t['student.nav.home'], icon: 'dashboard', end: true },
     { to: '/books', label: t['student.nav.books'], icon: 'menu_book' },
+    { to: '/class-materials', label: t['student.nav.classMaterials'], icon: 'folder_open' },
     { to: '/video-lecture', label: t['student.nav.videoLecture'], icon: 'smart_display' },
     { to: '/exams', label: t['student.nav.exams'], icon: 'quiz' },
   ]

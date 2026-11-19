@@ -1,67 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import {
-  getBook,
-  getBookPdfLinks,
-  getChapterMaterialDownloadLink,
-  listChapterMaterials,
-  listChapters,
-  type Book,
-  type Chapter,
-  type ChapterMaterial,
-} from '@ttla/api-client'
-import { useAuth } from '@ttla/auth'
+import { getBook, getBookPdfLinks, listChapters, type Book, type Chapter } from '@ttla/api-client'
 import { useLocale } from '../lib/locale'
-
-function formatFileSize(bytes: number | null): string | null {
-  if (bytes === null) return null
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
-
-function ChevronIcon({ expanded }: { expanded: boolean }) {
-  return (
-    <svg
-      width={18}
-      height={18}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      className={`flex-shrink-0 text-primary-500 transition-transform ${expanded ? 'rotate-180' : ''}`}
-    >
-      <path d="M6 9l6 6 6-6" />
-    </svg>
-  )
-}
-
-function DocumentIcon() {
-  return (
-    <svg
-      width={20}
-      height={20}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.8}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      className="flex-shrink-0 text-primary-500"
-    >
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-      <path d="M14 2v6h6" />
-    </svg>
-  )
-}
 
 export default function BookDetailPage() {
   const { t } = useLocale()
-  const { token } = useAuth()
   const { id } = useParams<{ id: string }>()
   const bookId = Number(id)
 
@@ -70,12 +13,6 @@ export default function BookDetailPage() {
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [pdfError, setPdfError] = useState<string | null>(null)
-
-  const [expandedChapterIds, setExpandedChapterIds] = useState<Set<number>>(new Set())
-  const [materialsByChapter, setMaterialsByChapter] = useState<
-    Record<number, ChapterMaterial[] | 'loading' | 'error'>
-  >({})
-  const [materialLinkError, setMaterialLinkError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!bookId) {
@@ -109,36 +46,6 @@ export default function BookDetailPage() {
       active = false
     }
   }, [bookId])
-
-  function toggleChapter(chapterId: number) {
-    setExpandedChapterIds((previous) => {
-      const next = new Set(previous)
-      if (next.has(chapterId)) {
-        next.delete(chapterId)
-      } else {
-        next.add(chapterId)
-      }
-      return next
-    })
-
-    // Materials are fetched once per chapter, on first expand, and cached
-    // here for the rest of the page's lifetime — re-collapsing/expanding
-    // never refetches.
-    if (materialsByChapter[chapterId] !== undefined) return
-
-    setMaterialsByChapter((previous) => ({ ...previous, [chapterId]: 'loading' }))
-
-    listChapterMaterials({ chapterId })
-      .then((result) => {
-        setMaterialsByChapter((previous) => ({
-          ...previous,
-          [chapterId]: result.data.filter((material) => material.status === 'active'),
-        }))
-      })
-      .catch(() => {
-        setMaterialsByChapter((previous) => ({ ...previous, [chapterId]: 'error' }))
-      })
-  }
 
   async function handlePreview() {
     if (!book) return
@@ -174,30 +81,6 @@ export default function BookDetailPage() {
       window.location.href = links.download_url
     } catch {
       setPdfError(t['student.books.pdfError'])
-    }
-  }
-
-  async function handleMaterialOpen(material: ChapterMaterial, action: 'preview' | 'download') {
-    if (!token) return
-    setMaterialLinkError(null)
-
-    const tab = action === 'preview' ? window.open('', '_blank') : null
-
-    try {
-      const links = await getChapterMaterialDownloadLink(material.id, token)
-      if (action === 'preview') {
-        const url = links.preview_url
-        if (tab) {
-          tab.location.href = url
-        } else {
-          window.open(url, '_blank')
-        }
-      } else {
-        window.location.href = links.download_url
-      }
-    } catch {
-      if (tab) tab.close()
-      setMaterialLinkError(t['student.books.materialLinkError'])
     }
   }
 
@@ -297,11 +180,7 @@ export default function BookDetailPage() {
 
       {chapters.length === 0 ? (
         <p className="mt-2 text-sm text-primary-600">{t['student.books.noChapters']}</p>
-      ) : !token ? (
-        // Chapter materials require a logged-in session to preview/download
-        // (ChapterMaterialController's download-link route sits behind
-        // auth:sanctum), so there is nothing a guest could do with the
-        // accordion — show a plain, non-interactive chapter list instead.
+      ) : (
         <ol className="mt-3 flex flex-col gap-2">
           {chapters.map((chapter) => (
             <li
@@ -312,92 +191,7 @@ export default function BookDetailPage() {
             </li>
           ))}
         </ol>
-      ) : (
-        <div className="mt-3 divide-y divide-primary-100 overflow-hidden rounded-2xl border border-primary-100 bg-white">
-          {chapters.map((chapter) => {
-            const expanded = expandedChapterIds.has(chapter.id)
-            const materials = materialsByChapter[chapter.id]
-
-            return (
-              <div key={chapter.id}>
-                <button
-                  type="button"
-                  onClick={() => toggleChapter(chapter.id)}
-                  className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left hover:bg-primary-50"
-                >
-                  <span className="flex min-w-0 items-center gap-3">
-                    <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 text-sm font-semibold text-primary-700">
-                      {chapter.bn_chapter_number ?? chapter.chapter_number ?? ''}
-                    </span>
-                    <span className="truncate text-sm font-semibold text-primary-800">
-                      {chapter.bn_name ?? chapter.name}
-                    </span>
-                  </span>
-                  <ChevronIcon expanded={expanded} />
-                </button>
-
-                {expanded && (
-                  <div className="border-t border-primary-100 bg-primary-50/40 px-5 py-4">
-                    {materials === 'loading' && (
-                      <p className="text-sm text-primary-600">{t['student.books.materialsLoading']}</p>
-                    )}
-                    {materials === 'error' && (
-                      <p className="text-sm text-danger-600">{t['student.books.materialsLoadError']}</p>
-                    )}
-                    {Array.isArray(materials) && materials.length === 0 && (
-                      <p className="text-sm text-primary-600">{t['student.books.noMaterials']}</p>
-                    )}
-                    {Array.isArray(materials) && materials.length > 0 && (
-                      <div className="flex flex-col gap-2">
-                        {materials.map((material) => {
-                          const size = formatFileSize(material.size_bytes)
-                          const meta = [material.original_filename, size].filter(Boolean).join(' · ')
-
-                          return (
-                            <div
-                              key={material.id}
-                              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary-100 bg-white px-4 py-3"
-                            >
-                              <span className="flex min-w-0 items-center gap-3">
-                                <DocumentIcon />
-                                <span className="min-w-0">
-                                  <span className="block truncate text-sm font-medium text-primary-800">
-                                    {material.title}
-                                  </span>
-                                  {meta && <span className="block text-xs text-primary-500">{meta}</span>}
-                                </span>
-                              </span>
-
-                              <span className="flex flex-shrink-0 gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => handleMaterialOpen(material, 'preview')}
-                                  className="cursor-pointer rounded-md bg-primary-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#EB1F27]"
-                                >
-                                  {t['student.books.preview']}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleMaterialOpen(material, 'download')}
-                                  className="cursor-pointer rounded-md border border-primary-300 px-3 py-1.5 text-xs font-semibold text-primary-700 hover:bg-[#EB1F27] hover:text-white"
-                                >
-                                  {t['student.books.download']}
-                                </button>
-                              </span>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
       )}
-
-      {materialLinkError && <p className="mt-2 text-xs text-danger-600">{materialLinkError}</p>}
     </section>
   )
 }

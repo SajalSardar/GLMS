@@ -8,6 +8,7 @@ import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import BooksPage from './pages/BooksPage'
 import BookDetailPage from './pages/BookDetailPage'
+import ClassMaterialsPage from './pages/ClassMaterialsPage'
 import VideoLecturePage from './pages/VideoLecturePage'
 import VideoPlaylistPage from './pages/VideoPlaylistPage'
 import ExamsPage from './pages/ExamsPage'
@@ -45,6 +46,7 @@ function App() {
             <Route element={<StudentAreaShell />}>
               <Route element={<RequireAuth />}>
                 <Route path="dashboard" element={<DashboardPage />} />
+                <Route path="class-materials" element={<ClassMaterialsPage />} />
               </Route>
               <Route path="books" element={<BooksPage />} />
               <Route path="books/:id" element={<BookDetailPage />} />
