@@ -171,7 +171,7 @@ export default function LandingLogin() {
 
               <button
                 type="submit"
-                className={`cursor-pointer rounded-[0.6rem] bg-primary-500 px-[0.8rem] py-[0.65rem] text-[0.9rem] font-semibold text-white hover:bg-primary-700 ${FOCUS_RING}`}
+                className={`cursor-pointer rounded-[0.6rem] bg-primary-500 px-[0.8rem] py-[0.65rem] text-[0.9rem] font-semibold text-white hover:bg-[#EB1F27] ${FOCUS_RING}`}
               >
                 {t['landing.hero.filterSubmit']}
               </button>

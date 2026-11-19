@@ -55,7 +55,7 @@ export default function SiteShell() {
         <div className="flex items-center justify-between gap-4 px-4 py-3 lg:px-8">
           <Link
             to="/"
-            className="flex items-center gap-2 text-lg font-bold text-primary-700 transition-colors hover:text-primary-600"
+            className="flex items-center gap-2 text-lg font-bold text-primary-700 transition-colors hover:text-[#EB1F27]"
           >
             <img src="/logo.webp" alt="" aria-hidden="true" className="h-9 w-9 object-contain" />
             {t['landing.brand']}
@@ -71,10 +71,8 @@ export default function SiteShell() {
                 to={item.to}
                 end={item.end}
                 className={({ isActive }) =>
-                  `flex items-center gap-1.5 border-b-2 pb-1 transition-colors ${
-                    isActive
-                      ? 'border-primary-600 font-semibold text-primary-600'
-                      : 'border-transparent hover:border-primary-200 hover:text-primary-600'
+                  `flex items-center gap-1.5 transition-colors ${
+                    isActive ? 'font-semibold text-[#EB1F27]' : 'hover:text-[#EB1F27]'
                   }`
                 }
               >
@@ -89,14 +87,14 @@ export default function SiteShell() {
               <button
                 type="button"
                 onClick={handleLogout}
-                className="cursor-pointer rounded-md border border-primary-200 px-3 py-1.5 text-sm font-medium text-primary-700 hover:bg-primary-50"
+                className="cursor-pointer rounded-md border border-primary-200 px-3 py-1.5 text-sm font-medium text-primary-700 hover:bg-[#EB1F27] hover:text-white"
               >
                 {t['student.nav.logout']}
               </button>
             ) : (
               <Link
                 to="/login"
-                className="cursor-pointer rounded-md bg-primary-500 px-4 py-1.5 text-sm font-medium text-white hover:bg-primary-600"
+                className="cursor-pointer rounded-md bg-primary-500 px-4 py-1.5 text-sm font-medium text-white hover:bg-[#EB1F27]"
               >
                 {t['student.nav.signIn']}
               </Link>
@@ -129,7 +127,7 @@ export default function SiteShell() {
                 onClick={() => setMenuOpen(false)}
                 className={({ isActive }) =>
                   `flex items-center gap-1.5 border-t border-primary-100 px-4 py-3 text-sm font-medium first:border-t-0 ${
-                    isActive ? 'text-primary-600' : 'text-primary-800 hover:text-primary-600'
+                    isActive ? 'text-[#EB1F27]' : 'text-primary-800 hover:text-[#EB1F27]'
                   }`
                 }
               >
@@ -146,7 +144,7 @@ export default function SiteShell() {
                     handleLogout()
                     setMenuOpen(false)
                   }}
-                  className="w-full cursor-pointer rounded-md border border-primary-200 px-3 py-1.5 text-sm font-medium text-primary-700 hover:bg-primary-50"
+                  className="w-full cursor-pointer rounded-md border border-primary-200 px-3 py-1.5 text-sm font-medium text-primary-700 hover:bg-[#EB1F27] hover:text-white"
                 >
                   {t['student.nav.logout']}
                 </button>
@@ -154,7 +152,7 @@ export default function SiteShell() {
                 <Link
                   to="/login"
                   onClick={() => setMenuOpen(false)}
-                  className="block w-full cursor-pointer rounded-md bg-primary-500 px-4 py-1.5 text-center text-sm font-medium text-white hover:bg-primary-600"
+                  className="block w-full cursor-pointer rounded-md bg-primary-500 px-4 py-1.5 text-center text-sm font-medium text-white hover:bg-[#EB1F27]"
                 >
                   {t['student.nav.signIn']}
                 </Link>

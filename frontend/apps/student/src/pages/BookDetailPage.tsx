@@ -120,14 +120,14 @@ export default function BookDetailPage() {
             <button
               type="button"
               onClick={handlePreview}
-              className="cursor-pointer rounded-md bg-primary-500 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-600"
+              className="cursor-pointer rounded-md bg-primary-500 px-4 py-2 text-sm font-semibold text-white hover:bg-[#EB1F27]"
             >
               {t['student.books.preview']}
             </button>
             <button
               type="button"
               onClick={handleDownload}
-              className="cursor-pointer rounded-md border border-primary-300 px-4 py-2 text-sm font-semibold text-primary-700 hover:bg-primary-50"
+              className="cursor-pointer rounded-md border border-primary-300 px-4 py-2 text-sm font-semibold text-primary-700 hover:bg-[#EB1F27] hover:text-white"
             >
               {t['student.books.download']}
             </button>

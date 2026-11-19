@@ -129,7 +129,7 @@ function LoginCard() {
       )}
 
       <button
-        className={`mt-5 block w-full cursor-pointer rounded-[0.6rem] bg-primary-500 p-3 text-center text-base font-semibold text-white transition-colors duration-150 hover:enabled:bg-primary-700 disabled:cursor-default disabled:bg-[color:var(--color-muted)] ${FOCUS_RING}`}
+        className={`mt-5 block w-full cursor-pointer rounded-[0.6rem] bg-primary-500 p-3 text-center text-base font-semibold text-white transition-colors duration-150 hover:enabled:bg-[#EB1F27] disabled:cursor-default disabled:bg-[color:var(--color-muted)] ${FOCUS_RING}`}
         type="submit"
         disabled={submitting}
       >
@@ -150,7 +150,7 @@ function LoginCard() {
 
       <button
         type="button"
-        className={`block w-full cursor-pointer rounded-[0.6rem] border-[1.5px] border-primary-500 bg-transparent py-[0.7rem] text-[0.92rem] font-semibold text-primary-700 hover:bg-primary-50 ${FOCUS_RING}`}
+        className={`block w-full cursor-pointer rounded-[0.6rem] border-[1.5px] border-primary-500 bg-transparent py-[0.7rem] text-[0.92rem] font-semibold text-primary-700 hover:bg-[#EB1F27] hover:text-white ${FOCUS_RING}`}
         onClick={() => setShowContactNote((show) => !show)}
       >
         {t['landing.login.needHelp']}
@@ -176,7 +176,7 @@ export default function LoginPage() {
         >
           <p className="m-0 text-[1.2rem] font-semibold font-display">{t['landing.login.alreadyTitle']}</p>
           <Link
-            className="mt-4 block w-full rounded-[0.6rem] bg-primary-500 p-3 text-center text-base font-semibold text-white hover:bg-primary-700"
+            className="mt-4 block w-full rounded-[0.6rem] bg-primary-500 p-3 text-center text-base font-semibold text-white hover:bg-[#EB1F27]"
             to="/books"
           >
             {t['landing.login.alreadyCta']}

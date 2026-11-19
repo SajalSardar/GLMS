@@ -368,7 +368,7 @@ export default function ExamRunnerPage() {
               type="button"
               onClick={handleStart}
               disabled={starting}
-              className="mt-6 cursor-pointer rounded-md bg-primary-500 px-4 py-2 text-sm font-semibold text-white hover:enabled:bg-primary-600 disabled:cursor-default disabled:bg-primary-300"
+              className="mt-6 cursor-pointer rounded-md bg-primary-500 px-4 py-2 text-sm font-semibold text-white hover:enabled:bg-[#EB1F27] disabled:cursor-default disabled:bg-primary-300"
             >
               {starting ? t['student.exams.loading'] : t['student.exams.start']}
             </button>
@@ -416,7 +416,7 @@ export default function ExamRunnerPage() {
           type="button"
           onClick={handleSubmit}
           disabled={submitting}
-          className="mt-6 cursor-pointer rounded-md bg-primary-500 px-4 py-2 text-sm font-semibold text-white hover:enabled:bg-primary-600 disabled:cursor-default disabled:bg-primary-300"
+          className="mt-6 cursor-pointer rounded-md bg-primary-500 px-4 py-2 text-sm font-semibold text-white hover:enabled:bg-[#EB1F27] disabled:cursor-default disabled:bg-primary-300"
         >
           {submitting ? t['student.exams.submitting'] : t['student.exams.submit']}
         </button>
