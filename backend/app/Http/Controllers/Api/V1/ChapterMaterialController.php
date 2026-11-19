@@ -102,7 +102,10 @@ class ChapterMaterialController extends Controller
         abort_unless($actor instanceof StudentUser, 403);
 
         $materials = $this->scopeToStudentsOwnProfile(
-            ChapterMaterial::query()->with('chapter')->where('status', 'active'),
+            // chapter.book eager-loaded (not just chapter) so
+            // ClassMaterialsPage.tsx can show which book/chapter each
+            // material belongs to without a second request per material.
+            ChapterMaterial::query()->with('chapter.book')->where('status', 'active'),
             $actor,
         )->orderByDesc('created_at')->get();
 
