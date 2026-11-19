@@ -1,0 +1,28 @@
+modify some table and logic:
+academic_years table: no needed school_id, district_id because overall bangladesh same academic year.
+books table: no needed school_id, district_id because overall bangladesh subject wise same book.
+chapters table: no needed school_id, district_id because overall bangladesh book wise same chapters.
+chapter_materials table: no needed school_id, district_id because overall bangladesh chapter wise same materials.
+chapter_videos table: no needed school_id, district_id because overall bangladesh chapter wise same chapter_videos.
+remove chapter_video_progress: no need this track video progress.
+questions table: no needed school_id, district_id because overall bangladesh chapter wise same questions.
+
+What I want is:
+
+student frontend anyone can access this public: 
+download class wise book.
+see thse subject wise videos, and anyone take the exam, and seen the result but no store exam result data but if login student then track exam result.
+so modify exam related tabls.
+
+I thenk modify school_classes table:
+store only calss name this table and assign school wise calsses manage prevot table, district_id no needed.
+
+frontend login:
+management frontend: check all class wise logic and fix this filter and other logic.
+
+student frontend: 
+install tailwind css,
+check this image: D:\laragon\www\Training_Learning_Analytics_Platform\inspiration\login&frontend.jpeg
+apply same to same design and icon image color front page.
+create Books menu: search calss wise book list, and download indivusial book, and view pdf, with login or without login.
+show class subject wise videos playlist, click playlist see the video, take exam and end exam view result with login or without login.
