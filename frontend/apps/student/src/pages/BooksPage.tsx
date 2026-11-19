@@ -6,6 +6,30 @@ import { useLocale } from '../lib/locale'
 
 const PAGE_SIZE = 10
 
+function InfoAlert({ message }: { message: string }) {
+  return (
+    <div className="mt-6 flex items-center gap-3 rounded-lg border border-primary-200 bg-primary-50 px-4 py-3 text-sm font-medium text-primary-700">
+      <svg
+        width={20}
+        height={20}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+        className="flex-shrink-0"
+      >
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 11v5" />
+        <circle cx="12" cy="8" r="0.1" fill="currentColor" stroke="currentColor" strokeWidth={2.4} />
+      </svg>
+      <p>{message}</p>
+    </div>
+  )
+}
+
 export default function BooksPage() {
   const { t } = useLocale()
 
@@ -149,7 +173,7 @@ export default function BooksPage() {
 
       {loading && <p className="mt-6 text-sm text-primary-600">{t['student.books.loading']}</p>}
 
-      {!loading && visibleBooks.length === 0 && <p className="mt-6 text-sm text-primary-600">{t['student.books.empty']}</p>}
+      {!loading && visibleBooks.length === 0 && <InfoAlert message={t['student.books.empty']} />}
 
       {!loading && visibleBooks.length > 0 && (
         <>
