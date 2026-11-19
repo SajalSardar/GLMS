@@ -27,7 +27,8 @@ export default function SiteShell() {
     <div className="flex min-h-screen flex-col bg-white text-primary-900">
       <header className="sticky top-0 z-20 border-b border-primary-100 bg-white">
         <div className="flex items-center justify-between gap-4 px-4 py-3 lg:px-8">
-          <Link to="/" className="text-lg font-bold text-primary-700">
+          <Link to="/" className="flex items-center gap-2 text-lg font-bold text-primary-700">
+            <img src="/logo.webp" alt="" aria-hidden="true" className="h-9 w-9 object-contain" />
             {t['landing.brand']}
           </Link>
 

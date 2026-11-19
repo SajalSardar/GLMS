@@ -14,7 +14,6 @@ type IconName =
   | 'exam'
   | 'progress'
   | 'anywhere'
-  | 'logo'
   | 'eyeOpen'
   | 'eyeClosed'
 
@@ -172,14 +171,6 @@ function Icon({ name }: { name: IconName }) {
         <svg {...common}>
           <rect x="6" y="2.5" width="12" height="19" rx="2.2" />
           <path d="M11 18.2h2" />
-        </svg>
-      )
-    case 'logo':
-      return (
-        <svg {...common} strokeWidth={1.6}>
-          <path d="M3 9.5 12 5l9 4.5-9 4.5-9-4.5Z" />
-          <path d="M7 11.6V16c0 1.4 2.2 2.5 5 2.5s5-1.1 5-2.5v-4.4" />
-          <path d="M19.5 10v4.5" />
         </svg>
       )
     case 'eyeOpen':
@@ -611,9 +602,7 @@ export default function LandingLogin() {
 
       <footer className="mx-auto flex max-w-[76rem] flex-col gap-8 border-t border-[color:var(--color-border)] px-5 pt-10 pb-8 md:flex-row md:flex-wrap md:justify-between">
         <div className="flex items-start gap-3">
-          <span className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[0.65rem] bg-primary-500 text-white" aria-hidden="true">
-            <Icon name="logo" />
-          </span>
+          <img src="/logo.webp" alt="" aria-hidden="true" className="h-10 w-10 flex-shrink-0 object-contain" />
           <div>
             <p className="m-0 font-semibold">{t['landing.brandFull']}</p>
             <p className="mt-1 text-[0.85rem] text-[color:var(--color-muted)]">{t['landing.footer.tagline']}</p>
