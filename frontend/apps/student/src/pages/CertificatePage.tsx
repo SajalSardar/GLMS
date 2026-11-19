@@ -1,5 +1,6 @@
 import { Link, useLocation, useParams } from 'react-router-dom'
 import { useAuth } from '@ttla/auth'
+import type { CommonStrings } from '@ttla/i18n'
 import { useLocale } from '../lib/locale'
 
 interface CertificateState {
@@ -10,7 +11,7 @@ interface CertificateState {
   date: string
 }
 
-const TIER_HEADING_KEY: Record<CertificateState['tier'], string> = {
+const TIER_HEADING_KEY: Record<CertificateState['tier'], keyof CommonStrings> = {
   pass: 'student.exams.tierPass',
   good: 'student.exams.tierGood',
   best: 'student.exams.tierBest',

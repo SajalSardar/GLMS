@@ -1,6 +1,15 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ApiError, listChapterVideos, listClasses, type ChapterVideo, type SchoolClass, type Subject } from '@ttla/api-client'
+import {
+  ApiError,
+  listChapterVideos,
+  listClasses,
+  listClassVersions,
+  type ChapterVideo,
+  type ClassVersion,
+  type SchoolClass,
+  type Subject,
+} from '@ttla/api-client'
 import { chaptersWithVideosForClassAndSubject, subjectsForClass, type ChapterWithVideoCount } from '../lib/resolveContent'
 import { useLocale } from '../lib/locale'
 
@@ -47,6 +56,7 @@ export default function VideoPlaylistPage() {
   // visitor to have come from VideoLecturePage first.
   const [classes, setClasses] = useState<SchoolClass[]>([])
   const [subjects, setSubjects] = useState<Subject[]>([])
+  const [versions, setVersions] = useState<ClassVersion[]>([])
 
   const [chapters, setChapters] = useState<ChapterWithVideoCount[]>([])
   const [chaptersLoading, setChaptersLoading] = useState(true)
@@ -72,6 +82,22 @@ export default function VideoPlaylistPage() {
       })
       .catch(() => {
         if (active) setSubjects([])
+      })
+
+    return () => {
+      active = false
+    }
+  }, [classId])
+
+  useEffect(() => {
+    let active = true
+
+    listClassVersions({ classId, perPage: 500 })
+      .then((result) => {
+        if (active) setVersions(result.data)
+      })
+      .catch(() => {
+        if (active) setVersions([])
       })
 
     return () => {
@@ -152,15 +178,19 @@ export default function VideoPlaylistPage() {
   const className = selectedClass ? (selectedClass.bn_name ?? selectedClass.name) : ''
   const subjectName = selectedSubject ? (selectedSubject.bn_name ?? selectedSubject.name) : ''
 
+  const versionsById = new Map(versions.map((version) => [version.id, version]))
+  const selectedChapterEntry = chapters.find((entry) => entry.chapter.id === chapterId)
+  const selectedVersion = selectedChapterEntry ? versionsById.get(selectedChapterEntry.book.class_version_id) : undefined
+  const versionName = selectedVersion ? (selectedVersion.bn_name ?? selectedVersion.name) : ''
+
+  const breadcrumb = [className, subjectName, versionName].filter(Boolean).join(' : ')
+
   return (
     <section className="mx-auto max-w-7xl px-4 py-8 lg:px-8">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2 text-sm">
-          {className && <span className="rounded-full bg-primary-50 px-3 py-1 font-medium text-primary-700">{className}</span>}
-          {subjectName && (
-            <span className="rounded-full bg-primary-50 px-3 py-1 font-medium text-primary-700">{subjectName}</span>
-          )}
-        </div>
+        {breadcrumb && (
+          <span className="rounded-full bg-primary-50 px-3 py-1 text-sm font-medium text-primary-700">{breadcrumb}</span>
+        )}
         <Link to="/video-lecture" className="text-sm font-semibold text-primary-700 underline">
           {t['student.videoLecture.changeSelection']}
         </Link>
@@ -177,10 +207,10 @@ export default function VideoPlaylistPage() {
       {!chaptersLoading && !chaptersError && chapters.length > 0 && (
         <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-[14rem_1fr_16rem]">
           <nav
-            className="flex flex-col gap-1 rounded-lg border border-primary-100 p-2 lg:self-start"
+            className="flex h-[32rem] flex-col gap-1 overflow-y-auto rounded-lg border border-primary-100 p-2"
             aria-label={t['student.videoLecture.chaptersHeading']}
           >
-            <p className="px-2 py-1 text-xs font-semibold tracking-wide text-primary-500 uppercase">
+            <p className="sticky top-0 bg-white px-2 py-1 text-xs font-semibold tracking-wide text-primary-500 uppercase">
               {t['student.videoLecture.chaptersHeading']}
             </p>
             {chapters.map((entry) => (
@@ -235,7 +265,7 @@ export default function VideoPlaylistPage() {
           </div>
 
           <div className="flex flex-col gap-4">
-            <ol className="flex flex-col gap-2">
+            <ol className="flex h-[32rem] flex-col gap-2 overflow-y-auto rounded-lg border border-primary-100 p-2">
               {videos.map((video) => (
                 <li key={video.id}>
                   <button

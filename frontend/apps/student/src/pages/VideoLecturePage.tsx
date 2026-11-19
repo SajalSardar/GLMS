@@ -1,19 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ApiError, listClasses, type SchoolClass, type Subject } from '@ttla/api-client'
-import { subjectsForClass } from '../lib/resolveContent'
+import { listClasses, listClassVersions, listSubjects, type SchoolClass, type Subject } from '@ttla/api-client'
+import { classSubjectPairsWithVideos } from '../lib/resolveContent'
 import { useLocale } from '../lib/locale'
-
-// Same pattern as BooksPage.tsx — see the comment there for why a
-// translated `fallback` is used instead of the raw `error.message`.
-function messageFromApiError(error: unknown, fallback: string): string {
-  if (error instanceof ApiError) {
-    const firstFieldErrors = error.errors ? Object.values(error.errors)[0] : undefined
-    return firstFieldErrors?.[0] ?? fallback
-  }
-
-  return fallback
-}
 
 type CardTone = 'primary' | 'secondary'
 
@@ -42,13 +31,29 @@ function BookIcon() {
   )
 }
 
+// One card per (class, subject) pair that actually has at least one video —
+// a subject with zero videos anywhere is never shown, and since the same
+// subject can appear under several classes, each card carries its own class
+// name so two cards for e.g. "Mathematics" (Class 5 vs Class 6) are
+// distinguishable. versionName is only set when every video behind this
+// card came from the SAME school's class-version (the common case) — when
+// a subject's videos are pooled from more than one version, there's no
+// single version name that would be accurate to show, so the card falls
+// back to just the class name.
+interface SubjectCardEntry {
+  classId: number
+  className: string
+  versionName: string | null
+  subject: Subject
+}
+
 function SubjectCard({
-  subject,
+  entry,
   tone,
   startLabel,
   onStart,
 }: {
-  subject: Subject
+  entry: SubjectCardEntry
   tone: CardTone
   startLabel: string
   onStart: () => void
@@ -60,7 +65,10 @@ function SubjectCard({
       <div className={`flex h-12 w-12 items-center justify-center rounded-full ${TONE_CLASSES[tone].iconBg}`}>
         <BookIcon />
       </div>
-      <p className="font-semibold text-primary-800">{subject.bn_name ?? subject.name}</p>
+      <p className="font-semibold text-primary-800">{entry.subject.bn_name ?? entry.subject.name}</p>
+      <p className="text-xs text-primary-500">
+        {entry.versionName ? `${entry.className} - ${entry.versionName}` : entry.className}
+      </p>
       <button
         type="button"
         onClick={onStart}
@@ -77,45 +85,61 @@ export default function VideoLecturePage() {
   const navigate = useNavigate()
 
   const [classes, setClasses] = useState<SchoolClass[]>([])
-  const [classId, setClassId] = useState<number | null>(null)
+  const [classFilter, setClassFilter] = useState<number | null>(null)
 
-  const [subjects, setSubjects] = useState<Subject[]>([])
-  const [subjectsLoading, setSubjectsLoading] = useState(false)
-  const [subjectsError, setSubjectsError] = useState<string | null>(null)
-
-  useEffect(() => {
-    listClasses({ perPage: 500 })
-      .then((result) => setClasses(result.data))
-      .catch(() => setClasses([]))
-  }, [])
+  const [allEntries, setAllEntries] = useState<SubjectCardEntry[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    setSubjects([])
-
-    if (!classId) return
-
     let active = true
-    setSubjectsLoading(true)
-    setSubjectsError(null)
+    setLoading(true)
 
-    subjectsForClass(classId)
-      .then((result) => {
-        if (active) setSubjects(result)
+    Promise.all([
+      listClasses({ perPage: 500 }),
+      listSubjects({ perPage: 500 }),
+      listClassVersions({ perPage: 500 }),
+      classSubjectPairsWithVideos(),
+    ])
+      .then(([classesResult, subjectsResult, versionsResult, pairs]) => {
+        if (!active) return
+
+        const classesById = new Map(classesResult.data.map((schoolClass) => [schoolClass.id, schoolClass]))
+        const subjectsById = new Map(subjectsResult.data.map((subject) => [subject.id, subject]))
+        const versionsById = new Map(versionsResult.data.map((version) => [version.id, version]))
+
+        setClasses(classesResult.data)
+
+        const entries = pairs
+          .map((pair) => {
+            const schoolClass = classesById.get(pair.classId)
+            const subject = subjectsById.get(pair.subjectId)
+            if (!schoolClass || !subject) return null
+
+            const version = pair.versionIds.length === 1 ? versionsById.get(pair.versionIds[0]) : undefined
+            const versionName = version ? (version.bn_name ?? version.name) : null
+
+            return { classId: pair.classId, className: schoolClass.bn_name ?? schoolClass.name, versionName, subject }
+          })
+          .filter((entry): entry is SubjectCardEntry => entry !== null)
+
+        setAllEntries(entries)
       })
-      .catch((caught) => {
+      .catch(() => {
         if (active) {
-          setSubjects([])
-          setSubjectsError(messageFromApiError(caught, t['student.videoLecture.loadError']))
+          setClasses([])
+          setAllEntries([])
         }
       })
       .finally(() => {
-        if (active) setSubjectsLoading(false)
+        if (active) setLoading(false)
       })
 
     return () => {
       active = false
     }
-  }, [classId, t])
+  }, [])
+
+  const visibleEntries = classFilter === null ? allEntries : allEntries.filter((entry) => entry.classId === classFilter)
 
   return (
     <section className="mx-auto max-w-6xl px-4 py-8 lg:px-8">
@@ -123,9 +147,9 @@ export default function VideoLecturePage() {
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <select
-          className="h-10 rounded-md border border-primary-200 px-3 text-sm"
-          value={classId ?? ''}
-          onChange={(event) => setClassId(event.target.value ? Number(event.target.value) : null)}
+          className="h-10 min-w-[12rem] rounded-md border border-primary-200 px-3 text-sm"
+          value={classFilter ?? ''}
+          onChange={(event) => setClassFilter(event.target.value ? Number(event.target.value) : null)}
         >
           <option value="">{t['student.videoLecture.allClasses']}</option>
           {classes.map((schoolClass) => (
@@ -136,30 +160,24 @@ export default function VideoLecturePage() {
         </select>
       </div>
 
-      {!classId && <p className="mt-6 text-sm text-primary-600">{t['student.videoLecture.pickClass']}</p>}
+      {loading && <p className="mt-6 text-sm text-primary-600">{t['student.videoLecture.loading']}</p>}
 
-      {classId && (
-        <>
-          {subjectsLoading && <p className="mt-6 text-sm text-primary-600">{t['student.videoLecture.loading']}</p>}
+      {!loading && visibleEntries.length === 0 && (
+        <p className="mt-6 text-sm text-primary-600">{t['student.videoLecture.empty']}</p>
+      )}
 
-          {!subjectsLoading && subjectsError && <p className="mt-6 text-sm text-danger-600">{subjectsError}</p>}
-
-          {!subjectsLoading && !subjectsError && subjects.length === 0 && (
-            <p className="mt-6 text-sm text-primary-600">{t['student.videoLecture.noSubjects']}</p>
-          )}
-
-          <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-            {subjects.map((subject, index) => (
-              <SubjectCard
-                key={subject.id}
-                subject={subject}
-                tone={index % 2 === 0 ? 'primary' : 'secondary'}
-                startLabel={t['student.videoLecture.start']}
-                onStart={() => navigate(`/video-lecture/${classId}/${subject.id}`)}
-              />
-            ))}
-          </div>
-        </>
+      {!loading && visibleEntries.length > 0 && (
+        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          {visibleEntries.map((entry, index) => (
+            <SubjectCard
+              key={`${entry.classId}-${entry.subject.id}`}
+              entry={entry}
+              tone={index % 2 === 0 ? 'primary' : 'secondary'}
+              startLabel={t['student.videoLecture.start']}
+              onStart={() => navigate(`/video-lecture/${entry.classId}/${entry.subject.id}`)}
+            />
+          ))}
+        </div>
       )}
     </section>
   )

@@ -109,7 +109,7 @@ export default function BooksPage() {
 
       <div className="mt-4 flex flex-wrap gap-3">
         <select
-          className="h-10 rounded-md border border-primary-200 px-3 text-sm"
+          className="h-10 min-w-[12rem] rounded-md border border-primary-200 px-3 text-sm"
           value={classId ?? ''}
           onChange={(event) => setClassId(event.target.value ? Number(event.target.value) : null)}
         >

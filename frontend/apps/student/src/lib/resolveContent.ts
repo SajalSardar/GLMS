@@ -6,6 +6,7 @@ import {
   listClassVersions,
   type Book,
   type Chapter,
+  type ChapterVideo,
   type Subject,
 } from '@ttla/api-client'
 
@@ -25,12 +26,58 @@ function currentAcademicYearId(): Promise<number | null> {
   return currentAcademicYearIdPromise
 }
 
+// BookController/ChapterController/ChapterVideoController::index() all
+// return every row unfiltered (and unpaginated) when called with no
+// params — confirmed by reading the backend controllers, which only apply
+// a `->where(...)` when the corresponding query param is actually present.
+// So "every book/chapter/chapter-video platform-wide" is one cheap call
+// each, cached for the page's lifetime, and every class/subject-scoped
+// helper below filters these in memory instead of asking the backend to
+// filter per class-version/book/chapter. An earlier version of this file
+// called listBooks()/listChapters()/listChapterVideos() once PER
+// class-version/book/chapter it had already fetched — harmless for a
+// single class+subject lookup, but classSubjectPairsWithVideos() (which
+// scans every class) turned that into 1000+ requests in practice.
+let allBooksPromise: Promise<Book[]> | null = null
+
+function allBooks(): Promise<Book[]> {
+  if (!allBooksPromise) {
+    allBooksPromise = listBooks().then((result) => result.data)
+  }
+
+  return allBooksPromise
+}
+
+let allChaptersPromise: Promise<Chapter[]> | null = null
+
+function allChapters(): Promise<Chapter[]> {
+  if (!allChaptersPromise) {
+    allChaptersPromise = listChapters().then((result) => result.data)
+  }
+
+  return allChaptersPromise
+}
+
+let allChapterVideosPromise: Promise<ChapterVideo[]> | null = null
+
+// Only ever used to answer "does this chapter have at least one (enabled)
+// video" — the actual playable video list for ONE chapter is still fetched
+// directly via listChapterVideos({ chapterId }) where it's needed (that's
+// already a single, correctly-scoped call, not N+1).
+function allChapterVideos(): Promise<ChapterVideo[]> {
+  if (!allChapterVideosPromise) {
+    allChapterVideosPromise = listChapterVideos().then((result) => result.data)
+  }
+
+  return allChapterVideosPromise
+}
+
 // Books (and, one level deeper, chapters/videos) aren't nationally unified —
 // each school has its own `ClassVersion` row for a given class, and that
-// version carries its own books. So browsing "Class Six Math" means querying
-// every school's version of that class and merging the results. This is the
-// shared first stage used by both BooksPage (which stops here) and
-// VideoLecturePage (which continues on to chapters and videos).
+// version carries its own books. So browsing "Class Six Math" means every
+// school's version of that class. This is the shared first stage used by
+// both BooksPage (which stops here) and VideoLecturePage (which continues
+// on to chapters and videos).
 //
 // Results are further filtered down to the current academic year's books
 // only — a book created for a past/future year shouldn't appear to a
@@ -38,19 +85,20 @@ function currentAcademicYearId(): Promise<number | null> {
 export async function booksForClassAndSubject(classId: number | null, subjectId: number | null): Promise<Book[]> {
   if (!classId) return []
 
-  const [versionsResult, academicYearId] = await Promise.all([
+  const [versionsResult, academicYearId, books] = await Promise.all([
     listClassVersions({ classId, perPage: 500 }),
     currentAcademicYearId(),
+    allBooks(),
   ])
-  const versions = versionsResult.data
 
-  const bookLists = await Promise.all(
-    versions.map((version) => listBooks({ classVersionId: version.id, subjectId: subjectId ?? undefined })),
+  const versionIds = new Set(versionsResult.data.map((version) => version.id))
+
+  return books.filter(
+    (book) =>
+      versionIds.has(book.class_version_id) &&
+      (subjectId === null || book.subject_id === subjectId) &&
+      (academicYearId === null || book.academic_year_id === academicYearId),
   )
-
-  const books = bookLists.flatMap((result) => result.data)
-
-  return academicYearId === null ? books : books.filter((book) => book.academic_year_id === academicYearId)
 }
 
 // "Which subjects does this class actually have" — not every subject
@@ -89,16 +137,12 @@ export async function chaptersForClassAndSubject(
   classId: number | null,
   subjectId: number | null,
 ): Promise<ChapterWithBook[]> {
-  const books = await booksForClassAndSubject(classId, subjectId)
+  const [books, chapters] = await Promise.all([booksForClassAndSubject(classId, subjectId), allChapters()])
+  const bookById = new Map(books.map((book) => [book.id, book]))
 
-  const chapterLists = await Promise.all(
-    books.map(async (book) => {
-      const chaptersResult = await listChapters({ bookId: book.id })
-      return chaptersResult.data.map((chapter) => ({ chapter, book }))
-    }),
-  )
-
-  return chapterLists.flat()
+  return chapters
+    .filter((chapter) => bookById.has(chapter.book_id))
+    .map((chapter) => ({ chapter, book: bookById.get(chapter.book_id)! }))
 }
 
 export interface ChapterWithVideoCount {
@@ -108,21 +152,85 @@ export interface ChapterWithVideoCount {
 }
 
 // One level deeper than `chaptersForClassAndSubject`: for every chapter,
-// check for at least one (enabled) video. This is an N+1 from the
-// frontend's perspective (chapters -> per-chapter video lookup), on top
-// of `chaptersForClassAndSubject`'s own already-accepted N+1.
+// check for at least one (enabled) video.
 export async function chaptersWithVideosForClassAndSubject(
   classId: number | null,
   subjectId: number | null,
 ): Promise<ChapterWithVideoCount[]> {
-  const chaptersWithBooks = await chaptersForClassAndSubject(classId, subjectId)
+  const [chaptersWithBooks, videos] = await Promise.all([
+    chaptersForClassAndSubject(classId, subjectId),
+    allChapterVideos(),
+  ])
 
-  const withCounts = await Promise.all(
-    chaptersWithBooks.map(async ({ chapter, book }) => {
-      const videosResult = await listChapterVideos({ chapterId: chapter.id })
-      return { chapter, book, videoCount: videosResult.data.length }
-    }),
-  )
+  const videoCountByChapterId = new Map<number, number>()
+  for (const video of videos) {
+    videoCountByChapterId.set(video.chapter_id, (videoCountByChapterId.get(video.chapter_id) ?? 0) + 1)
+  }
 
-  return withCounts.filter((entry) => entry.videoCount > 0)
+  return chaptersWithBooks
+    .map(({ chapter, book }) => ({ chapter, book, videoCount: videoCountByChapterId.get(chapter.id) ?? 0 }))
+    .filter((entry) => entry.videoCount > 0)
+}
+
+export interface ClassSubjectPair {
+  classId: number
+  subjectId: number
+  // Every ClassVersion (school's own offering of this class) that
+  // contributed at least one video to this pair — since chapters pool
+  // cross-school, a subject can have videos from more than one version.
+  // The page decides what to do with more than one (e.g. only label the
+  // card with a version name when there's exactly one).
+  versionIds: number[]
+}
+
+// The "browse everything" entry point for VideoLecturePage's default view —
+// every (class, subject) pair that has at least one video, ACROSS every
+// class. Built entirely from the cached allBooks()/allChapters()/
+// allChapterVideos() plus one ClassVersion fetch, so this costs a handful
+// of requests total regardless of how many classes/subjects/chapters exist
+// — see the cache comment above for why that matters here specifically.
+export async function classSubjectPairsWithVideos(): Promise<ClassSubjectPair[]> {
+  const [versionsResult, academicYearId, books, chapters, videos] = await Promise.all([
+    listClassVersions({ perPage: 500 }),
+    currentAcademicYearId(),
+    allBooks(),
+    allChapters(),
+    allChapterVideos(),
+  ])
+
+  const classIdByVersionId = new Map(versionsResult.data.map((version) => [version.id, version.class_id]))
+  const chapterIdsWithVideo = new Set(videos.map((video) => video.chapter_id))
+
+  const classAndSubjectByBookId = new Map<number, { classId: number; subjectId: number; versionId: number }>()
+  for (const book of books) {
+    if (academicYearId !== null && book.academic_year_id !== academicYearId) continue
+
+    const classId = classIdByVersionId.get(book.class_version_id)
+    if (classId === undefined) continue
+
+    classAndSubjectByBookId.set(book.id, { classId, subjectId: book.subject_id, versionId: book.class_version_id })
+  }
+
+  const pairsWithVideo = new Map<string, { classId: number; subjectId: number; versionIds: Set<number> }>()
+  for (const chapter of chapters) {
+    if (!chapterIdsWithVideo.has(chapter.id)) continue
+
+    const info = classAndSubjectByBookId.get(chapter.book_id)
+    if (!info) continue
+
+    const key = `${info.classId}:${info.subjectId}`
+    const existing = pairsWithVideo.get(key)
+
+    if (existing) {
+      existing.versionIds.add(info.versionId)
+    } else {
+      pairsWithVideo.set(key, { classId: info.classId, subjectId: info.subjectId, versionIds: new Set([info.versionId]) })
+    }
+  }
+
+  return [...pairsWithVideo.values()].map((pair) => ({
+    classId: pair.classId,
+    subjectId: pair.subjectId,
+    versionIds: [...pair.versionIds],
+  }))
 }

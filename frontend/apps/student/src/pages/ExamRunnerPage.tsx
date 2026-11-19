@@ -20,6 +20,7 @@ import {
   type PracticeExamConfig,
 } from '@ttla/api-client'
 import { useAuth } from '@ttla/auth'
+import type { CommonStrings } from '@ttla/i18n'
 import { useLocale } from '../lib/locale'
 
 type RunnerStatus = 'setup' | 'in_progress' | 'submitted'
@@ -101,7 +102,7 @@ function tierFor(percent: number, config: PracticeExamConfig): ResultTier {
   return 'best'
 }
 
-const TIER_LABEL_KEY: Record<ResultTier, string> = {
+const TIER_LABEL_KEY: Record<ResultTier, keyof CommonStrings> = {
   failed: 'student.exams.tierFailed',
   pass: 'student.exams.tierPass',
   good: 'student.exams.tierGood',
