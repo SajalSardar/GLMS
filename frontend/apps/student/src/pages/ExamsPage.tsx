@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import {
   ApiError,
   createPracticeExam,
@@ -27,6 +27,27 @@ function messageFromApiError(error: unknown, fallback: string): string {
   return fallback
 }
 
+// Lets VideoPlaylistPage's "Start exam (chapter-wise)" button land here
+// with that exact chapter already checked, ready to submit — read once
+// via location.state rather than a query string, matching how
+// CertificatePage already receives its own navigation-only state.
+interface InitialSelection {
+  classId: number
+  subjectId: number
+  chapterId: number
+}
+
+function initialSelectionFromState(state: unknown): InitialSelection | null {
+  if (typeof state !== 'object' || state === null) return null
+  const candidate = state as Partial<InitialSelection>
+
+  return typeof candidate.classId === 'number' &&
+    typeof candidate.subjectId === 'number' &&
+    typeof candidate.chapterId === 'number'
+    ? (candidate as InitialSelection)
+    : null
+}
+
 // The chapter pool is deliberately merged across every school's version
 // of the chosen class, so two schools' "Chapter 1 — Mathematics" entries
 // are otherwise identical on screen. Same resolution VideoLecturePage
@@ -45,13 +66,27 @@ export default function ExamsPage() {
   const { token } = useAuth()
   const { t } = useLocale()
   const navigate = useNavigate()
+  const location = useLocation()
+
+  const [initialSelection] = useState(() => initialSelectionFromState(location.state))
+  const initialChapterAppliedRef = useRef(false)
 
   const [classes, setClasses] = useState<SchoolClass[]>([])
   const [schools, setSchools] = useState<School[]>([])
-  const [classId, setClassId] = useState<number | null>(null)
+  const [classId, setClassId] = useState<number | null>(initialSelection?.classId ?? null)
 
   const [subjects, setSubjects] = useState<Subject[]>([])
-  const [subjectId, setSubjectId] = useState<number | null>(null)
+  const [subjectId, setSubjectId] = useState<number | null>(initialSelection?.subjectId ?? null)
+  // Both class/subject-change effects below reset downstream selections by
+  // design (picking a different class invalidates the previous subject,
+  // etc.) — these track the LAST classId/subjectId the effect actually ran
+  // with, so the reset fires only on a genuine change, not on mount (where
+  // classId/subjectId may already be seeded from initialSelection) and not
+  // on StrictMode's deliberate double-invoke of the same effect (a "skip
+  // exactly once" boolean flag would get consumed by the first invocation
+  // and incorrectly fire on the second).
+  const previousClassIdRef = useRef(classId)
+  const previousClassSubjectKeyRef = useRef(`${classId}:${subjectId}`)
 
   const [chapters, setChapters] = useState<ChapterWithBook[]>([])
   const [checkedChapterIds, setCheckedChapterIds] = useState<Set<number>>(new Set())
@@ -77,7 +112,10 @@ export default function ExamsPage() {
   }, [])
 
   useEffect(() => {
-    setSubjectId(null)
+    if (previousClassIdRef.current !== classId) {
+      setSubjectId(null)
+    }
+    previousClassIdRef.current = classId
 
     let active = true
 
@@ -95,7 +133,11 @@ export default function ExamsPage() {
   }, [classId])
 
   useEffect(() => {
-    setCheckedChapterIds(new Set())
+    const key = `${classId}:${subjectId}`
+    if (previousClassSubjectKeyRef.current !== key) {
+      setCheckedChapterIds(new Set())
+    }
+    previousClassSubjectKeyRef.current = key
 
     if (!classId || !subjectId) {
       setChapters([])
@@ -107,7 +149,17 @@ export default function ExamsPage() {
 
     chaptersForClassAndSubject(classId, subjectId)
       .then((result) => {
-        if (active) setChapters(result)
+        if (!active) return
+        setChapters(result)
+
+        if (
+          initialSelection &&
+          !initialChapterAppliedRef.current &&
+          result.some((entry) => entry.chapter.id === initialSelection.chapterId)
+        ) {
+          setCheckedChapterIds(new Set([initialSelection.chapterId]))
+          initialChapterAppliedRef.current = true
+        }
       })
       .catch(() => {
         if (active) setChapters([])
@@ -119,7 +171,7 @@ export default function ExamsPage() {
     return () => {
       active = false
     }
-  }, [classId, subjectId])
+  }, [classId, subjectId, initialSelection])
 
   function toggleChapter(chapterId: number, checked: boolean) {
     setCheckedChapterIds((previous) => {

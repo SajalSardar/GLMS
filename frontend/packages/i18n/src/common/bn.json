@@ -65,6 +65,11 @@
   "student.videoLecture.empty": "এই নির্বাচনের জন্য কোনো ভিডিও পাওয়া যায়নি।",
   "student.videoLecture.instructor": "প্রশিক্ষক",
   "student.videoLecture.loadError": "এই মুহূর্তে লোড করা যায়নি। আবার চেষ্টা করুন।",
+  "student.videoLecture.start": "শুরু করো",
+  "student.videoLecture.changeSelection": "শ্রেণি/বিষয় পরিবর্তন করো",
+  "student.videoLecture.chaptersHeading": "অধ্যায়সমূহ",
+  "student.videoLecture.noChapters": "এই বিষয়ে কোনো অধ্যায় পাওয়া যায়নি।",
+  "student.videoLecture.startExam": "অধ্যায়ভিত্তিক পরীক্ষা শুরু করো",
 
   "student.exams.title": "পরীক্ষা",
   "student.exams.loading": "পরীক্ষা লোড হচ্ছে...",

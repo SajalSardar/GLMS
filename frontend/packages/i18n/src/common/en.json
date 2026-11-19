@@ -65,6 +65,11 @@
   "student.videoLecture.empty": "No videos found for this selection.",
   "student.videoLecture.instructor": "Instructor",
   "student.videoLecture.loadError": "Could not load this right now. Please try again.",
+  "student.videoLecture.start": "Start",
+  "student.videoLecture.changeSelection": "Change class/subject",
+  "student.videoLecture.chaptersHeading": "Chapters",
+  "student.videoLecture.noChapters": "No chapters found for this subject.",
+  "student.videoLecture.startExam": "Start chapter-wise exam",
 
   "student.exams.title": "Exams",
   "student.exams.loading": "Loading exam...",

@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { ApiError, listChapterVideos, type ChapterVideo } from '@ttla/api-client'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { ApiError, listChapterVideos, listClasses, type ChapterVideo, type SchoolClass, type Subject } from '@ttla/api-client'
+import { chaptersWithVideosForClassAndSubject, subjectsForClass, type ChapterWithVideoCount } from '../lib/resolveContent'
 import { useLocale } from '../lib/locale'
 
-// Same pattern as BooksPage.tsx/VideoLecturePage.tsx/ExamsPage.tsx — see the
-// comment there for why a translated `fallback` is used instead of the
-// raw `error.message`.
+// Same pattern as BooksPage.tsx/VideoLecturePage.tsx — see the comment
+// there for why a translated `fallback` is used instead of the raw
+// `error.message`.
 function messageFromApiError(error: unknown, fallback: string): string {
   if (error instanceof ApiError) {
     const firstFieldErrors = error.errors ? Object.values(error.errors)[0] : undefined
@@ -22,141 +23,252 @@ function formatDuration(seconds: number | null): string {
   return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
 }
 
+function chapterTitle(entry: ChapterWithVideoCount): string {
+  const number = entry.chapter.bn_chapter_number ?? entry.chapter.chapter_number ?? ''
+  const name = entry.chapter.bn_name ?? entry.chapter.name
+  return `${number} ${name}`.trim()
+}
+
 export default function VideoPlaylistPage() {
   const { t } = useLocale()
-  const { chapterId } = useParams<{ chapterId: string }>()
-  const id = Number(chapterId)
+  const navigate = useNavigate()
+  const { classId: classIdParam, subjectId: subjectIdParam, chapterId: chapterIdParam } = useParams<{
+    classId: string
+    subjectId: string
+    chapterId?: string
+  }>()
+  const classId = Number(classIdParam)
+  const subjectId = Number(subjectIdParam)
+  const chapterId = chapterIdParam ? Number(chapterIdParam) : null
+
+  // Re-derived from classId/subjectId (route params) rather than carried
+  // via navigation state, so a bookmarked/shared link to this exact
+  // chapter renders the same breadcrumb + sidebar without requiring the
+  // visitor to have come from VideoLecturePage first.
+  const [classes, setClasses] = useState<SchoolClass[]>([])
+  const [subjects, setSubjects] = useState<Subject[]>([])
+
+  const [chapters, setChapters] = useState<ChapterWithVideoCount[]>([])
+  const [chaptersLoading, setChaptersLoading] = useState(true)
+  const [chaptersError, setChaptersError] = useState<string | null>(null)
 
   const [videos, setVideos] = useState<ChapterVideo[]>([])
-  const [selectedId, setSelectedId] = useState<number | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [selectedVideoId, setSelectedVideoId] = useState<number | null>(null)
+  const [videosLoading, setVideosLoading] = useState(false)
+  const [videosError, setVideosError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!id) {
-      setLoading(false)
-      setVideos([])
-      setError(null)
-      return
-    }
+    listClasses({ perPage: 500 })
+      .then((result) => setClasses(result.data))
+      .catch(() => setClasses([]))
+  }, [])
 
+  useEffect(() => {
     let active = true
-    setLoading(true)
-    setError(null)
 
-    // ChapterVideoController::index() already orders by order_index, so no
-    // client-side re-sort is needed here.
-    listChapterVideos({ chapterId: id })
+    subjectsForClass(classId)
       .then((result) => {
-        if (!active) return
-        setVideos(result.data)
-        setSelectedId(result.data[0]?.id ?? null)
+        if (active) setSubjects(result)
       })
-      .catch((caught) => {
-        if (active) {
-          setVideos([])
-          setError(messageFromApiError(caught, t['student.videoLecture.loadError']))
-        }
-      })
-      .finally(() => {
-        if (active) setLoading(false)
+      .catch(() => {
+        if (active) setSubjects([])
       })
 
     return () => {
       active = false
     }
-  }, [id])
+  }, [classId])
 
-  const selectedVideo = videos.find((video) => video.id === selectedId) ?? null
+  useEffect(() => {
+    let active = true
+    setChaptersLoading(true)
+    setChaptersError(null)
 
-  if (loading) {
-    return (
-      <section className="mx-auto max-w-6xl px-4 py-8 lg:px-8">
-        <p className="text-sm text-primary-600">{t['student.videoLecture.loading']}</p>
-      </section>
-    )
-  }
+    chaptersWithVideosForClassAndSubject(classId, subjectId)
+      .then((result) => {
+        if (active) setChapters(result)
+      })
+      .catch((caught) => {
+        if (active) {
+          setChapters([])
+          setChaptersError(messageFromApiError(caught, t['student.videoLecture.loadError']))
+        }
+      })
+      .finally(() => {
+        if (active) setChaptersLoading(false)
+      })
 
-  if (error) {
-    return (
-      <section className="mx-auto max-w-6xl px-4 py-8 lg:px-8">
-        <p className="text-sm text-danger-600">{error}</p>
-        <Link to="/video-lecture" className="mt-4 inline-block text-sm font-semibold text-primary-700 underline">
-          {t['student.videoLecture.title']}
-        </Link>
-      </section>
-    )
-  }
+    return () => {
+      active = false
+    }
+  }, [classId, subjectId, t])
 
-  if (videos.length === 0) {
-    return (
-      <section className="mx-auto max-w-6xl px-4 py-8 lg:px-8">
-        <p className="text-sm text-primary-600">{t['student.videoLecture.empty']}</p>
-        <Link to="/video-lecture" className="mt-4 inline-block text-sm font-semibold text-primary-700 underline">
-          {t['student.videoLecture.title']}
-        </Link>
-      </section>
-    )
-  }
+  // No chapter in the URL (arrived straight from VideoLecturePage's Start
+  // button) — default to the first chapter once the sidebar list loads,
+  // and fold it into the URL so this exact chapter becomes bookmarkable.
+  useEffect(() => {
+    if (chapterId !== null || chaptersLoading || chapters.length === 0) return
+    navigate(`/video-lecture/${classId}/${subjectId}/${chapters[0].chapter.id}`, { replace: true })
+  }, [chapterId, chaptersLoading, chapters, classId, subjectId, navigate])
+
+  useEffect(() => {
+    setSelectedVideoId(null)
+
+    if (!chapterId) {
+      setVideos([])
+      return
+    }
+
+    let active = true
+    setVideosLoading(true)
+    setVideosError(null)
+
+    // ChapterVideoController::index() already orders by order_index, so no
+    // client-side re-sort is needed here.
+    listChapterVideos({ chapterId })
+      .then((result) => {
+        if (!active) return
+        setVideos(result.data)
+        setSelectedVideoId(result.data[0]?.id ?? null)
+      })
+      .catch((caught) => {
+        if (active) {
+          setVideos([])
+          setVideosError(messageFromApiError(caught, t['student.videoLecture.loadError']))
+        }
+      })
+      .finally(() => {
+        if (active) setVideosLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [chapterId, t])
+
+  const selectedVideo = videos.find((video) => video.id === selectedVideoId) ?? null
+  const selectedClass = classes.find((schoolClass) => schoolClass.id === classId)
+  const selectedSubject = subjects.find((subject) => subject.id === subjectId)
+  const className = selectedClass ? (selectedClass.bn_name ?? selectedClass.name) : ''
+  const subjectName = selectedSubject ? (selectedSubject.bn_name ?? selectedSubject.name) : ''
 
   return (
-    <section className="mx-auto max-w-6xl px-4 py-8 lg:px-8">
-      <Link to="/video-lecture" className="text-sm font-semibold text-primary-700 underline">
-        {t['student.videoLecture.title']}
-      </Link>
-
-      <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          {selectedVideo && (
-            <div className="aspect-video w-full overflow-hidden rounded-lg bg-black">
-              <iframe
-                key={selectedVideo.id}
-                className="h-full w-full"
-                src={selectedVideo.embed_url}
-                title={selectedVideo.bn_title ?? selectedVideo.title}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            </div>
-          )}
-
-          {selectedVideo && (
-            <div className="mt-4">
-              <h1 className="text-xl font-bold text-primary-800">{selectedVideo.bn_title ?? selectedVideo.title}</h1>
-              {selectedVideo.instructor_name && (
-                <p className="mt-1 text-sm text-primary-600">
-                  {t['student.videoLecture.instructor']}: {selectedVideo.instructor_name}
-                </p>
-              )}
-              {selectedVideo.description && (
-                <p className="mt-3 text-sm text-primary-700">{selectedVideo.description}</p>
-              )}
-            </div>
+    <section className="mx-auto max-w-7xl px-4 py-8 lg:px-8">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          {className && <span className="rounded-full bg-primary-50 px-3 py-1 font-medium text-primary-700">{className}</span>}
+          {subjectName && (
+            <span className="rounded-full bg-primary-50 px-3 py-1 font-medium text-primary-700">{subjectName}</span>
           )}
         </div>
+        <Link to="/video-lecture" className="text-sm font-semibold text-primary-700 underline">
+          {t['student.videoLecture.changeSelection']}
+        </Link>
+      </div>
 
-        <ol className="flex flex-col gap-2">
-          {videos.map((video) => (
-            <li key={video.id}>
+      {chaptersLoading && <p className="mt-6 text-sm text-primary-600">{t['student.videoLecture.loading']}</p>}
+
+      {!chaptersLoading && chaptersError && <p className="mt-6 text-sm text-danger-600">{chaptersError}</p>}
+
+      {!chaptersLoading && !chaptersError && chapters.length === 0 && (
+        <p className="mt-6 text-sm text-primary-600">{t['student.videoLecture.noChapters']}</p>
+      )}
+
+      {!chaptersLoading && !chaptersError && chapters.length > 0 && (
+        <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-[14rem_1fr_16rem]">
+          <nav
+            className="flex flex-col gap-1 rounded-lg border border-primary-100 p-2 lg:self-start"
+            aria-label={t['student.videoLecture.chaptersHeading']}
+          >
+            <p className="px-2 py-1 text-xs font-semibold tracking-wide text-primary-500 uppercase">
+              {t['student.videoLecture.chaptersHeading']}
+            </p>
+            {chapters.map((entry) => (
               <button
+                key={entry.chapter.id}
                 type="button"
-                onClick={() => setSelectedId(video.id)}
-                className={`w-full cursor-pointer rounded-md border px-4 py-3 text-left text-sm transition ${
-                  video.id === selectedId
-                    ? 'border-primary-400 bg-primary-50 text-primary-800'
-                    : 'border-primary-100 text-primary-800 hover:border-primary-300'
+                onClick={() => navigate(`/video-lecture/${classId}/${subjectId}/${entry.chapter.id}`)}
+                className={`cursor-pointer rounded-md px-3 py-2 text-left text-sm transition ${
+                  entry.chapter.id === chapterId
+                    ? 'bg-primary-500 font-semibold text-white'
+                    : 'text-primary-800 hover:bg-primary-50'
                 }`}
               >
-                <p className="font-semibold">{video.bn_title ?? video.title}</p>
-                <p className="mt-1 text-xs text-primary-500">
-                  {formatDuration(video.duration_seconds)}
-                  {video.instructor_name ? ` · ${video.instructor_name}` : ''}
-                </p>
+                {chapterTitle(entry)}
               </button>
-            </li>
-          ))}
-        </ol>
-      </div>
+            ))}
+          </nav>
+
+          <div>
+            {videosLoading && <p className="text-sm text-primary-600">{t['student.videoLecture.loading']}</p>}
+            {!videosLoading && videosError && <p className="text-sm text-danger-600">{videosError}</p>}
+            {!videosLoading && !videosError && videos.length === 0 && (
+              <p className="text-sm text-primary-600">{t['student.videoLecture.empty']}</p>
+            )}
+
+            {selectedVideo && (
+              <>
+                <div className="aspect-video w-full overflow-hidden rounded-lg bg-black">
+                  <iframe
+                    key={selectedVideo.id}
+                    className="h-full w-full"
+                    src={selectedVideo.embed_url}
+                    title={selectedVideo.bn_title ?? selectedVideo.title}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                </div>
+
+                <div className="mt-4">
+                  <h1 className="text-xl font-bold text-primary-800">{selectedVideo.bn_title ?? selectedVideo.title}</h1>
+                  {selectedVideo.instructor_name && (
+                    <p className="mt-1 text-sm text-primary-600">
+                      {t['student.videoLecture.instructor']}: {selectedVideo.instructor_name}
+                    </p>
+                  )}
+                  {selectedVideo.description && (
+                    <p className="mt-3 text-sm text-primary-700">{selectedVideo.description}</p>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-4">
+            <ol className="flex flex-col gap-2">
+              {videos.map((video) => (
+                <li key={video.id}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedVideoId(video.id)}
+                    className={`w-full cursor-pointer rounded-md border px-4 py-3 text-left text-sm transition ${
+                      video.id === selectedVideoId
+                        ? 'border-primary-400 bg-primary-50 text-primary-800'
+                        : 'border-primary-100 text-primary-800 hover:border-primary-300'
+                    }`}
+                  >
+                    <p className="font-semibold">{video.bn_title ?? video.title}</p>
+                    <p className="mt-1 text-xs text-primary-500">
+                      {formatDuration(video.duration_seconds)}
+                      {video.instructor_name ? ` · ${video.instructor_name}` : ''}
+                    </p>
+                  </button>
+                </li>
+              ))}
+            </ol>
+
+            {chapterId !== null && (
+              <button
+                type="button"
+                onClick={() => navigate('/exams', { state: { classId, subjectId, chapterId } })}
+                className="cursor-pointer rounded-md border border-primary-300 px-4 py-2 text-sm font-semibold text-primary-700 hover:bg-[#EB1F27] hover:text-white"
+              >
+                {t['student.videoLecture.startExam']}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </section>
   )
 }

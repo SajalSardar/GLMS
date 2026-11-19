@@ -1,19 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import {
-  ApiError,
-  listClasses,
-  listSchools,
-  type Book,
-  type School,
-  type SchoolClass,
-  type Subject,
-} from '@ttla/api-client'
-import {
-  chaptersWithVideosForClassAndSubject,
-  subjectsForClass,
-  type ChapterWithVideoCount,
-} from '../lib/resolveContent'
+import { useNavigate } from 'react-router-dom'
+import { ApiError, listClasses, type SchoolClass, type Subject } from '@ttla/api-client'
+import { subjectsForClass } from '../lib/resolveContent'
 import { useLocale } from '../lib/locale'
 
 // Same pattern as BooksPage.tsx — see the comment there for why a
@@ -27,48 +15,84 @@ function messageFromApiError(error: unknown, fallback: string): string {
   return fallback
 }
 
+type CardTone = 'primary' | 'secondary'
+
+const TONE_CLASSES: Record<CardTone, { border: string; iconBg: string }> = {
+  primary: { border: 'border-primary-200 hover:border-primary-400', iconBg: 'bg-primary-500' },
+  secondary: { border: 'border-[#f6c3c5] hover:border-[#EB1F27]', iconBg: 'bg-[#EB1F27]' },
+}
+
+function BookIcon() {
+  return (
+    <svg
+      width={22}
+      height={22}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className="text-white"
+    >
+      <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H12v18H6.5A2.5 2.5 0 0 1 4 18.5v-13Z" />
+      <path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H12v18h5.5a2.5 2.5 0 0 0 2.5-2.5v-13Z" />
+    </svg>
+  )
+}
+
+function SubjectCard({
+  subject,
+  tone,
+  startLabel,
+  onStart,
+}: {
+  subject: Subject
+  tone: CardTone
+  startLabel: string
+  onStart: () => void
+}) {
+  return (
+    <div
+      className={`flex flex-col items-center gap-3 rounded-xl border bg-white p-5 text-center shadow-sm transition ${TONE_CLASSES[tone].border}`}
+    >
+      <div className={`flex h-12 w-12 items-center justify-center rounded-full ${TONE_CLASSES[tone].iconBg}`}>
+        <BookIcon />
+      </div>
+      <p className="font-semibold text-primary-800">{subject.bn_name ?? subject.name}</p>
+      <button
+        type="button"
+        onClick={onStart}
+        className="w-full cursor-pointer rounded-md bg-primary-500 px-3 py-1.5 text-sm font-semibold text-white hover:bg-[#EB1F27]"
+      >
+        {startLabel}
+      </button>
+    </div>
+  )
+}
+
 export default function VideoLecturePage() {
   const { t } = useLocale()
+  const navigate = useNavigate()
+
   const [classes, setClasses] = useState<SchoolClass[]>([])
-  const [schools, setSchools] = useState<School[]>([])
   const [classId, setClassId] = useState<number | null>(null)
 
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [subjectsLoading, setSubjectsLoading] = useState(false)
   const [subjectsError, setSubjectsError] = useState<string | null>(null)
 
-  const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null)
-
-  const [entries, setEntries] = useState<ChapterWithVideoCount[]>([])
-  const [chaptersLoading, setChaptersLoading] = useState(false)
-  const [chaptersError, setChaptersError] = useState<string | null>(null)
-
   useEffect(() => {
     listClasses({ perPage: 500 })
       .then((result) => setClasses(result.data))
       .catch(() => setClasses([]))
-
-    // Same reason as BooksPage: ClassVersion carries only a bare
-    // `school_id`, no nested `school` relation, so school names for the
-    // per-school chapter labels below are resolved by fetching the school
-    // list once and mapping by id.
-    listSchools({ perPage: 500 })
-      .then((result) => setSchools(result.data))
-      .catch(() => setSchools([]))
   }, [])
 
-  // Picking a different class invalidates whichever subject was chosen
-  // for the previous class (it may not even apply to the new one), so
-  // drop back to the subject-card step rather than leaving a stale
-  // chapter list showing underneath a new subject.
   useEffect(() => {
-    setSelectedSubject(null)
-    setEntries([])
+    setSubjects([])
 
-    if (!classId) {
-      setSubjects([])
-      return
-    }
+    if (!classId) return
 
     let active = true
     setSubjectsLoading(true)
@@ -91,42 +115,7 @@ export default function VideoLecturePage() {
     return () => {
       active = false
     }
-  }, [classId])
-
-  useEffect(() => {
-    if (!classId || !selectedSubject) {
-      setEntries([])
-      return
-    }
-
-    let active = true
-    setChaptersLoading(true)
-    setChaptersError(null)
-
-    chaptersWithVideosForClassAndSubject(classId, selectedSubject.id)
-      .then((result) => {
-        if (active) setEntries(result)
-      })
-      .catch((caught) => {
-        if (active) {
-          setEntries([])
-          setChaptersError(messageFromApiError(caught, t['student.videoLecture.loadError']))
-        }
-      })
-      .finally(() => {
-        if (active) setChaptersLoading(false)
-      })
-
-    return () => {
-      active = false
-    }
-  }, [classId, selectedSubject])
-
-  function schoolNameFor(book: Book): string {
-    const schoolId = book.class_version?.school_id
-    if (!schoolId) return ''
-    return schools.find((school) => school.id === schoolId)?.name ?? ''
-  }
+  }, [classId, t])
 
   return (
     <section className="mx-auto max-w-6xl px-4 py-8 lg:px-8">
@@ -145,72 +134,29 @@ export default function VideoLecturePage() {
             </option>
           ))}
         </select>
-
-        {selectedSubject && (
-          <button
-            type="button"
-            onClick={() => setSelectedSubject(null)}
-            className="cursor-pointer text-sm font-semibold text-primary-700 underline"
-          >
-            ← {selectedSubject.bn_name ?? selectedSubject.name}
-          </button>
-        )}
       </div>
 
       {!classId && <p className="mt-6 text-sm text-primary-600">{t['student.videoLecture.pickClass']}</p>}
 
-      {classId && !selectedSubject && (
+      {classId && (
         <>
-          {subjectsLoading && (
-            <p className="mt-6 text-sm text-primary-600">{t['student.videoLecture.loading']}</p>
-          )}
-          {!subjectsLoading && subjectsError && (
-            <p className="mt-6 text-sm text-danger-600">{subjectsError}</p>
-          )}
+          {subjectsLoading && <p className="mt-6 text-sm text-primary-600">{t['student.videoLecture.loading']}</p>}
+
+          {!subjectsLoading && subjectsError && <p className="mt-6 text-sm text-danger-600">{subjectsError}</p>}
+
           {!subjectsLoading && !subjectsError && subjects.length === 0 && (
             <p className="mt-6 text-sm text-primary-600">{t['student.videoLecture.noSubjects']}</p>
           )}
 
           <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-            {subjects.map((subject) => (
-              <button
+            {subjects.map((subject, index) => (
+              <SubjectCard
                 key={subject.id}
-                type="button"
-                onClick={() => setSelectedSubject(subject)}
-                className="cursor-pointer rounded-lg border border-primary-100 p-5 text-center shadow-sm transition hover:border-primary-300 hover:shadow"
-              >
-                <p className="font-semibold text-primary-800">{subject.bn_name ?? subject.name}</p>
-              </button>
-            ))}
-          </div>
-        </>
-      )}
-
-      {classId && selectedSubject && (
-        <>
-          {chaptersLoading && (
-            <p className="mt-6 text-sm text-primary-600">{t['student.videoLecture.loading']}</p>
-          )}
-          {!chaptersLoading && chaptersError && (
-            <p className="mt-6 text-sm text-danger-600">{chaptersError}</p>
-          )}
-          {!chaptersLoading && !chaptersError && entries.length === 0 && (
-            <p className="mt-6 text-sm text-primary-600">{t['student.videoLecture.empty']}</p>
-          )}
-
-          <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {entries.map(({ chapter, book }) => (
-              <Link
-                key={chapter.id}
-                to={`/video-lecture/${chapter.id}`}
-                className="rounded-lg border border-primary-100 p-4 shadow-sm transition hover:border-primary-300 hover:shadow"
-              >
-                <p className="font-semibold text-primary-800">
-                  {chapter.bn_chapter_number ?? chapter.chapter_number ?? ''} {chapter.bn_name ?? chapter.name}
-                </p>
-                <p className="mt-1 text-sm text-primary-600">{book.bn_name ?? book.name}</p>
-                <p className="mt-1 text-xs text-primary-500">{schoolNameFor(book)}</p>
-              </Link>
+                subject={subject}
+                tone={index % 2 === 0 ? 'primary' : 'secondary'}
+                startLabel={t['student.videoLecture.start']}
+                onStart={() => navigate(`/video-lecture/${classId}/${subject.id}`)}
+              />
             ))}
           </div>
         </>

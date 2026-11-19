@@ -27,7 +27,7 @@ function App() {
               <Route path="books" element={<BooksPage />} />
               <Route path="books/:id" element={<BookDetailPage />} />
               <Route path="video-lecture" element={<VideoLecturePage />} />
-              <Route path="video-lecture/:chapterId" element={<VideoPlaylistPage />} />
+              <Route path="video-lecture/:classId/:subjectId/:chapterId?" element={<VideoPlaylistPage />} />
               <Route path="exams" element={<ExamsPage />} />
               <Route path="exams/:id" element={<ExamRunnerPage />} />
               <Route path="exams/:id/certificate" element={<CertificatePage />} />
