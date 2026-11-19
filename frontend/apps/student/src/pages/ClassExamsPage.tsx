@@ -4,10 +4,19 @@ import { useAuth } from '@ttla/auth'
 import { ownStudentDashboard } from '../lib/resolveContent'
 import { useLocale } from '../lib/locale'
 
-interface ExamRow {
+interface UntakenExamRow {
   examId: number
   examName: string
   subjectName: string
+}
+
+interface TakenExamRow {
+  examId: number
+  examName: string
+  subjectName: string
+  bestScore: number | null
+  totalPossibleMarks: number | null
+  passed: boolean | null
 }
 
 function InfoAlert({ message }: { message: string }) {
@@ -41,7 +50,8 @@ export default function ClassExamsPage() {
 
   const [loading, setLoading] = useState(true)
   const [noClass, setNoClass] = useState(false)
-  const [exams, setExams] = useState<ExamRow[]>([])
+  const [untakenExams, setUntakenExams] = useState<UntakenExamRow[]>([])
+  const [takenExams, setTakenExams] = useState<TakenExamRow[]>([])
 
   useEffect(() => {
     if (!token || !userId) return
@@ -55,23 +65,43 @@ export default function ClassExamsPage() {
 
         if (!dashboard || dashboard.class_version_id === null) {
           setNoClass(true)
-          setExams([])
+          setUntakenExams([])
+          setTakenExams([])
           return
         }
 
-        // "Untaken" means never attempted at all — attempts_used is 0.
         // StudentDashboardBuilder already scoped this list to the
         // student's own class_version_id/academic_year_id and excluded
-        // practice exams, so no further filtering is needed here.
-        const rows = dashboard.subjects.flatMap((subject) =>
-          subject.exams
-            .filter((exam) => exam.attempts_used === 0)
-            .map((exam) => ({ examId: exam.exam_id, examName: exam.exam_name, subjectName: subject.subject_name })),
-        )
-        setExams(rows)
+        // practice exams, so no further filtering is needed here —
+        // "untaken" just means never attempted (attempts_used === 0).
+        const untaken: UntakenExamRow[] = []
+        const taken: TakenExamRow[] = []
+
+        for (const subject of dashboard.subjects) {
+          for (const exam of subject.exams) {
+            if (exam.attempts_used === 0) {
+              untaken.push({ examId: exam.exam_id, examName: exam.exam_name, subjectName: subject.subject_name })
+            } else {
+              taken.push({
+                examId: exam.exam_id,
+                examName: exam.exam_name,
+                subjectName: subject.subject_name,
+                bestScore: exam.best_score,
+                totalPossibleMarks: exam.total_possible_marks,
+                passed: exam.passed,
+              })
+            }
+          }
+        }
+
+        setUntakenExams(untaken)
+        setTakenExams(taken)
       })
       .catch(() => {
-        if (active) setExams([])
+        if (active) {
+          setUntakenExams([])
+          setTakenExams([])
+        }
       })
       .finally(() => {
         if (active) setLoading(false)
@@ -90,9 +120,9 @@ export default function ClassExamsPage() {
 
       {!loading && noClass && <InfoAlert message={t['student.classExams.noClass']} />}
 
-      {!loading && !noClass && exams.length === 0 && <InfoAlert message={t['student.classExams.empty']} />}
+      {!loading && !noClass && untakenExams.length === 0 && <InfoAlert message={t['student.classExams.empty']} />}
 
-      {!loading && !noClass && exams.length > 0 && (
+      {!loading && !noClass && untakenExams.length > 0 && (
         <div className="mt-6 overflow-x-auto rounded-lg border border-gray-100">
           <table className="w-full min-w-[32rem] text-left text-sm">
             <thead>
@@ -109,7 +139,7 @@ export default function ClassExamsPage() {
               </tr>
             </thead>
             <tbody>
-              {exams.map((exam) => (
+              {untakenExams.map((exam) => (
                 <tr key={exam.examId}>
                   <td className="border-b border-gray-100 px-5 py-4 whitespace-nowrap">
                     <span className="font-medium text-primary-900">{exam.examName}</span>
@@ -131,6 +161,61 @@ export default function ClassExamsPage() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {!loading && !noClass && takenExams.length > 0 && (
+        <>
+          <h2 className="mt-10 text-lg font-semibold text-primary-800">{t['student.classExams.takenTitle']}</h2>
+
+          <div className="mt-3 overflow-x-auto rounded-lg border border-gray-100">
+            <table className="w-full min-w-[32rem] text-left text-sm">
+              <thead>
+                <tr>
+                  <th className="bg-primary-50 px-5 py-3 font-medium whitespace-nowrap text-primary-900">
+                    {t['student.classExams.colExam']}
+                  </th>
+                  <th className="bg-primary-50 px-5 py-3 font-medium whitespace-nowrap text-primary-900">
+                    {t['student.classExams.colSubject']}
+                  </th>
+                  <th className="bg-primary-50 px-5 py-3 font-medium whitespace-nowrap text-primary-900">
+                    {t['student.classExams.colScore']}
+                  </th>
+                  <th className="bg-primary-50 px-5 py-3 font-medium whitespace-nowrap text-primary-900">
+                    {t['student.classExams.colResult']}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {takenExams.map((exam) => (
+                  <tr key={exam.examId}>
+                    <td className="border-b border-gray-100 px-5 py-4 whitespace-nowrap">
+                      <span className="font-medium text-primary-900">{exam.examName}</span>
+                    </td>
+                    <td className="border-b border-gray-100 px-5 py-4 whitespace-nowrap text-gray-500">
+                      {exam.subjectName}
+                    </td>
+                    <td className="border-b border-gray-100 px-5 py-4 whitespace-nowrap text-gray-500">
+                      {exam.bestScore ?? 0} / {exam.totalPossibleMarks ?? 0}
+                    </td>
+                    <td className="border-b border-gray-100 px-5 py-4 whitespace-nowrap">
+                      {exam.passed === null ? (
+                        <span className="text-gray-500">—</span>
+                      ) : (
+                        <span
+                          className={`rounded-sm px-2 py-0.5 text-xs font-medium ${
+                            exam.passed ? 'bg-success-50 text-success-600' : 'bg-danger-50 text-danger-600'
+                          }`}
+                        >
+                          {exam.passed ? t['student.exams.passed'] : t['student.exams.failed']}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </section>
   )

@@ -519,7 +519,13 @@ export default function ExamRunnerPage() {
           </div>
         ) : (
           <div className="w-full max-w-md rounded-2xl border border-primary-100 bg-white p-8 text-center shadow-sm">
-            <h1 className="text-xl font-bold text-primary-800">{examTitle(examPreview, t)}</h1>
+            <span className="inline-block rounded-full bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700">
+              {examPreview.is_practice ? t['student.nav.exams'] : t['student.nav.classExams']}
+            </span>
+            <h1 className="mt-3 text-xl font-bold text-primary-800">{examTitle(examPreview, t)}</h1>
+            <p className="mt-1 text-sm text-primary-600">
+              {examPreview.is_practice ? t['student.exams.practiceExamNote'] : t['student.exams.classExamNote']}
+            </p>
 
             <dl className="mt-6 flex flex-col gap-3 text-left">
               <div className="flex items-center justify-between rounded-lg bg-primary-50 px-4 py-3">
@@ -699,10 +705,10 @@ export default function ExamRunnerPage() {
           )}
 
           <Link
-            to="/exams"
+            to={examPreview?.is_practice ? '/exams' : '/class-exams'}
             className="mt-6 block w-full cursor-pointer rounded-md bg-primary-500 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-[#EB1F27]"
           >
-            {t['student.exams.goToExamsPage']}
+            {examPreview?.is_practice ? t['student.exams.goToExamsPage'] : t['student.classExams.goToClassExamsPage']}
           </Link>
         </div>
       )}
