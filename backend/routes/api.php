@@ -84,8 +84,11 @@ Route::prefix('v1')->group(function (): void {
     Route::apiResource('exams', ExamController::class)->only(['index', 'show']);
     Route::post('/exams/{exam}/random-draw', [GuestExamAttemptController::class, 'randomDraw']);
     Route::post('/exams/{exam}/guest-submissions', [GuestExamAttemptController::class, 'submit']);
-    Route::get('/practice-exams/config', [PracticeExamController::class, 'config']);
-    Route::post('/practice-exams', [PracticeExamController::class, 'store']);
+    // Throttled inline rather than on the whole `api` group (which has
+    // no rate limiter configured anywhere else): these two are public
+    // and the POST writes a row per call.
+    Route::get('/practice-exams/config', [PracticeExamController::class, 'config'])->middleware('throttle:30,1');
+    Route::post('/practice-exams', [PracticeExamController::class, 'store'])->middleware('throttle:30,1');
 
     Route::middleware('auth:sanctum')->group(function (): void {
         Route::apiResource('divisions', DivisionController::class)->only(['store', 'update', 'destroy']);

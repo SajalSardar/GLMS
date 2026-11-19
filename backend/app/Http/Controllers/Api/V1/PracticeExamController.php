@@ -7,10 +7,12 @@ use App\Http\Requests\Api\V1\StorePracticeExamRequest;
 use App\Models\AcademicYear;
 use App\Models\Chapter;
 use App\Models\Exam;
+use App\Models\Question;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class PracticeExamController extends Controller
 {
@@ -45,9 +47,26 @@ class PracticeExamController extends Controller
         $chapterIds = array_values(array_unique($request->validated('chapter_ids')));
         $subjectId = $request->validated('subject_id');
 
-        $questionCount = count($chapterIds) > 1
+        $configuredCount = count($chapterIds) > 1
             ? config('practice_exams.multi_chapter_question_count')
             : config('practice_exams.single_chapter_question_count');
+
+        // Without this the exam row is persisted and the student is
+        // navigated to it, only for the draw (ExamAttemptController::
+        // start() / GuestExamAttemptController::randomDraw()) to reject
+        // it with an untranslatable English "Only N eligible
+        // question(s) are available" error and no way back. Counted
+        // directly rather than via $exam->eligibleRandomQuestionIds()
+        // because no Exam exists yet.
+        $eligibleCount = Question::whereIn('chapter_id', $chapterIds)->count();
+
+        if ($eligibleCount === 0) {
+            throw ValidationException::withMessages([
+                'chapter_ids' => 'The selected chapters have no questions available yet.',
+            ]);
+        }
+
+        $questionCount = min($configuredCount, $eligibleCount);
 
         [$classVersionId, $academicYearId, $schoolId, $districtId] = $this->resolveOwnerContext($request, $chapterIds);
 
@@ -59,6 +78,10 @@ class PracticeExamController extends Controller
                 'school_id' => $schoolId,
                 'district_id' => $districtId,
                 'name' => 'Practice #'.Str::random(8),
+                // ExamRunnerPage renders bn_name ?? name as its <h1>;
+                // without this the student sees the generated English
+                // slug as a heading in an otherwise Bangla UI.
+                'bn_name' => 'অনুশীলন পরীক্ষা',
                 'selection_mode' => 'per_attempt_random',
                 'random_question_count' => $questionCount,
                 'marks_per_question' => 1,
@@ -107,9 +130,18 @@ class PracticeExamController extends Controller
         // migration 2026_11_18_100100_drop_tenant_columns_from_books_table —
         // only class_version_id/subject_id remain), so those two come
         // from the book's own ClassVersion instead.
-        $firstChapter = Chapter::with('book.classVersion')->find($chapterIds[0]);
+        $firstChapter = Chapter::with('book.classVersion')->findOrFail($chapterIds[0]);
         $classVersion = $firstChapter->book->classVersion;
         $academicYearId = AcademicYear::where('is_current', true)->first()?->id;
+
+        // exams.academic_year_id is a NOT NULL FK: without this guard a
+        // null here surfaces as an unhandled QueryException/500 from
+        // Exam::create() further down.
+        if ($academicYearId === null) {
+            throw ValidationException::withMessages([
+                'academic_year_id' => 'No current academic year is configured.',
+            ]);
+        }
 
         return [$classVersion->id, $academicYearId, $classVersion->school_id, $classVersion->district_id];
     }
