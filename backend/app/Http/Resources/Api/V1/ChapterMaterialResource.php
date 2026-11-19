@@ -32,6 +32,7 @@ class ChapterMaterialResource extends JsonResource
             'size_bytes' => $this->size_bytes,
             'order_index' => $this->order_index,
             'status' => $this->status,
+            'created_at' => $this->created_at,
             'chapter' => new ChapterResource($this->whenLoaded('chapter')),
         ];
     }

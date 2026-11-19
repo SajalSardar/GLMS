@@ -1,13 +1,20 @@
 import { useEffect, useState } from 'react'
 import { getChapterMaterialDownloadLink, listMyChapterMaterials, type ChapterMaterial, type Subject } from '@ttla/api-client'
 import { useAuth } from '@ttla/auth'
+import Pagination from '../components/Pagination'
 import { useLocale } from '../lib/locale'
+
+const PAGE_SIZE = 10
 
 function formatFileSize(bytes: number | null): string | null {
   if (bytes === null) return null
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function formatDate(isoString: string): string {
+  return new Date(isoString).toLocaleDateString()
 }
 
 function chapterLabel(material: ChapterMaterial): string {
@@ -48,6 +55,7 @@ export default function ClassMaterialsPage() {
   const [loading, setLoading] = useState(true)
   const [materials, setMaterials] = useState<ChapterMaterial[]>([])
   const [subjectId, setSubjectId] = useState<number | null>(null)
+  const [page, setPage] = useState(1)
   const [materialLinkError, setMaterialLinkError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -114,10 +122,14 @@ export default function ClassMaterialsPage() {
   ].sort((a, b) => a.name.localeCompare(b.name))
 
   // Order is preserved from the API response (already newest-first).
-  const visibleMaterials =
+  const filteredMaterials =
     subjectId === null
       ? materials
       : materials.filter((material) => material.chapter?.book?.subject_id === subjectId)
+
+  const totalPages = Math.max(1, Math.ceil(filteredMaterials.length / PAGE_SIZE))
+  const currentPage = Math.min(page, totalPages)
+  const visibleMaterials = filteredMaterials.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
 
   return (
     <section className="mx-auto max-w-5xl px-4 py-8 lg:px-8">
@@ -128,7 +140,10 @@ export default function ClassMaterialsPage() {
           <select
             className="h-10 min-w-[12rem] rounded-md border border-primary-200 px-3 text-sm"
             value={subjectId ?? ''}
-            onChange={(event) => setSubjectId(event.target.value ? Number(event.target.value) : null)}
+            onChange={(event) => {
+              setSubjectId(event.target.value ? Number(event.target.value) : null)
+              setPage(1)
+            }}
           >
             <option value="">{t['student.classMaterials.allSubjects']}</option>
             {subjects.map((subject) => (
@@ -159,6 +174,12 @@ export default function ClassMaterialsPage() {
                   {t['student.classMaterials.colSubject']}
                 </th>
                 <th className="bg-primary-50 px-5 py-3 font-medium whitespace-nowrap text-primary-900">
+                  {t['student.classMaterials.colStatus']}
+                </th>
+                <th className="bg-primary-50 px-5 py-3 font-medium whitespace-nowrap text-primary-900">
+                  {t['student.classMaterials.colCreatedAt']}
+                </th>
+                <th className="bg-primary-50 px-5 py-3 font-medium whitespace-nowrap text-primary-900">
                   {t['student.classMaterials.colAction']}
                 </th>
               </tr>
@@ -180,6 +201,14 @@ export default function ClassMaterialsPage() {
                     </td>
                     <td className="border-b border-gray-100 px-5 py-4 whitespace-nowrap text-gray-500">
                       {subject ? (subject.bn_name ?? subject.name) : ''}
+                    </td>
+                    <td className="border-b border-gray-100 px-5 py-4 whitespace-nowrap">
+                      <span className="rounded-sm bg-success-50 px-2 py-0.5 text-xs font-medium text-success-600">
+                        {material.status === 'active' ? t['student.classMaterials.statusActive'] : material.status}
+                      </span>
+                    </td>
+                    <td className="border-b border-gray-100 px-5 py-4 whitespace-nowrap text-gray-500">
+                      {formatDate(material.created_at)}
                     </td>
                     <td className="border-b border-gray-100 px-5 py-4 whitespace-nowrap">
                       <span className="flex flex-shrink-0 gap-2">
@@ -205,6 +234,18 @@ export default function ClassMaterialsPage() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {!loading && filteredMaterials.length > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPrevious={() => setPage((previous) => Math.max(1, previous - 1))}
+          onNext={() => setPage((previous) => Math.min(totalPages, previous + 1))}
+          previousLabel={t['student.classMaterials.previousPage']}
+          nextLabel={t['student.classMaterials.nextPage']}
+          pageOfLabel={t['student.classMaterials.pageOf']}
+        />
       )}
 
       {materialLinkError && <p className="mt-2 text-xs text-danger-600">{materialLinkError}</p>}

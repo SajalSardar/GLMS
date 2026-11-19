@@ -763,6 +763,7 @@ export interface ChapterMaterial {
   size_bytes: number | null
   order_index: number | null
   status: string
+  created_at: string
   chapter?: Chapter | null
 }
 
