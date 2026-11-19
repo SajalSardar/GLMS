@@ -65,29 +65,42 @@ export function ownClassId(userId: number, token: string): Promise<number | null
   return ownClassIdPromise
 }
 
+// The student's own profile id never changes within a session, so this
+// lookup (unlike the dashboard rollup below) is safe to cache per userId.
+let ownStudentProfileIdPromise: Promise<number | null> | null = null
+let ownStudentProfileIdForUserId: number | null = null
+
+function ownStudentProfileId(userId: number, token: string): Promise<number | null> {
+  if (!ownStudentProfileIdPromise || ownStudentProfileIdForUserId !== userId) {
+    ownStudentProfileIdForUserId = userId
+    ownStudentProfileIdPromise = listStudentProfiles({ userId, perPage: 1 }, token).then(
+      (result) => result.data[0]?.id ?? null,
+    )
+  }
+
+  return ownStudentProfileIdPromise
+}
+
 // The logged-in student's own dashboard rollup (StudentDashboardBuilder),
 // which already scopes every exam to their own class_version_id/
 // academic_year_id, excludes practice exams, and carries each exam's own
 // attempts_used/max_attempts/passed — exactly what ClassExamsPage needs to
 // show "exams I haven't attempted yet" without a second request per exam
-// to check attempt status. Resolved via the student's own profile id
-// (there is no dedicated "/me" endpoint), then cached per userId like
-// ownClassId() above.
-let ownStudentDashboardPromise: Promise<StudentDashboard | null> | null = null
-let ownStudentDashboardForUserId: number | null = null
+// to check attempt status.
+//
+// Deliberately NOT cached across calls (unlike ownClassId() above): those
+// attempts_used/best_score/passed fields change the moment a student
+// submits an exam, so caching this would show a just-finished exam as
+// still "untaken" when ClassExamsPage is revisited right after — exactly
+// what happened clicking the score card's "go to class exam page" link
+// before this was fixed. Only the profile-id lookup above stays cached,
+// since that part genuinely never changes.
+export async function ownStudentDashboard(userId: number, token: string): Promise<StudentDashboard | null> {
+  const profileId = await ownStudentProfileId(userId, token)
+  if (!profileId) return null
 
-export function ownStudentDashboard(userId: number, token: string): Promise<StudentDashboard | null> {
-  if (!ownStudentDashboardPromise || ownStudentDashboardForUserId !== userId) {
-    ownStudentDashboardForUserId = userId
-    ownStudentDashboardPromise = listStudentProfiles({ userId, perPage: 1 }, token).then((result) => {
-      const profileId = result.data[0]?.id
-      if (!profileId) return null
-
-      return getStudentDashboard(profileId, token).then((dashboardResult) => dashboardResult.data)
-    })
-  }
-
-  return ownStudentDashboardPromise
+  const result = await getStudentDashboard(profileId, token)
+  return result.data
 }
 
 // There is exactly one current academic year nationally at a time
