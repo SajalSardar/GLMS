@@ -27,11 +27,16 @@ class QuestionController extends Controller
 {
     public function index(Request $request): AnonymousResourceCollection
     {
+        // This route sits outside the auth:sanctum group (it must also
+        // serve anonymous requests), so the user is resolved explicitly
+        // from the sanctum guard rather than via $request->user().
+        $actor = $request->user('sanctum');
+
         $questions = Question::query()
             ->with(['chapter', 'options'])
             ->when($request->integer('chapter_id'), fn ($query, $id) => $query->where('chapter_id', $id))
             ->when(
-                ! $request->user()?->hasPermission('questions.update'),
+                ! $actor?->hasPermission('questions.update'),
                 fn ($query) => $query->where('is_active', true)
             )
             ->orderBy('chapter_id')
@@ -153,9 +158,11 @@ class QuestionController extends Controller
         );
     }
 
-    public function show(Question $question): QuestionResource
+    public function show(Request $request, Question $question): QuestionResource
     {
-        if (! $question->is_active && ! request()->user()?->hasPermission('questions.update')) {
+        // This route sits outside the auth:sanctum group, so the user is
+        // resolved explicitly from the sanctum guard.
+        if (! $question->is_active && ! $request->user('sanctum')?->hasPermission('questions.update')) {
             abort(404);
         }
 

@@ -20,11 +20,16 @@ class ChapterVideoController extends Controller
 {
     public function index(Request $request): AnonymousResourceCollection
     {
+        // This route sits outside the auth:sanctum group (it must also
+        // serve anonymous requests), so the user is resolved explicitly
+        // from the sanctum guard rather than via $request->user().
+        $actor = $request->user('sanctum');
+
         $videos = ChapterVideo::query()
             ->with('chapter')
             ->when($request->integer('chapter_id'), fn ($query, $id) => $query->where('chapter_id', $id))
             ->when(
-                ! $request->user()?->hasPermission('chapter_videos.update'),
+                ! $actor?->hasPermission('chapter_videos.update'),
                 fn ($query) => $query->where('is_enabled', true)
             )
             ->orderBy('chapter_id')
@@ -34,9 +39,11 @@ class ChapterVideoController extends Controller
         return ChapterVideoResource::collection($videos);
     }
 
-    public function show(ChapterVideo $chapter_video): ChapterVideoResource
+    public function show(Request $request, ChapterVideo $chapter_video): ChapterVideoResource
     {
-        if (! $chapter_video->is_enabled && ! request()->user()?->hasPermission('chapter_videos.update')) {
+        // This route sits outside the auth:sanctum group, so the user is
+        // resolved explicitly from the sanctum guard.
+        if (! $chapter_video->is_enabled && ! $request->user('sanctum')?->hasPermission('chapter_videos.update')) {
             abort(404);
         }
 
