@@ -22,6 +22,7 @@ use App\Models\TeacherUser;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
 
 class LmsContentDemoSeeder extends Seeder
 {
@@ -106,6 +107,46 @@ class LmsContentDemoSeeder extends Seeder
     }
 
     /**
+     * Builds a real, minimal one-page PDF (hand-rolled, not a library call —
+     * this app has no PDF-generation dependency) so the demo books' PDF
+     * download/preview routes have an actual file to serve, rather than a
+     * database row pointing at a path that was never written to disk.
+     */
+    private function demoPdfBytes(string $title): string
+    {
+        $escapedTitle = addcslashes($title, '()\\');
+        $stream = "BT /F1 18 Tf 20 100 Td ({$escapedTitle}) Tj ET";
+
+        $objects = [
+            1 => '<< /Type /Catalog /Pages 2 0 R >>',
+            2 => '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+            3 => '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>',
+            4 => '<< /Length '.strlen($stream)." >>\nstream\n{$stream}\nendstream",
+            5 => '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+        ];
+
+        $pdf = "%PDF-1.4\n";
+        $offsets = [];
+
+        foreach ($objects as $number => $body) {
+            $offsets[$number] = strlen($pdf);
+            $pdf .= "{$number} 0 obj\n{$body}\nendobj\n";
+        }
+
+        $xrefOffset = strlen($pdf);
+        $count = count($objects) + 1;
+
+        $pdf .= "xref\n0 {$count}\n0000000000 65535 f \n";
+        foreach ($offsets as $offset) {
+            $pdf .= sprintf("%010d 00000 n \n", $offset);
+        }
+
+        $pdf .= "trailer\n<< /Size {$count} /Root 1 0 R >>\nstartxref\n{$xrefOffset}\n%%EOF";
+
+        return $pdf;
+    }
+
+    /**
      * @param  list<array{name: string, bn_name: string}>  $chapterDefinitions
      * @return Collection<int, Chapter>
      */
@@ -117,6 +158,10 @@ class LmsContentDemoSeeder extends Seeder
             return collect();
         }
 
+        $pdfStoredPath = 'demo/books/'.str_replace(' ', '-', strtolower($bookName)).'.pdf';
+        $pdfContents = $this->demoPdfBytes($bookName);
+        Storage::disk('local')->put($pdfStoredPath, $pdfContents);
+
         $book = Book::updateOrCreate(
             ['class_version_id' => $version->id, 'subject_id' => $subject->id, 'name' => $bookName],
             [
@@ -125,10 +170,10 @@ class LmsContentDemoSeeder extends Seeder
                 'description' => "NCTB-aligned {$subjectName} textbook for Class 6.",
                 'is_active' => true,
                 'pdf_original_filename' => str_replace(' ', '-', $bookName).'.pdf',
-                'pdf_stored_path' => 'demo/books/'.str_replace(' ', '-', strtolower($bookName)).'.pdf',
+                'pdf_stored_path' => $pdfStoredPath,
                 'pdf_disk' => 'local',
                 'pdf_mime_type' => 'application/pdf',
-                'pdf_size_bytes' => 2_458_000,
+                'pdf_size_bytes' => strlen($pdfContents),
                 'pdf_uploaded_by_id' => $staffUploader?->id,
                 'pdf_uploaded_at' => now()->subMonths(2),
                 'pdf_status' => 'active',
