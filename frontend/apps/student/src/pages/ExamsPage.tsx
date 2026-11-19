@@ -13,7 +13,7 @@ import { getCommonStrings } from '@ttla/i18n'
 
 const t = getCommonStrings('bn')
 
-// Same pattern as BooksPage.tsx/VideosPage.tsx — see the comment there for
+// Same pattern as BooksPage.tsx/VideoLecturePage.tsx — see the comment there for
 // why a translated `fallback` is used instead of the raw `error.message`.
 function messageFromApiError(error: unknown, fallback: string): string {
   if (error instanceof ApiError) {

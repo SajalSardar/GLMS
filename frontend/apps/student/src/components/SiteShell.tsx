@@ -8,7 +8,7 @@ const t = getCommonStrings('bn')
 const NAV_ITEMS = [
   { to: '/', label: t['student.nav.home'], end: true },
   { to: '/books', label: t['student.nav.books'] },
-  { to: '/videos', label: t['student.nav.videos'] },
+  { to: '/video-lecture', label: t['student.nav.videoLecture'] },
   { to: '/exams', label: t['student.nav.exams'] },
 ]
 

@@ -4,7 +4,7 @@ import SiteShell from './components/SiteShell'
 import LandingLogin from './pages/LandingLogin'
 import BooksPage from './pages/BooksPage'
 import BookDetailPage from './pages/BookDetailPage'
-import VideosPage from './pages/VideosPage'
+import VideoLecturePage from './pages/VideoLecturePage'
 import VideoPlaylistPage from './pages/VideoPlaylistPage'
 import ExamsPage from './pages/ExamsPage'
 import ExamRunnerPage from './pages/ExamRunnerPage'
@@ -18,8 +18,8 @@ function App() {
             <Route index element={<LandingLogin />} />
             <Route path="books" element={<BooksPage />} />
             <Route path="books/:id" element={<BookDetailPage />} />
-            <Route path="videos" element={<VideosPage />} />
-            <Route path="videos/:chapterId" element={<VideoPlaylistPage />} />
+            <Route path="video-lecture" element={<VideoLecturePage />} />
+            <Route path="video-lecture/:chapterId" element={<VideoPlaylistPage />} />
             <Route path="exams" element={<ExamsPage />} />
             <Route path="exams/:id" element={<ExamRunnerPage />} />
           </Route>

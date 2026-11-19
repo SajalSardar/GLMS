@@ -1,11 +1,19 @@
-import { listBooks, listChapters, listChapterVideos, listClassVersions, type Book, type Chapter } from '@ttla/api-client'
+import {
+  listBooks,
+  listChapters,
+  listChapterVideos,
+  listClassVersions,
+  type Book,
+  type Chapter,
+  type Subject,
+} from '@ttla/api-client'
 
 // Books (and, one level deeper, chapters/videos) aren't nationally unified —
 // each school has its own `ClassVersion` row for a given class, and that
 // version carries its own books. So browsing "Class Six Math" means querying
 // every school's version of that class and merging the results. This is the
 // shared first stage used by both BooksPage (which stops here) and
-// VideosPage (which continues on to chapters and videos).
+// VideoLecturePage (which continues on to chapters and videos).
 export async function booksForClassAndSubject(classId: number | null, subjectId: number | null): Promise<Book[]> {
   if (!classId) return []
 
@@ -17,6 +25,28 @@ export async function booksForClassAndSubject(classId: number | null, subjectId:
   )
 
   return bookLists.flatMap((result) => result.data)
+}
+
+// "Which subjects does this class actually have" — not every subject
+// nationally, but the union of subjects taught by every school's version
+// of this class (via each ClassVersion's own `version_subjects` pivot,
+// already eager-loaded by listClassVersions()). Reuses the same
+// cross-school ClassVersion resolution as booksForClassAndSubject(), kept
+// separate from it since this needs the versions' `subjects` field rather
+// than their books.
+export async function subjectsForClass(classId: number | null): Promise<Subject[]> {
+  if (!classId) return []
+
+  const versionsResult = await listClassVersions({ classId, perPage: 500 })
+  const bySubjectId = new Map<number, Subject>()
+
+  for (const version of versionsResult.data) {
+    for (const subject of version.subjects ?? []) {
+      bySubjectId.set(subject.id, subject)
+    }
+  }
+
+  return [...bySubjectId.values()].sort((a, b) => a.name.localeCompare(b.name))
 }
 
 export interface ChapterWithVideoCount {

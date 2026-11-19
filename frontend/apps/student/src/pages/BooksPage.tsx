@@ -4,14 +4,13 @@ import {
   ApiError,
   listClasses,
   listSchools,
-  listSubjects,
   type Book,
   type School,
   type SchoolClass,
   type Subject,
 } from '@ttla/api-client'
 import { getCommonStrings } from '@ttla/i18n'
-import { booksForClassAndSubject } from '../lib/resolveContent'
+import { booksForClassAndSubject, subjectsForClass } from '../lib/resolveContent'
 
 const t = getCommonStrings('bn')
 
@@ -53,10 +52,6 @@ export default function BooksPage() {
       .then((result) => setClasses(result.data))
       .catch(() => setClasses([]))
 
-    listSubjects({ perPage: 200 })
-      .then((result) => setSubjects(result.data))
-      .catch(() => setSubjects([]))
-
     // ClassVersion only carries a bare `school_id` (no nested `school`
     // relation — confirmed against the ClassVersion interface in
     // api-client/src/index.ts), so school names for the per-school book
@@ -66,6 +61,19 @@ export default function BooksPage() {
       .then((result) => setSchools(result.data))
       .catch(() => setSchools([]))
   }, [])
+
+  // The subject list is class-wise, not the full national list: only
+  // subjects actually taught for the selected class (across every
+  // school's version of it) are offered. Picking a different class
+  // invalidates the previously-chosen subject, since it may not apply to
+  // the new class.
+  useEffect(() => {
+    setSubjectId(null)
+
+    subjectsForClass(classId)
+      .then((result) => setSubjects(result))
+      .catch(() => setSubjects([]))
+  }, [classId])
 
   useEffect(() => {
     let active = true
@@ -129,14 +137,15 @@ export default function BooksPage() {
         </select>
 
         <select
-          className="h-10 rounded-md border border-primary-200 px-3 text-sm"
+          className="h-10 rounded-md border border-primary-200 px-3 text-sm disabled:cursor-not-allowed disabled:opacity-60"
           value={subjectId ?? ''}
+          disabled={!classId}
           onChange={(event) => setSubjectId(event.target.value ? Number(event.target.value) : null)}
         >
           <option value="">{t['student.books.allSubjects']}</option>
           {subjects.map((subject) => (
             <option key={subject.id} value={subject.id}>
-              {subject.name}
+              {subject.bn_name ?? subject.name}
             </option>
           ))}
         </select>

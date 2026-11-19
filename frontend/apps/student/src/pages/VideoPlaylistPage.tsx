@@ -5,7 +5,7 @@ import { getCommonStrings } from '@ttla/i18n'
 
 const t = getCommonStrings('bn')
 
-// Same pattern as BooksPage.tsx/VideosPage.tsx/ExamsPage.tsx — see the
+// Same pattern as BooksPage.tsx/VideoLecturePage.tsx/ExamsPage.tsx — see the
 // comment there for why a translated `fallback` is used instead of the
 // raw `error.message`.
 function messageFromApiError(error: unknown, fallback: string): string {
@@ -56,7 +56,7 @@ export default function VideoPlaylistPage() {
       .catch((caught) => {
         if (active) {
           setVideos([])
-          setError(messageFromApiError(caught, t['student.videos.loadError']))
+          setError(messageFromApiError(caught, t['student.videoLecture.loadError']))
         }
       })
       .finally(() => {
@@ -73,7 +73,7 @@ export default function VideoPlaylistPage() {
   if (loading) {
     return (
       <section className="mx-auto max-w-6xl px-4 py-8 lg:px-8">
-        <p className="text-sm text-primary-600">{t['student.videos.loading']}</p>
+        <p className="text-sm text-primary-600">{t['student.videoLecture.loading']}</p>
       </section>
     )
   }
@@ -82,8 +82,8 @@ export default function VideoPlaylistPage() {
     return (
       <section className="mx-auto max-w-6xl px-4 py-8 lg:px-8">
         <p className="text-sm text-danger-600">{error}</p>
-        <Link to="/videos" className="mt-4 inline-block text-sm font-semibold text-primary-700 underline">
-          {t['student.videos.title']}
+        <Link to="/video-lecture" className="mt-4 inline-block text-sm font-semibold text-primary-700 underline">
+          {t['student.videoLecture.title']}
         </Link>
       </section>
     )
@@ -92,9 +92,9 @@ export default function VideoPlaylistPage() {
   if (videos.length === 0) {
     return (
       <section className="mx-auto max-w-6xl px-4 py-8 lg:px-8">
-        <p className="text-sm text-primary-600">{t['student.videos.empty']}</p>
-        <Link to="/videos" className="mt-4 inline-block text-sm font-semibold text-primary-700 underline">
-          {t['student.videos.title']}
+        <p className="text-sm text-primary-600">{t['student.videoLecture.empty']}</p>
+        <Link to="/video-lecture" className="mt-4 inline-block text-sm font-semibold text-primary-700 underline">
+          {t['student.videoLecture.title']}
         </Link>
       </section>
     )
@@ -102,8 +102,8 @@ export default function VideoPlaylistPage() {
 
   return (
     <section className="mx-auto max-w-6xl px-4 py-8 lg:px-8">
-      <Link to="/videos" className="text-sm font-semibold text-primary-700 underline">
-        {t['student.videos.title']}
+      <Link to="/video-lecture" className="text-sm font-semibold text-primary-700 underline">
+        {t['student.videoLecture.title']}
       </Link>
 
       <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -126,7 +126,7 @@ export default function VideoPlaylistPage() {
               <h1 className="text-xl font-bold text-primary-800">{selectedVideo.bn_title ?? selectedVideo.title}</h1>
               {selectedVideo.instructor_name && (
                 <p className="mt-1 text-sm text-primary-600">
-                  {t['student.videos.instructor']}: {selectedVideo.instructor_name}
+                  {t['student.videoLecture.instructor']}: {selectedVideo.instructor_name}
                 </p>
               )}
               {selectedVideo.description && (
