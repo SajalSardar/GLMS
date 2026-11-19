@@ -28,7 +28,7 @@ class StorePracticeExamRequest extends FormRequest
         return [
             'subject_id' => ['required', 'integer', Rule::exists('subjects', 'id')->withoutTrashed()],
             'chapter_ids' => ['required', 'array', 'min:1'],
-            'chapter_ids.*' => ['integer', Rule::exists('chapters', 'id')->withoutTrashed()],
+            'chapter_ids.*' => ['distinct', 'integer', Rule::exists('chapters', 'id')->withoutTrashed()],
         ];
     }
 

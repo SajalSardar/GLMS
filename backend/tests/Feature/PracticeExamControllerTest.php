@@ -106,6 +106,18 @@ class PracticeExamControllerTest extends TestCase
         $this->assertSame([$this->chapterOne->id], $exam->randomChapters()->pluck('chapters.id')->all());
     }
 
+    public function test_duplicate_chapter_ids_are_rejected_as_a_validation_error(): void
+    {
+        $response = $this->postJson('/api/v1/practice-exams', [
+            'subject_id' => $this->subject->id,
+            'chapter_ids' => [$this->chapterOne->id, $this->chapterOne->id],
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['chapter_ids.0']);
+        $this->assertSame(0, Exam::where('is_practice', true)->count());
+    }
+
     public function test_guest_creation_with_multiple_chapters_uses_the_multi_chapter_question_count(): void
     {
         $response = $this->postJson('/api/v1/practice-exams', [

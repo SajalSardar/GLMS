@@ -9,6 +9,7 @@ use App\Models\Chapter;
 use App\Models\Exam;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class PracticeExamController extends Controller
@@ -36,7 +37,12 @@ class PracticeExamController extends Controller
      */
     public function store(StorePracticeExamRequest $request): JsonResponse
     {
-        $chapterIds = $request->validated('chapter_ids');
+        // Validation's `distinct` rule rejects a duplicated id outright,
+        // but dedupe defensively anyway: it's what keeps the single-vs-
+        // multi-chapter question count and the exam_random_chapters
+        // unique-constraint insert correct even if that rule is ever
+        // relaxed or bypassed.
+        $chapterIds = array_values(array_unique($request->validated('chapter_ids')));
         $subjectId = $request->validated('subject_id');
 
         $questionCount = count($chapterIds) > 1
@@ -45,22 +51,26 @@ class PracticeExamController extends Controller
 
         [$classVersionId, $academicYearId, $schoolId, $districtId] = $this->resolveOwnerContext($request, $chapterIds);
 
-        $exam = Exam::create([
-            'class_version_id' => $classVersionId,
-            'subject_id' => $subjectId,
-            'academic_year_id' => $academicYearId,
-            'school_id' => $schoolId,
-            'district_id' => $districtId,
-            'name' => 'Practice #'.Str::random(8),
-            'selection_mode' => 'per_attempt_random',
-            'random_question_count' => $questionCount,
-            'marks_per_question' => 1,
-            'passing_score_percent' => config('practice_exams.tier_pass_percent'),
-            'status' => 'published',
-            'is_practice' => true,
-        ]);
+        $exam = DB::transaction(function () use ($classVersionId, $subjectId, $academicYearId, $schoolId, $districtId, $questionCount, $chapterIds) {
+            $exam = Exam::create([
+                'class_version_id' => $classVersionId,
+                'subject_id' => $subjectId,
+                'academic_year_id' => $academicYearId,
+                'school_id' => $schoolId,
+                'district_id' => $districtId,
+                'name' => 'Practice #'.Str::random(8),
+                'selection_mode' => 'per_attempt_random',
+                'random_question_count' => $questionCount,
+                'marks_per_question' => 1,
+                'passing_score_percent' => config('practice_exams.tier_pass_percent'),
+                'status' => 'published',
+                'is_practice' => true,
+            ]);
 
-        $exam->randomChapters()->attach($chapterIds);
+            $exam->randomChapters()->attach($chapterIds);
+
+            return $exam;
+        });
 
         return response()->json(['data' => ['id' => $exam->id]], 201);
     }
