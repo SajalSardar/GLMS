@@ -800,6 +800,29 @@ export function getExam(id: number): Promise<{ data: Exam }> {
   return apiFetch<{ data: Exam }>(`/exams/${id}`)
 }
 
+export interface PracticeExamConfig {
+  single_chapter_question_count: number
+  multi_chapter_question_count: number
+  tier_pass_percent: number
+  tier_good_percent: number
+  tier_best_percent: number
+}
+
+export function getPracticeExamConfig(): Promise<PracticeExamConfig> {
+  return apiFetch<PracticeExamConfig>('/practice-exams/config')
+}
+
+export function createPracticeExam(
+  payload: { subjectId: number; chapterIds: number[] },
+  token?: string,
+): Promise<{ data: { id: number } }> {
+  return apiFetch<{ data: { id: number } }>('/practice-exams', {
+    method: 'POST',
+    headers: token ? authHeaders(token) : { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ subject_id: payload.subjectId, chapter_ids: payload.chapterIds }),
+  })
+}
+
 export interface ExamAttemptQuestionResult {
   question_id: number
   question_type: string

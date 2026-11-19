@@ -7,6 +7,7 @@ import {
   createClassSchool,
   createClassVersion,
   createDivision,
+  createPracticeExam,
   createSchool,
   createSection,
   createShift,
@@ -18,6 +19,7 @@ import {
   getBookPdfLinks,
   getExam,
   getHealth,
+  getPracticeExamConfig,
   listAcademicYears,
   listBooks,
   listChapters,
@@ -177,6 +179,66 @@ describe('logout', () => {
     expect(mockFetch.mock.calls[0][1]).toMatchObject({
       method: 'POST',
       headers: { Authorization: 'Bearer plain-text-token' },
+    })
+  })
+})
+
+describe('practice exams', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('fetches the practice exam config', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          single_chapter_question_count: 20,
+          multi_chapter_question_count: 40,
+          tier_pass_percent: 40,
+          tier_good_percent: 60,
+          tier_best_percent: 80,
+        }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    const result = await getPracticeExamConfig()
+
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/practice-exams/config`)
+    expect(result.single_chapter_question_count).toBe(20)
+  })
+
+  it('creates a practice exam without a token for a guest', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 201,
+      json: () => Promise.resolve({ data: { id: 7 } }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    const result = await createPracticeExam({ subjectId: 3, chapterIds: [1, 2] })
+
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/practice-exams`)
+    expect(mockFetch.mock.calls[0][1]).toMatchObject({
+      method: 'POST',
+      body: JSON.stringify({ subject_id: 3, chapter_ids: [1, 2] }),
+    })
+    expect((mockFetch.mock.calls[0][1] as RequestInit).headers).not.toHaveProperty('Authorization')
+    expect(result.data.id).toBe(7)
+  })
+
+  it('creates a practice exam with a bearer token when logged in', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 201,
+      json: () => Promise.resolve({ data: { id: 8 } }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    await createPracticeExam({ subjectId: 3, chapterIds: [1] }, 'secret-token')
+
+    expect(mockFetch.mock.calls[0][1]).toMatchObject({
+      headers: expect.objectContaining({ Authorization: 'Bearer secret-token' }),
     })
   })
 })
