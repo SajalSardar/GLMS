@@ -194,28 +194,38 @@ class LmsContentDemoSeeder extends Seeder
 
     private function seedChapterContent(Chapter $chapter, ?User $staffUploader, StudentProfile $studentProfile): void
     {
+        $notesTitle = "{$chapter->name} — Lecture Notes";
+        $notesStoredPath = "demo/materials/chapter-{$chapter->id}-notes.pdf";
+        $notesBytes = $this->demoPdfBytes($notesTitle);
+        Storage::disk('local')->put($notesStoredPath, $notesBytes);
+
         ChapterMaterial::updateOrCreate(
-            ['chapter_id' => $chapter->id, 'type' => 'primary', 'title' => "{$chapter->name} — Lecture Notes"],
+            ['chapter_id' => $chapter->id, 'type' => 'primary', 'title' => $notesTitle],
             [
                 'original_filename' => 'lecture-notes.pdf',
-                'stored_path' => "demo/materials/chapter-{$chapter->id}-notes.pdf",
+                'stored_path' => $notesStoredPath,
                 'disk' => 'local',
                 'mime_type' => 'application/pdf',
-                'size_bytes' => 512_000,
+                'size_bytes' => strlen($notesBytes),
                 'uploaded_by_id' => $staffUploader?->id,
                 'order_index' => 1,
                 'status' => 'active',
             ],
         );
 
+        $worksheetTitle = "{$chapter->name} — Practice Worksheet";
+        $worksheetStoredPath = "demo/materials/chapter-{$chapter->id}-worksheet.pdf";
+        $worksheetBytes = $this->demoPdfBytes($worksheetTitle);
+        Storage::disk('local')->put($worksheetStoredPath, $worksheetBytes);
+
         ChapterMaterial::updateOrCreate(
-            ['chapter_id' => $chapter->id, 'type' => 'supplementary', 'title' => "{$chapter->name} — Practice Worksheet"],
+            ['chapter_id' => $chapter->id, 'type' => 'supplementary', 'title' => $worksheetTitle],
             [
                 'original_filename' => 'practice-worksheet.pdf',
-                'stored_path' => "demo/materials/chapter-{$chapter->id}-worksheet.pdf",
+                'stored_path' => $worksheetStoredPath,
                 'disk' => 'local',
                 'mime_type' => 'application/pdf',
-                'size_bytes' => 128_000,
+                'size_bytes' => strlen($worksheetBytes),
                 'uploaded_by_id' => $staffUploader?->id,
                 'order_index' => 2,
                 'status' => 'active',
