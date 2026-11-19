@@ -5,15 +5,61 @@ import {
   createPracticeExam,
   getPracticeExamConfig,
   listClasses,
-  listSchools,
   type PracticeExamConfig,
-  type School,
   type SchoolClass,
   type Subject,
 } from '@ttla/api-client'
 import { useAuth } from '@ttla/auth'
 import { chaptersForClassAndSubject, subjectsForClass, type ChapterWithBook } from '../lib/resolveContent'
 import { useLocale } from '../lib/locale'
+
+function InfoAlert({ message }: { message: string }) {
+  return (
+    <div className="mt-6 flex items-center gap-3 rounded-lg border border-primary-200 bg-primary-50 px-4 py-3 text-sm font-medium text-primary-700">
+      <svg
+        width={20}
+        height={20}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+        className="flex-shrink-0"
+      >
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 11v5" />
+        <circle cx="12" cy="8" r="0.1" fill="currentColor" stroke="currentColor" strokeWidth={2.4} />
+      </svg>
+      <p>{message}</p>
+    </div>
+  )
+}
+
+function WarningAlert({ message }: { message: string }) {
+  return (
+    <div className="mt-4 flex items-center gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
+      <svg
+        width={20}
+        height={20}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+        className="flex-shrink-0"
+      >
+        <path d="M10.3 3.9 1.9 18a1.8 1.8 0 0 0 1.55 2.7h17.1A1.8 1.8 0 0 0 22.1 18L13.7 3.9a1.8 1.8 0 0 0-3.4 0Z" />
+        <path d="M12 9.5v4" />
+        <circle cx="12" cy="17" r="0.1" fill="currentColor" stroke="currentColor" strokeWidth={2.4} />
+      </svg>
+      <p>{message}</p>
+    </div>
+  )
+}
 
 // Same pattern as BooksPage.tsx/VideoLecturePage.tsx — see the comment
 // there for why a translated `fallback` is used instead of the raw
@@ -48,18 +94,15 @@ function initialSelectionFromState(state: unknown): InitialSelection | null {
     : null
 }
 
-// The chapter pool is deliberately merged across every school's version
-// of the chosen class, so two schools' "Chapter 1 — Mathematics" entries
-// are otherwise identical on screen. Same resolution VideoLecturePage
-// uses: ClassVersion carries a bare `school_id` with no nested `school`
-// relation, so the school list is fetched once and mapped by id.
-function chapterLabel(entry: ChapterWithBook, schools: School[]): string {
+// The chapter pool is deliberately merged across every school's version of
+// the chosen class — this is a global/national practice exam, not scoped to
+// the student's own school, so the label intentionally omits which school a
+// chapter came from (unlike e.g. VideoPlaylistPage's version chip).
+function chapterLabel(entry: ChapterWithBook): string {
   const chapterName = entry.chapter.bn_name ?? entry.chapter.name
   const bookName = entry.book.bn_name ?? entry.book.name
-  const schoolId = entry.book.class_version?.school_id
-  const schoolName = schoolId ? (schools.find((school) => school.id === schoolId)?.name ?? '') : ''
 
-  return schoolName ? `${chapterName} — ${bookName} — ${schoolName}` : `${chapterName} — ${bookName}`
+  return `${chapterName} — ${bookName}`
 }
 
 export default function ExamsPage() {
@@ -72,7 +115,6 @@ export default function ExamsPage() {
   const initialChapterAppliedRef = useRef(false)
 
   const [classes, setClasses] = useState<SchoolClass[]>([])
-  const [schools, setSchools] = useState<School[]>([])
   const [classId, setClassId] = useState<number | null>(initialSelection?.classId ?? null)
 
   const [subjects, setSubjects] = useState<Subject[]>([])
@@ -101,10 +143,6 @@ export default function ExamsPage() {
     listClasses({ perPage: 500 })
       .then((result) => setClasses(result.data))
       .catch(() => setClasses([]))
-
-    listSchools({ perPage: 500 })
-      .then((result) => setSchools(result.data))
-      .catch(() => setSchools([]))
 
     getPracticeExamConfig()
       .then(setConfig)
@@ -237,7 +275,7 @@ export default function ExamsPage() {
         </select>
 
         <select
-          className="h-10 rounded-md border border-primary-200 px-3 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+          className="h-10 min-w-[12rem] rounded-md border border-primary-200 px-3 text-sm disabled:cursor-not-allowed disabled:opacity-60"
           value={subjectId ?? ''}
           disabled={!classId}
           onChange={(event) => setSubjectId(event.target.value ? Number(event.target.value) : null)}
@@ -251,9 +289,9 @@ export default function ExamsPage() {
         </select>
       </div>
 
-      {!classId && <p className="mt-6 text-sm text-primary-600">{t['student.practiceExam.pickClass']}</p>}
+      {!classId && <InfoAlert message={t['student.practiceExam.pickClass']} />}
 
-      {classId && !subjectId && <p className="mt-6 text-sm text-primary-600">{t['student.practiceExam.pickSubject']}</p>}
+      {classId && !subjectId && <InfoAlert message={t['student.practiceExam.pickSubject']} />}
 
       {classId && subjectId && (
         <>
@@ -277,12 +315,12 @@ export default function ExamsPage() {
                   checked={checkedChapterIds.has(entry.chapter.id)}
                   onChange={(event) => toggleChapter(entry.chapter.id, event.target.checked)}
                 />
-                {chapterLabel(entry, schools)}
+                {chapterLabel(entry)}
               </label>
             ))}
           </div>
 
-          {hint && <p className="mt-4 text-sm font-medium text-primary-700">{hint}</p>}
+          {hint && <WarningAlert message={hint} />}
 
           {error && <p className="mt-4 text-sm text-danger-600">{error}</p>}
 
