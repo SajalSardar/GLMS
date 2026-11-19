@@ -33,7 +33,7 @@ function isCertificateState(value: unknown): value is CertificateState {
 export default function CertificatePage() {
   const { id } = useParams<{ id: string }>()
   const location = useLocation()
-  const { token } = useAuth()
+  const { token, name } = useAuth()
 
   const state = isCertificateState(location.state) ? location.state : null
 
@@ -48,7 +48,11 @@ export default function CertificatePage() {
     )
   }
 
-  const studentName = token ? t['student.certificate.studentName'] : t['student.certificate.guestName']
+  // `name` is null for a token stored before AuthProvider persisted it,
+  // so the generic label stays as the fallback for signed-in viewers.
+  const studentName = token
+    ? (name ?? t['student.certificate.studentName'])
+    : t['student.certificate.guestName']
   const formattedDate = new Date(state.date).toLocaleDateString('bn-BD', { year: 'numeric', month: 'long', day: 'numeric' })
 
   return (

@@ -5,7 +5,9 @@ import {
   createPracticeExam,
   getPracticeExamConfig,
   listClasses,
+  listSchools,
   type PracticeExamConfig,
+  type School,
   type SchoolClass,
   type Subject,
 } from '@ttla/api-client'
@@ -27,10 +29,18 @@ function messageFromApiError(error: unknown, fallback: string): string {
   return fallback
 }
 
-function chapterLabel(entry: ChapterWithBook): string {
+// The chapter pool is deliberately merged across every school's version
+// of the chosen class, so two schools' "Chapter 1 — Mathematics" entries
+// are otherwise identical on screen. Same resolution VideoLecturePage
+// uses: ClassVersion carries a bare `school_id` with no nested `school`
+// relation, so the school list is fetched once and mapped by id.
+function chapterLabel(entry: ChapterWithBook, schools: School[]): string {
   const chapterName = entry.chapter.bn_name ?? entry.chapter.name
   const bookName = entry.book.bn_name ?? entry.book.name
-  return `${chapterName} — ${bookName}`
+  const schoolId = entry.book.class_version?.school_id
+  const schoolName = schoolId ? (schools.find((school) => school.id === schoolId)?.name ?? '') : ''
+
+  return schoolName ? `${chapterName} — ${bookName} — ${schoolName}` : `${chapterName} — ${bookName}`
 }
 
 export default function ExamsPage() {
@@ -38,6 +48,7 @@ export default function ExamsPage() {
   const navigate = useNavigate()
 
   const [classes, setClasses] = useState<SchoolClass[]>([])
+  const [schools, setSchools] = useState<School[]>([])
   const [classId, setClassId] = useState<number | null>(null)
 
   const [subjects, setSubjects] = useState<Subject[]>([])
@@ -56,6 +67,10 @@ export default function ExamsPage() {
     listClasses({ perPage: 500 })
       .then((result) => setClasses(result.data))
       .catch(() => setClasses([]))
+
+    listSchools({ perPage: 500 })
+      .then((result) => setSchools(result.data))
+      .catch(() => setSchools([]))
 
     getPracticeExamConfig()
       .then(setConfig)
@@ -211,7 +226,7 @@ export default function ExamsPage() {
                   checked={checkedChapterIds.has(entry.chapter.id)}
                   onChange={(event) => toggleChapter(entry.chapter.id, event.target.checked)}
                 />
-                {chapterLabel(entry)}
+                {chapterLabel(entry, schools)}
               </label>
             ))}
           </div>

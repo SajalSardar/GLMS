@@ -1,9 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  clearStoredName,
   clearStoredRole,
   clearStoredToken,
+  getStoredName,
   getStoredRole,
   getStoredToken,
+  storeName,
   storeRole,
   storeToken,
 } from './index'
@@ -87,5 +90,44 @@ describe('role storage', () => {
     clearStoredRole()
 
     expect(getStoredRole()).toBeNull()
+  })
+})
+
+describe('name storage', () => {
+  beforeEach(() => {
+    vi.stubGlobal('localStorage', new MemoryStorage())
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  // Null here is what makes CertificatePage fall back to the generic
+  // "Student" label for a token stored before names were persisted.
+  it('returns null when no name is stored', () => {
+    expect(getStoredName()).toBeNull()
+  })
+
+  it('stores and retrieves a name', () => {
+    storeName('রহিম উদ্দিন')
+
+    expect(getStoredName()).toBe('রহিম উদ্দিন')
+  })
+
+  it('clears a stored name', () => {
+    storeName('রহিম উদ্দিন')
+    clearStoredName()
+
+    expect(getStoredName()).toBeNull()
+  })
+
+  it('keeps the name under its own key, separate from token and role', () => {
+    storeToken('abc123')
+    storeRole('student')
+    storeName('রহিম উদ্দিন')
+    clearStoredName()
+
+    expect(getStoredToken()).toBe('abc123')
+    expect(getStoredRole()).toBe('student')
   })
 })

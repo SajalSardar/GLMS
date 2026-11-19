@@ -47,7 +47,7 @@ function Icon({ name }: { name: IconName }) {
 }
 
 function LoginCard() {
-  const { setToken } = useAuth()
+  const { setToken, setName } = useAuth()
   const navigate = useNavigate()
   const studentIdFieldId = useId()
   const passwordFieldId = useId()
@@ -67,6 +67,9 @@ function LoginCard() {
     try {
       const result = await studentLogin(studentId.trim(), password, 'web')
       setToken(result.token)
+      // Persisted so the certificate can print the student's real name
+      // rather than a generic "Student" label.
+      setName(result.data?.name ?? null)
       navigate('/books')
     } catch {
       setError(t['landing.login.errorGeneric'])

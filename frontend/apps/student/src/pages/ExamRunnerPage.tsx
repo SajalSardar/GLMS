@@ -476,35 +476,56 @@ export default function ExamRunnerPage() {
             <p className="text-lg font-semibold text-primary-800">
               {t['student.exams.score']}: {result.score ?? 0} / {result.totalPossibleMarks ?? 0}
             </p>
-            {config && result.totalPossibleMarks !== null && result.totalPossibleMarks > 0 && (() => {
-              const percent = ((result.score ?? 0) / result.totalPossibleMarks) * 100
-              const tier = tierFor(percent, config)
+            {/*
+              The tiered verdict and certificate belong to PRACTICE exams
+              only. A teacher-created exam has its own
+              passing_score_percent, and the backend already graded this
+              attempt against it into `result.passed` — applying the
+              practice tier cutoffs here would both contradict that
+              verdict (a student failing a teacher's exam could be shown
+              "Passed") and offer a certificate that exam never had.
+              Non-practice exams therefore keep the original, simple
+              passed/failed line with no certificate button, and a
+              practice exam whose config failed to load falls back to the
+              same line rather than showing no verdict at all.
+            */}
+            {examPreview?.is_practice && config && result.totalPossibleMarks !== null && result.totalPossibleMarks > 0 ? (
+              (() => {
+                const percent = ((result.score ?? 0) / result.totalPossibleMarks) * 100
+                const tier = tierFor(percent, config)
 
-              return (
-                <>
-                  <p className={`mt-1 text-sm font-medium ${TIER_TONE[tier]}`}>{t[TIER_LABEL_KEY[tier]]}</p>
-                  {tier !== 'failed' && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        navigate(`/exams/${examId}/certificate`, {
-                          state: {
-                            score: result.score ?? 0,
-                            total: result.totalPossibleMarks,
-                            percent,
-                            tier,
-                            date: new Date().toISOString(),
-                          },
-                        })
-                      }
-                      className="mt-3 cursor-pointer rounded-md border border-primary-300 px-4 py-2 text-sm font-semibold text-primary-700 hover:bg-[#EB1F27] hover:text-white"
-                    >
-                      {t['student.exams.viewCertificate']}
-                    </button>
-                  )}
-                </>
+                return (
+                  <>
+                    <p className={`mt-1 text-sm font-medium ${TIER_TONE[tier]}`}>{t[TIER_LABEL_KEY[tier]]}</p>
+                    {tier !== 'failed' && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          navigate(`/exams/${examId}/certificate`, {
+                            state: {
+                              score: result.score ?? 0,
+                              total: result.totalPossibleMarks,
+                              percent,
+                              tier,
+                              date: new Date().toISOString(),
+                            },
+                          })
+                        }
+                        className="mt-3 cursor-pointer rounded-md border border-primary-300 px-4 py-2 text-sm font-semibold text-primary-700 hover:bg-[#EB1F27] hover:text-white"
+                      >
+                        {t['student.exams.viewCertificate']}
+                      </button>
+                    )}
+                  </>
+                )
+              })()
+            ) : (
+              result.passed !== null && (
+                <p className={`mt-1 text-sm font-medium ${result.passed ? 'text-success-600' : 'text-danger-600'}`}>
+                  {result.passed ? t['student.exams.passed'] : t['student.exams.failed']}
+                </p>
               )
-            })()}
+            )}
           </div>
 
           <div className="mt-6 flex flex-col gap-6">

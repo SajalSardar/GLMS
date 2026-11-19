@@ -9,6 +9,7 @@ import {
 
 const TOKEN_STORAGE_KEY = 'ttla.authToken'
 const ROLE_STORAGE_KEY = 'ttla.authRole'
+const NAME_STORAGE_KEY = 'ttla.authName'
 
 export function getStoredToken(): string | null {
   return localStorage.getItem(TOKEN_STORAGE_KEY)
@@ -34,11 +35,30 @@ export function clearStoredRole(): void {
   localStorage.removeItem(ROLE_STORAGE_KEY)
 }
 
+export function getStoredName(): string | null {
+  return localStorage.getItem(NAME_STORAGE_KEY)
+}
+
+export function storeName(name: string): void {
+  localStorage.setItem(NAME_STORAGE_KEY, name)
+}
+
+export function clearStoredName(): void {
+  localStorage.removeItem(NAME_STORAGE_KEY)
+}
+
 export interface AuthContextValue {
   token: string | null
   role: string | null
+  /**
+   * The signed-in user's display name, when the login flow supplied one.
+   * Null for a guest, and also null for a session whose token was stored
+   * before this field existed — consumers must have a fallback.
+   */
+  name: string | null
   setToken: (token: string) => void
   setRole: (role: string | null) => void
+  setName: (name: string | null) => void
   clearToken: () => void
 }
 
@@ -47,6 +67,7 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setTokenState] = useState<string | null>(() => getStoredToken())
   const [role, setRoleState] = useState<string | null>(() => getStoredRole())
+  const [name, setNameState] = useState<string | null>(() => getStoredName())
 
   const setToken = useCallback((next: string) => {
     storeToken(next)
@@ -62,16 +83,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setRoleState(next)
   }, [])
 
+  const setName = useCallback((next: string | null) => {
+    if (next) {
+      storeName(next)
+    } else {
+      clearStoredName()
+    }
+    setNameState(next)
+  }, [])
+
   const clearToken = useCallback(() => {
     clearStoredToken()
     clearStoredRole()
+    clearStoredName()
     setTokenState(null)
     setRoleState(null)
+    setNameState(null)
   }, [])
 
   const value = useMemo<AuthContextValue>(
-    () => ({ token, role, setToken, setRole, clearToken }),
-    [token, role, setToken, setRole, clearToken],
+    () => ({ token, role, name, setToken, setRole, setName, clearToken }),
+    [token, role, name, setToken, setRole, setName, clearToken],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
