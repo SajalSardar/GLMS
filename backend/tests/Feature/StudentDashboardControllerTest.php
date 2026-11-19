@@ -6,6 +6,7 @@ use App\Models\AcademicYear;
 use App\Models\ClassVersion;
 use App\Models\District;
 use App\Models\Division;
+use App\Models\Exam;
 use App\Models\Guardian;
 use App\Models\GuardianUser;
 use App\Models\School;
@@ -31,6 +32,12 @@ class StudentDashboardControllerTest extends TestCase
 
     private StudentUser $studentUser;
 
+    private ClassVersion $version;
+
+    private Subject $subject;
+
+    private AcademicYear $academicYear;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -40,10 +47,12 @@ class StudentDashboardControllerTest extends TestCase
         $upazila = Upazila::create(['district_id' => $district->id, 'name' => 'Upazila', 'bn_name' => 'উপজেলা']);
         $this->school = School::create(['division_id' => $division->id, 'district_id' => $district->id, 'upazila_id' => $upazila->id, 'name' => 'School']);
 
-        Subject::create(['name' => 'Mathematics']);
+        $this->subject = Subject::create(['name' => 'Mathematics']);
         $class = SchoolClass::create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Class 6']);
         $version = ClassVersion::create(['class_id' => $class->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Bangla Version']);
+        $this->version = $version;
         $academicYear = AcademicYear::create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => '2026', 'start_date' => '2026-01-01', 'end_date' => '2026-12-31']);
+        $this->academicYear = $academicYear;
         $shift = Shift::create(['class_version_id' => $version->id, 'academic_year_id' => $academicYear->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Shift', 'start_time' => '08:00', 'end_time' => '13:00', 'days_of_week' => ['saturday']]);
         $section = Section::create(['shift_id' => $shift->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Section A']);
 
@@ -99,6 +108,49 @@ class StudentDashboardControllerTest extends TestCase
         $this->actingAs($broadViewer, 'sanctum')
             ->getJson("/api/v1/student-profiles/{$this->profile->id}/dashboard")
             ->assertForbidden();
+    }
+
+    public function test_a_practice_exam_never_appears_in_the_dashboard_rollup(): void
+    {
+        // A practice exam is provisioned with exactly the student's own
+        // class_version_id/academic_year_id, so without an explicit
+        // is_practice filter it matches the rollup query forever.
+        $this->version->subjects()->attach($this->subject->id);
+
+        $teacherExam = Exam::create([
+            'class_version_id' => $this->version->id,
+            'subject_id' => $this->subject->id,
+            'academic_year_id' => $this->academicYear->id,
+            'school_id' => $this->school->id,
+            'district_id' => $this->school->district_id,
+            'name' => 'Midterm',
+            'selection_mode' => 'fixed',
+            'marks_per_question' => 1,
+            'status' => 'published',
+        ]);
+
+        $practiceExam = Exam::create([
+            'class_version_id' => $this->version->id,
+            'subject_id' => $this->subject->id,
+            'academic_year_id' => $this->academicYear->id,
+            'school_id' => $this->school->id,
+            'district_id' => $this->school->district_id,
+            'name' => 'Practice #abc12345',
+            'selection_mode' => 'per_attempt_random',
+            'random_question_count' => 5,
+            'marks_per_question' => 1,
+            'status' => 'published',
+            'is_practice' => true,
+        ]);
+
+        $response = $this->actingAs($this->studentUser, 'sanctum')
+            ->getJson("/api/v1/student-profiles/{$this->profile->id}/dashboard")
+            ->assertOk();
+
+        $examIds = collect($response->json('data.subjects.0.exams'))->pluck('exam_id')->all();
+
+        $this->assertContains($teacherExam->id, $examIds);
+        $this->assertNotContains($practiceExam->id, $examIds);
     }
 
     public function test_a_student_with_no_section_gets_an_empty_dashboard_not_an_error(): void

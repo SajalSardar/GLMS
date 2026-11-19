@@ -107,6 +107,10 @@ class StudentDashboardBuilder
             ->where('subject_id', $subject->id)
             ->where('academic_year_id', $academicYearId)
             ->where('status', 'published')
+            // Practice exams carry the student's own class_version_id/
+            // academic_year_id, so without this they would accumulate in
+            // the rollup forever — mirrors ExamController::index().
+            ->where('is_practice', false)
             ->orderBy('name')
             ->get(['id', 'name', 'max_attempts']);
 

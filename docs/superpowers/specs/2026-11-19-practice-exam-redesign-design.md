@@ -54,8 +54,15 @@ spec) are the only exams that stay open to guests.
 - What's missing is blocking the *guest* path for non-practice exams.
   `GuestExamAttemptController::randomDraw()` and `submit()` each gain an
   `abort_unless($exam->is_practice, 403)` check (in addition to their
-  existing `isPubliclyTakeable()` check) — a guest can no longer reach a
-  teacher-created exam's questions or submit answers to it at all.
+  existing `isPubliclyTakeable()` check) — a guest can no longer *take*
+  (draw a random question set for) or *submit answers to* a
+  teacher-created exam. This closes the attempt/grading path only: exam
+  metadata and question text for a teacher-created exam remain reachable
+  through the pre-existing, already-public `GET /exams/{exam}` and
+  `GET /questions` endpoints, exactly as before this feature — that
+  exposure predates this spec and is unchanged by it. `is_correct` on
+  each option stays independently protected by `QuestionOptionResource`
+  regardless of actor, so no answer key is exposed either way.
 - `ExamResource` gains an `is_practice` field so the frontend can tell
   the difference up front. `ExamRunnerPage.tsx`'s setup screen checks
   `!token && !examPreview.is_practice` and shows a clear "this exam
@@ -256,23 +263,29 @@ calls `createPracticeExam()` and navigates to `/exams/:id`.
 
 Fetches the practice-exam config on mount (cheap, cached module-level
 like `resolveContent.ts`'s academic-year memo). On the `submitted`
-screen, computes `percent = total > 0 ? (score / total) * 100 : 0` and
-a tier from the config cutoffs, replacing the current plain
-passed/failed line with the tiered message. For `pass`/`good`/`best`,
-shows a "View certificate" button that navigates to
-`/exams/:id/certificate` with `state` carrying `{ score, total,
-percent, tier, subjectName, className, chapterNames, studentName, date
-}`.
+screen, **only for a practice exam** (`examPreview.is_practice`),
+computes `percent = total > 0 ? (score / total) * 100 : 0` and a tier
+from the config cutoffs, showing the tiered message instead of the
+plain passed/failed line. A teacher-created exam always keeps the
+original `result.passed`-based line and never shows a certificate
+button — the tier scheme must never override an exam's own
+`passing_score_percent` verdict. For `pass`/`good`/`best`, shows a
+"View certificate" button that navigates to `/exams/:id/certificate`
+with `state` carrying `{ score, total, percent, tier, date }`.
 
 ### New `CertificatePage.tsx` (`/exams/:id/certificate`)
 
 Reads `location.state`. If present: a styled certificate card (border,
-logo, "সনদপত্র" heading, student name or "অতিথি শিক্ষার্থী" for a
-guest, class/subject/chapters covered, score, tier-appropriate praise
-line, date) with a print button (`window.print()` — no PDF generation,
-no new dependency). If `state` is missing (direct link, refresh, or
-shared URL) — a graceful message plus a link back to `/exams`; this is
-an accepted limitation, not a bug, consistent with guests never getting
+logo, "সনদপত্র" heading, the logged-in viewer's own name (resolved via
+`useAuth()`, not passed through navigation state) or "অতিথি
+শিক্ষার্থী" for a guest, score, tier-appropriate praise line, date)
+with a print button (`window.print()` — no PDF generation, no new
+dependency). Deliberately narrowed from an earlier draft of this spec:
+class/subject/chapters-covered are NOT shown — plumbing that through
+the full creation→running→certificate chain is a larger follow-up, not
+built here. If `state` is missing (direct link, refresh, or shared
+URL) — a graceful message plus a link back to `/exams`; this is an
+accepted limitation, not a bug, consistent with guests never getting
 persisted results today.
 
 ### i18n
@@ -285,7 +298,19 @@ for the tiered messages and certificate copy, in both `bn.json` and
 
 ## Known tradeoffs (explicitly accepted, not solved here)
 
-- Practice `Exam` rows accumulate indefinitely; no cleanup job.
+- Practice sessions accumulate indefinitely with no cleanup job and no
+  operator-facing way to find or purge them: each one leaves behind an
+  `exams` row, one `exam_random_chapters` row per selected chapter, and
+  (for a logged-in attempt) an `exam_attempts` row plus its
+  per-question/per-answer rows — all permanently excluded from every
+  exam listing, including the admin/teacher-facing ones, by the same
+  `is_practice` filter that hides them from students. The provisioning
+  endpoint is unauthenticated and rate-limited only lightly
+  (`throttle:30,1`) with a `max:50` cap on `chapter_ids` per request —
+  sustained abuse can still grow these tables substantially faster than
+  any real classroom usage would. A future `artisan` prune command (or
+  at minimum a documented manual-SQL runbook) is the natural follow-up,
+  not built here.
 - The certificate page cannot be reloaded or reshared after the fact —
   it only exists for the single navigation right after finishing.
 - Teacher-created exams are no longer reachable from student nav at
