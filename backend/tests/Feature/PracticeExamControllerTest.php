@@ -203,8 +203,6 @@ class PracticeExamControllerTest extends TestCase
 
     public function test_more_than_fifty_chapter_ids_are_rejected(): void
     {
-        // Real, valid chapters: otherwise the per-id `exists` rule would
-        // reject the payload regardless of whether max:50 is present.
         // Real, valid chapters with a question pool: otherwise the
         // per-id `exists` rule or store()'s zero-questions guard would
         // produce the same 422 regardless of whether max:50 is present.
