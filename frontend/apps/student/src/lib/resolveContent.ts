@@ -1,4 +1,5 @@
 import {
+  getStudentDashboard,
   listAcademicYears,
   listBooks,
   listChapters,
@@ -12,6 +13,7 @@ import {
   type ChapterVideo,
   type ClassVersion,
   type SchoolClass,
+  type StudentDashboard,
   type Subject,
 } from '@ttla/api-client'
 
@@ -61,6 +63,31 @@ export function ownClassId(userId: number, token: string): Promise<number | null
   }
 
   return ownClassIdPromise
+}
+
+// The logged-in student's own dashboard rollup (StudentDashboardBuilder),
+// which already scopes every exam to their own class_version_id/
+// academic_year_id, excludes practice exams, and carries each exam's own
+// attempts_used/max_attempts/passed — exactly what ClassExamsPage needs to
+// show "exams I haven't attempted yet" without a second request per exam
+// to check attempt status. Resolved via the student's own profile id
+// (there is no dedicated "/me" endpoint), then cached per userId like
+// ownClassId() above.
+let ownStudentDashboardPromise: Promise<StudentDashboard | null> | null = null
+let ownStudentDashboardForUserId: number | null = null
+
+export function ownStudentDashboard(userId: number, token: string): Promise<StudentDashboard | null> {
+  if (!ownStudentDashboardPromise || ownStudentDashboardForUserId !== userId) {
+    ownStudentDashboardForUserId = userId
+    ownStudentDashboardPromise = listStudentProfiles({ userId, perPage: 1 }, token).then((result) => {
+      const profileId = result.data[0]?.id
+      if (!profileId) return null
+
+      return getStudentDashboard(profileId, token).then((dashboardResult) => dashboardResult.data)
+    })
+  }
+
+  return ownStudentDashboardPromise
 }
 
 // There is exactly one current academic year nationally at a time

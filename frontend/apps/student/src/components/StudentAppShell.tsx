@@ -57,6 +57,7 @@ export default function StudentAppShell() {
     { to: '/books', label: t['student.nav.books'], icon: 'menu_book' },
     { to: '/class-materials', label: t['student.nav.classMaterials'], icon: 'folder_open' },
     { to: '/video-lecture', label: t['student.nav.videoLecture'], icon: 'smart_display' },
+    { to: '/class-exams', label: t['student.nav.classExams'], icon: 'assignment' },
     { to: '/exams', label: t['student.nav.exams'], icon: 'quiz' },
   ]
 

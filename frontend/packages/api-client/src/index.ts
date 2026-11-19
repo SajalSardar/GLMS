@@ -1513,3 +1513,46 @@ export function detachGuardianFromStudent(studentProfileId: number, guardianId: 
     headers: authHeaders(token),
   })
 }
+
+export interface StudentDashboardExam {
+  exam_id: number
+  exam_name: string
+  attempts_used: number
+  max_attempts: number | null
+  best_score: number | null
+  total_possible_marks: number | null
+  passed: boolean | null
+}
+
+export interface StudentDashboardChapter {
+  chapter_id: number
+  chapter_name: string
+  video_total: number
+  materials_total: number
+  materials_accessed: number
+}
+
+export interface StudentDashboardSubject {
+  subject_id: number
+  subject_name: string
+  chapters: StudentDashboardChapter[]
+  exams: StudentDashboardExam[]
+}
+
+export interface StudentDashboard {
+  student_profile_id: number
+  class_version_id: number | null
+  academic_year_id: number | null
+  subjects: StudentDashboardSubject[]
+}
+
+// Backed by StudentDashboardBuilder — already scopes exams to this
+// student's own class_version_id/academic_year_id and excludes practice
+// exams (is_practice=false), so this is the one call that answers "which
+// of my class's real exams have I not attempted yet" without a second
+// round-trip per exam to check attempt status.
+export function getStudentDashboard(studentProfileId: number, token: string): Promise<{ data: StudentDashboard }> {
+  return apiFetch<{ data: StudentDashboard }>(`/student-profiles/${studentProfileId}/dashboard`, {
+    headers: authHeaders(token),
+  })
+}

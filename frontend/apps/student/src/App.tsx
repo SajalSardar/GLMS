@@ -9,6 +9,7 @@ import DashboardPage from './pages/DashboardPage'
 import BooksPage from './pages/BooksPage'
 import BookDetailPage from './pages/BookDetailPage'
 import ClassMaterialsPage from './pages/ClassMaterialsPage'
+import ClassExamsPage from './pages/ClassExamsPage'
 import VideoLecturePage from './pages/VideoLecturePage'
 import VideoPlaylistPage from './pages/VideoPlaylistPage'
 import ExamsPage from './pages/ExamsPage'
@@ -47,6 +48,7 @@ function App() {
               <Route element={<RequireAuth />}>
                 <Route path="dashboard" element={<DashboardPage />} />
                 <Route path="class-materials" element={<ClassMaterialsPage />} />
+                <Route path="class-exams" element={<ClassExamsPage />} />
               </Route>
               <Route path="books" element={<BooksPage />} />
               <Route path="books/:id" element={<BookDetailPage />} />

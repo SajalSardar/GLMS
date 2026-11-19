@@ -21,6 +21,7 @@ import {
   getExam,
   getHealth,
   getPracticeExamConfig,
+  getStudentDashboard,
   listAcademicYears,
   listBooks,
   listChapterMaterials,
@@ -35,6 +36,7 @@ import {
   listSchools,
   listSections,
   listShifts,
+  listStudentProfiles,
   listSubjectTeacherAssignments,
   listSubjects,
   listTeacherUsers,
@@ -1036,5 +1038,42 @@ describe('guest exam attempts', () => {
       method: 'POST',
       body: JSON.stringify({ answers }),
     })
+  })
+})
+
+describe('student profiles', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('lists student profiles filtered by user_id with a token', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ data: [], meta: {}, links: {} }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    await listStudentProfiles({ userId: 1, perPage: 1 }, 'tok')
+
+    expect(mockFetch.mock.calls[0][0]).toBe(
+      `${import.meta.env.VITE_API_BASE_URL}/student-profiles?per_page=1&user_id=1`,
+    )
+    expect(mockFetch.mock.calls[0][1]).toMatchObject({ headers: { Authorization: 'Bearer tok' } })
+  })
+
+  it("fetches a student's own dashboard rollup with a required token", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          data: { student_profile_id: 1, class_version_id: 10, academic_year_id: 2, subjects: [] },
+        }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    await getStudentDashboard(1, 'tok')
+
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/student-profiles/1/dashboard`)
+    expect(mockFetch.mock.calls[0][1]).toMatchObject({ headers: { Authorization: 'Bearer tok' } })
   })
 })
