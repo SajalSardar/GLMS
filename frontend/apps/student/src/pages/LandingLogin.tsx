@@ -255,96 +255,107 @@ export default function LandingLogin() {
 
   return (
     <div className="overflow-x-hidden text-[color:var(--color-ink)]">
-      <section className="mx-auto flex max-w-[76rem] flex-col gap-10 px-5 pt-8 pb-12 lg:flex-row lg:items-center lg:pt-12 lg:pb-16" id="top">
-        <div className="lg:order-2 lg:flex-1" id="login">
-          {isAuthenticated ? (
-            <div
-              className={`relative mx-auto max-w-[26rem] rounded-[1.1rem] border border-[color:var(--color-border)] bg-white px-6 py-10 text-center shadow-[0_18px_40px_-24px_rgba(15,107,76,0.35)] ${LOGIN_CARD_TOP_BAR}`}
-            >
-              <p className="m-0 text-[1.2rem] font-semibold font-display">{t['landing.login.alreadyTitle']}</p>
-              <Link
-                className="mt-4 block w-full rounded-[0.6rem] bg-primary-500 p-3 text-center text-base font-semibold text-white hover:bg-primary-700"
-                to="/books"
+      <section className="relative overflow-hidden bg-[url('/hero-banner.png')] bg-cover bg-center" id="top">
+        {/* Below lg, content stacks vertically (no left/right split), so a
+            uniform overlay reads better than a directional one; at lg the
+            two-column layout earns the left-to-right fade — opaque behind
+            the headline, fading out so the photo shows through on the right
+            behind the login card (which is opaque on its own anyway). */}
+        <div
+          className="absolute inset-0 bg-white/90 lg:bg-gradient-to-r lg:from-white lg:via-white/85 lg:to-white/30"
+          aria-hidden="true"
+        />
+        <div className="relative mx-auto flex max-w-[76rem] flex-col gap-10 px-5 pt-8 pb-12 lg:flex-row lg:items-center lg:pt-12 lg:pb-16">
+          <div className="lg:order-2 lg:flex-1" id="login">
+            {isAuthenticated ? (
+              <div
+                className={`relative mx-auto max-w-[26rem] rounded-[1.1rem] border border-[color:var(--color-border)] bg-white px-6 py-10 text-center shadow-[0_18px_40px_-24px_rgba(15,107,76,0.35)] ${LOGIN_CARD_TOP_BAR}`}
               >
-                {t['landing.login.alreadyCta']}
-              </Link>
-            </div>
-          ) : (
-            <LoginCard onSuccess={() => setLoggedInJustNow(true)} />
-          )}
-        </div>
+                <p className="m-0 text-[1.2rem] font-semibold font-display">{t['landing.login.alreadyTitle']}</p>
+                <Link
+                  className="mt-4 block w-full rounded-[0.6rem] bg-primary-500 p-3 text-center text-base font-semibold text-white hover:bg-primary-700"
+                  to="/books"
+                >
+                  {t['landing.login.alreadyCta']}
+                </Link>
+              </div>
+            ) : (
+              <LoginCard onSuccess={() => setLoggedInJustNow(true)} />
+            )}
+          </div>
 
-        <div className="lg:order-1 lg:flex-[1.2] lg:text-left">
-          <h1 className="text-center text-[clamp(1.75rem,6vw,2.6rem)] font-bold leading-[1.22] font-display lg:text-left">
-            {t['landing.hero.heading1']}
-            <br />
-            {t['landing.hero.heading2']}
-          </h1>
-          <p className="mx-auto mt-4 max-w-[34ch] text-center text-[1.02rem] leading-[1.7] text-[color:var(--color-muted)] lg:ml-0 lg:text-left">
-            {t['landing.hero.sub1']}
-            <br />
-            {t['landing.hero.sub2']}
-          </p>
+          <div className="lg:order-1 lg:flex-[1.2] lg:text-left">
+            <h1 className="text-center text-[clamp(1.75rem,6vw,2.6rem)] font-bold leading-[1.22] font-display lg:text-left">
+              {t['landing.hero.heading1']}
+              <br />
+              {t['landing.hero.heading2']}
+            </h1>
+            <p className="mx-auto mt-4 max-w-[34ch] text-center text-[1.02rem] leading-[1.7] text-[color:var(--color-muted)] lg:ml-0 lg:text-left">
+              {t['landing.hero.sub1']}
+              <br />
+              {t['landing.hero.sub2']}
+            </p>
 
-          <ul className="mt-6 grid list-none grid-cols-2 justify-items-center gap-x-6 gap-y-4 p-0 sm:grid-cols-4 lg:justify-items-start">
-            {HERO_BADGES.map((badge) => (
-              <li key={badge.label} className="flex flex-col items-center gap-1 text-[0.8rem] font-medium text-[color:var(--color-ink)]">
-                <img src={badge.image} alt="" className="h-12 w-12 object-contain" />
-                {badge.label}
-              </li>
-            ))}
-          </ul>
-
-          <form
-            className="mx-auto mt-7 flex max-w-[30rem] flex-col gap-[0.6rem] md:flex-row lg:ml-0"
-            onSubmit={(event) => {
-              event.preventDefault()
-              document.getElementById('classes')?.scrollIntoView({ behavior: 'smooth' })
-            }}
-          >
-            <label className="sr-only" htmlFor="hero-filter-class">
-              {t['landing.hero.filterClassLabel']}
-            </label>
-            <select
-              id="hero-filter-class"
-              defaultValue=""
-              className={`rounded-[0.6rem] border border-[color:var(--color-border)] bg-white px-[0.8rem] py-[0.65rem] text-[0.9rem] text-[color:var(--color-ink)] md:flex-1 ${FOCUS_RING}`}
-            >
-              <option value="" disabled>
-                {t['landing.hero.filterClassAll']}
-              </option>
-              {CLASS_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
+            <ul className="mt-6 grid list-none grid-cols-2 justify-items-center gap-x-6 gap-y-4 p-0 sm:grid-cols-4 lg:justify-items-start">
+              {HERO_BADGES.map((badge) => (
+                <li key={badge.label} className="flex flex-col items-center gap-1 text-[0.8rem] font-medium text-[color:var(--color-ink)]">
+                  <img src={badge.image} alt="" className="h-12 w-12 object-contain" />
+                  {badge.label}
+                </li>
               ))}
-            </select>
+            </ul>
 
-            <label className="sr-only" htmlFor="hero-filter-subject">
-              {t['landing.hero.filterSubjectLabel']}
-            </label>
-            <select
-              id="hero-filter-subject"
-              defaultValue=""
-              className={`rounded-[0.6rem] border border-[color:var(--color-border)] bg-white px-[0.8rem] py-[0.65rem] text-[0.9rem] text-[color:var(--color-ink)] md:flex-1 ${FOCUS_RING}`}
+            <form
+              className="mx-auto mt-7 flex max-w-[30rem] flex-col gap-[0.6rem] md:flex-row lg:ml-0"
+              onSubmit={(event) => {
+                event.preventDefault()
+                document.getElementById('classes')?.scrollIntoView({ behavior: 'smooth' })
+              }}
             >
-              <option value="" disabled>
-                {t['landing.hero.filterSubjectAll']}
-              </option>
-              {SUBJECT_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option}
+              <label className="sr-only" htmlFor="hero-filter-class">
+                {t['landing.hero.filterClassLabel']}
+              </label>
+              <select
+                id="hero-filter-class"
+                defaultValue=""
+                className={`rounded-[0.6rem] border border-[color:var(--color-border)] bg-white px-[0.8rem] py-[0.65rem] text-[0.9rem] text-[color:var(--color-ink)] md:flex-1 ${FOCUS_RING}`}
+              >
+                <option value="" disabled>
+                  {t['landing.hero.filterClassAll']}
                 </option>
-              ))}
-            </select>
+                {CLASS_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
 
-            <button
-              type="submit"
-              className={`cursor-pointer rounded-[0.6rem] bg-primary-500 px-[0.8rem] py-[0.65rem] text-[0.9rem] font-semibold text-white hover:bg-primary-700 ${FOCUS_RING}`}
-            >
-              {t['landing.hero.filterSubmit']}
-            </button>
-          </form>
+              <label className="sr-only" htmlFor="hero-filter-subject">
+                {t['landing.hero.filterSubjectLabel']}
+              </label>
+              <select
+                id="hero-filter-subject"
+                defaultValue=""
+                className={`rounded-[0.6rem] border border-[color:var(--color-border)] bg-white px-[0.8rem] py-[0.65rem] text-[0.9rem] text-[color:var(--color-ink)] md:flex-1 ${FOCUS_RING}`}
+              >
+                <option value="" disabled>
+                  {t['landing.hero.filterSubjectAll']}
+                </option>
+                {SUBJECT_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+
+              <button
+                type="submit"
+                className={`cursor-pointer rounded-[0.6rem] bg-primary-500 px-[0.8rem] py-[0.65rem] text-[0.9rem] font-semibold text-white hover:bg-primary-700 ${FOCUS_RING}`}
+              >
+                {t['landing.hero.filterSubmit']}
+              </button>
+            </form>
+          </div>
         </div>
       </section>
 
