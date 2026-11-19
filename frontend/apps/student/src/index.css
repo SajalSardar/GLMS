@@ -2,21 +2,20 @@
 @source '../../../packages/ui/src';
 
 @theme {
-  /* Green brand ramp, bracketing this app's actual primary green (#0f6b4c).
-     50/500/700 are pinned to the exact hex values the reference design
-     already uses (--color-primary-tint / --color-primary / --color-primary-dark
-     below), the rest are interpolated to match the same kind of ramp shape
-     the old indigo scale used. */
-  --color-primary-50: #e8f5ee;
-  --color-primary-100: #bfd9ce;
-  --color-primary-200: #93bead;
-  --color-primary-300: #67a28d;
-  --color-primary-400: #3b876c;
-  --color-primary-500: #0f6b4c;
-  --color-primary-600: #0d5c42;
-  --color-primary-700: #0a4d37;
-  --color-primary-800: #083e2d;
-  --color-primary-900: #062f23;
+  /* Green brand ramp, matching the login&frontend.jpeg reference exactly:
+     50/500/700 are pinned to its light/brand/dark greens (--color-primary-tint
+     / --color-primary / --color-primary-dark below), the rest interpolated
+     to the same kind of ramp shape the old scale used. */
+  --color-primary-50: #eaf6ec;
+  --color-primary-100: #bfdfc9;
+  --color-primary-200: #94c8a5;
+  --color-primary-300: #6ab182;
+  --color-primary-400: #3f9a5e;
+  --color-primary-500: #14833b;
+  --color-primary-600: #0f7735;
+  --color-primary-700: #0b6b2e;
+  --color-primary-800: #095c24;
+  --color-primary-900: #074d1a;
 
   /* Tone colors, copied verbatim from the old LandingLogin.css `.landing`
      block — every badge/card/icon accent color across the site. */
@@ -51,12 +50,12 @@
   font-family:
     'Hind Siliguri', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
 
-  --color-primary: #0f6b4c;
-  --color-primary-dark: #0a4d37;
-  --color-primary-tint: #e8f5ee;
+  --color-primary: #14833b;
+  --color-primary-dark: #0b6b2e;
+  --color-primary-tint: #eaf6ec;
   --color-accent: #f2a93b;
   --color-accent-dark: #c9820f;
-  --color-ink: #142420;
+  --color-ink: #123b22;
   --color-muted: #4b5d57;
   --color-surface: #ffffff;
   --color-border: #d8e8e0;

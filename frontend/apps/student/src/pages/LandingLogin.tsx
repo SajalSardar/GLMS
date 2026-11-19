@@ -92,14 +92,14 @@ const FOCUS_RING =
 export default function LandingLogin() {
   return (
     <div className="overflow-x-hidden text-[color:var(--color-ink)]">
-      <section className="relative overflow-hidden bg-[url('/hero-banner.png')] bg-cover bg-center" id="top">
-        {/* A light wash, not a near-opaque one — the photo should stay
-            clearly visible. Below lg it's a uniform tint (content stacks
-            vertically, no left/right split); at lg it's a left-to-right
-            fade so the headline side has a touch more contrast while the
-            photo shows fully behind the login card. */}
+      <section className="relative overflow-hidden bg-[url('/hero-banner.png')] bg-cover bg-center py-6 lg:py-10" id="top">
+        {/* A light-to-deep brand-green wash, not a white one — gives the
+            banner some depth while the photo stays clearly visible. Below
+            lg it fades top-to-bottom (content stacks vertically, no left/
+            right split); at lg it fades left-to-right so the headline side
+            reads light and the photo deepens toward the right. */}
         <div
-          className="absolute inset-0 bg-white/20 lg:bg-gradient-to-r lg:from-white/55 lg:via-white/25 lg:to-transparent"
+          className="absolute inset-0 bg-gradient-to-b from-primary-50/60 via-primary-50/25 to-primary-900/20 lg:bg-gradient-to-r lg:from-primary-50/70 lg:via-primary-50/25 lg:to-primary-900/10"
           aria-hidden="true"
         />
         <div className="relative mx-auto flex max-w-[76rem] flex-col gap-10 px-5 pt-8 pb-12 lg:items-start lg:pt-16 lg:pb-20">
