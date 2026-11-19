@@ -662,103 +662,50 @@ export default function ExamRunnerPage() {
     )
   }
 
-  // status === 'submitted'
+  // status === 'submitted' — only the score card is shown, centered on
+  // the page; the per-question answer breakdown and question list are
+  // deliberately not rendered here anymore.
   return (
-    <section className="mx-auto max-w-3xl px-4 py-8 lg:px-8">
+    <section className="mx-auto flex min-h-[60vh] max-w-3xl items-center justify-center px-4 py-8 lg:px-8">
       {result && (
-        <>
-          <div className="rounded-lg border border-primary-100 p-4">
-            <p className="text-lg font-semibold text-primary-800">
-              {t['student.exams.score']}: {result.score ?? 0} / {result.totalPossibleMarks ?? 0}
-            </p>
-            {/*
-              The tiered verdict and certificate belong to PRACTICE exams
-              only. A teacher-created exam has its own
-              passing_score_percent, and the backend already graded this
-              attempt against it into `result.passed` — applying the
-              practice tier cutoffs here would both contradict that
-              verdict (a student failing a teacher's exam could be shown
-              "Passed") and offer a certificate that exam never had.
-              Non-practice exams therefore keep the original, simple
-              passed/failed line with no certificate button, and a
-              practice exam whose config failed to load falls back to the
-              same line rather than showing no verdict at all.
-            */}
-            {examPreview?.is_practice && config && result.totalPossibleMarks !== null && result.totalPossibleMarks > 0 ? (
-              (() => {
-                const percent = ((result.score ?? 0) / result.totalPossibleMarks) * 100
-                const tier = tierFor(percent, config)
+        <div className="w-full max-w-md rounded-2xl border border-primary-100 bg-white p-8 text-center shadow-sm">
+          <p className="text-lg font-semibold text-primary-800">
+            {t['student.exams.score']}: {result.score ?? 0} / {result.totalPossibleMarks ?? 0}
+          </p>
+          {/*
+            The tiered verdict belongs to PRACTICE exams only. A
+            teacher-created exam has its own passing_score_percent, and
+            the backend already graded this attempt against it into
+            `result.passed` — applying the practice tier cutoffs here
+            would contradict that verdict (a student failing a teacher's
+            exam could be shown "Passed"). Non-practice exams therefore
+            keep the original, simple passed/failed line, and a practice
+            exam whose config failed to load falls back to the same line
+            rather than showing no verdict at all. The "View certificate"
+            button is intentionally not shown here — see the user request
+            that removed it.
+          */}
+          {examPreview?.is_practice && config && result.totalPossibleMarks !== null && result.totalPossibleMarks > 0 ? (
+            (() => {
+              const tier = tierFor(((result.score ?? 0) / result.totalPossibleMarks) * 100, config)
+              return <p className={`mt-1 text-sm font-medium ${TIER_TONE[tier]}`}>{t[TIER_LABEL_KEY[tier]]}</p>
+            })()
+          ) : (
+            result.passed !== null && (
+              <p className={`mt-1 text-sm font-medium ${result.passed ? 'text-success-600' : 'text-danger-600'}`}>
+                {result.passed ? t['student.exams.passed'] : t['student.exams.failed']}
+              </p>
+            )
+          )}
 
-                return (
-                  <>
-                    <p className={`mt-1 text-sm font-medium ${TIER_TONE[tier]}`}>{t[TIER_LABEL_KEY[tier]]}</p>
-                    {tier !== 'failed' && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          navigate(`/exams/${examId}/certificate`, {
-                            state: {
-                              score: result.score ?? 0,
-                              total: result.totalPossibleMarks,
-                              percent,
-                              tier,
-                              date: new Date().toISOString(),
-                            },
-                          })
-                        }
-                        className="mt-3 cursor-pointer rounded-md border border-primary-300 px-4 py-2 text-sm font-semibold text-primary-700 hover:bg-[#EB1F27] hover:text-white"
-                      >
-                        {t['student.exams.viewCertificate']}
-                      </button>
-                    )}
-                  </>
-                )
-              })()
-            ) : (
-              result.passed !== null && (
-                <p className={`mt-1 text-sm font-medium ${result.passed ? 'text-success-600' : 'text-danger-600'}`}>
-                  {result.passed ? t['student.exams.passed'] : t['student.exams.failed']}
-                </p>
-              )
-            )}
-          </div>
-
-          <div className="mt-6 flex flex-col gap-6">
-            {result.questions.map((question, index) => (
-              <div key={question.questionId} className="rounded-lg border border-primary-100 p-4">
-                <p className="font-semibold text-primary-800">
-                  {index + 1}. {question.questionText}
-                </p>
-                <div className="mt-3 flex flex-col gap-1 text-sm">
-                  {question.options.map((option) => {
-                    const wasSelected = question.selectedOptionIds.includes(option.id)
-                    const isCorrectOption = question.correctOptionIds.includes(option.id)
-
-                    let tone = 'text-primary-800'
-                    if (isCorrectOption) {
-                      tone = 'text-success-600 font-medium'
-                    } else if (wasSelected) {
-                      tone = 'text-danger-600'
-                    }
-
-                    return (
-                      <p key={option.id} className={tone}>
-                        {option.option_text}
-                        {wasSelected && ` (${t['student.exams.yourAnswer']})`}
-                        {isCorrectOption && ` (${t['student.exams.correctAnswer']})`}
-                      </p>
-                    )
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
+          <Link
+            to="/exams"
+            className="mt-6 block w-full cursor-pointer rounded-md bg-primary-500 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-[#EB1F27]"
+          >
+            {t['student.exams.goToExamsPage']}
+          </Link>
+        </div>
       )}
-
-      <Link to="/exams" className="mt-6 inline-block text-sm font-semibold text-primary-700 underline">
-        {t['student.exams.title']}
-      </Link>
     </section>
   )
 }

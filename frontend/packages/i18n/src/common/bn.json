@@ -99,6 +99,7 @@
   "student.exams.timeUp": "সময় শেষ হয়ে গেছে। এই পরীক্ষাটি আর জমা দেওয়া যাবে না।",
   "student.exams.sessionEnded": "পৃষ্ঠা রিফ্রেশ হওয়ার কারণে তোমার আগের পরীক্ষার সেশনটি শেষ হয়ে গেছে। যদি সেটি শেষ না করে থাকো, তাহলে এখান থেকে একটি নতুন অনুশীলন পরীক্ষা শুরু করো।",
   "student.exams.noRefreshWarning": "পরীক্ষা শুরু করার পর এই পৃষ্ঠাটি রিফ্রেশ বা রিলোড করো না — করলে তোমার পরীক্ষাটি বন্ধ হয়ে যাবে এবং আর জমা দেওয়া যাবে না।",
+  "student.exams.goToExamsPage": "পরীক্ষা পেজে যাও",
   "student.practiceExam.title": "অনুশীলন পরীক্ষা",
   "student.practiceExam.pickClass": "শ্রেণি নির্বাচন করো",
   "student.practiceExam.pickSubject": "বিষয় নির্বাচন করো",

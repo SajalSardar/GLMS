@@ -99,6 +99,7 @@
   "student.exams.timeUp": "Time's up. This exam can no longer be submitted.",
   "student.exams.sessionEnded": "Your previous exam session ended because the page was reloaded. If you hadn't finished it, start a new practice exam from here.",
   "student.exams.noRefreshWarning": "Don't refresh or reload this page once you start the exam — doing so will end your session and you won't be able to submit it.",
+  "student.exams.goToExamsPage": "Go to exam page",
   "student.practiceExam.title": "Practice Exam",
   "student.practiceExam.pickClass": "Select a class",
   "student.practiceExam.pickSubject": "Select a subject",
