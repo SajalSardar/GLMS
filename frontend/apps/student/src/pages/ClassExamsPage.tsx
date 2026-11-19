@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@ttla/auth'
 import { ownStudentDashboard } from '../lib/resolveContent'
 import { useLocale } from '../lib/locale'
+import Pagination from '../components/Pagination'
+
+const PAGE_SIZE = 10
 
 interface UntakenExamRow {
   examId: number
@@ -52,6 +55,7 @@ export default function ClassExamsPage() {
   const [noClass, setNoClass] = useState(false)
   const [untakenExams, setUntakenExams] = useState<UntakenExamRow[]>([])
   const [takenExams, setTakenExams] = useState<TakenExamRow[]>([])
+  const [takenPage, setTakenPage] = useState(1)
 
   useEffect(() => {
     if (!token || !userId) return
@@ -111,6 +115,10 @@ export default function ClassExamsPage() {
       active = false
     }
   }, [token, userId])
+
+  const takenTotalPages = Math.max(1, Math.ceil(takenExams.length / PAGE_SIZE))
+  const takenCurrentPage = Math.min(takenPage, takenTotalPages)
+  const pagedTakenExams = takenExams.slice((takenCurrentPage - 1) * PAGE_SIZE, takenCurrentPage * PAGE_SIZE)
 
   return (
     <section className="mx-auto max-w-4xl px-4 py-8 lg:px-8">
@@ -186,7 +194,7 @@ export default function ClassExamsPage() {
                 </tr>
               </thead>
               <tbody>
-                {takenExams.map((exam) => (
+                {pagedTakenExams.map((exam) => (
                   <tr key={exam.examId}>
                     <td className="border-b border-gray-100 px-5 py-4 whitespace-nowrap">
                       <span className="font-medium text-primary-900">{exam.examName}</span>
@@ -215,6 +223,16 @@ export default function ClassExamsPage() {
               </tbody>
             </table>
           </div>
+
+          <Pagination
+            currentPage={takenCurrentPage}
+            totalPages={takenTotalPages}
+            onPrevious={() => setTakenPage((previous) => Math.max(1, previous - 1))}
+            onNext={() => setTakenPage((previous) => Math.min(takenTotalPages, previous + 1))}
+            previousLabel={t['student.classExams.previousPage']}
+            nextLabel={t['student.classExams.nextPage']}
+            pageOfLabel={t['student.classExams.pageOf']}
+          />
         </>
       )}
     </section>

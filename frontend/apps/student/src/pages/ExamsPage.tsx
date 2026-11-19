@@ -19,6 +19,9 @@ import {
   type ChapterWithBook,
 } from '../lib/resolveContent'
 import { useLocale } from '../lib/locale'
+import Pagination from '../components/Pagination'
+
+const PAST_ATTEMPTS_PAGE_SIZE = 10
 
 function InfoAlert({ message }: { message: string }) {
   return (
@@ -161,6 +164,7 @@ export default function ExamsPage() {
   const [error, setError] = useState<string | null>(null)
 
   const [pastAttempts, setPastAttempts] = useState<ExamAttempt[]>([])
+  const [pastAttemptsPage, setPastAttemptsPage] = useState(1)
 
   useEffect(() => {
     if (!token) {
@@ -326,6 +330,13 @@ export default function ExamsPage() {
   const hint = questionHint()
   const ownClass = ownClassLocked && classId !== null ? classesById.get(classId) : undefined
 
+  const pastAttemptsTotalPages = Math.max(1, Math.ceil(pastAttempts.length / PAST_ATTEMPTS_PAGE_SIZE))
+  const pastAttemptsCurrentPage = Math.min(pastAttemptsPage, pastAttemptsTotalPages)
+  const pagedPastAttempts = pastAttempts.slice(
+    (pastAttemptsCurrentPage - 1) * PAST_ATTEMPTS_PAGE_SIZE,
+    pastAttemptsCurrentPage * PAST_ATTEMPTS_PAGE_SIZE,
+  )
+
   return (
     <section className="mx-auto max-w-4xl px-4 py-8 lg:px-8">
       <h1 className="text-2xl font-bold text-primary-800">{t['student.practiceExam.title']}</h1>
@@ -433,7 +444,7 @@ export default function ExamsPage() {
                 </tr>
               </thead>
               <tbody>
-                {pastAttempts.map((attempt) => {
+                {pagedPastAttempts.map((attempt) => {
                   // PracticeExamController::store() names the exam after the
                   // chapter(s) it was built from (comma-joined when several
                   // were picked), so this is the real chapter name — not a
@@ -467,6 +478,16 @@ export default function ExamsPage() {
               </tbody>
             </table>
           </div>
+
+          <Pagination
+            currentPage={pastAttemptsCurrentPage}
+            totalPages={pastAttemptsTotalPages}
+            onPrevious={() => setPastAttemptsPage((previous) => Math.max(1, previous - 1))}
+            onNext={() => setPastAttemptsPage((previous) => Math.min(pastAttemptsTotalPages, previous + 1))}
+            previousLabel={t['student.practiceExam.previousPage']}
+            nextLabel={t['student.practiceExam.nextPage']}
+            pageOfLabel={t['student.practiceExam.pageOf']}
+          />
         </>
       )}
     </section>
