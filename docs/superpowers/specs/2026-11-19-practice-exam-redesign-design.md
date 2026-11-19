@@ -30,12 +30,45 @@ The backend already has a complete exam-taking engine:
   on an enrollment mismatch or a 403, and renders the same
   question-answering UI either way.
 
-None of that needs to change. The only thing missing is a way for a
+Almost none of that needs to change. The main addition is a way for a
 **student** (not an admin) to create an `Exam` row on the fly from
-their own chapter picks. So the new backend surface is small: one
-endpoint that provisions a hidden `Exam` row wired to the student's
-selection, returning its id. The frontend navigates to `/exams/:id`
-and the existing runner takes over unchanged.
+their own chapter picks: one endpoint that provisions a hidden `Exam`
+row wired to the student's selection, returning its id. The frontend
+navigates to `/exams/:id` and the existing runner takes over unchanged.
+The other change is a tightening, covered next.
+
+## Guest access is now exclusive to practice exams
+
+Today, `GuestExamAttemptController` lets anyone — no login — draw and
+submit *any* published exam, including a teacher's own
+manually-created ones. That's no longer correct: teacher-created exams
+must require login, and only a student enrolled in that exam's own
+school+class may attempt one. Practice exams (the new feature in this
+spec) are the only exams that stay open to guests.
+
+- `ExamAttemptController::start()` already enforces "same school+class"
+  correctly today — `class_version_id` is itself school-specific, so
+  matching the attempting student's own `class_version_id` against the
+  exam's already rules out both a different school and a different
+  class in one comparison. Nothing to change there.
+- What's missing is blocking the *guest* path for non-practice exams.
+  `GuestExamAttemptController::randomDraw()` and `submit()` each gain an
+  `abort_unless($exam->is_practice, 403)` check (in addition to their
+  existing `isPubliclyTakeable()` check) — a guest can no longer reach a
+  teacher-created exam's questions or submit answers to it at all.
+- `ExamResource` gains an `is_practice` field so the frontend can tell
+  the difference up front. `ExamRunnerPage.tsx`'s setup screen checks
+  `!token && !examPreview.is_practice` and shows a clear "this exam
+  requires login" message instead of a Start button — rather than
+  letting a guest hit Start and get a confusing 403 from the draw call.
+- New test in `GuestExamAttemptControllerTest`: a published,
+  non-practice exam's `randomDraw()`/`submit()` both reject a guest
+  request (403), while the identical calls against a practice exam
+  still succeed.
+- Not a new restriction, just confirmed unaffected: teachers already
+  hold `exams.create`/`exams.update` (verified in
+  `RolePermissionSeeder`), so exam creation/publishing is untouched by
+  any of this.
 
 ## Data flow
 
@@ -186,6 +219,10 @@ public routes.
 - A unit or feature test on `Exam::eligibleRandomQuestionIds()` proving
   a cross-school chapter selection is no longer emptied out, and that
   an existing single-school exam's behavior is unchanged.
+- `GuestExamAttemptControllerTest`: a new case proving a published,
+  non-practice exam's `randomDraw()`/`submit()` reject a guest with
+  403, while the same calls against a practice exam still succeed
+  (covered in "Guest access is now exclusive to practice exams" above).
 
 ## Frontend changes
 
@@ -251,6 +288,9 @@ for the tiered messages and certificate copy, in both `bn.json` and
 - Practice `Exam` rows accumulate indefinitely; no cleanup job.
 - The certificate page cannot be reloaded or reshared after the fact —
   it only exists for the single navigation right after finishing.
-- Pre-built admin-created exams are no longer reachable from student
-  nav (the admin/teacher-facing exam-management backend is untouched;
-  only the student-facing browse list is replaced).
+- Teacher-created exams are no longer reachable from student nav at
+  all, and (per "Guest access is now exclusive to practice exams"
+  above) now require login + same-school/class enrollment even via a
+  direct link. The admin/teacher-facing exam-management backend itself
+  is untouched — only the student-facing browse list and guest access
+  are affected.
