@@ -68,6 +68,7 @@ class GuestExamAttemptControllerTest extends TestCase
             'name' => 'Guest Exam',
             'selection_mode' => 'manual',
             'status' => 'published',
+            'is_practice' => true,
         ]);
 
         foreach ($questions as $index => $question) {
@@ -90,6 +91,7 @@ class GuestExamAttemptControllerTest extends TestCase
             'name' => 'Guest Random Exam',
             'selection_mode' => 'per_attempt_random',
             'status' => 'published',
+            'is_practice' => true,
             'random_question_count' => $randomCount,
             'marks_per_question' => $marksPerQuestion,
         ]);
@@ -281,6 +283,23 @@ class GuestExamAttemptControllerTest extends TestCase
             ->postJson("/api/v1/exams/{$exam->id}/guest-submissions", [
                 'answers' => [['question_id' => $question->id, 'selected_option_ids' => [$correctOptionId]]],
             ])->assertOk();
+
+        $this->assertDatabaseCount('exam_attempts', 0);
+        $this->assertDatabaseCount('exam_attempt_questions', 0);
+        $this->assertDatabaseCount('exam_attempt_answers', 0);
+    }
+
+    public function test_random_draw_and_guest_submission_are_blocked_for_a_non_practice_exam(): void
+    {
+        $question = $this->makeQuestion(correctIsOptionA: true);
+        $exam = $this->publishedRandomExam(1);
+        $exam->update(['is_practice' => false]);
+
+        $this->postJson("/api/v1/exams/{$exam->id}/random-draw")->assertForbidden();
+
+        $this->postJson("/api/v1/exams/{$exam->id}/guest-submissions", [
+            'answers' => [['question_id' => $question->id, 'selected_option_ids' => []]],
+        ])->assertForbidden();
 
         $this->assertDatabaseCount('exam_attempts', 0);
         $this->assertDatabaseCount('exam_attempt_questions', 0);

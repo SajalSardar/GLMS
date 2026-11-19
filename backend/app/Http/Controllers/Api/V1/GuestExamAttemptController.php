@@ -22,6 +22,7 @@ class GuestExamAttemptController extends Controller
     public function randomDraw(Exam $exam): AnonymousResourceCollection
     {
         abort_unless($exam->isPubliclyTakeable(), 404);
+        abort_unless($exam->is_practice, 403);
 
         if ($exam->selection_mode !== 'per_attempt_random') {
             throw ValidationException::withMessages(['exam' => ['This exam does not use random question selection.']]);
@@ -48,6 +49,7 @@ class GuestExamAttemptController extends Controller
     public function submit(SubmitGuestExamAttemptRequest $request, Exam $exam): JsonResponse
     {
         abort_unless($exam->isPubliclyTakeable(), 404);
+        abort_unless($exam->is_practice, 403);
 
         $answers = collect($request->validated('answers'))->keyBy('question_id');
         $submittedIds = $answers->keys()->values();
