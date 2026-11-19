@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getChapterMaterialDownloadLink, listMyChapterMaterials, type ChapterMaterial } from '@ttla/api-client'
+import { getChapterMaterialDownloadLink, listMyChapterMaterials, type ChapterMaterial, type Subject } from '@ttla/api-client'
 import { useAuth } from '@ttla/auth'
 import { useLocale } from '../lib/locale'
 
@@ -8,6 +8,13 @@ function formatFileSize(bytes: number | null): string | null {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function chapterLabel(material: ChapterMaterial): string {
+  const chapter = material.chapter
+  if (!chapter) return ''
+  const number = chapter.bn_chapter_number ?? chapter.chapter_number ?? ''
+  return `${number} ${chapter.bn_name ?? chapter.name}`.trim()
 }
 
 function InfoAlert({ message }: { message: string }) {
@@ -34,62 +41,13 @@ function InfoAlert({ message }: { message: string }) {
   )
 }
 
-function DocumentIcon() {
-  return (
-    <svg
-      width={20}
-      height={20}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.8}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      className="flex-shrink-0 text-primary-500"
-    >
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-      <path d="M14 2v6h6" />
-    </svg>
-  )
-}
-
-interface ChapterGroup {
-  chapterId: number
-  chapterTitle: string
-  bookName: string
-  materials: ChapterMaterial[]
-}
-
-function groupByChapter(materials: ChapterMaterial[]): ChapterGroup[] {
-  const groups = new Map<number, ChapterGroup>()
-
-  for (const material of materials) {
-    const chapter = material.chapter
-    if (!chapter) continue
-
-    const existing = groups.get(chapter.id)
-    if (existing) {
-      existing.materials.push(material)
-      continue
-    }
-
-    const number = chapter.bn_chapter_number ?? chapter.chapter_number ?? ''
-    const title = `${number} ${chapter.bn_name ?? chapter.name}`.trim()
-    const bookName = chapter.book ? (chapter.book.bn_name ?? chapter.book.name) : ''
-
-    groups.set(chapter.id, { chapterId: chapter.id, chapterTitle: title, bookName, materials: [material] })
-  }
-
-  return [...groups.values()]
-}
-
 export default function ClassMaterialsPage() {
   const { t } = useLocale()
   const { token } = useAuth()
 
   const [loading, setLoading] = useState(true)
   const [materials, setMaterials] = useState<ChapterMaterial[]>([])
+  const [subjectId, setSubjectId] = useState<number | null>(null)
   const [materialLinkError, setMaterialLinkError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -100,9 +58,9 @@ export default function ClassMaterialsPage() {
 
     // Scoped entirely server-side to this student's own school/district/
     // shift/section/class/class_version (ChapterMaterialController::
-    // mine()) — there is no class/subject picker here because there is
-    // nothing to pick: a material only ever shows up here when it
-    // exactly matches this student's own class.
+    // mine()), already ordered newest-first — there is no class picker
+    // here because there is nothing to pick: a material only ever shows
+    // up when it exactly matches this student's own class.
     listMyChapterMaterials(token)
       .then((result) => {
         if (active) setMaterials(result.data)
@@ -143,45 +101,87 @@ export default function ClassMaterialsPage() {
     }
   }
 
-  const chapterGroups = groupByChapter(materials)
+  // Every subject actually present in this student's own materials — not
+  // the full national subject list, since most subjects won't have
+  // anything here anyway.
+  const subjects = [
+    ...new Map(
+      materials
+        .map((material) => material.chapter?.book?.subject)
+        .filter((subject): subject is Subject => subject !== null && subject !== undefined)
+        .map((subject) => [subject.id, subject] as const),
+    ).values(),
+  ].sort((a, b) => a.name.localeCompare(b.name))
+
+  // Order is preserved from the API response (already newest-first).
+  const visibleMaterials =
+    subjectId === null
+      ? materials
+      : materials.filter((material) => material.chapter?.book?.subject_id === subjectId)
 
   return (
-    <section className="mx-auto max-w-4xl px-4 py-8 lg:px-8">
+    <section className="mx-auto max-w-5xl px-4 py-8 lg:px-8">
       <h1 className="text-2xl font-bold text-primary-800">{t['student.classMaterials.title']}</h1>
+
+      {!loading && materials.length > 0 && (
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <select
+            className="h-10 min-w-[12rem] rounded-md border border-primary-200 px-3 text-sm"
+            value={subjectId ?? ''}
+            onChange={(event) => setSubjectId(event.target.value ? Number(event.target.value) : null)}
+          >
+            <option value="">{t['student.classMaterials.allSubjects']}</option>
+            {subjects.map((subject) => (
+              <option key={subject.id} value={subject.id}>
+                {subject.bn_name ?? subject.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {loading && <p className="mt-6 text-sm text-primary-600">{t['student.classMaterials.loading']}</p>}
 
-      {!loading && chapterGroups.length === 0 && <InfoAlert message={t['student.classMaterials.noMaterials']} />}
+      {!loading && materials.length === 0 && <InfoAlert message={t['student.classMaterials.noMaterials']} />}
 
-      {!loading && chapterGroups.length > 0 && (
-        <div className="mt-6 flex flex-col gap-6">
-          {chapterGroups.map((group) => (
-            <div key={group.chapterId} className="overflow-hidden rounded-2xl border border-primary-100 bg-white">
-              <div className="border-b border-primary-100 bg-primary-50/60 px-5 py-3">
-                <p className="text-sm font-semibold text-primary-800">{group.chapterTitle}</p>
-                {group.bookName && <p className="text-xs text-primary-500">{group.bookName}</p>}
-              </div>
+      {!loading && materials.length > 0 && (
+        <div className="mt-6 overflow-x-auto rounded-lg border border-gray-100">
+          <table className="w-full min-w-[40rem] text-left text-sm">
+            <thead>
+              <tr>
+                <th className="bg-primary-50 px-5 py-3 font-medium whitespace-nowrap text-primary-900">
+                  {t['student.classMaterials.colMaterial']}
+                </th>
+                <th className="bg-primary-50 px-5 py-3 font-medium whitespace-nowrap text-primary-900">
+                  {t['student.classMaterials.colChapter']}
+                </th>
+                <th className="bg-primary-50 px-5 py-3 font-medium whitespace-nowrap text-primary-900">
+                  {t['student.classMaterials.colSubject']}
+                </th>
+                <th className="bg-primary-50 px-5 py-3 font-medium whitespace-nowrap text-primary-900">
+                  {t['student.classMaterials.colAction']}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleMaterials.map((material) => {
+                const size = formatFileSize(material.size_bytes)
+                const meta = [material.original_filename, size].filter(Boolean).join(' · ')
+                const subject = material.chapter?.book?.subject
 
-              <div className="flex flex-col gap-2 p-4">
-                {group.materials.map((material) => {
-                  const size = formatFileSize(material.size_bytes)
-                  const meta = [material.original_filename, size].filter(Boolean).join(' · ')
-
-                  return (
-                    <div
-                      key={material.id}
-                      className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary-100 px-4 py-3"
-                    >
-                      <span className="flex min-w-0 items-center gap-3">
-                        <DocumentIcon />
-                        <span className="min-w-0">
-                          <span className="block truncate text-sm font-medium text-primary-800">
-                            {material.title}
-                          </span>
-                          {meta && <span className="block text-xs text-primary-500">{meta}</span>}
-                        </span>
-                      </span>
-
+                return (
+                  <tr key={material.id}>
+                    <td className="border-b border-gray-100 px-5 py-4 whitespace-nowrap">
+                      <span className="block font-medium text-primary-900">{material.title}</span>
+                      {meta && <span className="block text-xs text-primary-500">{meta}</span>}
+                    </td>
+                    <td className="border-b border-gray-100 px-5 py-4 whitespace-nowrap text-gray-500">
+                      {chapterLabel(material)}
+                    </td>
+                    <td className="border-b border-gray-100 px-5 py-4 whitespace-nowrap text-gray-500">
+                      {subject ? (subject.bn_name ?? subject.name) : ''}
+                    </td>
+                    <td className="border-b border-gray-100 px-5 py-4 whitespace-nowrap">
                       <span className="flex flex-shrink-0 gap-2">
                         <button
                           type="button"
@@ -198,12 +198,12 @@ export default function ClassMaterialsPage() {
                           {t['student.classMaterials.download']}
                         </button>
                       </span>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          ))}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
         </div>
       )}
 
