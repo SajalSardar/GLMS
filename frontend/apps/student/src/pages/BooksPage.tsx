@@ -1,14 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import {
-  ApiError,
-  listClasses,
-  listSchools,
-  type Book,
-  type School,
-  type SchoolClass,
-  type Subject,
-} from '@ttla/api-client'
+import { ApiError, listClasses, type Book, type SchoolClass, type Subject } from '@ttla/api-client'
 import { getCommonStrings } from '@ttla/i18n'
 import { booksForClassAndSubject, subjectsForClass } from '../lib/resolveContent'
 
@@ -39,7 +31,6 @@ function messageFromApiError(error: unknown, fallback: string): string {
 export default function BooksPage() {
   const [classes, setClasses] = useState<SchoolClass[]>([])
   const [subjects, setSubjects] = useState<Subject[]>([])
-  const [schools, setSchools] = useState<School[]>([])
   const [classId, setClassId] = useState<number | null>(null)
   const [subjectId, setSubjectId] = useState<number | null>(null)
   const [search, setSearch] = useState('')
@@ -51,15 +42,6 @@ export default function BooksPage() {
     listClasses({ perPage: 500 })
       .then((result) => setClasses(result.data))
       .catch(() => setClasses([]))
-
-    // ClassVersion only carries a bare `school_id` (no nested `school`
-    // relation — confirmed against the ClassVersion interface in
-    // api-client/src/index.ts), so school names for the per-school book
-    // labels below are resolved by fetching the school list once and
-    // mapping by id, same as management's ClassVersionsPage.tsx does.
-    listSchools({ perPage: 500 })
-      .then((result) => setSchools(result.data))
-      .catch(() => setSchools([]))
   }, [])
 
   // The subject list is class-wise, not the full national list: only
@@ -70,9 +52,19 @@ export default function BooksPage() {
   useEffect(() => {
     setSubjectId(null)
 
+    let active = true
+
     subjectsForClass(classId)
-      .then((result) => setSubjects(result))
-      .catch(() => setSubjects([]))
+      .then((result) => {
+        if (active) setSubjects(result)
+      })
+      .catch(() => {
+        if (active) setSubjects([])
+      })
+
+    return () => {
+      active = false
+    }
   }, [classId])
 
   useEffect(() => {
@@ -98,12 +90,6 @@ export default function BooksPage() {
       active = false
     }
   }, [classId, subjectId])
-
-  function schoolNameFor(book: Book): string {
-    const schoolId = book.class_version?.school_id
-    if (!schoolId) return ''
-    return schools.find((school) => school.id === schoolId)?.name ?? ''
-  }
 
   // listBooks has no `search` query param, and the cross-school merge
   // already happens client-side in booksForClassAndSubject — so this is a
@@ -179,8 +165,7 @@ export default function BooksPage() {
             className="rounded-lg border border-primary-100 p-4 shadow-sm transition hover:border-primary-300 hover:shadow"
           >
             <p className="font-semibold text-primary-800">{book.bn_name ?? book.name}</p>
-            <p className="mt-1 text-sm text-primary-600">{book.subject?.name}</p>
-            <p className="mt-1 text-xs text-primary-500">{schoolNameFor(book)}</p>
+            <p className="mt-1 text-sm text-primary-600">{book.subject?.bn_name ?? book.subject?.name}</p>
             {!book.has_available_pdf && (
               <p className="mt-2 text-xs text-[color:var(--color-accent-dark)]">{t['student.books.noPdf']}</p>
             )}
