@@ -23,6 +23,32 @@ import { useAuth } from '@ttla/auth'
 import type { CommonStrings } from '@ttla/i18n'
 import { useLocale } from '../lib/locale'
 
+// Same design as ExamsPage.tsx's own WarningAlert — kept local rather than
+// shared since this is the only other page that needs it.
+function WarningAlert({ message }: { message: string }) {
+  return (
+    <div className="mt-4 flex items-center gap-3 rounded-lg border border-warning-500 bg-warning-50 px-4 py-3 text-left text-sm font-medium text-[#8a6d00]">
+      <svg
+        width={20}
+        height={20}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+        className="flex-shrink-0"
+      >
+        <path d="M10.3 3.9 1.9 18a1.8 1.8 0 0 0 1.55 2.7h17.1A1.8 1.8 0 0 0 22.1 18L13.7 3.9a1.8 1.8 0 0 0-3.4 0Z" />
+        <path d="M12 9.5v4" />
+        <circle cx="12" cy="17" r="0.1" fill="currentColor" stroke="currentColor" strokeWidth={2.4} />
+      </svg>
+      <p>{message}</p>
+    </div>
+  )
+}
+
 type RunnerStatus = 'setup' | 'in_progress' | 'submitted'
 
 interface ExamResultQuestionView {
@@ -93,6 +119,18 @@ function questionFromExamQuestionLink(link: ExamQuestionLink): ExamQuestion {
   return { ...link.question, order_index: link.order_index }
 }
 
+// Marks a TRACKED attempt (attemptId !== null — guests never persist an
+// attempt server-side, so they're never flagged) as already started for
+// this exam in this browser tab. startExamAttempt() is not idempotent: a
+// page refresh mid-exam would otherwise lose all in-memory progress and
+// then, on the student clicking Start again, silently create a SECOND
+// ExamAttempt row and burn another one of the exam's max_attempts. The
+// main reset effect below checks this flag on every mount and, if set,
+// redirects to /exams instead of showing the Start screen again.
+function examInProgressKey(examId: number): string {
+  return `ttla.examInProgress.${examId}`
+}
+
 type ResultTier = 'failed' | 'pass' | 'good' | 'best'
 
 function tierFor(percent: number, config: PracticeExamConfig): ResultTier {
@@ -114,6 +152,42 @@ const TIER_TONE: Record<ResultTier, string> = {
   pass: 'text-success-600',
   good: 'text-success-600',
   best: 'text-success-600',
+}
+
+// The setup card's question count: for per_attempt_random exams the exact
+// set isn't drawn until handleStart() actually runs, but
+// random_question_count is already known from the exam row itself; other
+// modes already carry their fixed question list via getExam()'s eager load.
+function totalQuestionCount(exam: Exam): number {
+  return exam.selection_mode === 'per_attempt_random'
+    ? (exam.random_question_count ?? 0)
+    : (exam.questions?.length ?? 0)
+}
+
+// Practice exams never set a real time_limit_minutes (PracticeExamController
+// doesn't — it's a teacher-exam-only field), so the fallback of "1 minute
+// per question" is what actually applies there; a teacher-created exam
+// with its own explicit time limit uses that instead.
+function totalExamMinutes(exam: Exam): number {
+  return exam.time_limit_minutes ?? totalQuestionCount(exam)
+}
+
+// A practice exam's own name/bn_name is a synthetic, internal label —
+// PracticeExamController::store() always sets bn_name to a fixed Bangla
+// string and name to a random slug — neither is meant to be read as
+// user-facing content, which is exactly why it never responded to the
+// language switcher (it isn't translated text, it's fixed backend data).
+// The locale dictionary is the actual title here instead. A teacher
+// created exam's name IS real content a teacher chose, so it's shown as
+// written regardless of locale.
+function examTitle(exam: Exam, t: CommonStrings): string {
+  return exam.is_practice ? t['student.practiceExam.title'] : (exam.bn_name ?? exam.name)
+}
+
+function formatClock(totalSeconds: number): string {
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`
 }
 
 interface LoadResult {
@@ -226,6 +300,23 @@ export default function ExamRunnerPage() {
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [result, setResult] = useState<ExamResultView | null>(null)
 
+  // null until handleStart() seeds it (see there) — counts down once per
+  // second while status is 'in_progress'. Deliberately never auto-submits
+  // at zero: it just stops at 0 and blocks the Submit button (see the
+  // in_progress render below) rather than risk submitting whatever
+  // happened to be selected at the exact moment it expired.
+  const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (status !== 'in_progress') return
+
+    const interval = setInterval(() => {
+      setRemainingSeconds((previous) => (previous === null || previous <= 0 ? previous : previous - 1))
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [status])
+
   // The latest in-flight saveExamAttemptAnswer() promise per question —
   // handleOptionChange() fires that save on every change without awaiting
   // it (so typing/clicking never blocks on network), which means a student
@@ -260,7 +351,20 @@ export default function ExamRunnerPage() {
     setAttemptId(null)
     setAnswers({})
     setResult(null)
+    setRemainingSeconds(null)
     savePromisesRef.current.clear()
+
+    // A tracked attempt for this exact exam was already started in this
+    // browser tab (set in handleStart() below) and never got submitted —
+    // reaching this page again, whether via a reload/refresh or navigating
+    // back to the same URL, must not show the Start screen again: clicking
+    // Start a second time would silently create another real ExamAttempt
+    // and burn another one of the exam's max_attempts. Redirect to the
+    // exam list with an explanatory message instead.
+    if (examId && sessionStorage.getItem(examInProgressKey(examId)) === '1') {
+      navigate('/exams', { replace: true, state: { examSessionEnded: true } })
+      return
+    }
 
     if (!examId) {
       setExamLoadError(t['student.exams.notFound'])
@@ -300,6 +404,14 @@ export default function ExamRunnerPage() {
       const loaded = await loadQuestionsAndMaybeStartAttempt(examId, token)
       setQuestions(loaded.questions)
       setAttemptId(loaded.attemptId)
+      if (loaded.attemptId !== null) {
+        // Guests never persist an attempt server-side, so only a genuinely
+        // tracked start is flagged — see examInProgressKey()'s own comment.
+        sessionStorage.setItem(examInProgressKey(examId), '1')
+      }
+      if (examPreview) {
+        setRemainingSeconds(totalExamMinutes(examPreview) * 60)
+      }
       setStatus('in_progress')
     } catch (error) {
       setSetupError(messageFromApiError(error))
@@ -364,6 +476,10 @@ export default function ExamRunnerPage() {
 
         const attemptResult = await submitExamAttempt(attemptId, token)
         setResult(resultFromAttempt(attemptResult.data))
+        // Successfully submitted — this exam is done, so the refresh guard
+        // no longer applies (there's nothing left to protect against
+        // double-starting).
+        sessionStorage.removeItem(examInProgressKey(examId))
       } else {
         const guestAnswers: GuestExamAnswerInput[] = questions.map((question) => ({
           question_id: question.id,
@@ -383,27 +499,44 @@ export default function ExamRunnerPage() {
 
   if (status === 'setup') {
     return (
-      <section className="mx-auto max-w-3xl px-4 py-8 lg:px-8">
+      <section className="mx-auto flex min-h-[60vh] max-w-3xl items-center justify-center px-4 py-8 lg:px-8">
         {examLoadError ? (
-          <>
+          <div className="w-full max-w-md rounded-2xl border border-primary-100 bg-white p-8 text-center shadow-sm">
             <p className="text-sm text-danger-600">{examLoadError}</p>
             <Link to="/exams" className="mt-4 inline-block text-sm font-semibold text-primary-700 underline">
               {t['student.exams.title']}
             </Link>
-          </>
+          </div>
         ) : !examPreview ? (
           <p className="text-sm text-primary-600">{t['student.exams.loading']}</p>
         ) : !token && !examPreview.is_practice ? (
-          <>
-            <h1 className="text-2xl font-bold text-primary-800">{examPreview.bn_name ?? examPreview.name}</h1>
+          <div className="w-full max-w-md rounded-2xl border border-primary-100 bg-white p-8 text-center shadow-sm">
+            <h1 className="text-2xl font-bold text-primary-800">{examTitle(examPreview, t)}</h1>
             <p className="mt-4 text-sm text-danger-600">{t['student.exams.loginRequired']}</p>
             <Link to="/login" className="mt-4 inline-block text-sm font-semibold text-primary-700 underline">
               {t['student.nav.signIn']}
             </Link>
-          </>
+          </div>
         ) : (
-          <>
-            <h1 className="text-2xl font-bold text-primary-800">{examPreview.bn_name ?? examPreview.name}</h1>
+          <div className="w-full max-w-md rounded-2xl border border-primary-100 bg-white p-8 text-center shadow-sm">
+            <h1 className="text-xl font-bold text-primary-800">{examTitle(examPreview, t)}</h1>
+
+            <dl className="mt-6 flex flex-col gap-3 text-left">
+              <div className="flex items-center justify-between rounded-lg bg-primary-50 px-4 py-3">
+                <dt className="text-sm text-primary-600">{t['student.exams.totalQuestions']}</dt>
+                <dd className="text-sm font-semibold text-primary-800">{totalQuestionCount(examPreview)}</dd>
+              </div>
+              <div className="flex items-center justify-center rounded-lg bg-primary-50 px-4 py-3">
+                <dd className="text-sm font-medium text-primary-700">
+                  {t['student.exams.totalExamTime'].replace('{minutes}', String(totalExamMinutes(examPreview)))}
+                </dd>
+              </div>
+              <div className="flex items-center justify-center rounded-lg bg-primary-50 px-4 py-3">
+                <dd className="text-sm font-medium text-primary-700">{t['student.exams.perQuestionTime']}</dd>
+              </div>
+            </dl>
+
+            <WarningAlert message={t['student.exams.noRefreshWarning']} />
 
             {setupError && <p className="mt-4 text-sm text-danger-600">{setupError}</p>}
 
@@ -411,20 +544,82 @@ export default function ExamRunnerPage() {
               type="button"
               onClick={handleStart}
               disabled={starting}
-              className="mt-6 cursor-pointer rounded-md bg-primary-500 px-4 py-2 text-sm font-semibold text-white hover:enabled:bg-[#EB1F27] disabled:cursor-default disabled:bg-primary-300"
+              className="mt-6 w-full cursor-pointer rounded-md bg-primary-500 px-4 py-2.5 text-sm font-semibold text-white hover:enabled:bg-[#EB1F27] disabled:cursor-default disabled:bg-primary-300"
             >
               {starting ? t['student.exams.loading'] : t['student.exams.start']}
             </button>
-          </>
+          </div>
         )}
       </section>
     )
   }
 
   if (status === 'in_progress') {
+    const timeExpired = remainingSeconds !== null && remainingSeconds <= 0
+    const oneMinuteLeft = remainingSeconds !== null && remainingSeconds > 0 && remainingSeconds <= 60
+
     return (
       <section className="mx-auto max-w-3xl px-4 py-8 lg:px-8">
-        <div className="flex flex-col gap-6">
+        {remainingSeconds !== null && (
+          <div className="sticky top-16 z-10 mb-4 flex justify-center">
+            <span
+              className={`rounded-full px-4 py-1.5 text-sm font-semibold ${
+                timeExpired
+                  ? 'bg-danger-100 text-danger-600'
+                  : oneMinuteLeft
+                    ? 'bg-warning-50 text-[#8a6d00]'
+                    : 'bg-primary-50 text-primary-700'
+              }`}
+            >
+              {t['student.exams.timeRemaining']}: {formatClock(Math.max(0, remainingSeconds))}
+            </span>
+          </div>
+        )}
+
+        {oneMinuteLeft && (
+          <div className="mb-4 flex items-center gap-3 rounded-lg border border-warning-500 bg-warning-50 px-4 py-3 text-sm font-medium text-[#8a6d00]">
+            <svg
+              width={20}
+              height={20}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.8}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+              className="flex-shrink-0"
+            >
+              <path d="M10.3 3.9 1.9 18a1.8 1.8 0 0 0 1.55 2.7h17.1A1.8 1.8 0 0 0 22.1 18L13.7 3.9a1.8 1.8 0 0 0-3.4 0Z" />
+              <path d="M12 9.5v4" />
+              <circle cx="12" cy="17" r="0.1" fill="currentColor" stroke="currentColor" strokeWidth={2.4} />
+            </svg>
+            <p>{t['student.exams.oneMinuteLeft']}</p>
+          </div>
+        )}
+
+        {timeExpired && (
+          <div className="mb-4 flex items-center gap-3 rounded-lg border border-danger-400 bg-danger-50 px-4 py-3 text-sm font-medium text-danger-600">
+            <svg
+              width={20}
+              height={20}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.8}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+              className="flex-shrink-0"
+            >
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 7v6l4 2" />
+            </svg>
+            <p>{t['student.exams.timeUp']}</p>
+          </div>
+        )}
+
+        <div className="flex max-h-[32rem] flex-col gap-6 overflow-y-auto rounded-lg border border-primary-100 p-4">
           {questions.map((question, index) => {
             const selected = answers[question.id] ?? []
             const inputType = question.question_type === 'mcq_multiple' ? 'checkbox' : 'radio'
@@ -458,7 +653,7 @@ export default function ExamRunnerPage() {
         <button
           type="button"
           onClick={handleSubmit}
-          disabled={submitting}
+          disabled={submitting || timeExpired}
           className="mt-6 cursor-pointer rounded-md bg-primary-500 px-4 py-2 text-sm font-semibold text-white hover:enabled:bg-[#EB1F27] disabled:cursor-default disabled:bg-primary-300"
         >
           {submitting ? t['student.exams.submitting'] : t['student.exams.submit']}

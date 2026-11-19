@@ -785,6 +785,7 @@ export interface Exam {
   is_practice: boolean
   available_from: string | null
   available_until: string | null
+  time_limit_minutes: number | null
   random_question_count: number | null
   marks_per_question: number | null
   passing_score_percent: number | null

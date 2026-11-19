@@ -112,6 +112,13 @@ export default function ExamsPage() {
   const location = useLocation()
 
   const [initialSelection] = useState(() => initialSelectionFromState(location.state))
+  // Set when ExamRunnerPage redirects here because a tracked attempt for
+  // some exam was already started and the page got reloaded/revisited —
+  // see examInProgressKey()'s own comment there for why that redirect
+  // exists at all.
+  const [sessionEndedMessage] = useState(
+    () => (location.state as { examSessionEnded?: boolean } | null)?.examSessionEnded === true,
+  )
   const initialChapterAppliedRef = useRef(false)
 
   const [classes, setClasses] = useState<SchoolClass[]>([])
@@ -259,6 +266,8 @@ export default function ExamsPage() {
   return (
     <section className="mx-auto max-w-4xl px-4 py-8 lg:px-8">
       <h1 className="text-2xl font-bold text-primary-800">{t['student.practiceExam.title']}</h1>
+
+      {sessionEndedMessage && <WarningAlert message={t['student.exams.sessionEnded']} />}
 
       <div className="mt-4 flex flex-wrap gap-3">
         <select
