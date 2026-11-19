@@ -65,16 +65,12 @@ export default function SiteShell() {
                 {t['student.nav.logout']}
               </button>
             ) : (
-              // Plain <a>, not <Link>: this needs a real same-document anchor
-              // jump to #login (React Router's Link does not auto-scroll on a
-              // hash-only change), matching how the old landing page's own
-              // nav already linked to its login card.
-              <a
-                href="/#login"
+              <Link
+                to="/login"
                 className="cursor-pointer rounded-md bg-primary-500 px-4 py-1.5 text-sm font-medium text-white hover:bg-primary-600"
               >
                 {t['student.nav.signIn']}
-              </a>
+              </Link>
             )}
           </div>
 
@@ -125,13 +121,13 @@ export default function SiteShell() {
                   {t['student.nav.logout']}
                 </button>
               ) : (
-                <a
-                  href="/#login"
+                <Link
+                  to="/login"
                   onClick={() => setMenuOpen(false)}
                   className="block w-full cursor-pointer rounded-md bg-primary-500 px-4 py-1.5 text-center text-sm font-medium text-white hover:bg-primary-600"
                 >
                   {t['student.nav.signIn']}
-                </a>
+                </Link>
               )}
             </div>
           </nav>

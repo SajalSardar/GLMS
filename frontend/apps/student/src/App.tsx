@@ -2,6 +2,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from '@ttla/auth'
 import SiteShell from './components/SiteShell'
 import LandingLogin from './pages/LandingLogin'
+import LoginPage from './pages/LoginPage'
 import BooksPage from './pages/BooksPage'
 import BookDetailPage from './pages/BookDetailPage'
 import VideoLecturePage from './pages/VideoLecturePage'
@@ -16,6 +17,7 @@ function App() {
         <Routes>
           <Route element={<SiteShell />}>
             <Route index element={<LandingLogin />} />
+            <Route path="login" element={<LoginPage />} />
             <Route path="books" element={<BooksPage />} />
             <Route path="books/:id" element={<BookDetailPage />} />
             <Route path="video-lecture" element={<VideoLecturePage />} />
