@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   ApiError,
   getExam,
+  getPracticeExamConfig,
   randomDrawExamQuestions,
   saveExamAttemptAnswer,
   startExamAttempt,
@@ -16,6 +17,7 @@ import {
   type ExamQuestionOption,
   type GuestExamAnswerInput,
   type GuestExamSubmissionResult,
+  type PracticeExamConfig,
 } from '@ttla/api-client'
 import { useAuth } from '@ttla/auth'
 import { getCommonStrings } from '@ttla/i18n'
@@ -90,6 +92,29 @@ function questionFromAttemptQuestion(question: ExamAttemptQuestionResult): ExamQ
  */
 function questionFromExamQuestionLink(link: ExamQuestionLink): ExamQuestion {
   return { ...link.question, order_index: link.order_index }
+}
+
+type ResultTier = 'failed' | 'pass' | 'good' | 'best'
+
+function tierFor(percent: number, config: PracticeExamConfig): ResultTier {
+  if (percent < config.tier_pass_percent) return 'failed'
+  if (percent < config.tier_good_percent) return 'pass'
+  if (percent < config.tier_best_percent) return 'good'
+  return 'best'
+}
+
+const TIER_LABEL_KEY: Record<ResultTier, string> = {
+  failed: 'student.exams.tierFailed',
+  pass: 'student.exams.tierPass',
+  good: 'student.exams.tierGood',
+  best: 'student.exams.tierBest',
+}
+
+const TIER_TONE: Record<ResultTier, string> = {
+  failed: 'text-danger-600',
+  pass: 'text-success-600',
+  good: 'text-success-600',
+  best: 'text-success-600',
 }
 
 interface LoadResult {
@@ -189,6 +214,8 @@ export default function ExamRunnerPage() {
   // effects, so it's safe to run eagerly on mount/examId change, unlike
   // starting an attempt.
   const [examPreview, setExamPreview] = useState<Exam | null>(null)
+  const [config, setConfig] = useState<PracticeExamConfig | null>(null)
+  const navigate = useNavigate()
   const [examLoadError, setExamLoadError] = useState<string | null>(null)
   const [starting, setStarting] = useState(false)
   const [setupError, setSetupError] = useState<string | null>(null)
@@ -248,6 +275,14 @@ export default function ExamRunnerPage() {
       })
       .catch((error) => {
         if (active) setExamLoadError(messageFromApiError(error))
+      })
+
+    getPracticeExamConfig()
+      .then((result) => {
+        if (active) setConfig(result)
+      })
+      .catch(() => {
+        if (active) setConfig(null)
       })
 
     return () => {
@@ -358,6 +393,14 @@ export default function ExamRunnerPage() {
           </>
         ) : !examPreview ? (
           <p className="text-sm text-primary-600">{t['student.exams.loading']}</p>
+        ) : !token && !examPreview.is_practice ? (
+          <>
+            <h1 className="text-2xl font-bold text-primary-800">{examPreview.bn_name ?? examPreview.name}</h1>
+            <p className="mt-4 text-sm text-danger-600">{t['student.exams.loginRequired']}</p>
+            <Link to="/login" className="mt-4 inline-block text-sm font-semibold text-primary-700 underline">
+              {t['student.nav.signIn']}
+            </Link>
+          </>
         ) : (
           <>
             <h1 className="text-2xl font-bold text-primary-800">{examPreview.bn_name ?? examPreview.name}</h1>
@@ -433,11 +476,35 @@ export default function ExamRunnerPage() {
             <p className="text-lg font-semibold text-primary-800">
               {t['student.exams.score']}: {result.score ?? 0} / {result.totalPossibleMarks ?? 0}
             </p>
-            {result.passed !== null && (
-              <p className={`mt-1 text-sm font-medium ${result.passed ? 'text-success-600' : 'text-danger-600'}`}>
-                {result.passed ? t['student.exams.passed'] : t['student.exams.failed']}
-              </p>
-            )}
+            {config && result.totalPossibleMarks !== null && result.totalPossibleMarks > 0 && (() => {
+              const percent = ((result.score ?? 0) / result.totalPossibleMarks) * 100
+              const tier = tierFor(percent, config)
+
+              return (
+                <>
+                  <p className={`mt-1 text-sm font-medium ${TIER_TONE[tier]}`}>{t[TIER_LABEL_KEY[tier]]}</p>
+                  {tier !== 'failed' && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        navigate(`/exams/${examId}/certificate`, {
+                          state: {
+                            score: result.score ?? 0,
+                            total: result.totalPossibleMarks,
+                            percent,
+                            tier,
+                            date: new Date().toISOString(),
+                          },
+                        })
+                      }
+                      className="mt-3 cursor-pointer rounded-md border border-primary-300 px-4 py-2 text-sm font-semibold text-primary-700 hover:bg-[#EB1F27] hover:text-white"
+                    >
+                      {t['student.exams.viewCertificate']}
+                    </button>
+                  )}
+                </>
+              )
+            })()}
           </div>
 
           <div className="mt-6 flex flex-col gap-6">
