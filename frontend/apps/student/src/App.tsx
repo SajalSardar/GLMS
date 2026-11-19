@@ -9,6 +9,7 @@ import VideoLecturePage from './pages/VideoLecturePage'
 import VideoPlaylistPage from './pages/VideoPlaylistPage'
 import ExamsPage from './pages/ExamsPage'
 import ExamRunnerPage from './pages/ExamRunnerPage'
+import CertificatePage from './pages/CertificatePage'
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
             <Route path="video-lecture/:chapterId" element={<VideoPlaylistPage />} />
             <Route path="exams" element={<ExamsPage />} />
             <Route path="exams/:id" element={<ExamRunnerPage />} />
+            <Route path="exams/:id/certificate" element={<CertificatePage />} />
           </Route>
         </Routes>
       </BrowserRouter>
