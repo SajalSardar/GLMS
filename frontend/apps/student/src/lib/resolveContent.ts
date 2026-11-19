@@ -72,6 +72,17 @@ function allChapterVideos(): Promise<ChapterVideo[]> {
   return allChapterVideosPromise
 }
 
+// The "browse every book" entry point for BooksPage's default view — every
+// book for the current academic year, across every class/subject/school,
+// built from the same cached allBooks() the class/subject-scoped helpers
+// below already use (so visiting BooksPage after VideoLecturePage, or vice
+// versa, doesn't re-fetch /books a second time).
+export async function currentYearBooks(): Promise<Book[]> {
+  const [books, academicYearId] = await Promise.all([allBooks(), currentAcademicYearId()])
+
+  return academicYearId === null ? books : books.filter((book) => book.academic_year_id === academicYearId)
+}
+
 // Books (and, one level deeper, chapters/videos) aren't nationally unified —
 // each school has its own `ClassVersion` row for a given class, and that
 // version carries its own books. So browsing "Class Six Math" means every

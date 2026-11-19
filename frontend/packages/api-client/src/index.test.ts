@@ -17,11 +17,13 @@ import {
   deleteSubjectTeacherAssignment,
   getBook,
   getBookPdfLinks,
+  getChapterMaterialDownloadLink,
   getExam,
   getHealth,
   getPracticeExamConfig,
   listAcademicYears,
   listBooks,
+  listChapterMaterials,
   listChapters,
   listChapterVideos,
   listClasses,
@@ -877,6 +879,40 @@ describe('chapter videos', () => {
     await listChapterVideos({ chapterId: 9 })
 
     expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/chapter-videos?chapter_id=9`)
+  })
+})
+
+describe('chapter materials', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('lists chapter materials filtered by chapter_id', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ data: [] }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    await listChapterMaterials({ chapterId: 7 })
+
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/chapter-materials?chapter_id=7`)
+  })
+
+  it('requests a chapter material\'s download/preview links with a required token', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ download_url: 'https://x/d', preview_url: 'https://x/p' }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    await getChapterMaterialDownloadLink(5, 'tok')
+
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/chapter-materials/5/download-link`)
+    expect(mockFetch.mock.calls[0][1]).toMatchObject({
+      method: 'POST',
+      headers: { Authorization: 'Bearer tok' },
+    })
   })
 })
 

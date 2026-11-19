@@ -1,53 +1,43 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ApiError, listClasses, type Book, type SchoolClass, type Subject } from '@ttla/api-client'
-import { booksForClassAndSubject, subjectsForClass } from '../lib/resolveContent'
+import { listClasses, type Book, type SchoolClass, type Subject } from '@ttla/api-client'
+import { currentYearBooks, subjectsForClass } from '../lib/resolveContent'
 import { useLocale } from '../lib/locale'
 
-// Same shape as the messageFromApiError() helper in ExamRunnerPage.tsx,
-// but with a translated `fallback` instead of the raw `error.message` —
-// a plain fetch/network
-// failure on a list page has no useful backend-supplied text (unlike the
-// exam flows, where a specific 422 message is itself meaningful to show),
-// so falling back to a generic translated string avoids surfacing an
-// untranslated technical message for this case.
-function messageFromApiError(error: unknown, fallback: string): string {
-  if (error instanceof ApiError) {
-    const firstFieldErrors = error.errors ? Object.values(error.errors)[0] : undefined
-    // No `?? error.message` here: apiFetch() always supplies a message
-    // (falling back to a raw "Request to X failed with status Y" string
-    // when the response body has none), so including it would make the
-    // translated `fallback` below unreachable for any real HTTP error —
-    // exactly the untranslated-technical-message case this helper exists
-    // to avoid.
-    return firstFieldErrors?.[0] ?? fallback
-  }
-
-  return fallback
-}
+const PAGE_SIZE = 10
 
 export default function BooksPage() {
   const { t } = useLocale()
+
   const [classes, setClasses] = useState<SchoolClass[]>([])
-  const [subjects, setSubjects] = useState<Subject[]>([])
+  const [classesById, setClassesById] = useState<Map<number, SchoolClass>>(new Map())
   const [classId, setClassId] = useState<number | null>(null)
+
+  const [subjects, setSubjects] = useState<Subject[]>([])
   const [subjectId, setSubjectId] = useState<number | null>(null)
+
   const [search, setSearch] = useState('')
-  const [books, setBooks] = useState<Book[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
+
+  const [allBooks, setAllBooks] = useState<Book[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     listClasses({ perPage: 500 })
-      .then((result) => setClasses(result.data))
-      .catch(() => setClasses([]))
+      .then((result) => {
+        setClasses(result.data)
+        setClassesById(new Map(result.data.map((schoolClass) => [schoolClass.id, schoolClass])))
+      })
+      .catch(() => {
+        setClasses([])
+        setClassesById(new Map())
+      })
   }, [])
 
-  // The subject list is class-wise, not the full national list: only
-  // subjects actually taught for the selected class (across every
-  // school's version of it) are offered. Picking a different class
-  // invalidates the previously-chosen subject, since it may not apply to
-  // the new class.
+  // The subject filter is class-wise, not the full national list: only
+  // subjects actually taught for the selected class (across every school's
+  // version of it) are offered. Picking a different class invalidates the
+  // previously-chosen subject, since it may not apply to the new class.
   useEffect(() => {
     setSubjectId(null)
 
@@ -69,17 +59,13 @@ export default function BooksPage() {
   useEffect(() => {
     let active = true
     setLoading(true)
-    setError(null)
 
-    booksForClassAndSubject(classId, subjectId)
+    currentYearBooks()
       .then((result) => {
-        if (active) setBooks(result)
+        if (active) setAllBooks(result)
       })
-      .catch((caught) => {
-        if (active) {
-          setBooks([])
-          setError(messageFromApiError(caught, t['student.books.loadError']))
-        }
+      .catch(() => {
+        if (active) setAllBooks([])
       })
       .finally(() => {
         if (active) setLoading(false)
@@ -88,20 +74,28 @@ export default function BooksPage() {
     return () => {
       active = false
     }
-  }, [classId, subjectId])
+  }, [])
 
-  // listBooks has no `search` query param, and the cross-school merge
-  // already happens client-side in booksForClassAndSubject — so this is a
-  // simple client-side substring filter over the already-resolved list,
-  // not a server-side search.
-  const visibleBooks = search.trim()
-    ? books.filter((book) => {
-        const needle = search.trim().toLowerCase()
-        return (
-          book.name.toLowerCase().includes(needle) || (book.bn_name ?? '').toLowerCase().includes(needle)
-        )
-      })
-    : books
+  // All three filters apply client-side over the already-loaded current-
+  // year book list — no refetch per filter change, same approach as
+  // VideoLecturePage's class filter.
+  const needle = search.trim().toLowerCase()
+  const visibleBooks = allBooks.filter((book) => {
+    if (classId !== null && book.class_version?.class_id !== classId) return false
+    if (subjectId !== null && book.subject_id !== subjectId) return false
+    if (needle && !book.name.toLowerCase().includes(needle) && !(book.bn_name ?? '').toLowerCase().includes(needle)) {
+      return false
+    }
+    return true
+  })
+
+  const totalPages = Math.max(1, Math.ceil(visibleBooks.length / PAGE_SIZE))
+  const currentPage = Math.min(page, totalPages)
+  const pagedBooks = visibleBooks.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+
+  function resetToFirstPage() {
+    setPage(1)
+  }
 
   return (
     <section className="mx-auto max-w-6xl px-4 py-8 lg:px-8">
@@ -111,7 +105,10 @@ export default function BooksPage() {
         <select
           className="h-10 min-w-[12rem] rounded-md border border-primary-200 px-3 text-sm"
           value={classId ?? ''}
-          onChange={(event) => setClassId(event.target.value ? Number(event.target.value) : null)}
+          onChange={(event) => {
+            setClassId(event.target.value ? Number(event.target.value) : null)
+            resetToFirstPage()
+          }}
         >
           <option value="">{t['student.books.allClasses']}</option>
           {classes.map((schoolClass) => (
@@ -122,10 +119,13 @@ export default function BooksPage() {
         </select>
 
         <select
-          className="h-10 rounded-md border border-primary-200 px-3 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+          className="h-10 min-w-[12rem] rounded-md border border-primary-200 px-3 text-sm disabled:cursor-not-allowed disabled:opacity-60"
           value={subjectId ?? ''}
           disabled={!classId}
-          onChange={(event) => setSubjectId(event.target.value ? Number(event.target.value) : null)}
+          onChange={(event) => {
+            setSubjectId(event.target.value ? Number(event.target.value) : null)
+            resetToFirstPage()
+          }}
         >
           <option value="">{t['student.books.allSubjects']}</option>
           {subjects.map((subject) => (
@@ -140,37 +140,82 @@ export default function BooksPage() {
           className="h-10 rounded-md border border-primary-200 px-3 text-sm"
           placeholder={t['student.books.searchPlaceholder']}
           value={search}
-          onChange={(event) => setSearch(event.target.value)}
+          onChange={(event) => {
+            setSearch(event.target.value)
+            resetToFirstPage()
+          }}
         />
       </div>
 
       {loading && <p className="mt-6 text-sm text-primary-600">{t['student.books.loading']}</p>}
 
-      {!loading && error && <p className="mt-6 text-sm text-danger-600">{error}</p>}
+      {!loading && visibleBooks.length === 0 && <p className="mt-6 text-sm text-primary-600">{t['student.books.empty']}</p>}
 
-      {!loading && !error && !classId && (
-        <p className="mt-6 text-sm text-primary-600">{t['student.books.pickClass']}</p>
+      {!loading && visibleBooks.length > 0 && (
+        <>
+          <div className="mt-6 overflow-x-auto rounded-lg border border-primary-100">
+            <table className="w-full min-w-[40rem] text-left text-sm">
+              <thead className="bg-primary-50 text-primary-700">
+                <tr>
+                  <th className="px-4 py-3 font-semibold">{t['student.books.colName']}</th>
+                  <th className="px-4 py-3 font-semibold">{t['student.books.colClass']}</th>
+                  <th className="px-4 py-3 font-semibold">{t['student.books.colVersion']}</th>
+                  <th className="px-4 py-3 font-semibold">{t['student.books.colAcademicYear']}</th>
+                  <th className="px-4 py-3 font-semibold">{t['student.books.colAction']}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pagedBooks.map((book) => {
+                  const schoolClass = book.class_version?.class_id ? classesById.get(book.class_version.class_id) : undefined
+
+                  return (
+                    <tr key={book.id} className="border-t border-primary-100">
+                      <td className="px-4 py-3 text-primary-800">{book.bn_name ?? book.name}</td>
+                      <td className="px-4 py-3 text-primary-700">
+                        {schoolClass ? (schoolClass.bn_name ?? schoolClass.name) : ''}
+                      </td>
+                      <td className="px-4 py-3 text-primary-700">
+                        {book.class_version ? (book.class_version.bn_name ?? book.class_version.name) : ''}
+                      </td>
+                      <td className="px-4 py-3 text-primary-700">{book.academic_year?.name ?? ''}</td>
+                      <td className="px-4 py-3">
+                        <Link
+                          to={`/books/${book.id}`}
+                          className="cursor-pointer rounded-md border border-primary-300 px-3 py-1.5 text-xs font-semibold text-primary-700 hover:bg-[#EB1F27] hover:text-white"
+                        >
+                          {t['student.books.viewDetails']}
+                        </Link>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-4 flex items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={() => setPage((previous) => Math.max(1, previous - 1))}
+              disabled={currentPage <= 1}
+              className="cursor-pointer rounded-md border border-primary-200 px-3 py-1.5 text-sm font-medium text-primary-700 disabled:cursor-default disabled:opacity-40"
+            >
+              {t['student.books.previousPage']}
+            </button>
+            <span className="text-sm text-primary-600">
+              {t['student.books.pageOf'].replace('{current}', String(currentPage)).replace('{total}', String(totalPages))}
+            </span>
+            <button
+              type="button"
+              onClick={() => setPage((previous) => Math.min(totalPages, previous + 1))}
+              disabled={currentPage >= totalPages}
+              className="cursor-pointer rounded-md border border-primary-200 px-3 py-1.5 text-sm font-medium text-primary-700 disabled:cursor-default disabled:opacity-40"
+            >
+              {t['student.books.nextPage']}
+            </button>
+          </div>
+        </>
       )}
-
-      {!loading && !error && classId && visibleBooks.length === 0 && (
-        <p className="mt-6 text-sm text-primary-600">{t['student.books.empty']}</p>
-      )}
-
-      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {visibleBooks.map((book) => (
-          <Link
-            key={book.id}
-            to={`/books/${book.id}`}
-            className="rounded-lg border border-primary-100 p-4 shadow-sm transition hover:border-primary-300 hover:shadow"
-          >
-            <p className="font-semibold text-primary-800">{book.bn_name ?? book.name}</p>
-            <p className="mt-1 text-sm text-primary-600">{book.subject?.bn_name ?? book.subject?.name}</p>
-            {!book.has_available_pdf && (
-              <p className="mt-2 text-xs text-[color:var(--color-accent-dark)]">{t['student.books.noPdf']}</p>
-            )}
-          </Link>
-        ))}
-      </div>
     </section>
   )
 }

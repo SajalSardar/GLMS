@@ -742,6 +742,45 @@ export function listChapterVideos(
   return apiFetch<{ data: ChapterVideo[] }>(`/chapter-videos${buildQuery(query)}`)
 }
 
+// ---------- Chapter materials ----------
+
+export interface ChapterMaterial {
+  id: number
+  chapter_id: number
+  type: string
+  title: string
+  original_filename: string | null
+  mime_type: string | null
+  size_bytes: number | null
+  order_index: number | null
+  status: string
+  chapter?: Chapter | null
+}
+
+export function listChapterMaterials(
+  params: { chapterId?: number } = {},
+): Promise<{ data: ChapterMaterial[] }> {
+  const query: Record<string, string | number | undefined> = { chapter_id: params.chapterId }
+
+  return apiFetch<{ data: ChapterMaterial[] }>(`/chapter-materials${buildQuery(query)}`)
+}
+
+export interface ChapterMaterialLinks {
+  download_url: string
+  preview_url: string
+}
+
+// Unlike getBookPdfLinks(), this route sits behind auth:sanctum on the
+// backend (ChapterMaterialController's download-link route + its own
+// ChapterMaterialPolicy::view() check) — a guest token is never accepted,
+// so token is required here, not optional.
+export function getChapterMaterialDownloadLink(materialId: number, token: string): Promise<ChapterMaterialLinks> {
+  return apiFetch<ChapterMaterialLinks>(`/chapter-materials/${materialId}/download-link`, {
+    method: 'POST',
+    headers: authHeaders(token),
+  })
+}
+
 // ---------- Exams (public browsing + attempts) ----------
 
 export interface ExamQuestionOption {
