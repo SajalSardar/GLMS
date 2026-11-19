@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { getBook, getBookPdfLinks, listChapters, type Book, type Chapter } from '@ttla/api-client'
-import { getCommonStrings } from '@ttla/i18n'
-
-const t = getCommonStrings('bn')
+import { useLocale } from '../lib/locale'
 
 export default function BookDetailPage() {
+  const { t } = useLocale()
   const { id } = useParams<{ id: string }>()
   const bookId = Number(id)
 

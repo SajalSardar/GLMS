@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ApiError, listClasses, type Book, type SchoolClass, type Subject } from '@ttla/api-client'
-import { getCommonStrings } from '@ttla/i18n'
 import { booksForClassAndSubject, subjectsForClass } from '../lib/resolveContent'
-
-const t = getCommonStrings('bn')
+import { useLocale } from '../lib/locale'
 
 // Same shape as the messageFromApiError() helper in ExamRunnerPage.tsx,
 // but with a translated `fallback` instead of the raw `error.message` —
@@ -29,6 +27,7 @@ function messageFromApiError(error: unknown, fallback: string): string {
 }
 
 export default function BooksPage() {
+  const { t } = useLocale()
   const [classes, setClasses] = useState<SchoolClass[]>([])
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [classId, setClassId] = useState<number | null>(null)

@@ -1,8 +1,6 @@
 import { Link, useLocation, useParams } from 'react-router-dom'
 import { useAuth } from '@ttla/auth'
-import { getCommonStrings } from '@ttla/i18n'
-
-const t = getCommonStrings('bn')
+import { useLocale } from '../lib/locale'
 
 interface CertificateState {
   score: number
@@ -34,6 +32,7 @@ export default function CertificatePage() {
   const { id } = useParams<{ id: string }>()
   const location = useLocation()
   const { token, name } = useAuth()
+  const { t } = useLocale()
 
   const state = isCertificateState(location.state) ? location.state : null
 

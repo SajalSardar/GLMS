@@ -23,6 +23,22 @@
   "student.nav.signIn": "Sign in",
   "student.nav.logout": "Logout",
   "student.nav.ariaLabel": "Primary",
+  "student.nav.languageSwitcher": "Change language",
+
+  "student.dashboard.title": "Dashboard",
+  "student.dashboard.welcome": "Welcome, {name}!",
+  "student.dashboard.welcomeGeneric": "Welcome!",
+  "student.dashboard.subtitle": "Start your learning journey from here.",
+  "student.dashboard.booksTitle": "Books",
+  "student.dashboard.booksDesc": "Read your class textbooks.",
+  "student.dashboard.videoLectureTitle": "Video Lecture",
+  "student.dashboard.videoLectureDesc": "Watch chapter-wise videos.",
+  "student.dashboard.examsTitle": "Online Exam",
+  "student.dashboard.examsDesc": "Test yourself with a practice exam.",
+
+  "student.notFound.title": "Page not found",
+  "student.notFound.body": "The page you're looking for doesn't exist or has been moved.",
+  "student.notFound.backHome": "Back to home",
 
   "student.books.title": "Books",
   "student.books.allClasses": "All classes",

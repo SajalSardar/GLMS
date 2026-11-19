@@ -20,9 +20,7 @@ import {
   type PracticeExamConfig,
 } from '@ttla/api-client'
 import { useAuth } from '@ttla/auth'
-import { getCommonStrings } from '@ttla/i18n'
-
-const t = getCommonStrings('bn')
+import { useLocale } from '../lib/locale'
 
 type RunnerStatus = 'setup' | 'in_progress' | 'submitted'
 
@@ -206,6 +204,7 @@ export default function ExamRunnerPage() {
   const { id } = useParams<{ id: string }>()
   const examId = Number(id)
   const { token } = useAuth()
+  const { t } = useLocale()
 
   const [status, setStatus] = useState<RunnerStatus>('setup')
   // The setup screen's own exam-preview fetch (name only, for the "Start"

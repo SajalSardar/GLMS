@@ -12,10 +12,8 @@ import {
   type Subject,
 } from '@ttla/api-client'
 import { useAuth } from '@ttla/auth'
-import { getCommonStrings } from '@ttla/i18n'
 import { chaptersForClassAndSubject, subjectsForClass, type ChapterWithBook } from '../lib/resolveContent'
-
-const t = getCommonStrings('bn')
+import { useLocale } from '../lib/locale'
 
 // Same pattern as BooksPage.tsx/VideoLecturePage.tsx — see the comment
 // there for why a translated `fallback` is used instead of the raw
@@ -45,6 +43,7 @@ function chapterLabel(entry: ChapterWithBook, schools: School[]): string {
 
 export default function ExamsPage() {
   const { token } = useAuth()
+  const { t } = useLocale()
   const navigate = useNavigate()
 
   const [classes, setClasses] = useState<SchoolClass[]>([])

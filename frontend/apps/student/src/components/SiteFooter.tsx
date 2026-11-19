@@ -1,19 +1,20 @@
-import { getCommonStrings } from '@ttla/i18n'
+import { useLocale } from '../lib/locale'
 
-const t = getCommonStrings('bn')
 const currentYear = new Date().getFullYear()
 
-// Absolute `/#id` targets, not bare `#id` — this footer renders on every
-// page via SiteShell, but the sections these jump to (#features/#classes/
-// #subjects/#help) only exist on the landing page.
-const NAV_LINKS: Array<{ href: string; label: string }> = [
-  { href: '/#features', label: t['landing.nav.features'] },
-  { href: '/#classes', label: t['landing.nav.classes'] },
-  { href: '/#subjects', label: t['landing.nav.subjects'] },
-  { href: '/#help', label: t['landing.nav.help'] },
-]
-
 export default function SiteFooter() {
+  const { t } = useLocale()
+
+  // Absolute `/#id` targets, not bare `#id` — this footer renders on every
+  // page via SiteShell, but the sections these jump to (#features/#classes/
+  // #subjects/#help) only exist on the landing page.
+  const navLinks: Array<{ href: string; label: string }> = [
+    { href: '/#features', label: t['landing.nav.features'] },
+    { href: '/#classes', label: t['landing.nav.classes'] },
+    { href: '/#subjects', label: t['landing.nav.subjects'] },
+    { href: '/#help', label: t['landing.nav.help'] },
+  ]
+
   return (
     <footer className="bg-gradient-to-r from-primary-800 to-primary-600 text-white">
       <div className="mx-auto flex max-w-[76rem] flex-col gap-8 px-5 pt-10 pb-8 md:flex-row md:flex-wrap md:justify-between">
@@ -32,7 +33,7 @@ export default function SiteFooter() {
 
         <nav className="flex flex-wrap items-center gap-4 text-[0.85rem] text-primary-100" aria-label="এক নজরে">
           <p className="m-0 w-full font-semibold text-white">{t['landing.footer.linksHeading']}</p>
-          {NAV_LINKS.map((link) => (
+          {navLinks.map((link) => (
             <a key={link.href} href={link.href} className="hover:text-white hover:underline">
               {link.label}
             </a>

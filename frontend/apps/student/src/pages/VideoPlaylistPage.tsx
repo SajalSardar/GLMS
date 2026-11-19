@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ApiError, listChapterVideos, type ChapterVideo } from '@ttla/api-client'
-import { getCommonStrings } from '@ttla/i18n'
-
-const t = getCommonStrings('bn')
+import { useLocale } from '../lib/locale'
 
 // Same pattern as BooksPage.tsx/VideoLecturePage.tsx/ExamsPage.tsx — see the
 // comment there for why a translated `fallback` is used instead of the
@@ -25,6 +23,7 @@ function formatDuration(seconds: number | null): string {
 }
 
 export default function VideoPlaylistPage() {
+  const { t } = useLocale()
   const { chapterId } = useParams<{ chapterId: string }>()
   const id = Number(chapterId)
 

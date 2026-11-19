@@ -2,17 +2,9 @@ import { useState } from 'react'
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import { logout as apiLogout } from '@ttla/api-client'
 import { useAuth } from '@ttla/auth'
-import { getCommonStrings } from '@ttla/i18n'
+import type { Locale } from '@ttla/i18n'
+import { useLocale } from '../lib/locale'
 import SiteFooter from './SiteFooter'
-
-const t = getCommonStrings('bn')
-
-const NAV_ITEMS = [
-  { to: '/', label: t['student.nav.home'], end: true, icon: true },
-  { to: '/books', label: t['student.nav.books'] },
-  { to: '/video-lecture', label: t['student.nav.videoLecture'] },
-  { to: '/exams', label: t['student.nav.exams'] },
-]
 
 function HomeIcon() {
   return (
@@ -33,9 +25,56 @@ function HomeIcon() {
   )
 }
 
+function LanguageSwitcher({
+  locale,
+  setLocale,
+  ariaLabel,
+}: {
+  locale: Locale
+  setLocale: (locale: Locale) => void
+  ariaLabel: string
+}) {
+  return (
+    <div
+      className="flex items-center overflow-hidden rounded-full border border-primary-200 text-xs font-semibold"
+      role="group"
+      aria-label={ariaLabel}
+    >
+      <button
+        type="button"
+        onClick={() => setLocale('bn')}
+        aria-pressed={locale === 'bn'}
+        className={`cursor-pointer px-2.5 py-1 transition-colors ${
+          locale === 'bn' ? 'bg-primary-500 text-white' : 'text-primary-700 hover:bg-primary-50'
+        }`}
+      >
+        বাং
+      </button>
+      <button
+        type="button"
+        onClick={() => setLocale('en')}
+        aria-pressed={locale === 'en'}
+        className={`cursor-pointer px-2.5 py-1 transition-colors ${
+          locale === 'en' ? 'bg-primary-500 text-white' : 'text-primary-700 hover:bg-primary-50'
+        }`}
+      >
+        EN
+      </button>
+    </div>
+  )
+}
+
 export default function SiteShell() {
   const { token, clearToken } = useAuth()
+  const { t, locale, setLocale } = useLocale()
   const [menuOpen, setMenuOpen] = useState(false)
+
+  const navItems = [
+    { to: '/', label: t['student.nav.home'], end: true, icon: true },
+    { to: '/books', label: t['student.nav.books'] },
+    { to: '/video-lecture', label: t['student.nav.videoLecture'] },
+    { to: '/exams', label: t['student.nav.exams'] },
+  ]
 
   // Revokes the token server-side before dropping it locally — clearToken()
   // alone only clears localStorage, which would leave the token valid
@@ -65,7 +104,7 @@ export default function SiteShell() {
             className="hidden items-center gap-6 text-sm font-medium text-primary-800 md:flex"
             aria-label={t['student.nav.ariaLabel']}
           >
-            {NAV_ITEMS.map((item) => (
+            {navItems.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
@@ -82,7 +121,9 @@ export default function SiteShell() {
             ))}
           </nav>
 
-          <div className="hidden md:block">
+          <div className="hidden items-center gap-3 md:flex">
+            <LanguageSwitcher locale={locale} setLocale={setLocale} ariaLabel={t['student.nav.languageSwitcher']} />
+
             {token ? (
               <button
                 type="button"
@@ -119,7 +160,7 @@ export default function SiteShell() {
             className="flex flex-col border-t border-primary-100 md:hidden"
             aria-label={t['student.nav.ariaLabel']}
           >
-            {NAV_ITEMS.map((item) => (
+            {navItems.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
@@ -136,7 +177,9 @@ export default function SiteShell() {
               </NavLink>
             ))}
 
-            <div className="border-t border-primary-100 px-4 py-3">
+            <div className="flex flex-col gap-3 border-t border-primary-100 px-4 py-3">
+              <LanguageSwitcher locale={locale} setLocale={setLocale} ariaLabel={t['student.nav.languageSwitcher']} />
+
               {token ? (
                 <button
                   type="button"

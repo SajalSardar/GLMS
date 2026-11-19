@@ -2,9 +2,7 @@ import { useId, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { studentLogin } from '@ttla/api-client'
 import { useAuth } from '@ttla/auth'
-import { getCommonStrings } from '@ttla/i18n'
-
-const t = getCommonStrings('bn')
+import { useLocale } from '../lib/locale'
 
 type IconName = 'eyeOpen' | 'eyeClosed'
 
@@ -48,6 +46,7 @@ function Icon({ name }: { name: IconName }) {
 
 function LoginCard() {
   const { setToken, setName } = useAuth()
+  const { t } = useLocale()
   const navigate = useNavigate()
   const studentIdFieldId = useId()
   const passwordFieldId = useId()
@@ -70,7 +69,7 @@ function LoginCard() {
       // Persisted so the certificate can print the student's real name
       // rather than a generic "Student" label.
       setName(result.data?.name ?? null)
-      navigate('/books')
+      navigate('/dashboard')
     } catch {
       setError(t['landing.login.errorGeneric'])
     } finally {
@@ -170,6 +169,7 @@ function LoginCard() {
 
 export default function LoginPage() {
   const { token } = useAuth()
+  const { t } = useLocale()
 
   return (
     <section className="mx-auto max-w-[30rem] px-5 py-12 lg:py-20">
@@ -180,7 +180,7 @@ export default function LoginPage() {
           <p className="m-0 text-[1.2rem] font-semibold font-display">{t['landing.login.alreadyTitle']}</p>
           <Link
             className="mt-4 block w-full rounded-[0.6rem] bg-primary-500 p-3 text-center text-base font-semibold text-white hover:bg-[#EB1F27]"
-            to="/books"
+            to="/dashboard"
           >
             {t['landing.login.alreadyCta']}
           </Link>

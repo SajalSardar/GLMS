@@ -9,14 +9,12 @@ import {
   type SchoolClass,
   type Subject,
 } from '@ttla/api-client'
-import { getCommonStrings } from '@ttla/i18n'
 import {
   chaptersWithVideosForClassAndSubject,
   subjectsForClass,
   type ChapterWithVideoCount,
 } from '../lib/resolveContent'
-
-const t = getCommonStrings('bn')
+import { useLocale } from '../lib/locale'
 
 // Same pattern as BooksPage.tsx — see the comment there for why a
 // translated `fallback` is used instead of the raw `error.message`.
@@ -30,6 +28,7 @@ function messageFromApiError(error: unknown, fallback: string): string {
 }
 
 export default function VideoLecturePage() {
+  const { t } = useLocale()
   const [classes, setClasses] = useState<SchoolClass[]>([])
   const [schools, setSchools] = useState<School[]>([])
   const [classId, setClassId] = useState<number | null>(null)

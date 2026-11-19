@@ -1,73 +1,5 @@
 import { Link } from 'react-router-dom'
-import { getCommonStrings } from '@ttla/i18n'
-
-const t = getCommonStrings('bn')
-
-const HERO_BADGES: Array<{ image: string; label: string }> = [
-  { image: '/f-video.png', label: t['landing.hero.badgeVideo'] },
-  { image: '/f-study.png', label: t['landing.hero.badgeMaterial'] },
-  { image: '/f-exam.png', label: t['landing.hero.badgeExam'] },
-  { image: '/f-progress.png', label: t['landing.hero.badgeProgress'] },
-]
-
-const FEATURES: Array<{ image: string; title: string; desc: string }> = [
-  { image: '/card-1.png', title: t['landing.features.classRangeTitle'], desc: t['landing.features.classRangeDesc'] },
-  { image: '/card-2.png', title: t['landing.features.videoTitle'], desc: t['landing.features.videoDesc'] },
-  { image: '/card-3.png', title: t['landing.features.materialTitle'], desc: t['landing.features.materialDesc'] },
-  { image: '/card-4.png', title: t['landing.features.examTitle'], desc: t['landing.features.examDesc'] },
-  { image: '/card-5.png', title: t['landing.features.progressTitle'], desc: t['landing.features.progressDesc'] },
-  { image: '/card-6.png', title: t['landing.features.anywhereTitle'], desc: t['landing.features.anywhereDesc'] },
-]
-
-// Gradient backgrounds copied from the reference design's four class-level
-// cards (one per level, not a reusable tone — these exact gradients appear
-// nowhere else on the page).
-const CLASS_LEVELS: Array<{ gradient: string; pillText: string; image: string; label: string; range: string }> = [
-  {
-    gradient: 'bg-gradient-to-b from-[#43B85C] to-[#7FD38A]',
-    pillText: 'text-[#14833B]',
-    image: '/kid-1.png',
-    label: t['landing.classes.primary'],
-    range: t['landing.classes.primaryRange'],
-  },
-  {
-    gradient: 'bg-gradient-to-b from-[#2E8DE6] to-[#8CC8F5]',
-    pillText: 'text-[#1C6FC0]',
-    image: '/kid-2.png',
-    label: t['landing.classes.secondary'],
-    range: t['landing.classes.secondaryRange'],
-  },
-  {
-    gradient: 'bg-gradient-to-b from-[#F7941D] to-[#FCC77A]',
-    pillText: 'text-[#D86F00]',
-    image: '/kid-3.png',
-    label: t['landing.classes.ssc'],
-    range: t['landing.classes.sscRange'],
-  },
-  {
-    gradient: 'bg-gradient-to-b from-[#9B4FD8] to-[#CFA6F0]',
-    pillText: 'text-[#7A3BB5]',
-    image: '/kid-4.png',
-    label: t['landing.classes.hsc'],
-    range: t['landing.classes.hscRange'],
-  },
-]
-
-const SUBJECTS: Array<{ image: string; label: string }> = [
-  { image: '/sub-1.png', label: t['landing.subjects.math'] },
-  { image: '/sub-2.png', label: t['landing.subjects.bangla'] },
-  { image: '/sub-3.png', label: t['landing.subjects.english'] },
-  { image: '/sub-4.png', label: t['landing.subjects.science'] },
-  { image: '/sub-5.png', label: t['landing.subjects.ict'] },
-  { image: '/sub-6.png', label: t['landing.subjects.social'] },
-  { image: '/sub-7.png', label: t['landing.subjects.religion'] },
-  { image: '/sub-8.png', label: t['landing.subjects.agriculture'] },
-  { image: '/sub-9.png', label: t['landing.subjects.health'] },
-  { image: '/sub-10.png', label: t['landing.subjects.other'] },
-]
-
-const CLASS_OPTIONS = CLASS_LEVELS.map((level) => `${level.label} (${level.range})`)
-const SUBJECT_OPTIONS = SUBJECTS.map((subject) => subject.label)
+import { useLocale } from '../lib/locale'
 
 // Tone-color utility classes for the audience cards' left-border tint —
 // the only remaining consumer now that the icon badges/cards/levels/
@@ -90,6 +22,74 @@ const FOCUS_RING =
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent-dark)]'
 
 export default function LandingLogin() {
+  const { t } = useLocale()
+
+  const HERO_BADGES: Array<{ image: string; label: string }> = [
+    { image: '/f-video.png', label: t['landing.hero.badgeVideo'] },
+    { image: '/f-study.png', label: t['landing.hero.badgeMaterial'] },
+    { image: '/f-exam.png', label: t['landing.hero.badgeExam'] },
+    { image: '/f-progress.png', label: t['landing.hero.badgeProgress'] },
+  ]
+
+  const FEATURES: Array<{ image: string; title: string; desc: string }> = [
+    { image: '/card-1.png', title: t['landing.features.classRangeTitle'], desc: t['landing.features.classRangeDesc'] },
+    { image: '/card-2.png', title: t['landing.features.videoTitle'], desc: t['landing.features.videoDesc'] },
+    { image: '/card-3.png', title: t['landing.features.materialTitle'], desc: t['landing.features.materialDesc'] },
+    { image: '/card-4.png', title: t['landing.features.examTitle'], desc: t['landing.features.examDesc'] },
+    { image: '/card-5.png', title: t['landing.features.progressTitle'], desc: t['landing.features.progressDesc'] },
+    { image: '/card-6.png', title: t['landing.features.anywhereTitle'], desc: t['landing.features.anywhereDesc'] },
+  ]
+
+  // Gradient backgrounds copied from the reference design's four class-level
+  // cards (one per level, not a reusable tone — these exact gradients appear
+  // nowhere else on the page).
+  const CLASS_LEVELS: Array<{ gradient: string; pillText: string; image: string; label: string; range: string }> = [
+    {
+      gradient: 'bg-gradient-to-b from-[#43B85C] to-[#7FD38A]',
+      pillText: 'text-[#14833B]',
+      image: '/kid-1.png',
+      label: t['landing.classes.primary'],
+      range: t['landing.classes.primaryRange'],
+    },
+    {
+      gradient: 'bg-gradient-to-b from-[#2E8DE6] to-[#8CC8F5]',
+      pillText: 'text-[#1C6FC0]',
+      image: '/kid-2.png',
+      label: t['landing.classes.secondary'],
+      range: t['landing.classes.secondaryRange'],
+    },
+    {
+      gradient: 'bg-gradient-to-b from-[#F7941D] to-[#FCC77A]',
+      pillText: 'text-[#D86F00]',
+      image: '/kid-3.png',
+      label: t['landing.classes.ssc'],
+      range: t['landing.classes.sscRange'],
+    },
+    {
+      gradient: 'bg-gradient-to-b from-[#9B4FD8] to-[#CFA6F0]',
+      pillText: 'text-[#7A3BB5]',
+      image: '/kid-4.png',
+      label: t['landing.classes.hsc'],
+      range: t['landing.classes.hscRange'],
+    },
+  ]
+
+  const SUBJECTS: Array<{ image: string; label: string }> = [
+    { image: '/sub-1.png', label: t['landing.subjects.math'] },
+    { image: '/sub-2.png', label: t['landing.subjects.bangla'] },
+    { image: '/sub-3.png', label: t['landing.subjects.english'] },
+    { image: '/sub-4.png', label: t['landing.subjects.science'] },
+    { image: '/sub-5.png', label: t['landing.subjects.ict'] },
+    { image: '/sub-6.png', label: t['landing.subjects.social'] },
+    { image: '/sub-7.png', label: t['landing.subjects.religion'] },
+    { image: '/sub-8.png', label: t['landing.subjects.agriculture'] },
+    { image: '/sub-9.png', label: t['landing.subjects.health'] },
+    { image: '/sub-10.png', label: t['landing.subjects.other'] },
+  ]
+
+  const CLASS_OPTIONS = CLASS_LEVELS.map((level) => `${level.label} (${level.range})`)
+  const SUBJECT_OPTIONS = SUBJECTS.map((subject) => subject.label)
+
   return (
     <div className="overflow-x-hidden text-[color:var(--color-ink)]">
       <section className="relative overflow-hidden bg-[url('/hero-banner.png')] bg-cover bg-center py-6 lg:py-10" id="top">

@@ -23,6 +23,22 @@
   "student.nav.signIn": "সাইন ইন",
   "student.nav.logout": "লগ আউট",
   "student.nav.ariaLabel": "প্রধান মেনু",
+  "student.nav.languageSwitcher": "ভাষা পরিবর্তন করো",
+
+  "student.dashboard.title": "ড্যাশবোর্ড",
+  "student.dashboard.welcome": "স্বাগতম, {name}!",
+  "student.dashboard.welcomeGeneric": "স্বাগতম!",
+  "student.dashboard.subtitle": "তোমার শেখার যাত্রা এখান থেকেই শুরু করো।",
+  "student.dashboard.booksTitle": "বই",
+  "student.dashboard.booksDesc": "তোমার ক্লাসের পাঠ্যবই পড়ো।",
+  "student.dashboard.videoLectureTitle": "ভিডিও লেকচার",
+  "student.dashboard.videoLectureDesc": "অধ্যায়ভিত্তিক ভিডিও দেখো।",
+  "student.dashboard.examsTitle": "অনলাইন পরীক্ষা",
+  "student.dashboard.examsDesc": "অনুশীলন পরীক্ষা দিয়ে নিজেকে যাচাই করো।",
+
+  "student.notFound.title": "পৃষ্ঠাটি খুঁজে পাওয়া যায়নি",
+  "student.notFound.body": "তুমি যে পৃষ্ঠাটি খুঁজছো তা নেই বা সরিয়ে ফেলা হয়েছে।",
+  "student.notFound.backHome": "হোমে ফিরে যাও",
 
   "student.books.title": "বই",
   "student.books.allClasses": "সকল শ্রেণি",
