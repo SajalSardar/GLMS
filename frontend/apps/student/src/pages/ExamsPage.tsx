@@ -4,6 +4,8 @@ import {
   ApiError,
   createPracticeExam,
   getPracticeExamConfig,
+  listMyExamAttempts,
+  type ExamAttempt,
   type PracticeExamConfig,
   type SchoolClass,
   type Subject,
@@ -157,6 +159,33 @@ export default function ExamsPage() {
 
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const [pastAttempts, setPastAttempts] = useState<ExamAttempt[]>([])
+
+  useEffect(() => {
+    if (!token) {
+      setPastAttempts([])
+      return
+    }
+
+    let active = true
+
+    // Deliberately not cached (unlike ownClassId()/allClasses() above) —
+    // submitting a new practice exam should show up here on the very next
+    // visit to this page, same reasoning as ClassExamsPage's dashboard
+    // fetch.
+    listMyExamAttempts({ perPage: 50 }, token)
+      .then((result) => {
+        if (active) setPastAttempts(result.data)
+      })
+      .catch(() => {
+        if (active) setPastAttempts([])
+      })
+
+    return () => {
+      active = false
+    }
+  }, [token])
 
   useEffect(() => {
     allClasses()
@@ -381,6 +410,60 @@ export default function ExamsPage() {
           >
             {submitting ? t['student.practiceExam.submitting'] : t['student.practiceExam.submit']}
           </button>
+        </>
+      )}
+
+      {pastAttempts.length > 0 && (
+        <>
+          <h2 className="mt-10 text-lg font-semibold text-primary-800">{t['student.practiceExam.scoresTitle']}</h2>
+
+          <div className="mt-3 overflow-x-auto rounded-lg border border-gray-100">
+            <table className="w-full min-w-[32rem] text-left text-sm">
+              <thead>
+                <tr>
+                  <th className="bg-primary-50 px-5 py-3 font-medium whitespace-nowrap text-primary-900">
+                    {t['student.practiceExam.colSubject']}
+                  </th>
+                  <th className="bg-primary-50 px-5 py-3 font-medium whitespace-nowrap text-primary-900">
+                    {t['student.practiceExam.colScore']}
+                  </th>
+                  <th className="bg-primary-50 px-5 py-3 font-medium whitespace-nowrap text-primary-900">
+                    {t['student.practiceExam.colResult']}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {pastAttempts.map((attempt) => {
+                  const subject = attempt.exam?.subject
+                  const subjectName = subject ? (subject.bn_name ?? subject.name) : ''
+
+                  return (
+                    <tr key={attempt.id}>
+                      <td className="border-b border-gray-100 px-5 py-4 whitespace-nowrap text-gray-500">
+                        {subjectName}
+                      </td>
+                      <td className="border-b border-gray-100 px-5 py-4 whitespace-nowrap text-gray-500">
+                        {attempt.score ?? 0} / {attempt.total_possible_marks ?? 0}
+                      </td>
+                      <td className="border-b border-gray-100 px-5 py-4 whitespace-nowrap">
+                        {attempt.passed === null ? (
+                          <span className="text-gray-500">—</span>
+                        ) : (
+                          <span
+                            className={`rounded-sm px-2 py-0.5 text-xs font-medium ${
+                              attempt.passed ? 'bg-success-50 text-success-600' : 'bg-danger-50 text-danger-600'
+                            }`}
+                          >
+                            {attempt.passed ? t['student.exams.passed'] : t['student.exams.failed']}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         </>
       )}
     </section>

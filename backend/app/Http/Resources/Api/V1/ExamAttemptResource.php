@@ -23,6 +23,7 @@ class ExamAttemptResource extends JsonResource
             'score' => $this->score,
             'total_possible_marks' => $this->total_possible_marks,
             'passed' => $this->passed,
+            'exam' => new ExamResource($this->whenLoaded('exam')),
             // Built directly here rather than nesting QuestionResource/
             // QuestionOptionResource — their is_correct gate is based on
             // the VIEWER's questions.update permission, which is the

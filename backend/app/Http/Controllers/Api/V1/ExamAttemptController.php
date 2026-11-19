@@ -11,6 +11,7 @@ use App\Models\ExamAttempt;
 use App\Models\ExamAttemptAnswer;
 use App\Models\ExamAttemptQuestion;
 use App\Models\Question;
+use App\Models\StudentUser;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -108,6 +109,33 @@ class ExamAttemptController extends Controller
         $this->authorize('viewAny', ExamAttempt::class);
 
         $attempts = $exam->attempts()->orderBy('user_id')->orderBy('attempt_number')->get();
+
+        return ExamAttemptResource::collection($attempts);
+    }
+
+    /**
+     * The current student's own submitted practice-exam attempts (score
+     * history) — no flat permission is required, same "own record"
+     * precedent as ExamAttemptPolicy::view(). Unlike index() above, this
+     * is never exposed for an exam_id the caller doesn't already know, so
+     * there's no ExamAttemptPolicy check to apply; the user_id filter IS
+     * the authorization. Still must confirm the actor is a StudentUser
+     * first — exam_attempts.user_id is student-only (see migration
+     * 2026_11_12_100200), so a teacher/management token sharing this same
+     * app's auth would otherwise see whichever student happens to have
+     * the same numeric id.
+     */
+    public function mine(Request $request): AnonymousResourceCollection
+    {
+        abort_unless($request->user() instanceof StudentUser, 403);
+
+        $attempts = ExamAttempt::query()
+            ->where('user_id', $request->user()->id)
+            ->where('status', 'submitted')
+            ->whereHas('exam', fn ($query) => $query->where('is_practice', true))
+            ->with(['exam.subject'])
+            ->orderByDesc('submitted_at')
+            ->paginate($request->integer('per_page', 15));
 
         return ExamAttemptResource::collection($attempts);
     }

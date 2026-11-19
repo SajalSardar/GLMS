@@ -109,6 +109,7 @@ Route::prefix('v1')->group(function (): void {
 
         Route::post('/exams/{exam}/attempts', [ExamAttemptController::class, 'start']);
         Route::get('/exams/{exam}/attempts', [ExamAttemptController::class, 'index']);
+        Route::get('/my-exam-attempts', [ExamAttemptController::class, 'mine']);
         Route::get('/exam-attempts/{exam_attempt}', [ExamAttemptController::class, 'show']);
         Route::put('/exam-attempts/{exam_attempt}/answers/{question}', [ExamAttemptController::class, 'saveAnswer']);
         Route::post('/exam-attempts/{exam_attempt}/submit', [ExamAttemptController::class, 'submit']);

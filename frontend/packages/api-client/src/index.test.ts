@@ -33,6 +33,7 @@ import {
   listDistricts,
   listDivisions,
   listExams,
+  listMyExamAttempts,
   listSchools,
   listSections,
   listShifts,
@@ -1074,6 +1075,25 @@ describe('student profiles', () => {
     await getStudentDashboard(1, 'tok')
 
     expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/student-profiles/1/dashboard`)
+    expect(mockFetch.mock.calls[0][1]).toMatchObject({ headers: { Authorization: 'Bearer tok' } })
+  })
+})
+
+describe('my exam attempts', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it("lists the current student's own exam attempts with a required token", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ data: [], meta: {}, links: {} }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    await listMyExamAttempts({ perPage: 10 }, 'tok')
+
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/my-exam-attempts?per_page=10`)
     expect(mockFetch.mock.calls[0][1]).toMatchObject({ headers: { Authorization: 'Bearer tok' } })
   })
 })

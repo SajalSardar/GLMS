@@ -829,6 +829,7 @@ export interface Exam {
   marks_per_question: number | null
   passing_score_percent: number | null
   max_attempts: number | null
+  subject?: Subject | null
   questions?: ExamQuestionLink[] | null
 }
 
@@ -888,11 +889,26 @@ export interface ExamAttempt {
   total_possible_marks: number | null
   passed: boolean | null
   questions?: ExamAttemptQuestionResult[] | null
+  exam?: Exam | null
 }
 
 export function startExamAttempt(examId: number, token: string): Promise<{ data: ExamAttempt }> {
   return apiFetch<{ data: ExamAttempt }>(`/exams/${examId}/attempts`, {
     method: 'POST',
+    headers: authHeaders(token),
+  })
+}
+
+// The current student's own submitted practice-exam attempts (score
+// history) — self-scoped on the backend, so no exam id/permission is
+// needed beyond being logged in as a student.
+export function listMyExamAttempts(
+  params: { page?: number; perPage?: number } = {},
+  token: string,
+): Promise<PaginatedResponse<ExamAttempt>> {
+  const query: Record<string, string | number | undefined> = { page: params.page, per_page: params.perPage }
+
+  return apiFetch<PaginatedResponse<ExamAttempt>>(`/my-exam-attempts${buildQuery(query)}`, {
     headers: authHeaders(token),
   })
 }
