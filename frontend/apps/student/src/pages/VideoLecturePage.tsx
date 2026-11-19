@@ -142,7 +142,7 @@ export default function VideoLecturePage() {
           <option value="">{t['student.videoLecture.allClasses']}</option>
           {classes.map((schoolClass) => (
             <option key={schoolClass.id} value={schoolClass.id}>
-              {schoolClass.name}
+              {schoolClass.bn_name ?? schoolClass.name}
             </option>
           ))}
         </select>

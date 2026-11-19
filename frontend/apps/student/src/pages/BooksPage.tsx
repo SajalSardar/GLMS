@@ -131,7 +131,7 @@ export default function BooksPage() {
           <option value="">{t['student.books.allClasses']}</option>
           {classes.map((schoolClass) => (
             <option key={schoolClass.id} value={schoolClass.id}>
-              {schoolClass.name}
+              {schoolClass.bn_name ?? schoolClass.name}
             </option>
           ))}
         </select>

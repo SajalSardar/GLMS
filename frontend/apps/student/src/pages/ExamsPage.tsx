@@ -84,7 +84,8 @@ export default function ExamsPage() {
   }
 
   function classVersionNameFor(exam: Exam): string {
-    return classVersions.find((classVersion) => classVersion.id === exam.class_version_id)?.name ?? ''
+    const classVersion = classVersions.find((candidate) => candidate.id === exam.class_version_id)
+    return (classVersion?.bn_name ?? classVersion?.name) ?? ''
   }
 
   return (
