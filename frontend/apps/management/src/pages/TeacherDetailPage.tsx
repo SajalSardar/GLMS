@@ -381,23 +381,37 @@ export default function TeacherDetailPage() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const { toast, showToast } = useToast()
 
+  // Tracks the most recently requested id so a slower, superseded response
+  // (e.g. teacher 1's request resolving after teacher 2's, once the user
+  // has navigated on) can't overwrite the newer data it raced against —
+  // :id changes re-render this same component instance rather than
+  // remounting it, so without this guard the two in-flight requests race.
+  const latestRequestedIdRef = useRef<number | null>(null)
+
   const load = useCallback(
     (targetId: number) => {
       if (!token) return
+      latestRequestedIdRef.current = targetId
       setLoading(true)
       setLoadError(null)
 
       Promise.all([getTeacherUser(targetId, token), listTeacherProfiles({ userId: targetId, perPage: 1 }, token)])
         .then(([teacherResult, profilesResult]) => {
+          if (latestRequestedIdRef.current !== targetId) return
+
           const loadedProfile = profilesResult.data[0] ?? null
           setTeacher(teacherResult.data)
           setProfile(loadedProfile)
           setValues(valuesFromTeacherAndProfile(teacherResult.data, loadedProfile))
         })
         .catch((caught: unknown) => {
+          if (latestRequestedIdRef.current !== targetId) return
+
           setLoadError(caught instanceof ApiError ? caught.message : String(caught))
         })
-        .finally(() => setLoading(false))
+        .finally(() => {
+          if (latestRequestedIdRef.current === targetId) setLoading(false)
+        })
     },
     [token],
   )

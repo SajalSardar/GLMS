@@ -957,23 +957,37 @@ export default function StudentDetailPage() {
   const [pendingProfileId, setPendingProfileId] = useState<number | null>(null)
   const [attachedDraftIds, setAttachedDraftIds] = useState<Set<number>>(new Set())
 
+  // Tracks the most recently requested id so a slower, superseded response
+  // (e.g. student 1's request resolving after student 2's, once the user
+  // has navigated on) can't overwrite the newer data it raced against —
+  // :id changes re-render this same component instance rather than
+  // remounting it, so without this guard the two in-flight requests race.
+  const latestRequestedIdRef = useRef<number | null>(null)
+
   const load = useCallback(
     (targetId: number) => {
       if (!token) return
+      latestRequestedIdRef.current = targetId
       setLoading(true)
       setLoadError(null)
 
       Promise.all([getStudentUser(targetId, token), listStudentProfiles({ userId: targetId, perPage: 1 }, token)])
         .then(([studentResult, profilesResult]) => {
+          if (latestRequestedIdRef.current !== targetId) return
+
           const loadedProfile = profilesResult.data[0] ?? null
           setStudent(studentResult.data)
           setProfile(loadedProfile)
           setValues(valuesFromStudentAndProfile(studentResult.data, loadedProfile))
         })
         .catch((caught: unknown) => {
+          if (latestRequestedIdRef.current !== targetId) return
+
           setLoadError(caught instanceof ApiError ? caught.message : String(caught))
         })
-        .finally(() => setLoading(false))
+        .finally(() => {
+          if (latestRequestedIdRef.current === targetId) setLoading(false)
+        })
     },
     [token],
   )

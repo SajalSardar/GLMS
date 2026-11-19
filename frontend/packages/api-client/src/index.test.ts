@@ -39,6 +39,7 @@ import {
   managementLogin,
   randomDrawExamQuestions,
   saveExamAttemptAnswer,
+  type ShiftPayload,
   startExamAttempt,
   studentLogin,
   submitExamAttempt,
@@ -575,12 +576,12 @@ describe('shifts', () => {
     })
     vi.stubGlobal('fetch', mockFetch)
 
-    const payload = {
+    const payload: ShiftPayload = {
       class_version_id: 5,
       name: 'Morning',
       start_time: '08:00',
       end_time: '12:00',
-      days_of_week: ['saturday', 'sunday'] as const,
+      days_of_week: ['saturday', 'sunday'],
     }
     await createShift(payload, 'secret-token')
 

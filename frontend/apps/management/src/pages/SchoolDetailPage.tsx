@@ -375,7 +375,15 @@ export default function SchoolDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Tracks the most recently requested id so a slower, superseded response
+  // (e.g. school 1's request resolving after school 2's, once the user has
+  // navigated on) can't overwrite the newer data it raced against — :id
+  // changes re-render this same component instance rather than remounting
+  // it, so without this guard the two in-flight requests race.
+  const latestRequestedIdRef = useRef<number | null>(null)
+
   const loadSchool = useCallback((schoolId: number) => {
+    latestRequestedIdRef.current = schoolId
     setLoading(true)
     setError(null)
 
@@ -387,6 +395,8 @@ export default function SchoolDetailPage() {
       listSections({ schoolId, perPage: 500 }),
     ])
       .then(([schoolResult, classSchoolsResult, versionsResult, shiftsResult, sectionsResult]) => {
+        if (latestRequestedIdRef.current !== schoolId) return
+
         setSchool(schoolResult.data)
         setClassSchools(classSchoolsResult.data)
         setRows(
@@ -394,9 +404,13 @@ export default function SchoolDetailPage() {
         )
       })
       .catch((caught: unknown) => {
+        if (latestRequestedIdRef.current !== schoolId) return
+
         setError(caught instanceof ApiError ? caught.message : String(caught))
       })
-      .finally(() => setLoading(false))
+      .finally(() => {
+        if (latestRequestedIdRef.current === schoolId) setLoading(false)
+      })
   }, [])
 
   // A ref, not a direct call, so the effect's own body contains no
