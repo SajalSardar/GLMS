@@ -1,20 +1,23 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import {
   ApiError,
-  listClassVersions,
-  listExams,
-  listSubjects,
-  type ClassVersion,
-  type Exam,
+  createPracticeExam,
+  getPracticeExamConfig,
+  listClasses,
+  type PracticeExamConfig,
+  type SchoolClass,
   type Subject,
 } from '@ttla/api-client'
+import { useAuth } from '@ttla/auth'
 import { getCommonStrings } from '@ttla/i18n'
+import { chaptersForClassAndSubject, subjectsForClass, type ChapterWithBook } from '../lib/resolveContent'
 
 const t = getCommonStrings('bn')
 
-// Same pattern as BooksPage.tsx/VideoLecturePage.tsx — see the comment there for
-// why a translated `fallback` is used instead of the raw `error.message`.
+// Same pattern as BooksPage.tsx/VideoLecturePage.tsx — see the comment
+// there for why a translated `fallback` is used instead of the raw
+// `error.message`.
 function messageFromApiError(error: unknown, fallback: string): string {
   if (error instanceof ApiError) {
     const firstFieldErrors = error.errors ? Object.values(error.errors)[0] : undefined
@@ -24,95 +27,209 @@ function messageFromApiError(error: unknown, fallback: string): string {
   return fallback
 }
 
+function chapterLabel(entry: ChapterWithBook): string {
+  const chapterName = entry.chapter.bn_name ?? entry.chapter.name
+  const bookName = entry.book.bn_name ?? entry.book.name
+  return `${chapterName} — ${bookName}`
+}
+
 export default function ExamsPage() {
-  const [exams, setExams] = useState<Exam[]>([])
+  const { token } = useAuth()
+  const navigate = useNavigate()
+
+  const [classes, setClasses] = useState<SchoolClass[]>([])
+  const [classId, setClassId] = useState<number | null>(null)
+
   const [subjects, setSubjects] = useState<Subject[]>([])
-  const [classVersions, setClassVersions] = useState<ClassVersion[]>([])
-  const [loading, setLoading] = useState(true)
+  const [subjectId, setSubjectId] = useState<number | null>(null)
+
+  const [chapters, setChapters] = useState<ChapterWithBook[]>([])
+  const [checkedChapterIds, setCheckedChapterIds] = useState<Set<number>>(new Set())
+  const [chaptersLoading, setChaptersLoading] = useState(false)
+
+  const [config, setConfig] = useState<PracticeExamConfig | null>(null)
+
+  const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    listClasses({ perPage: 500 })
+      .then((result) => setClasses(result.data))
+      .catch(() => setClasses([]))
+
+    getPracticeExamConfig()
+      .then(setConfig)
+      .catch(() => setConfig(null))
+  }, [])
+
+  useEffect(() => {
+    setSubjectId(null)
+
     let active = true
-    setLoading(true)
-    setError(null)
 
-    // ExamController::index() already degrades to published+available-only
-    // for an anonymous visitor (confirmed by reading
-    // backend/app/Http/Controllers/Api/V1/ExamController.php), so no
-    // client-side filtering is needed here.
-    listExams()
+    subjectsForClass(classId)
       .then((result) => {
-        if (active) setExams(result.data)
-      })
-      .catch((caught) => {
-        if (active) {
-          setExams([])
-          setError(messageFromApiError(caught, t['student.exams.loadError']))
-        }
-      })
-      .finally(() => {
-        if (active) setLoading(false)
-      })
-
-    // Exam only carries bare `subject_id`/`class_version_id` (confirmed
-    // against the Exam interface in api-client/src/index.ts), so names are
-    // resolved by fetching the subject/class-version lists once and
-    // mapping by id — same pattern BooksPage uses to resolve school names.
-    listSubjects({ perPage: 200 })
-      .then((result) => {
-        if (active) setSubjects(result.data)
+        if (active) setSubjects(result)
       })
       .catch(() => {
         if (active) setSubjects([])
       })
 
-    listClassVersions({ perPage: 500 })
+    return () => {
+      active = false
+    }
+  }, [classId])
+
+  useEffect(() => {
+    setCheckedChapterIds(new Set())
+
+    if (!classId || !subjectId) {
+      setChapters([])
+      return
+    }
+
+    let active = true
+    setChaptersLoading(true)
+
+    chaptersForClassAndSubject(classId, subjectId)
       .then((result) => {
-        if (active) setClassVersions(result.data)
+        if (active) setChapters(result)
       })
       .catch(() => {
-        if (active) setClassVersions([])
+        if (active) setChapters([])
+      })
+      .finally(() => {
+        if (active) setChaptersLoading(false)
       })
 
     return () => {
       active = false
     }
-  }, [])
+  }, [classId, subjectId])
 
-  function subjectNameFor(exam: Exam): string {
-    return subjects.find((subject) => subject.id === exam.subject_id)?.name ?? ''
+  function toggleChapter(chapterId: number, checked: boolean) {
+    setCheckedChapterIds((previous) => {
+      const next = new Set(previous)
+      if (checked) {
+        next.add(chapterId)
+      } else {
+        next.delete(chapterId)
+      }
+      return next
+    })
   }
 
-  function classVersionNameFor(exam: Exam): string {
-    const classVersion = classVersions.find((candidate) => candidate.id === exam.class_version_id)
-    return (classVersion?.bn_name ?? classVersion?.name) ?? ''
+  function questionHint(): string | null {
+    if (!config || checkedChapterIds.size === 0) return null
+
+    const template =
+      checkedChapterIds.size === 1
+        ? t['student.practiceExam.questionHintSingle']
+        : t['student.practiceExam.questionHintMulti']
+    const count =
+      checkedChapterIds.size === 1 ? config.single_chapter_question_count : config.multi_chapter_question_count
+
+    return template.replace('{count}', String(count))
   }
+
+  async function handleSubmit() {
+    if (!subjectId || checkedChapterIds.size === 0) return
+
+    setSubmitting(true)
+    setError(null)
+
+    try {
+      const result = await createPracticeExam(
+        { subjectId, chapterIds: [...checkedChapterIds] },
+        token ?? undefined,
+      )
+      navigate(`/exams/${result.data.id}`)
+    } catch (caught) {
+      setError(messageFromApiError(caught, t['student.practiceExam.loadError']))
+      setSubmitting(false)
+    }
+  }
+
+  const hint = questionHint()
 
   return (
-    <section className="mx-auto max-w-6xl px-4 py-8 lg:px-8">
-      <h1 className="text-2xl font-bold text-primary-800">{t['student.exams.title']}</h1>
+    <section className="mx-auto max-w-4xl px-4 py-8 lg:px-8">
+      <h1 className="text-2xl font-bold text-primary-800">{t['student.practiceExam.title']}</h1>
 
-      {loading && <p className="mt-6 text-sm text-primary-600">{t['student.exams.loading']}</p>}
+      <div className="mt-4 flex flex-wrap gap-3">
+        <select
+          className="h-10 rounded-md border border-primary-200 px-3 text-sm"
+          value={classId ?? ''}
+          onChange={(event) => setClassId(event.target.value ? Number(event.target.value) : null)}
+        >
+          <option value="">{t['student.practiceExam.allClasses']}</option>
+          {classes.map((schoolClass) => (
+            <option key={schoolClass.id} value={schoolClass.id}>
+              {schoolClass.bn_name ?? schoolClass.name}
+            </option>
+          ))}
+        </select>
 
-      {!loading && error && <p className="mt-6 text-sm text-danger-600">{error}</p>}
-
-      {!loading && !error && exams.length === 0 && (
-        <p className="mt-6 text-sm text-primary-600">{t['student.exams.empty']}</p>
-      )}
-
-      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {exams.map((exam) => (
-          <Link
-            key={exam.id}
-            to={`/exams/${exam.id}`}
-            className="rounded-lg border border-primary-100 p-4 shadow-sm transition hover:border-primary-300 hover:shadow"
-          >
-            <p className="font-semibold text-primary-800">{exam.bn_name ?? exam.name}</p>
-            <p className="mt-1 text-sm text-primary-600">{subjectNameFor(exam)}</p>
-            <p className="mt-1 text-xs text-primary-500">{classVersionNameFor(exam)}</p>
-          </Link>
-        ))}
+        <select
+          className="h-10 rounded-md border border-primary-200 px-3 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+          value={subjectId ?? ''}
+          disabled={!classId}
+          onChange={(event) => setSubjectId(event.target.value ? Number(event.target.value) : null)}
+        >
+          <option value="">{t['student.practiceExam.allSubjects']}</option>
+          {subjects.map((subject) => (
+            <option key={subject.id} value={subject.id}>
+              {subject.bn_name ?? subject.name}
+            </option>
+          ))}
+        </select>
       </div>
+
+      {!classId && <p className="mt-6 text-sm text-primary-600">{t['student.practiceExam.pickClass']}</p>}
+
+      {classId && !subjectId && <p className="mt-6 text-sm text-primary-600">{t['student.practiceExam.pickSubject']}</p>}
+
+      {classId && subjectId && (
+        <>
+          <h2 className="mt-6 text-lg font-semibold text-primary-800">{t['student.practiceExam.chaptersHeading']}</h2>
+
+          {chaptersLoading && <p className="mt-2 text-sm text-primary-600">{t['student.exams.loading']}</p>}
+
+          {!chaptersLoading && chapters.length === 0 && (
+            <p className="mt-2 text-sm text-primary-600">{t['student.practiceExam.noChapters']}</p>
+          )}
+
+          <div className="mt-3 flex flex-col gap-2">
+            {chapters.map((entry) => (
+              <label
+                key={entry.chapter.id}
+                className="flex items-center gap-3 rounded-md border border-primary-100 px-4 py-3 text-sm text-primary-800"
+              >
+                <input
+                  type="checkbox"
+                  className="h-4 w-4"
+                  checked={checkedChapterIds.has(entry.chapter.id)}
+                  onChange={(event) => toggleChapter(entry.chapter.id, event.target.checked)}
+                />
+                {chapterLabel(entry)}
+              </label>
+            ))}
+          </div>
+
+          {hint && <p className="mt-4 text-sm font-medium text-primary-700">{hint}</p>}
+
+          {error && <p className="mt-4 text-sm text-danger-600">{error}</p>}
+
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={checkedChapterIds.size === 0 || submitting}
+            className="mt-6 cursor-pointer rounded-md bg-primary-500 px-4 py-2 text-sm font-semibold text-white hover:enabled:bg-[#EB1F27] disabled:cursor-default disabled:bg-primary-300"
+          >
+            {submitting ? t['student.practiceExam.submitting'] : t['student.practiceExam.submit']}
+          </button>
+        </>
+      )}
     </section>
   )
 }
