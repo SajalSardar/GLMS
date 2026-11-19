@@ -44,6 +44,7 @@ class ExamController extends Controller
 
         $exams = Exam::query()
             ->with(self::INDEX_WITH)
+            ->where('is_practice', false)
             ->when($request->integer('class_version_id'), fn ($query, $id) => $query->where('class_version_id', $id))
             ->when($request->integer('subject_id'), fn ($query, $id) => $query->where('subject_id', $id))
             ->when($request->integer('academic_year_id'), fn ($query, $id) => $query->where('academic_year_id', $id))

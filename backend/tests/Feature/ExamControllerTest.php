@@ -303,4 +303,28 @@ class ExamControllerTest extends TestCase
         $this->actingAs($actor, 'sanctum')->getJson("/api/v1/exams/{$ownDraft->id}")->assertOk();
         $this->actingAs($actor, 'sanctum')->getJson("/api/v1/exams/{$otherSchoolExam->id}")->assertNotFound();
     }
+
+    public function test_index_never_returns_a_practice_exam_for_any_actor(): void
+    {
+        $practiceExam = Exam::create($this->examPayload(['name' => 'Practice Session']) + [
+            'school_id' => $this->versionA->school_id,
+            'district_id' => $this->versionA->district_id,
+            'status' => 'published',
+            'is_practice' => true,
+        ]);
+
+        $published = Exam::create($this->examPayload(['name' => 'Real Final']) + [
+            'school_id' => $this->versionA->school_id,
+            'district_id' => $this->versionA->district_id,
+            'status' => 'published',
+        ]);
+
+        $index = $this->getJson('/api/v1/exams')->assertOk();
+        $index->assertJsonCount(1, 'data');
+        $index->assertJsonPath('data.0.id', $published->id);
+
+        $manager = $this->actorWithPermissions(['exams.view'], $this->versionA->school_id, $this->versionA->district_id);
+        $managerIndex = $this->actingAs($manager, 'sanctum')->getJson('/api/v1/exams')->assertOk();
+        $managerIndex->assertJsonMissing(['id' => $practiceExam->id]);
+    }
 }

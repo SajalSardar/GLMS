@@ -782,6 +782,7 @@ export interface Exam {
   bn_name: string | null
   selection_mode: 'manual' | 'fixed_random' | 'per_attempt_random'
   status: string
+  is_practice: boolean
   available_from: string | null
   available_until: string | null
   random_question_count: number | null

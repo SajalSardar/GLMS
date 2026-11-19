@@ -30,6 +30,7 @@ class ExamResource extends JsonResource
             'available_from' => $this->available_from,
             'available_until' => $this->available_until,
             'status' => $this->status,
+            'is_practice' => $this->is_practice,
             'random_question_count' => $this->random_question_count,
             'random_difficulty' => $this->random_difficulty,
             'marks_per_question' => $this->marks_per_question,
