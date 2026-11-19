@@ -49,6 +49,7 @@ class Exam extends Model
         return [
             'available_from' => 'datetime',
             'available_until' => 'datetime',
+            'is_practice' => 'boolean',
         ];
     }
 

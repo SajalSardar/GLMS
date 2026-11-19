@@ -322,6 +322,8 @@ class ExamControllerTest extends TestCase
         $index = $this->getJson('/api/v1/exams')->assertOk();
         $index->assertJsonCount(1, 'data');
         $index->assertJsonPath('data.0.id', $published->id);
+        $index->assertJsonPath('data.0.is_practice', false);
+        $this->assertIsBool($index->json('data.0.is_practice'));
 
         $manager = $this->actorWithPermissions(['exams.view'], $this->versionA->school_id, $this->versionA->district_id);
         $managerIndex = $this->actingAs($manager, 'sanctum')->getJson('/api/v1/exams')->assertOk();
