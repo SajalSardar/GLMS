@@ -25,6 +25,8 @@ class StudentProfileResource extends JsonResource
             'district_id' => $this->district_id,
             'class_id' => $this->class_id,
             'section_id' => $this->section_id,
+            'shift_id' => $this->shift_id,
+            'class_version_id' => $this->class_version_id,
             'student_id' => $this->student_id,
             'roll_number' => $this->roll_number,
             'admission_date' => $this->admission_date?->toDateString(),

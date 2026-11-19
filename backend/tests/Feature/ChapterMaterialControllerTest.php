@@ -11,6 +11,9 @@ use App\Models\District;
 use App\Models\Division;
 use App\Models\School;
 use App\Models\SchoolClass;
+use App\Models\Section;
+use App\Models\Shift;
+use App\Models\StudentProfile;
 use App\Models\Subject;
 use App\Models\Upazila;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -269,5 +272,96 @@ class ChapterMaterialControllerTest extends TestCase
             ->assertOk();
 
         $this->get($url)->assertNotFound();
+    }
+
+    public function test_store_scopes_the_material_to_the_uploading_teachers_own_matching_section(): void
+    {
+        $classVersionId = $this->chapterA->book->class_version_id;
+        $shift = Shift::create(['class_version_id' => $classVersionId, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'name' => 'Shift', 'start_time' => '08:00', 'end_time' => '13:00', 'days_of_week' => ['saturday']]);
+        $teacher = $this->teacherActorWithPermissions(['chapter_materials.create'], $this->schoolA->id, $this->schoolA->district_id);
+        $section = Section::create(['shift_id' => $shift->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'name' => 'Section A', 'class_teacher_id' => $teacher->id]);
+
+        $file = UploadedFile::fake()->create('chapter1.pdf', 100, 'application/pdf');
+
+        $this->actingAs($teacher, 'sanctum')
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'primary', 'pdf' => $file])
+            ->assertCreated()
+            ->assertJsonPath('data.section_id', $section->id)
+            ->assertJsonPath('data.shift_id', $shift->id)
+            ->assertJsonPath('data.class_version_id', $classVersionId)
+            ->assertJsonPath('data.school_id', $this->schoolA->id)
+            ->assertJsonPath('data.district_id', $this->schoolA->district_id);
+    }
+
+    public function test_store_leaves_scope_null_when_the_teacher_has_no_matching_section(): void
+    {
+        $teacher = $this->teacherActorWithPermissions(['chapter_materials.create'], $this->schoolA->id, $this->schoolA->district_id);
+        $file = UploadedFile::fake()->create('chapter1.pdf', 100, 'application/pdf');
+
+        $this->actingAs($teacher, 'sanctum')
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'primary', 'pdf' => $file])
+            ->assertCreated()
+            ->assertJsonPath('data.section_id', null)
+            ->assertJsonPath('data.shift_id', null);
+    }
+
+    public function test_a_student_outside_the_materials_section_cannot_see_or_download_it(): void
+    {
+        $classVersionId = $this->chapterA->book->class_version_id;
+        $shift = Shift::create(['class_version_id' => $classVersionId, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'name' => 'Shift', 'start_time' => '08:00', 'end_time' => '13:00', 'days_of_week' => ['saturday']]);
+        $teacher = $this->teacherActorWithPermissions(['chapter_materials.create'], $this->schoolA->id, $this->schoolA->district_id);
+        $ownSection = Section::create(['shift_id' => $shift->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'name' => 'Section A', 'class_teacher_id' => $teacher->id]);
+        $otherSection = Section::create(['shift_id' => $shift->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'name' => 'Section B']);
+
+        $file = UploadedFile::fake()->create('chapter1.pdf', 100, 'application/pdf');
+        $materialId = $this->actingAs($teacher, 'sanctum')
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'primary', 'pdf' => $file])
+            ->json('data.id');
+
+        $outsideStudent = $this->studentActorWithPermissions(['chapter_materials.view'], $this->schoolA->id, $this->schoolA->district_id);
+        StudentProfile::create(['user_id' => $outsideStudent->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'section_id' => $otherSection->id]);
+
+        $this->actingAs($outsideStudent, 'sanctum')
+            ->getJson("/api/v1/chapter-materials?chapter_id={$this->chapterA->id}")
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+
+        $this->actingAs($outsideStudent, 'sanctum')
+            ->postJson("/api/v1/chapter-materials/{$materialId}/download-link")
+            ->assertForbidden();
+
+        $insideStudent = $this->studentActorWithPermissions(['chapter_materials.view'], $this->schoolA->id, $this->schoolA->district_id);
+        StudentProfile::create(['user_id' => $insideStudent->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'section_id' => $ownSection->id]);
+
+        $this->actingAs($insideStudent, 'sanctum')
+            ->getJson("/api/v1/chapter-materials?chapter_id={$this->chapterA->id}")
+            ->assertOk()
+            ->assertJsonCount(1, 'data');
+
+        $this->actingAs($insideStudent, 'sanctum')
+            ->postJson("/api/v1/chapter-materials/{$materialId}/download-link")
+            ->assertOk();
+    }
+
+    public function test_an_unscoped_material_remains_visible_to_everyone(): void
+    {
+        ChapterMaterial::create([
+            'chapter_id' => $this->chapterA->id,
+            'type' => 'primary',
+            'title' => 'Legacy Material',
+            'original_filename' => 'notes.pdf',
+            'stored_path' => 'demo/notes.pdf',
+            'disk' => 'local',
+            'mime_type' => 'application/pdf',
+            'size_bytes' => 1000,
+            'order_index' => 1,
+        ]);
+
+        $student = $this->studentActorWithPermissions(['chapter_materials.view'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $this->actingAs($student, 'sanctum')
+            ->getJson("/api/v1/chapter-materials?chapter_id={$this->chapterA->id}")
+            ->assertOk()
+            ->assertJsonCount(1, 'data');
     }
 }

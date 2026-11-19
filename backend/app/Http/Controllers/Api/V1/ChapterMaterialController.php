@@ -9,6 +9,9 @@ use App\Http\Resources\Api\V1\ChapterMaterialResource;
 use App\Models\Chapter;
 use App\Models\ChapterMaterial;
 use App\Models\ContentAccessLog;
+use App\Models\Section;
+use App\Models\StudentUser;
+use App\Models\TeacherUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -20,11 +23,30 @@ use Illuminate\Validation\ValidationException;
 
 class ChapterMaterialController extends Controller
 {
+    /**
+     * A material with a null section_id predates per-section scoping (or
+     * was uploaded by a non-class-teacher actor) and stays visible to the
+     * whole chapter; one with a section_id set is visible only to a
+     * student in that exact section. This route sits outside auth:sanctum
+     * (guests browse it too), so the actor is resolved explicitly from the
+     * sanctum guard — a guest, or any non-student actor, only ever sees
+     * the unscoped materials.
+     */
     public function index(Request $request): AnonymousResourceCollection
     {
+        $actor = $request->user('sanctum');
+        $ownSectionId = $actor instanceof StudentUser ? $actor->profile?->section_id : null;
+
         $materials = ChapterMaterial::query()
             ->with('chapter')
             ->when($request->integer('chapter_id'), fn ($query, $id) => $query->where('chapter_id', $id))
+            ->where(function ($query) use ($ownSectionId) {
+                $query->whereNull('section_id');
+
+                if ($ownSectionId !== null) {
+                    $query->orWhere('section_id', $ownSectionId);
+                }
+            })
             ->orderBy('chapter_id')
             ->orderBy('type')
             ->orderBy('order_index')
@@ -42,13 +64,14 @@ class ChapterMaterialController extends Controller
     {
         $this->authorize('create', ChapterMaterial::class);
 
-        $chapter = Chapter::findOrFail($request->integer('chapter_id'));
+        $chapter = Chapter::with('book')->findOrFail($request->integer('chapter_id'));
         $disk = config('content.pdf_disk');
         $file = $request->file('pdf');
         $path = $file->storeAs("chapter-materials/{$chapter->id}", Str::uuid().'.pdf', $disk);
 
         $material = ChapterMaterial::create([
             'chapter_id' => $chapter->id,
+            ...$this->resolveUploaderScope($request->user(), $chapter),
             'type' => $request->input('type'),
             'title' => $request->input('title'),
             'original_filename' => $file->getClientOriginalName(),
@@ -63,6 +86,52 @@ class ChapterMaterialController extends Controller
         return (new ChapterMaterialResource($material->load('chapter')))
             ->response()
             ->setStatusCode(Response::HTTP_CREATED);
+    }
+
+    /**
+     * [school_id, district_id, shift_id, class_version_id, class_id,
+     * section_id] — all null unless the uploader is a TeacherUser who is
+     * the class_teacher of a section whose own shift.class_version_id
+     * matches this chapter's book's class_version_id. A school_admin/
+     * national_admin upload, or a teacher with no matching section
+     * (doesn't teach this exact class, or teaches several sections of
+     * it — ambiguous, so left unscoped rather than guessing), leaves the
+     * material visible to the whole chapter, same as before this scoping
+     * existed.
+     *
+     * @return array{school_id: ?int, district_id: ?int, shift_id: ?int, class_version_id: ?int, class_id: ?int, section_id: ?int}
+     */
+    private function resolveUploaderScope(mixed $actor, Chapter $chapter): array
+    {
+        $empty = ['school_id' => null, 'district_id' => null, 'shift_id' => null, 'class_version_id' => null, 'class_id' => null, 'section_id' => null];
+
+        if (! $actor instanceof TeacherUser) {
+            return $empty;
+        }
+
+        $classVersionId = $chapter->book->class_version_id;
+
+        $sections = Section::query()
+            ->where('class_teacher_id', $actor->id)
+            ->whereHas('shift', fn ($query) => $query->where('class_version_id', $classVersionId))
+            ->with('shift.classVersion')
+            ->get();
+
+        if ($sections->count() !== 1) {
+            return $empty;
+        }
+
+        $section = $sections->first();
+        $shift = $section->shift;
+
+        return [
+            'school_id' => $section->school_id,
+            'district_id' => $section->district_id,
+            'shift_id' => $shift->id,
+            'class_version_id' => $shift->class_version_id,
+            'class_id' => $shift->classVersion->class_id,
+            'section_id' => $section->id,
+        ];
     }
 
     public function update(UpdateChapterMaterialRequest $request, ChapterMaterial $chapter_material): ChapterMaterialResource

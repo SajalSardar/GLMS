@@ -20,6 +20,8 @@ class StudentProfile extends Model
         'district_id',
         'class_id',
         'section_id',
+        'shift_id',
+        'class_version_id',
         'student_id',
         'roll_number',
         'admission_date',
@@ -66,6 +68,20 @@ class StudentProfile extends Model
     public function section(): BelongsTo
     {
         return $this->belongsTo(Section::class);
+    }
+
+    /**
+     * Denormalized from section_id — see the migration that added these
+     * two columns for why.
+     */
+    public function shift(): BelongsTo
+    {
+        return $this->belongsTo(Shift::class);
+    }
+
+    public function classVersion(): BelongsTo
+    {
+        return $this->belongsTo(ClassVersion::class);
     }
 
     public function sectionTransfers(): HasMany

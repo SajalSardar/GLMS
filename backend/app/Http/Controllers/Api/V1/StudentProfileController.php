@@ -208,7 +208,14 @@ class StudentProfileController extends Controller
             'transferred_at' => now(),
         ]);
 
-        $student_profile->update(['section_id' => $toSection->id]);
+        // shift_id/class_version_id are denormalized from section_id — this
+        // is the only place section_id ever changes, so it's the only
+        // place that needs to keep them in sync.
+        $student_profile->update([
+            'section_id' => $toSection->id,
+            'shift_id' => $toSection->shift_id,
+            'class_version_id' => $toSection->shift?->class_version_id,
+        ]);
 
         return new StudentSectionTransferResource($transfer->load(['fromSection', 'toSection']));
     }

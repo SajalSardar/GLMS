@@ -747,6 +747,15 @@ export function listChapterVideos(
 export interface ChapterMaterial {
   id: number
   chapter_id: number
+  // Set only when the uploader was the class_teacher of a section
+  // matching the chapter's own class_version — null means this material
+  // is visible to the whole chapter, not restricted to one section.
+  school_id: number | null
+  district_id: number | null
+  shift_id: number | null
+  class_version_id: number | null
+  class_id: number | null
+  section_id: number | null
   type: string
   title: string
   original_filename: string | null
@@ -1450,6 +1459,10 @@ export interface StudentProfile {
   district_id: number
   class_id: number | null
   section_id: number | null
+  // Denormalized from section_id — see StudentProfileController::
+  // transferSection(), the only place section_id ever changes.
+  shift_id: number | null
+  class_version_id: number | null
   student_id: string | null
   roll_number: string | null
   admission_date: string | null

@@ -219,4 +219,34 @@ class StudentProfileAuthorizationTest extends TestCase
         $response->assertJsonPath('data.0.guardians.0.relation', 'father');
         $response->assertJsonPath('data.0.guardians.0.is_primary', true);
     }
+
+    /**
+     * shift_id/class_version_id are denormalized from section_id, and
+     * transferSection() is the only place section_id ever changes — so
+     * it's the only place that needs to keep them in sync.
+     */
+    public function test_transfer_section_also_syncs_shift_and_class_version_id(): void
+    {
+        $student = StudentUser::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
+        $profile = StudentProfile::create([
+            'user_id' => $student->id,
+            'school_id' => $this->school->id,
+            'district_id' => $this->school->district_id,
+        ]);
+
+        $this->assertNull($profile->shift_id);
+        $this->assertNull($profile->class_version_id);
+
+        $allowed = $this->actorWithPermissions(['student_profiles.update'], $this->school->id, $this->school->district_id);
+
+        $this->actingAs($allowed, 'sanctum')
+            ->postJson("/api/v1/student-profiles/{$profile->id}/transfer-section", ['to_section_id' => $this->section->id])
+            ->assertCreated();
+
+        $profile->refresh();
+
+        $this->assertSame($this->section->id, $profile->section_id);
+        $this->assertSame($this->section->shift_id, $profile->shift_id);
+        $this->assertSame($this->section->shift->class_version_id, $profile->class_version_id);
+    }
 }
