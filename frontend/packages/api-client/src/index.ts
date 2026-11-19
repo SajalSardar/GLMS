@@ -537,7 +537,14 @@ export interface AcademicYearPayload {
 }
 
 export function listAcademicYears(
-  params: { page?: number; perPage?: number; search?: string; schoolId?: number; districtId?: number } = {},
+  params: {
+    page?: number
+    perPage?: number
+    search?: string
+    schoolId?: number
+    districtId?: number
+    currentOnly?: boolean
+  } = {},
 ): Promise<PaginatedResponse<AcademicYear>> {
   const query: Record<string, string | number | undefined> = {
     page: params.page,
@@ -545,6 +552,7 @@ export function listAcademicYears(
     search: params.search || undefined,
     school_id: params.schoolId,
     district_id: params.districtId,
+    current_only: params.currentOnly ? 'true' : undefined,
   }
 
   return apiFetch<PaginatedResponse<AcademicYear>>(`/academic-years${buildQuery(query)}`)
@@ -630,6 +638,7 @@ export interface Book {
   id: number
   class_version_id: number
   subject_id: number
+  academic_year_id: number | null
   name: string
   bn_name: string | null
   order_index: number | null
@@ -643,15 +652,17 @@ export interface Book {
   has_available_pdf: boolean
   class_version?: ClassVersion | null
   subject?: Subject | null
+  academic_year?: AcademicYear | null
   chapters?: Chapter[] | null
 }
 
 export function listBooks(
-  params: { classVersionId?: number; subjectId?: number } = {},
+  params: { classVersionId?: number; subjectId?: number; academicYearId?: number } = {},
 ): Promise<{ data: Book[] }> {
   const query: Record<string, string | number | undefined> = {
     class_version_id: params.classVersionId,
     subject_id: params.subjectId,
+    academic_year_id: params.academicYearId,
   }
 
   return apiFetch<{ data: Book[] }>(`/books${buildQuery(query)}`)

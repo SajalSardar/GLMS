@@ -22,6 +22,7 @@ class BookResource extends JsonResource
             'updated_by_id' => $this->updated_by_id,
             'class_version_id' => $this->class_version_id,
             'subject_id' => $this->subject_id,
+            'academic_year_id' => $this->academic_year_id,
             'name' => $this->name,
             'bn_name' => $this->bn_name,
             'order_index' => $this->order_index,
@@ -35,6 +36,7 @@ class BookResource extends JsonResource
             'has_available_pdf' => $this->hasAvailablePdf(),
             'class_version' => new ClassVersionResource($this->whenLoaded('classVersion')),
             'subject' => new SubjectResource($this->whenLoaded('subject')),
+            'academic_year' => new AcademicYearResource($this->whenLoaded('academicYear')),
             'chapters' => ChapterResource::collection($this->whenLoaded('chapters')),
         ];
     }

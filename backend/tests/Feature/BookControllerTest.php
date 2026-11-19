@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AcademicYear;
 use App\Models\Book;
 use App\Models\ClassVersion;
 use App\Models\District;
@@ -25,6 +26,8 @@ class BookControllerTest extends TestCase
 
     private Subject $subject;
 
+    private AcademicYear $academicYear;
+
     private School $schoolA;
 
     private School $schoolB;
@@ -44,6 +47,13 @@ class BookControllerTest extends TestCase
 
         $this->subject = Subject::create(['name' => 'Mathematics']);
 
+        $this->academicYear = AcademicYear::create([
+            'name' => '2026',
+            'start_date' => '2026-01-01',
+            'end_date' => '2026-12-31',
+            'is_current' => true,
+        ]);
+
         $classA = SchoolClass::create(['name' => 'Class 6']);
         $classB = SchoolClass::create(['name' => 'Class 6 B']);
 
@@ -58,7 +68,7 @@ class BookControllerTest extends TestCase
             'subject_id' => $this->subject->id,
             'name' => 'Existing Book',
         ]);
-        $payload = ['class_version_id' => $this->versionA->id, 'subject_id' => $this->subject->id, 'name' => 'New Book'];
+        $payload = ['class_version_id' => $this->versionA->id, 'subject_id' => $this->subject->id, 'academic_year_id' => $this->academicYear->id, 'name' => 'New Book'];
 
         $denied = $this->actorWithNoPermissions($this->schoolA->id, $this->schoolA->district_id);
         $this->actingAs($denied, 'sanctum')->postJson('/api/v1/books', $payload)->assertForbidden();
@@ -80,11 +90,11 @@ class BookControllerTest extends TestCase
         $allowed = $this->actorWithPermissions(['books.create'], $this->schoolA->id, $this->schoolA->district_id);
 
         $this->actingAs($allowed, 'sanctum')
-            ->postJson('/api/v1/books', ['class_version_id' => $this->versionA->id, 'subject_id' => $this->subject->id, 'name' => 'Mathematics'])
+            ->postJson('/api/v1/books', ['class_version_id' => $this->versionA->id, 'subject_id' => $this->subject->id, 'academic_year_id' => $this->academicYear->id, 'name' => 'Mathematics'])
             ->assertCreated();
 
         $this->actingAs($allowed, 'sanctum')
-            ->postJson('/api/v1/books', ['class_version_id' => $this->versionA->id, 'subject_id' => $this->subject->id, 'name' => 'Mathematics Practice Book'])
+            ->postJson('/api/v1/books', ['class_version_id' => $this->versionA->id, 'subject_id' => $this->subject->id, 'academic_year_id' => $this->academicYear->id, 'name' => 'Mathematics Practice Book'])
             ->assertCreated();
 
         $this->assertSame(2, Book::where('class_version_id', $this->versionA->id)->where('subject_id', $this->subject->id)->count());
@@ -118,7 +128,7 @@ class BookControllerTest extends TestCase
         $allowed = $this->actorWithPermissions(['books.create'], $this->schoolA->id, $this->schoolA->district_id);
 
         $this->actingAs($allowed, 'sanctum')
-            ->postJson('/api/v1/books', ['class_version_id' => $this->versionA->id, 'subject_id' => $this->subject->id, 'name' => 'Mathematics'])
+            ->postJson('/api/v1/books', ['class_version_id' => $this->versionA->id, 'subject_id' => $this->subject->id, 'academic_year_id' => $this->academicYear->id, 'name' => 'Mathematics'])
             ->assertCreated()
             ->assertJsonPath('data.id', $book->id);
     }

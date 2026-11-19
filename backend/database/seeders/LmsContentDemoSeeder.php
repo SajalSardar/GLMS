@@ -77,13 +77,13 @@ class LmsContentDemoSeeder extends Seeder
             ['name' => 'Whole Numbers', 'bn_name' => 'পূর্ণ সংখ্যা'],
             ['name' => 'Fractions', 'bn_name' => 'ভগ্নাংশ'],
             ['name' => 'Basic Geometry', 'bn_name' => 'প্রাথমিক জ্যামিতি'],
-        ], $staffUploader);
+        ], $staffUploader, $academicYear);
 
         $scienceChapters = $this->seedBookWithChapters($version, 'Science', 'General Science for Class 6', [
             ['name' => 'Our Environment', 'bn_name' => 'আমাদের পরিবেশ'],
             ['name' => 'Force and Motion', 'bn_name' => 'বল ও গতি'],
             ['name' => 'States of Matter', 'bn_name' => 'পদার্থের অবস্থা'],
-        ], $staffUploader);
+        ], $staffUploader, $academicYear);
 
         $this->seedChapterContent($mathChapters->first(), $staffUploader, $studentProfile);
         $this->seedChapterContent($scienceChapters->first(), $staffUploader, $studentProfile);
@@ -109,7 +109,7 @@ class LmsContentDemoSeeder extends Seeder
      * @param  list<array{name: string, bn_name: string}>  $chapterDefinitions
      * @return Collection<int, Chapter>
      */
-    private function seedBookWithChapters(ClassVersion $version, string $subjectName, string $bookName, array $chapterDefinitions, ?User $staffUploader): Collection
+    private function seedBookWithChapters(ClassVersion $version, string $subjectName, string $bookName, array $chapterDefinitions, ?User $staffUploader, AcademicYear $academicYear): Collection
     {
         $subject = Subject::where('name', $subjectName)->first();
 
@@ -120,6 +120,7 @@ class LmsContentDemoSeeder extends Seeder
         $book = Book::updateOrCreate(
             ['class_version_id' => $version->id, 'subject_id' => $subject->id, 'name' => $bookName],
             [
+                'academic_year_id' => $academicYear->id,
                 'order_index' => 1,
                 'description' => "NCTB-aligned {$subjectName} textbook for Class 6.",
                 'is_active' => true,

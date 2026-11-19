@@ -27,6 +27,7 @@ class StoreBookRequest extends FormRequest
         return [
             'class_version_id' => ['required', 'integer', Rule::exists('class_versions', 'id')->withoutTrashed()],
             'subject_id' => ['required', 'integer', Rule::exists('subjects', 'id')->withoutTrashed()],
+            'academic_year_id' => ['required', 'integer', Rule::exists('academic_years', 'id')],
             'name' => [
                 'required', 'string', 'max:255',
                 Rule::unique('books', 'name')->withoutTrashed()

@@ -461,6 +461,18 @@ describe('academic years', () => {
     expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/academic-years?school_id=5`)
   })
 
+  it('lists academic years filtered by current_only', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ data: [], meta: { current_page: 1, last_page: 1, per_page: 15, total: 0 } }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    await listAcademicYears({ currentOnly: true })
+
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/academic-years?current_only=true`)
+  })
+
   it('creates an academic year with a JSON body', async () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
@@ -708,6 +720,18 @@ describe('books', () => {
     expect(mockFetch.mock.calls[0][0]).toBe(
       `${import.meta.env.VITE_API_BASE_URL}/books?class_version_id=5&subject_id=2`,
     )
+  })
+
+  it('lists books filtered by academic_year_id', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ data: [] }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    await listBooks({ academicYearId: 3 })
+
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/books?academic_year_id=3`)
   })
 
   it('gets a single book', async () => {

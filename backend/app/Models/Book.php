@@ -15,6 +15,7 @@ class Book extends Model
     protected $fillable = [
         'class_version_id',
         'subject_id',
+        'academic_year_id',
         'name',
         'bn_name',
         'order_index',
@@ -51,6 +52,11 @@ class Book extends Model
     public function subject(): BelongsTo
     {
         return $this->belongsTo(Subject::class);
+    }
+
+    public function academicYear(): BelongsTo
+    {
+        return $this->belongsTo(AcademicYear::class);
     }
 
     public function chapters(): HasMany

@@ -29,9 +29,10 @@ class BookController extends Controller
     public function index(Request $request): AnonymousResourceCollection
     {
         $books = Book::query()
-            ->with(['classVersion', 'subject'])
+            ->with(['classVersion', 'subject', 'academicYear'])
             ->when($request->integer('class_version_id'), fn ($query, $id) => $query->where('class_version_id', $id))
             ->when($request->integer('subject_id'), fn ($query, $id) => $query->where('subject_id', $id))
+            ->when($request->integer('academic_year_id'), fn ($query, $id) => $query->where('academic_year_id', $id))
             ->orderBy('class_version_id')
             ->orderBy('subject_id')
             ->orderBy('order_index')
@@ -46,7 +47,7 @@ class BookController extends Controller
      */
     public function show(Book $book): BookResource
     {
-        return new BookResource($book->load(['classVersion', 'subject']));
+        return new BookResource($book->load(['classVersion', 'subject', 'academicYear']));
     }
 
     /**
@@ -79,7 +80,7 @@ class BookController extends Controller
             $book = Book::create($data);
         }
 
-        return (new BookResource($book->load(['classVersion', 'subject'])))
+        return (new BookResource($book->load(['classVersion', 'subject', 'academicYear'])))
             ->response()
             ->setStatusCode(Response::HTTP_CREATED);
     }
@@ -93,7 +94,7 @@ class BookController extends Controller
 
         $book->update($request->validated());
 
-        return new BookResource($book->load(['classVersion', 'subject']));
+        return new BookResource($book->load(['classVersion', 'subject', 'academicYear']));
     }
 
     /**
