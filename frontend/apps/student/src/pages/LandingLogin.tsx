@@ -93,17 +93,16 @@ export default function LandingLogin() {
   return (
     <div className="overflow-x-hidden text-[color:var(--color-ink)]">
       <section className="relative overflow-hidden bg-[url('/hero-banner.png')] bg-cover bg-center py-6 lg:py-10" id="top">
-        {/* A light-to-deep brand-green wash, not a white one — gives the
-            banner real depth while the photo stays visible underneath.
-            Below lg it fades top-to-bottom (content stacks vertically, no
-            left/right split); at lg it fades left-to-right so the headline
-            side reads light and the photo deepens toward the right. */}
+        {/* No wash over the whole photo — only a solid block behind the
+            text, confined to the left side at lg (with a fade at its own
+            inner edge into the clean photo), so the photo itself stays
+            fully visible everywhere else. */}
         <div
-          className="absolute inset-0 bg-gradient-to-b from-primary-50/70 via-primary-600/40 to-primary-900/60 lg:bg-gradient-to-r lg:from-primary-50/75 lg:via-primary-600/35 lg:to-primary-900/50"
+          className="absolute inset-y-0 left-0 hidden w-[60%] bg-gradient-to-r from-primary-50 from-65% to-transparent lg:block"
           aria-hidden="true"
         />
         <div className="relative mx-auto flex max-w-[76rem] flex-col gap-10 px-5 pt-8 pb-12 lg:items-start lg:pt-16 lg:pb-20">
-          <div className="lg:max-w-[40rem] lg:text-left">
+          <div className="rounded-2xl bg-primary-50/95 p-6 lg:max-w-[40rem] lg:bg-transparent lg:p-0 lg:text-left">
             <h1 className="text-center text-[clamp(1.75rem,6vw,2.6rem)] font-bold leading-[1.22] font-display [text-shadow:0_1px_3px_rgba(255,255,255,0.9),0_0_14px_rgba(255,255,255,0.85)] lg:text-left">
               {t['landing.hero.heading1']}
               <br />
