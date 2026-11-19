@@ -84,6 +84,7 @@
   "student.practiceExam.loadError": "এই মুহূর্তে লোড করা যায়নি। আবার চেষ্টা করো।",
   "student.certificate.title": "সনদপত্র",
   "student.certificate.guestName": "অতিথি শিক্ষার্থী",
+  "student.certificate.studentName": "শিক্ষার্থী",
   "student.certificate.achieved": "অর্জন করেছে",
   "student.certificate.scoreLine": "স্কোর: {score} / {total}",
   "student.certificate.print": "প্রিন্ট করো",

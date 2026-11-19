@@ -48,7 +48,7 @@ export default function CertificatePage() {
     )
   }
 
-  const studentName = token ? null : t['student.certificate.guestName']
+  const studentName = token ? t['student.certificate.studentName'] : t['student.certificate.guestName']
   const formattedDate = new Date(state.date).toLocaleDateString('bn-BD', { year: 'numeric', month: 'long', day: 'numeric' })
 
   return (
@@ -57,7 +57,7 @@ export default function CertificatePage() {
         <img src="/logo.webp" alt="" aria-hidden="true" className="mx-auto h-14 w-14 object-contain" />
         <h1 className="mt-4 text-2xl font-bold font-display text-primary-800">{t['student.certificate.title']}</h1>
 
-        <p className="mt-6 text-lg font-semibold text-primary-800">{studentName ?? t['student.certificate.guestName']}</p>
+        <p className="mt-6 text-lg font-semibold text-primary-800">{studentName}</p>
 
         <p className="mt-2 text-base text-primary-700">
           {t['student.certificate.achieved']} <strong>{t[TIER_HEADING_KEY[state.tier]]}</strong>

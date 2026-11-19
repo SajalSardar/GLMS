@@ -84,6 +84,7 @@
   "student.practiceExam.loadError": "Could not load right now. Please try again.",
   "student.certificate.title": "Certificate",
   "student.certificate.guestName": "Guest Student",
+  "student.certificate.studentName": "Student",
   "student.certificate.achieved": "has achieved",
   "student.certificate.scoreLine": "Score: {score} / {total}",
   "student.certificate.print": "Print",
