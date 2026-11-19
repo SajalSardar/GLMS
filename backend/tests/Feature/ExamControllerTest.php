@@ -325,6 +325,14 @@ class ExamControllerTest extends TestCase
 
         $manager = $this->actorWithPermissions(['exams.view'], $this->versionA->school_id, $this->versionA->district_id);
         $managerIndex = $this->actingAs($manager, 'sanctum')->getJson('/api/v1/exams')->assertOk();
-        $managerIndex->assertJsonMissing(['id' => $practiceExam->id]);
+
+        // assertJsonMissing(['id' => ...]) searches the whole response
+        // fragment-wise and false-fails here: nested relations in the
+        // resource payload (academic_year, class_version, subject, ...)
+        // legitimately share small ids with $practiceExam, so a bare id
+        // fragment can match one of those instead of an exam row. Scope
+        // the check to the listed exams' own ids.
+        $managerExamIds = collect($managerIndex->json('data'))->pluck('id');
+        $this->assertNotContains($practiceExam->id, $managerExamIds);
     }
 }
