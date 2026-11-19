@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\V1\GuardianUserController;
 use App\Http\Controllers\Api\V1\GuestExamAttemptController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\PermissionController;
+use App\Http\Controllers\Api\V1\PracticeExamController;
 use App\Http\Controllers\Api\V1\QuestionController;
 use App\Http\Controllers\Api\V1\RoleController;
 use App\Http\Controllers\Api\V1\SchoolController;
@@ -83,6 +84,8 @@ Route::prefix('v1')->group(function (): void {
     Route::apiResource('exams', ExamController::class)->only(['index', 'show']);
     Route::post('/exams/{exam}/random-draw', [GuestExamAttemptController::class, 'randomDraw']);
     Route::post('/exams/{exam}/guest-submissions', [GuestExamAttemptController::class, 'submit']);
+    Route::get('/practice-exams/config', [PracticeExamController::class, 'config']);
+    Route::post('/practice-exams', [PracticeExamController::class, 'store']);
 
     Route::middleware('auth:sanctum')->group(function (): void {
         Route::apiResource('divisions', DivisionController::class)->only(['store', 'update', 'destroy']);
