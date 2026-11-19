@@ -274,7 +274,7 @@ class ExamAttemptControllerTest extends TestCase
         $otherVersion = ClassVersion::create(['class_id' => $otherClass->id, 'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id, 'name' => 'Other Version 2']);
         $otherBook = Book::create(['class_version_id' => $otherVersion->id, 'subject_id' => $this->subject->id, 'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id, 'name' => 'Other Book 2']);
         $otherChapter = Chapter::create(['book_id' => $otherBook->id, 'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id, 'name' => 'Other Chapter 2']);
-        Question::create(['chapter_id' => $otherChapter->id, 'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id, 'question_type' => 'mcq_single', 'question_text' => 'Other Q 2', 'marks' => 1]);
+        $otherQuestion = Question::create(['chapter_id' => $otherChapter->id, 'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id, 'question_type' => 'mcq_single', 'question_text' => 'Other Q 2', 'marks' => 1]);
 
         $exam = Exam::create(['class_version_id' => $this->version->id, 'subject_id' => $this->subject->id, 'academic_year_id' => $this->academicYear->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Unnarrowed', 'selection_mode' => 'per_attempt_random', 'random_question_count' => 1, 'marks_per_question' => 1, 'status' => 'published']);
 
@@ -282,10 +282,14 @@ class ExamAttemptControllerTest extends TestCase
 
         // No exam_random_chapters attached at all — must fall back to
         // "every chapter under this exam's own class_version_id/subject_id",
-        // exactly as before this task's change.
+        // exactly as before this task's change. setUp() already seeds one
+        // question ("Q1") into $this->chapter, so the pool is $ownQuestion
+        // plus that seeded question — 2 total — and must exclude the other
+        // school's chapter entirely.
         $eligible = $exam->eligibleRandomQuestionIds();
 
         $this->assertTrue($eligible->contains($ownQuestion->id));
-        $this->assertCount(1, $eligible);
+        $this->assertFalse($eligible->contains($otherQuestion->id));
+        $this->assertCount(2, $eligible);
     }
 }
