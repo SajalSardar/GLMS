@@ -7,6 +7,7 @@ import {
   type Book,
   type Chapter,
   type ChapterVideo,
+  type ClassVersion,
   type Subject,
 } from '@ttla/api-client'
 
@@ -58,6 +59,33 @@ function allChapters(): Promise<Chapter[]> {
   return allChaptersPromise
 }
 
+// Every ClassVersion nationally, across every school — cached for the same
+// reason as allBooks()/allChapters() above. ClassVersionController::index()
+// only applies a `class_id`/`school_id` filter when that param is present,
+// so this one unfiltered call (with the per-class/per-school filtering done
+// in memory below) replaces what used to be a *separate*
+// `listClassVersions({ classId, perPage: 500 })` request fired from
+// subjectsForClass(), booksForClassAndSubject(), classSubjectPairsWithVideos()
+// AND the pages themselves for the very same classId on the very same page
+// load — e.g. VideoPlaylistPage was issuing that identical request three
+// times over before this cache was introduced.
+let allClassVersionsPromise: Promise<ClassVersion[]> | null = null
+
+export function allClassVersions(): Promise<ClassVersion[]> {
+  if (!allClassVersionsPromise) {
+    allClassVersionsPromise = listClassVersions({ perPage: 500 }).then((result) => result.data)
+  }
+
+  return allClassVersionsPromise
+}
+
+export async function classVersionsForClass(classId: number | null): Promise<ClassVersion[]> {
+  if (!classId) return []
+
+  const versions = await allClassVersions()
+  return versions.filter((version) => version.class_id === classId)
+}
+
 let allChapterVideosPromise: Promise<ChapterVideo[]> | null = null
 
 // Only ever used to answer "does this chapter have at least one (enabled)
@@ -96,13 +124,13 @@ export async function currentYearBooks(): Promise<Book[]> {
 export async function booksForClassAndSubject(classId: number | null, subjectId: number | null): Promise<Book[]> {
   if (!classId) return []
 
-  const [versionsResult, academicYearId, books] = await Promise.all([
-    listClassVersions({ classId, perPage: 500 }),
+  const [versions, academicYearId, books] = await Promise.all([
+    classVersionsForClass(classId),
     currentAcademicYearId(),
     allBooks(),
   ])
 
-  const versionIds = new Set(versionsResult.data.map((version) => version.id))
+  const versionIds = new Set(versions.map((version) => version.id))
 
   return books.filter(
     (book) =>
@@ -122,10 +150,10 @@ export async function booksForClassAndSubject(classId: number | null, subjectId:
 export async function subjectsForClass(classId: number | null): Promise<Subject[]> {
   if (!classId) return []
 
-  const versionsResult = await listClassVersions({ classId, perPage: 500 })
+  const versions = await classVersionsForClass(classId)
   const bySubjectId = new Map<number, Subject>()
 
-  for (const version of versionsResult.data) {
+  for (const version of versions) {
     for (const subject of version.subjects ?? []) {
       bySubjectId.set(subject.id, subject)
     }
@@ -201,15 +229,15 @@ export interface ClassSubjectPair {
 // of requests total regardless of how many classes/subjects/chapters exist
 // — see the cache comment above for why that matters here specifically.
 export async function classSubjectPairsWithVideos(): Promise<ClassSubjectPair[]> {
-  const [versionsResult, academicYearId, books, chapters, videos] = await Promise.all([
-    listClassVersions({ perPage: 500 }),
+  const [versions, academicYearId, books, chapters, videos] = await Promise.all([
+    allClassVersions(),
     currentAcademicYearId(),
     allBooks(),
     allChapters(),
     allChapterVideos(),
   ])
 
-  const classIdByVersionId = new Map(versionsResult.data.map((version) => [version.id, version.class_id]))
+  const classIdByVersionId = new Map(versions.map((version) => [version.id, version.class_id]))
   const chapterIdsWithVideo = new Set(videos.map((video) => video.chapter_id))
 
   const classAndSubjectByBookId = new Map<number, { classId: number; subjectId: number; versionId: number }>()

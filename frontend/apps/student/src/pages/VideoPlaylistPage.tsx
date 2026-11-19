@@ -4,13 +4,17 @@ import {
   ApiError,
   listChapterVideos,
   listClasses,
-  listClassVersions,
   type ChapterVideo,
   type ClassVersion,
   type SchoolClass,
   type Subject,
 } from '@ttla/api-client'
-import { chaptersWithVideosForClassAndSubject, subjectsForClass, type ChapterWithVideoCount } from '../lib/resolveContent'
+import {
+  chaptersWithVideosForClassAndSubject,
+  classVersionsForClass,
+  subjectsForClass,
+  type ChapterWithVideoCount,
+} from '../lib/resolveContent'
 import { useLocale } from '../lib/locale'
 
 // Same pattern as BooksPage.tsx/VideoLecturePage.tsx — see the comment
@@ -92,9 +96,9 @@ export default function VideoPlaylistPage() {
   useEffect(() => {
     let active = true
 
-    listClassVersions({ classId, perPage: 500 })
+    classVersionsForClass(classId)
       .then((result) => {
-        if (active) setVersions(result.data)
+        if (active) setVersions(result)
       })
       .catch(() => {
         if (active) setVersions([])

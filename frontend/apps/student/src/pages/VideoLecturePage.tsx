@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { listClasses, listClassVersions, listSubjects, type SchoolClass, type Subject } from '@ttla/api-client'
-import { classSubjectPairsWithVideos } from '../lib/resolveContent'
+import { listClasses, listSubjects, type SchoolClass, type Subject } from '@ttla/api-client'
+import { allClassVersions, classSubjectPairsWithVideos } from '../lib/resolveContent'
 import { useLocale } from '../lib/locale'
 
 type CardTone = 'primary' | 'secondary'
@@ -97,15 +97,15 @@ export default function VideoLecturePage() {
     Promise.all([
       listClasses({ perPage: 500 }),
       listSubjects({ perPage: 500 }),
-      listClassVersions({ perPage: 500 }),
+      allClassVersions(),
       classSubjectPairsWithVideos(),
     ])
-      .then(([classesResult, subjectsResult, versionsResult, pairs]) => {
+      .then(([classesResult, subjectsResult, versions, pairs]) => {
         if (!active) return
 
         const classesById = new Map(classesResult.data.map((schoolClass) => [schoolClass.id, schoolClass]))
         const subjectsById = new Map(subjectsResult.data.map((subject) => [subject.id, subject]))
-        const versionsById = new Map(versionsResult.data.map((version) => [version.id, version]))
+        const versionsById = new Map(versions.map((version) => [version.id, version]))
 
         setClasses(classesResult.data)
 
