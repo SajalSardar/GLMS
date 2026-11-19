@@ -19,7 +19,7 @@
   "student.nav.home": "হোম",
   "student.nav.books": "বই",
   "student.nav.videoLecture": "ভিডিও লেকচার",
-  "student.nav.exams": "অনলাইন পরীক্ষা",
+  "student.nav.exams": "অনুশীলন পরীক্ষা",
   "student.nav.signIn": "সাইন ইন",
   "student.nav.logout": "লগ আউট",
   "student.nav.ariaLabel": "প্রধান মেনু",
@@ -33,7 +33,7 @@
   "student.dashboard.booksDesc": "তোমার ক্লাসের পাঠ্যবই পড়ো।",
   "student.dashboard.videoLectureTitle": "ভিডিও লেকচার",
   "student.dashboard.videoLectureDesc": "অধ্যায়ভিত্তিক ভিডিও দেখো।",
-  "student.dashboard.examsTitle": "অনলাইন পরীক্ষা",
+  "student.dashboard.examsTitle": "অনুশীলন পরীক্ষা",
   "student.dashboard.examsDesc": "অনুশীলন পরীক্ষা দিয়ে নিজেকে যাচাই করো।",
 
   "student.notFound.title": "পৃষ্ঠাটি খুঁজে পাওয়া যায়নি",
