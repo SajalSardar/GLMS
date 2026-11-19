@@ -286,7 +286,7 @@ export default function LandingLogin() {
             {t['landing.hero.sub2']}
           </p>
 
-          <ul className="mt-6 flex list-none flex-wrap justify-center gap-x-6 gap-y-3 p-0 lg:justify-start">
+          <ul className="mt-6 grid list-none grid-cols-2 justify-items-center gap-x-6 gap-y-4 p-0 sm:grid-cols-4 lg:justify-items-start">
             {HERO_BADGES.map((badge) => (
               <li key={badge.label} className="flex flex-col items-center gap-1 text-[0.8rem] font-medium text-[color:var(--color-ink)]">
                 <img src={badge.image} alt="" className="h-12 w-12 object-contain" />
@@ -493,10 +493,14 @@ export default function LandingLogin() {
         </div>
 
         <div className="rounded-[1.1rem] bg-primary-50 px-6 py-8 text-center">
-          <img src="/tree.png" alt="" className="mx-auto h-14 object-contain" />
+          {/* Both images have a near-white background baked in, not a
+              transparent one — multiply-blending them onto this card's
+              light tint hides that background instead of showing it as a
+              mismatched box. */}
+          <img src="/tree.png" alt="" className="mx-auto h-14 object-contain mix-blend-multiply" />
           <h2 className="mt-2 text-[1.15rem] font-display">{t['landing.closing.heading']}</h2>
           <p className="mt-2 text-[0.85rem] text-[color:var(--color-muted)]">{t['landing.closing.body']}</p>
-          <img src="/book.png" alt="" className="mx-auto mt-1 h-8 object-contain" />
+          <img src="/book.png" alt="" className="mx-auto mt-1 h-8 object-contain mix-blend-multiply" />
         </div>
       </section>
     </div>
