@@ -1,4 +1,4 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { AuthProvider, useAuth } from '@ttla/auth'
 import { LocaleProvider } from './lib/locale'
 import SiteShell from './components/SiteShell'
@@ -23,6 +23,14 @@ function StudentAreaShell() {
   return token ? <StudentAppShell /> : <SiteShell />
 }
 
+// Unlike books/video-lecture/exams (which deliberately support guest
+// browsing), the dashboard landing page is student-only — a guest hitting
+// /dashboard directly is sent to the login form instead.
+function RequireAuth() {
+  const { token } = useAuth()
+  return token ? <Outlet /> : <Navigate to="/login" replace />
+}
+
 function App() {
   return (
     <LocaleProvider>
@@ -35,7 +43,9 @@ function App() {
               <Route path="*" element={<NotFoundPage />} />
             </Route>
             <Route element={<StudentAreaShell />}>
-              <Route path="dashboard" element={<DashboardPage />} />
+              <Route element={<RequireAuth />}>
+                <Route path="dashboard" element={<DashboardPage />} />
+              </Route>
               <Route path="books" element={<BooksPage />} />
               <Route path="books/:id" element={<BookDetailPage />} />
               <Route path="video-lecture" element={<VideoLecturePage />} />
