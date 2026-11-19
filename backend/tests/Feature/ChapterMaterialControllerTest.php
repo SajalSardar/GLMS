@@ -308,6 +308,7 @@ class ChapterMaterialControllerTest extends TestCase
     public function test_a_student_outside_the_materials_section_cannot_see_or_download_it(): void
     {
         $classVersionId = $this->chapterA->book->class_version_id;
+        $classId = $this->chapterA->book->classVersion->class_id;
         $shift = Shift::create(['class_version_id' => $classVersionId, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'name' => 'Shift', 'start_time' => '08:00', 'end_time' => '13:00', 'days_of_week' => ['saturday']]);
         $teacher = $this->teacherActorWithPermissions(['chapter_materials.create'], $this->schoolA->id, $this->schoolA->district_id);
         $ownSection = Section::create(['shift_id' => $shift->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'name' => 'Section A', 'class_teacher_id' => $teacher->id]);
@@ -319,7 +320,7 @@ class ChapterMaterialControllerTest extends TestCase
             ->json('data.id');
 
         $outsideStudent = $this->studentActorWithPermissions(['chapter_materials.view'], $this->schoolA->id, $this->schoolA->district_id);
-        StudentProfile::create(['user_id' => $outsideStudent->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'section_id' => $otherSection->id]);
+        StudentProfile::create(['user_id' => $outsideStudent->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'section_id' => $otherSection->id, 'shift_id' => $shift->id, 'class_version_id' => $classVersionId, 'class_id' => $classId]);
 
         $this->actingAs($outsideStudent, 'sanctum')
             ->getJson("/api/v1/chapter-materials?chapter_id={$this->chapterA->id}")
@@ -331,7 +332,7 @@ class ChapterMaterialControllerTest extends TestCase
             ->assertForbidden();
 
         $insideStudent = $this->studentActorWithPermissions(['chapter_materials.view'], $this->schoolA->id, $this->schoolA->district_id);
-        StudentProfile::create(['user_id' => $insideStudent->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'section_id' => $ownSection->id]);
+        StudentProfile::create(['user_id' => $insideStudent->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'section_id' => $ownSection->id, 'shift_id' => $shift->id, 'class_version_id' => $classVersionId, 'class_id' => $classId]);
 
         $this->actingAs($insideStudent, 'sanctum')
             ->getJson("/api/v1/chapter-materials?chapter_id={$this->chapterA->id}")
@@ -343,9 +344,9 @@ class ChapterMaterialControllerTest extends TestCase
             ->assertOk();
     }
 
-    public function test_an_unscoped_material_remains_visible_to_everyone(): void
+    public function test_an_unscoped_material_is_visible_to_a_guest_but_not_a_logged_in_student(): void
     {
-        ChapterMaterial::create([
+        $material = ChapterMaterial::create([
             'chapter_id' => $this->chapterA->id,
             'type' => 'primary',
             'title' => 'Legacy Material',
@@ -357,12 +358,25 @@ class ChapterMaterialControllerTest extends TestCase
             'order_index' => 1,
         ]);
 
-        $student = $this->studentActorWithPermissions(['chapter_materials.view'], $this->schoolA->id, $this->schoolA->district_id);
-
-        $this->actingAs($student, 'sanctum')
-            ->getJson("/api/v1/chapter-materials?chapter_id={$this->chapterA->id}")
+        $this->getJson("/api/v1/chapter-materials?chapter_id={$this->chapterA->id}")
             ->assertOk()
             ->assertJsonCount(1, 'data');
+
+        // A logged-in student never falls back to "everyone" materials —
+        // an unscoped one was never actually verified to belong to their
+        // class, unlike a guest (who has no profile to compare against
+        // at all, so showing them the unscoped ones is the only sensible
+        // default).
+        $studentWithNoProfile = $this->studentActorWithPermissions(['chapter_materials.view'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $this->actingAs($studentWithNoProfile, 'sanctum')
+            ->getJson("/api/v1/chapter-materials?chapter_id={$this->chapterA->id}")
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+
+        $this->actingAs($studentWithNoProfile, 'sanctum')
+            ->postJson("/api/v1/chapter-materials/{$material->id}/download-link")
+            ->assertForbidden();
     }
 
     public function test_mine_returns_only_materials_matching_the_students_own_full_scope_tuple(): void
@@ -380,8 +394,8 @@ class ChapterMaterialControllerTest extends TestCase
             ->json('data.id');
 
         // A legacy/unscoped material (section_id null) must NOT appear via
-        // /mine — unlike index(), which deliberately shows it to everyone,
-        // /mine only answers "is there a material matching MY exact scope."
+        // /mine, same as index() — neither one falls back to "visible to
+        // everyone" for a logged-in student.
         ChapterMaterial::create([
             'chapter_id' => $this->chapterA->id,
             'type' => 'supplementary',

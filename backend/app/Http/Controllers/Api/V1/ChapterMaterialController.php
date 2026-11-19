@@ -12,6 +12,7 @@ use App\Models\ContentAccessLog;
 use App\Models\Section;
 use App\Models\StudentUser;
 use App\Models\TeacherUser;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -24,35 +25,59 @@ use Illuminate\Validation\ValidationException;
 class ChapterMaterialController extends Controller
 {
     /**
-     * A material with a null section_id predates per-section scoping (or
-     * was uploaded by a non-class-teacher actor) and stays visible to the
-     * whole chapter; one with a section_id set is visible only to a
-     * student in that exact section. This route sits outside auth:sanctum
-     * (guests browse it too), so the actor is resolved explicitly from the
-     * sanctum guard — a guest, or any non-student actor, only ever sees
-     * the unscoped materials.
+     * A logged-in student sees ONLY materials that exactly match their
+     * own school/district/shift/section/class/class_version — a material
+     * with a null section_id (predating per-section scoping, or uploaded
+     * by a non-class-teacher actor) is NOT shown as a "visible to
+     * everyone" fallback for a student, since it was never actually
+     * verified to belong to their class. A guest, or any non-student
+     * actor (teacher/admin browsing the public listing), has no profile
+     * to match against, so they see only the unscoped ones instead. This
+     * route sits outside auth:sanctum (guests browse it too), so the
+     * actor is resolved explicitly from the sanctum guard.
      */
     public function index(Request $request): AnonymousResourceCollection
     {
         $actor = $request->user('sanctum');
-        $ownSectionId = $actor instanceof StudentUser ? $actor->profile?->section_id : null;
 
         $materials = ChapterMaterial::query()
             ->with('chapter')
             ->when($request->integer('chapter_id'), fn ($query, $id) => $query->where('chapter_id', $id))
-            ->where(function ($query) use ($ownSectionId) {
-                $query->whereNull('section_id');
-
-                if ($ownSectionId !== null) {
-                    $query->orWhere('section_id', $ownSectionId);
-                }
-            })
+            ->when(
+                $actor instanceof StudentUser,
+                fn ($query) => $this->scopeToStudentsOwnProfile($query, $actor),
+                fn ($query) => $query->whereNull('section_id'),
+            )
             ->orderBy('chapter_id')
             ->orderBy('type')
             ->orderBy('order_index')
             ->get();
 
         return ChapterMaterialResource::collection($materials);
+    }
+
+    /**
+     * @param  Builder<ChapterMaterial>  $query
+     * @return Builder<ChapterMaterial>
+     */
+    private function scopeToStudentsOwnProfile($query, StudentUser $student)
+    {
+        $profile = $student->profile;
+
+        if ($profile === null || $profile->section_id === null) {
+            // Nothing can match an unassigned student's scope, so show
+            // nothing — not every unscoped material, which would defeat
+            // the whole point of this scoping.
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query
+            ->where('school_id', $profile->school_id)
+            ->where('district_id', $profile->district_id)
+            ->where('shift_id', $profile->shift_id)
+            ->where('section_id', $profile->section_id)
+            ->where('class_id', $profile->class_id)
+            ->where('class_version_id', $profile->class_version_id);
     }
 
     public function show(ChapterMaterial $chapter_material): ChapterMaterialResource
@@ -76,23 +101,10 @@ class ChapterMaterialController extends Controller
         $actor = $request->user();
         abort_unless($actor instanceof StudentUser, 403);
 
-        $profile = $actor->profile;
-
-        if ($profile === null || $profile->section_id === null) {
-            return ChapterMaterialResource::collection(collect());
-        }
-
-        $materials = ChapterMaterial::query()
-            ->with('chapter')
-            ->where('status', 'active')
-            ->where('school_id', $profile->school_id)
-            ->where('district_id', $profile->district_id)
-            ->where('shift_id', $profile->shift_id)
-            ->where('section_id', $profile->section_id)
-            ->where('class_id', $profile->class_id)
-            ->where('class_version_id', $profile->class_version_id)
-            ->orderByDesc('created_at')
-            ->get();
+        $materials = $this->scopeToStudentsOwnProfile(
+            ChapterMaterial::query()->with('chapter')->where('status', 'active'),
+            $actor,
+        )->orderByDesc('created_at')->get();
 
         return ChapterMaterialResource::collection($materials);
     }
