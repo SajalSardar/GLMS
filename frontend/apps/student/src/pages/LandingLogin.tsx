@@ -7,15 +7,7 @@ import { getCommonStrings } from '@ttla/i18n'
 const t = getCommonStrings('bn')
 const currentYear = new Date().getFullYear()
 
-type IconName =
-  | 'classRange'
-  | 'video'
-  | 'material'
-  | 'exam'
-  | 'progress'
-  | 'anywhere'
-  | 'eyeOpen'
-  | 'eyeClosed'
+type IconName = 'eyeOpen' | 'eyeClosed'
 
 const NAV_LINKS: Array<{ href: string; label: string }> = [
   { href: '#features', label: t['landing.nav.features'] },
@@ -24,91 +16,86 @@ const NAV_LINKS: Array<{ href: string; label: string }> = [
   { href: '#help', label: t['landing.nav.help'] },
 ]
 
-const HERO_BADGES: Array<{ icon: IconName; tone: string; label: string }> = [
-  { icon: 'video', tone: 'violet', label: t['landing.hero.badgeVideo'] },
-  { icon: 'material', tone: 'green', label: t['landing.hero.badgeMaterial'] },
-  { icon: 'exam', tone: 'amber', label: t['landing.hero.badgeExam'] },
-  { icon: 'progress', tone: 'blue', label: t['landing.hero.badgeProgress'] },
+const HERO_BADGES: Array<{ image: string; label: string }> = [
+  { image: '/f-video.png', label: t['landing.hero.badgeVideo'] },
+  { image: '/f-study.png', label: t['landing.hero.badgeMaterial'] },
+  { image: '/f-exam.png', label: t['landing.hero.badgeExam'] },
+  { image: '/f-progress.png', label: t['landing.hero.badgeProgress'] },
 ]
 
-const FEATURES: Array<{ icon: IconName; tone: string; title: string; desc: string }> = [
-  { icon: 'classRange', tone: 'violet', title: t['landing.features.classRangeTitle'], desc: t['landing.features.classRangeDesc'] },
-  { icon: 'video', tone: 'green', title: t['landing.features.videoTitle'], desc: t['landing.features.videoDesc'] },
-  { icon: 'material', tone: 'amber', title: t['landing.features.materialTitle'], desc: t['landing.features.materialDesc'] },
-  { icon: 'exam', tone: 'blue', title: t['landing.features.examTitle'], desc: t['landing.features.examDesc'] },
-  { icon: 'progress', tone: 'rose', title: t['landing.features.progressTitle'], desc: t['landing.features.progressDesc'] },
-  { icon: 'anywhere', tone: 'teal', title: t['landing.features.anywhereTitle'], desc: t['landing.features.anywhereDesc'] },
+const FEATURES: Array<{ image: string; title: string; desc: string }> = [
+  { image: '/card-1.png', title: t['landing.features.classRangeTitle'], desc: t['landing.features.classRangeDesc'] },
+  { image: '/card-2.png', title: t['landing.features.videoTitle'], desc: t['landing.features.videoDesc'] },
+  { image: '/card-3.png', title: t['landing.features.materialTitle'], desc: t['landing.features.materialDesc'] },
+  { image: '/card-4.png', title: t['landing.features.examTitle'], desc: t['landing.features.examDesc'] },
+  { image: '/card-5.png', title: t['landing.features.progressTitle'], desc: t['landing.features.progressDesc'] },
+  { image: '/card-6.png', title: t['landing.features.anywhereTitle'], desc: t['landing.features.anywhereDesc'] },
 ]
 
-const CLASS_LEVELS: Array<{ tone: string; icon: IconName; label: string; range: string }> = [
-  { tone: 'green', icon: 'material', label: t['landing.classes.primary'], range: t['landing.classes.primaryRange'] },
-  { tone: 'blue', icon: 'video', label: t['landing.classes.secondary'], range: t['landing.classes.secondaryRange'] },
-  { tone: 'amber', icon: 'exam', label: t['landing.classes.ssc'], range: t['landing.classes.sscRange'] },
-  { tone: 'violet', icon: 'classRange', label: t['landing.classes.hsc'], range: t['landing.classes.hscRange'] },
+// Gradient backgrounds copied from the reference design's four class-level
+// cards (one per level, not a reusable tone — these exact gradients appear
+// nowhere else on the page).
+const CLASS_LEVELS: Array<{ gradient: string; pillText: string; image: string; label: string; range: string }> = [
+  {
+    gradient: 'bg-gradient-to-b from-[#43B85C] to-[#7FD38A]',
+    pillText: 'text-[#14833B]',
+    image: '/kid-1.png',
+    label: t['landing.classes.primary'],
+    range: t['landing.classes.primaryRange'],
+  },
+  {
+    gradient: 'bg-gradient-to-b from-[#2E8DE6] to-[#8CC8F5]',
+    pillText: 'text-[#1C6FC0]',
+    image: '/kid-2.png',
+    label: t['landing.classes.secondary'],
+    range: t['landing.classes.secondaryRange'],
+  },
+  {
+    gradient: 'bg-gradient-to-b from-[#F7941D] to-[#FCC77A]',
+    pillText: 'text-[#D86F00]',
+    image: '/kid-3.png',
+    label: t['landing.classes.ssc'],
+    range: t['landing.classes.sscRange'],
+  },
+  {
+    gradient: 'bg-gradient-to-b from-[#9B4FD8] to-[#CFA6F0]',
+    pillText: 'text-[#7A3BB5]',
+    image: '/kid-4.png',
+    label: t['landing.classes.hsc'],
+    range: t['landing.classes.hscRange'],
+  },
 ]
 
-const SUBJECTS: Array<{ glyph: string; tone: string; label: string }> = [
-  { glyph: 'গ', tone: 'violet', label: t['landing.subjects.math'] },
-  { glyph: 'বা', tone: 'rose', label: t['landing.subjects.bangla'] },
-  { glyph: 'A', tone: 'green', label: t['landing.subjects.english'] },
-  { glyph: 'বি', tone: 'violet', label: t['landing.subjects.science'] },
-  { glyph: 'তথ্য', tone: 'blue', label: t['landing.subjects.ict'] },
-  { glyph: 'সমাজ', tone: 'teal', label: t['landing.subjects.social'] },
-  { glyph: 'ধর্ম', tone: 'rose', label: t['landing.subjects.religion'] },
-  { glyph: 'কৃষি', tone: 'green', label: t['landing.subjects.agriculture'] },
-  { glyph: 'স্বাস্থ্য', tone: 'red', label: t['landing.subjects.health'] },
-  { glyph: '...', tone: 'muted', label: t['landing.subjects.other'] },
+const SUBJECTS: Array<{ image: string; label: string }> = [
+  { image: '/sub-1.png', label: t['landing.subjects.math'] },
+  { image: '/sub-2.png', label: t['landing.subjects.bangla'] },
+  { image: '/sub-3.png', label: t['landing.subjects.english'] },
+  { image: '/sub-4.png', label: t['landing.subjects.science'] },
+  { image: '/sub-5.png', label: t['landing.subjects.ict'] },
+  { image: '/sub-6.png', label: t['landing.subjects.social'] },
+  { image: '/sub-7.png', label: t['landing.subjects.religion'] },
+  { image: '/sub-8.png', label: t['landing.subjects.agriculture'] },
+  { image: '/sub-9.png', label: t['landing.subjects.health'] },
+  { image: '/sub-10.png', label: t['landing.subjects.other'] },
 ]
 
 const CLASS_OPTIONS = CLASS_LEVELS.map((level) => `${level.label} (${level.range})`)
 const SUBJECT_OPTIONS = SUBJECTS.map((subject) => subject.label)
 
-// Tone-color utility classes, mirroring the `--tone-*` system from the old
-// LandingLogin.css: `soft` = the 16%-on-white tint used for icon chips,
-// `solid` = the flat tone color used for the class-level cards, `subtle` =
-// the 12%-on-white tint + border color used for the audience cards. Written
-// out as literal strings (not built from template pieces) so Tailwind's
-// build-time class scanner can see every one of them.
-const TONE_STYLES: Record<string, { soft: string; solid: string; subtle: string }> = {
-  violet: {
-    soft: 'bg-[color:color-mix(in_srgb,var(--color-tone-violet)_16%,white)] text-[color:var(--color-tone-violet)]',
-    solid: 'bg-[color:var(--color-tone-violet)]',
-    subtle: 'bg-[color:color-mix(in_srgb,var(--color-tone-violet)_12%,white)] border-[color:var(--color-tone-violet)]',
-  },
+// Tone-color utility classes for the audience cards' left-border tint —
+// the only remaining consumer now that the icon badges/cards/levels/
+// subjects above use real image icons instead of tone-colored chips.
+// Written out as literal strings (not built from template pieces) so
+// Tailwind's build-time class scanner can see every one of them.
+const TONE_STYLES: Record<string, { subtle: string }> = {
   green: {
-    soft: 'bg-[color:color-mix(in_srgb,var(--color-tone-green)_16%,white)] text-[color:var(--color-tone-green)]',
-    solid: 'bg-[color:var(--color-tone-green)]',
     subtle: 'bg-[color:color-mix(in_srgb,var(--color-tone-green)_12%,white)] border-[color:var(--color-tone-green)]',
   },
-  amber: {
-    soft: 'bg-[color:color-mix(in_srgb,var(--color-tone-amber)_16%,white)] text-[color:var(--color-tone-amber)]',
-    solid: 'bg-[color:var(--color-tone-amber)]',
-    subtle: 'bg-[color:color-mix(in_srgb,var(--color-tone-amber)_12%,white)] border-[color:var(--color-tone-amber)]',
-  },
   blue: {
-    soft: 'bg-[color:color-mix(in_srgb,var(--color-tone-blue)_16%,white)] text-[color:var(--color-tone-blue)]',
-    solid: 'bg-[color:var(--color-tone-blue)]',
     subtle: 'bg-[color:color-mix(in_srgb,var(--color-tone-blue)_12%,white)] border-[color:var(--color-tone-blue)]',
   },
   rose: {
-    soft: 'bg-[color:color-mix(in_srgb,var(--color-tone-rose)_16%,white)] text-[color:var(--color-tone-rose)]',
-    solid: 'bg-[color:var(--color-tone-rose)]',
     subtle: 'bg-[color:color-mix(in_srgb,var(--color-tone-rose)_12%,white)] border-[color:var(--color-tone-rose)]',
-  },
-  teal: {
-    soft: 'bg-[color:color-mix(in_srgb,var(--color-tone-teal)_16%,white)] text-[color:var(--color-tone-teal)]',
-    solid: 'bg-[color:var(--color-tone-teal)]',
-    subtle: 'bg-[color:color-mix(in_srgb,var(--color-tone-teal)_12%,white)] border-[color:var(--color-tone-teal)]',
-  },
-  red: {
-    soft: 'bg-[color:color-mix(in_srgb,var(--color-tone-red)_16%,white)] text-[color:var(--color-tone-red)]',
-    solid: 'bg-[color:var(--color-tone-red)]',
-    subtle: 'bg-[color:color-mix(in_srgb,var(--color-tone-red)_12%,white)] border-[color:var(--color-tone-red)]',
-  },
-  muted: {
-    soft: 'bg-[color:color-mix(in_srgb,var(--color-tone-muted)_16%,white)] text-[color:var(--color-tone-muted)]',
-    solid: 'bg-[color:var(--color-tone-muted)]',
-    subtle: 'bg-[color:color-mix(in_srgb,var(--color-tone-muted)_12%,white)] border-[color:var(--color-tone-muted)]',
   },
 }
 
@@ -132,47 +119,6 @@ function Icon({ name }: { name: IconName }) {
   }
 
   switch (name) {
-    case 'video':
-      return (
-        <svg {...common}>
-          <circle cx="12" cy="12" r="9" />
-          <path d="M10 8.5v7l6-3.5-6-3.5Z" />
-        </svg>
-      )
-    case 'material':
-      return (
-        <svg {...common}>
-          <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H12v18H6.5A2.5 2.5 0 0 1 4 18.5v-13Z" />
-          <path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H12v18h5.5a2.5 2.5 0 0 0 2.5-2.5v-13Z" />
-        </svg>
-      )
-    case 'exam':
-      return (
-        <svg {...common}>
-          <rect x="5" y="3.5" width="14" height="17" rx="2" />
-          <path d="m9 12 2 2 4-4.5" />
-        </svg>
-      )
-    case 'progress':
-      return (
-        <svg {...common}>
-          <path d="M4 20V10M11 20V4M18 20v-7" />
-        </svg>
-      )
-    case 'classRange':
-      return (
-        <svg {...common}>
-          <path d="M2 9.5 12 5l10 4.5-10 4.5-10-4.5Z" />
-          <path d="M6 11.5V16c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5v-4.5" />
-        </svg>
-      )
-    case 'anywhere':
-      return (
-        <svg {...common}>
-          <rect x="6" y="2.5" width="12" height="19" rx="2.2" />
-          <path d="M11 18.2h2" />
-        </svg>
-      )
     case 'eyeOpen':
       return (
         <svg {...common}>
@@ -189,35 +135,6 @@ function Icon({ name }: { name: IconName }) {
         </svg>
       )
   }
-}
-
-function HeroIllustration({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 320 260" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="160" cy="130" r="118" fill="var(--color-primary-tint)" />
-      <g transform="translate(60 100)">
-        <path
-          d="M0 10 L100 -14 L200 10 L100 34 Z"
-          fill="var(--color-surface)"
-          stroke="var(--color-primary)"
-          strokeWidth="3"
-          strokeLinejoin="round"
-        />
-        <path d="M100 34 L100 70" stroke="var(--color-primary)" strokeWidth="3" strokeLinecap="round" />
-        <path
-          d="M30 2 L30 46 Q100 72 170 46 L170 2"
-          fill="none"
-          stroke="var(--color-primary-dark)"
-          strokeWidth="3"
-          strokeLinejoin="round"
-        />
-      </g>
-      <circle cx="78" cy="56" r="7" fill="var(--color-accent)" />
-      <circle cx="246" cy="74" r="5" fill="var(--color-accent)" />
-      <circle cx="252" cy="176" r="6" fill="var(--color-primary)" />
-      <circle cx="56" cy="190" r="4" fill="var(--color-primary)" />
-    </svg>
-  )
 }
 
 function LoginCard({ onSuccess }: { onSuccess: () => void }) {
@@ -377,14 +294,10 @@ export default function LandingLogin() {
             {t['landing.hero.sub2']}
           </p>
 
-          <ul className="mt-6 flex list-none flex-wrap justify-center gap-x-5 gap-y-3 p-0 lg:justify-start">
+          <ul className="mt-6 flex list-none flex-wrap justify-center gap-x-6 gap-y-3 p-0 lg:justify-start">
             {HERO_BADGES.map((badge) => (
-              <li key={badge.label} className="flex items-center gap-2 text-[0.88rem] font-medium text-[color:var(--color-ink)]">
-                <span
-                  className={`inline-flex h-[2.1rem] w-[2.1rem] items-center justify-center rounded-[0.55rem] ${TONE_STYLES[badge.tone].soft}`}
-                >
-                  <Icon name={badge.icon} />
-                </span>
+              <li key={badge.label} className="flex flex-col items-center gap-1 text-[0.8rem] font-medium text-[color:var(--color-ink)]">
+                <img src={badge.image} alt="" className="h-12 w-12 object-contain" />
                 {badge.label}
               </li>
             ))}
@@ -443,9 +356,9 @@ export default function LandingLogin() {
 
           <figure className="mx-auto mt-8 text-center lg:ml-0 lg:text-left">
             <img
-              src="/banner.png"
+              src="/hero.png"
               alt=""
-              className="mx-auto block w-[min(240px,60vw)] rounded-[1.1rem] object-cover lg:ml-0"
+              className="mx-auto block w-[min(280px,70vw)] rounded-[1.1rem] object-cover lg:ml-0"
             />
             <figcaption className="mt-2 text-[0.82rem] leading-[1.5] font-semibold text-primary-700">
               {t['landing.hero.illustrationCaption1']}
@@ -463,11 +376,7 @@ export default function LandingLogin() {
         <div className="mx-auto grid max-w-[64rem] grid-cols-[repeat(auto-fit,minmax(9.5rem,1fr))] gap-4">
           {FEATURES.map((feature) => (
             <div className="rounded-2xl bg-white px-[1.1rem] py-6 text-center shadow-[0_14px_30px_-24px_rgba(20,36,32,0.25)]" key={feature.title}>
-              <span
-                className={`mb-[0.9rem] inline-flex h-12 w-12 items-center justify-center rounded-full ${TONE_STYLES[feature.tone].soft}`}
-              >
-                <Icon name={feature.icon} />
-              </span>
+              <img src={feature.image} alt="" className="mx-auto mb-[0.9rem] h-16 w-16 object-contain" />
               <p className="m-0 font-semibold">{feature.title}</p>
               <p className="mt-[0.35rem] text-[0.85rem] text-[color:var(--color-muted)]">{feature.desc}</p>
             </div>
@@ -488,62 +397,68 @@ export default function LandingLogin() {
         </div>
         <div className="grid grid-cols-[repeat(auto-fit,minmax(9.5rem,1fr))] gap-4 lg:flex-1">
           {CLASS_LEVELS.map((level) => (
-            <div className={`rounded-2xl px-[1.1rem] py-6 text-white ${TONE_STYLES[level.tone].solid}`} key={level.label}>
-              <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/[0.22]">
-                <Icon name={level.icon} />
-              </span>
-              <p className="mt-[0.9rem] mb-[0.1rem] text-[1.1rem] font-semibold font-display">{level.label}</p>
-              <p className="mb-4 text-[0.8rem] opacity-[0.85]">{level.range}</p>
-              <a className="inline-block text-[0.85rem] font-semibold underline underline-offset-[3px]" href="#login">
+            <a
+              href="#login"
+              className={`block rounded-2xl px-[1.1rem] py-5 text-center text-white transition hover:-translate-y-1 ${level.gradient}`}
+              key={level.label}
+            >
+              <p className="text-[1.1rem] font-semibold font-display">{level.label}</p>
+              <p className="text-[0.8rem] opacity-[0.85]">{level.range}</p>
+              <img src={level.image} alt="" className="mx-auto mt-2 h-[4.6rem] rounded object-contain" />
+              <span className={`mt-2 block rounded-full bg-white py-1.5 text-[0.78rem] font-semibold ${level.pillText}`}>
                 {t['landing.classes.cta']}
-              </a>
-            </div>
+              </span>
+            </a>
           ))}
         </div>
       </section>
 
       <section className="mx-auto max-w-[64rem] px-5 py-12 text-center" id="subjects">
         <h2 className="mb-7 text-[1.4rem] font-display">{t['landing.subjects.heading']}</h2>
-        <ul className="grid list-none grid-cols-[repeat(auto-fit,minmax(5.5rem,1fr))] gap-5 p-0">
+        <ul className="grid list-none grid-cols-3 gap-2 p-0 sm:grid-cols-5 lg:grid-cols-10">
           {SUBJECTS.map((subject) => (
-            <li key={subject.label} className="flex flex-col items-center gap-2 text-[0.82rem] text-[color:var(--color-ink)]">
-              <span
-                className={`inline-flex h-[3.25rem] w-[3.25rem] items-center justify-center rounded-full text-[0.85rem] font-semibold font-display ${TONE_STYLES[subject.tone].soft}`}
-              >
-                {subject.glyph}
-              </span>
-              {subject.label}
+            <li
+              key={subject.label}
+              className="rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-primary-tint)]/40 py-3 text-center text-[0.78rem] font-medium text-[color:var(--color-ink)] transition hover:border-primary-500"
+            >
+              <img src={subject.image} alt="" className="mx-auto h-12 w-12 object-contain" />
+              <p className="mt-1">{subject.label}</p>
             </li>
           ))}
         </ul>
       </section>
 
       <section className="mx-auto grid max-w-[76rem] grid-cols-1 gap-5 px-5 pt-4 pb-12 lg:grid-cols-3">
-        <div className="rounded-[1.1rem] bg-primary-700 px-6 py-8 text-center text-white">
-          <HeroIllustration className="mx-auto mb-4 w-[120px]" />
-          <h2 className="text-[1.3rem] text-white font-display">{t['landing.cta.heading']}</h2>
-          <p className="mt-[0.6rem] text-[0.9rem] text-[#d9ece4]">{t['landing.cta.body']}</p>
-          <a
-            className="mt-5 inline-block rounded-[0.6rem] border-[1.5px] border-white/60 px-[1.4rem] py-[0.65rem] text-[0.9rem] font-semibold text-white"
-            href="#login"
-          >
-            {t['landing.cta.button']}
-          </a>
+        <div className="flex overflow-hidden rounded-[1.1rem] bg-primary-50">
+          <img src="/banner.png" alt="" className="w-[42%] object-cover" />
+          <div className="self-center px-4 py-6">
+            <h2 className="text-[1.3rem] leading-snug font-display">{t['landing.cta.heading']}</h2>
+            <p className="mt-2 text-[0.9rem] font-medium text-[color:var(--color-muted)]">{t['landing.cta.body']}</p>
+            <a
+              className="mt-3 inline-block rounded-full bg-white px-4 py-1.5 text-[0.85rem] font-semibold text-primary-700 shadow-sm hover:shadow"
+              href="#login"
+            >
+              {t['landing.cta.button']}
+            </a>
+          </div>
         </div>
 
         <div className="rounded-[1.1rem] border border-[color:var(--color-border)] bg-white px-6 py-8">
           <h2 className="mb-7 text-center text-[1.4rem] font-display">{t['landing.stats.heading']}</h2>
           <div className="grid grid-cols-3 gap-3 text-center">
-            <div className="flex flex-col gap-1">
-              <strong className="text-[1.6rem] text-primary-700 font-display">{t['landing.stats.classesValue']}</strong>
+            <div className="flex flex-col items-center gap-1">
+              <img src="/stat-1.png" alt="" className="h-8 w-8" />
+              <strong className="mt-2 text-[1.6rem] text-primary-700 font-display">{t['landing.stats.classesValue']}</strong>
               <span className="text-[0.75rem] text-[color:var(--color-muted)]">{t['landing.stats.classesLabel']}</span>
             </div>
-            <div className="flex flex-col gap-1">
-              <strong className="text-[1.6rem] text-primary-700 font-display">{t['landing.stats.subjectsValue']}</strong>
+            <div className="flex flex-col items-center gap-1">
+              <img src="/stat-2.png" alt="" className="h-8 w-8" />
+              <strong className="mt-2 text-[1.6rem] text-primary-700 font-display">{t['landing.stats.subjectsValue']}</strong>
               <span className="text-[0.75rem] text-[color:var(--color-muted)]">{t['landing.stats.subjectsLabel']}</span>
             </div>
-            <div className="flex flex-col gap-1">
-              <strong className="text-[1.6rem] text-primary-700 font-display">{t['landing.stats.portalsValue']}</strong>
+            <div className="flex flex-col items-center gap-1">
+              <img src="/stat-3.png" alt="" className="h-8 w-8" />
+              <strong className="mt-2 text-[1.6rem] text-primary-700 font-display">{t['landing.stats.portalsValue']}</strong>
               <span className="text-[0.75rem] text-[color:var(--color-muted)]">{t['landing.stats.portalsLabel']}</span>
             </div>
           </div>
@@ -551,7 +466,10 @@ export default function LandingLogin() {
 
         <blockquote className="m-0 rounded-[1.1rem] bg-primary-50 px-6 py-8">
           <p className="m-0 text-base leading-[1.7] text-[color:var(--color-ink)]">&ldquo;{t['landing.quote.text']}&rdquo;</p>
-          <cite className="mt-4 block text-[0.85rem] font-semibold text-primary-700 not-italic">— {t['landing.quote.author']}</cite>
+          <div className="mt-4 flex items-center justify-between">
+            <cite className="block text-[0.85rem] font-semibold text-primary-700 not-italic">— {t['landing.quote.author']}</cite>
+            <img src="/avatar.png" alt="" className="h-12 w-12 rounded-full object-cover ring-4 ring-white" />
+          </div>
         </blockquote>
       </section>
 
@@ -569,7 +487,8 @@ export default function LandingLogin() {
           <h2 className="mb-7 text-center text-[1.4rem] font-display">{t['landing.audience.heading']}</h2>
           <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-4">
             <div className={`rounded-xl border-l-[3px] px-4 py-[1.1rem] ${TONE_STYLES.green.subtle}`}>
-              <p className="mb-[0.6rem] font-semibold">{t['landing.audience.studentTitle']}</p>
+              <img src="/aud-1.png" alt="" className="mx-auto h-8 w-8" />
+              <p className="mt-2 mb-[0.6rem] text-center font-semibold">{t['landing.audience.studentTitle']}</p>
               <ul className="m-0 flex list-none flex-col gap-[0.3rem] pl-[1.1rem] text-[0.82rem] text-[color:var(--color-muted)]">
                 <li>{t['landing.audience.studentItem1']}</li>
                 <li>{t['landing.audience.studentItem2']}</li>
@@ -577,7 +496,8 @@ export default function LandingLogin() {
               </ul>
             </div>
             <div className={`rounded-xl border-l-[3px] px-4 py-[1.1rem] ${TONE_STYLES.blue.subtle}`}>
-              <p className="mb-[0.6rem] font-semibold">{t['landing.audience.teacherTitle']}</p>
+              <img src="/aud-2.png" alt="" className="mx-auto h-8 w-8" />
+              <p className="mt-2 mb-[0.6rem] text-center font-semibold">{t['landing.audience.teacherTitle']}</p>
               <ul className="m-0 flex list-none flex-col gap-[0.3rem] pl-[1.1rem] text-[0.82rem] text-[color:var(--color-muted)]">
                 <li>{t['landing.audience.teacherItem1']}</li>
                 <li>{t['landing.audience.teacherItem2']}</li>
@@ -585,7 +505,8 @@ export default function LandingLogin() {
               </ul>
             </div>
             <div className={`rounded-xl border-l-[3px] px-4 py-[1.1rem] ${TONE_STYLES.rose.subtle}`}>
-              <p className="mb-[0.6rem] font-semibold">{t['landing.audience.guardianTitle']}</p>
+              <img src="/aud-3.png" alt="" className="mx-auto h-8 w-8" />
+              <p className="mt-2 mb-[0.6rem] text-center font-semibold">{t['landing.audience.guardianTitle']}</p>
               <ul className="m-0 flex list-none flex-col gap-[0.3rem] pl-[1.1rem] text-[0.82rem] text-[color:var(--color-muted)]">
                 <li>{t['landing.audience.guardianItem1']}</li>
                 <li>{t['landing.audience.guardianItem2']}</li>
@@ -595,41 +516,42 @@ export default function LandingLogin() {
           </div>
         </div>
 
-        <div className="rounded-[1.1rem] bg-primary-700 px-6 py-8 text-center text-white">
-          <span className="inline-flex h-10 w-10 items-center justify-center text-[color:var(--color-accent)]">
-            <Icon name="classRange" />
-          </span>
-          <h2 className="mt-[0.9rem] text-[1.15rem] text-white font-display">{t['landing.closing.heading']}</h2>
-          <p className="mt-2 text-[0.85rem] text-[#d9ece4]">{t['landing.closing.body']}</p>
+        <div className="rounded-[1.1rem] bg-primary-50 px-6 py-8 text-center">
+          <img src="/tree.png" alt="" className="mx-auto h-14 object-contain" />
+          <h2 className="mt-2 text-[1.15rem] font-display">{t['landing.closing.heading']}</h2>
+          <p className="mt-2 text-[0.85rem] text-[color:var(--color-muted)]">{t['landing.closing.body']}</p>
+          <img src="/book.png" alt="" className="mx-auto mt-1 h-8 object-contain" />
         </div>
       </section>
 
-      <footer className="mx-auto flex max-w-[76rem] flex-col gap-8 border-t border-[color:var(--color-border)] px-5 pt-10 pb-8 md:flex-row md:flex-wrap md:justify-between">
-        <div className="flex items-start gap-3">
-          <img src="/logo.webp" alt="" aria-hidden="true" className="h-10 w-10 flex-shrink-0 object-contain" />
-          <div>
-            <p className="m-0 font-semibold">{t['landing.brandFull']}</p>
-            <p className="mt-1 text-[0.85rem] text-[color:var(--color-muted)]">{t['landing.footer.tagline']}</p>
+      <footer className="bg-gradient-to-r from-primary-800 to-primary-600 text-white">
+        <div className="mx-auto flex max-w-[76rem] flex-col gap-8 px-5 pt-10 pb-8 md:flex-row md:flex-wrap md:justify-between">
+          <div className="flex items-start gap-3">
+            <img src="/logo.webp" alt="" aria-hidden="true" className="h-10 w-10 flex-shrink-0 rounded-full bg-white object-contain p-0.5" />
+            <div>
+              <p className="m-0 font-semibold">{t['landing.brandFull']}</p>
+              <p className="mt-1 text-[0.85rem] text-primary-100">{t['landing.footer.tagline']}</p>
+            </div>
           </div>
+
+          <nav className="flex flex-wrap items-center gap-4 text-[0.85rem] text-primary-100" aria-label="এক নজরে">
+            <p className="m-0 w-full font-semibold text-white">{t['landing.footer.linksHeading']}</p>
+            {NAV_LINKS.map((link) => (
+              <a key={link.href} href={link.href} className="hover:text-white hover:underline">
+                {link.label}
+              </a>
+            ))}
+          </nav>
+
+          <div>
+            <p className="m-0 font-semibold">{t['landing.footer.helpHeading']}</p>
+            <p className="mt-[0.4rem] max-w-[40ch] text-[0.85rem] text-primary-100">{t['landing.footer.helpBody']}</p>
+          </div>
+
+          <p className="m-0 w-full border-t border-white/20 pt-6 text-center text-[0.78rem] text-primary-100">
+            © {currentYear} {t['landing.brand']} — {t['landing.footer.copyright']}
+          </p>
         </div>
-
-        <nav className="flex flex-wrap items-center gap-4 text-[0.85rem] text-[color:var(--color-muted)]" aria-label="এক নজরে">
-          <p className="m-0 w-full font-semibold text-[color:var(--color-ink)]">{t['landing.footer.linksHeading']}</p>
-          {NAV_LINKS.map((link) => (
-            <a key={link.href} href={link.href}>
-              {link.label}
-            </a>
-          ))}
-        </nav>
-
-        <div>
-          <p className="m-0 font-semibold">{t['landing.footer.helpHeading']}</p>
-          <p className="mt-[0.4rem] max-w-[40ch] text-[0.85rem] text-[color:var(--color-muted)]">{t['landing.footer.helpBody']}</p>
-        </div>
-
-        <p className="m-0 w-full border-t border-[color:var(--color-border)] pt-6 text-center text-[0.78rem] text-[color:var(--color-muted)]">
-          © {currentYear} {t['landing.brand']} — {t['landing.footer.copyright']}
-        </p>
       </footer>
     </div>
   )
