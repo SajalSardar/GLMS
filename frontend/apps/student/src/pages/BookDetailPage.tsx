@@ -252,6 +252,16 @@ export default function BookDetailPage() {
                 {book.subject.bn_name ?? book.subject.name}
               </span>
             )}
+            {book.class_version && (
+              <span className="rounded-full bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700">
+                {book.class_version.bn_name ?? book.class_version.name}
+              </span>
+            )}
+            {book.academic_year && (
+              <span className="rounded-full bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700">
+                {book.academic_year.name}
+              </span>
+            )}
           </div>
 
           {book.description && <p className="mt-2 text-sm text-primary-600">{book.description}</p>}
@@ -287,6 +297,21 @@ export default function BookDetailPage() {
 
       {chapters.length === 0 ? (
         <p className="mt-2 text-sm text-primary-600">{t['student.books.noChapters']}</p>
+      ) : !token ? (
+        // Chapter materials require a logged-in session to preview/download
+        // (ChapterMaterialController's download-link route sits behind
+        // auth:sanctum), so there is nothing a guest could do with the
+        // accordion — show a plain, non-interactive chapter list instead.
+        <ol className="mt-3 flex flex-col gap-2">
+          {chapters.map((chapter) => (
+            <li
+              key={chapter.id}
+              className="rounded-md border border-primary-100 px-4 py-3 text-sm text-primary-800"
+            >
+              {chapter.bn_chapter_number ?? chapter.chapter_number ?? ''} {chapter.bn_name ?? chapter.name}
+            </li>
+          ))}
+        </ol>
       ) : (
         <div className="mt-3 divide-y divide-primary-100 overflow-hidden rounded-2xl border border-primary-100 bg-white">
           {chapters.map((chapter) => {
@@ -343,28 +368,22 @@ export default function BookDetailPage() {
                                 </span>
                               </span>
 
-                              {token ? (
-                                <span className="flex flex-shrink-0 gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleMaterialOpen(material, 'preview')}
-                                    className="cursor-pointer rounded-md bg-primary-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#EB1F27]"
-                                  >
-                                    {t['student.books.preview']}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleMaterialOpen(material, 'download')}
-                                    className="cursor-pointer rounded-md border border-primary-300 px-3 py-1.5 text-xs font-semibold text-primary-700 hover:bg-[#EB1F27] hover:text-white"
-                                  >
-                                    {t['student.books.download']}
-                                  </button>
-                                </span>
-                              ) : (
-                                <span className="flex-shrink-0 text-xs text-primary-500">
-                                  {t['student.books.materialLoginRequired']}
-                                </span>
-                              )}
+                              <span className="flex flex-shrink-0 gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleMaterialOpen(material, 'preview')}
+                                  className="cursor-pointer rounded-md bg-primary-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#EB1F27]"
+                                >
+                                  {t['student.books.preview']}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleMaterialOpen(material, 'download')}
+                                  className="cursor-pointer rounded-md border border-primary-300 px-3 py-1.5 text-xs font-semibold text-primary-700 hover:bg-[#EB1F27] hover:text-white"
+                                >
+                                  {t['student.books.download']}
+                                </button>
+                              </span>
                             </div>
                           )
                         })}
