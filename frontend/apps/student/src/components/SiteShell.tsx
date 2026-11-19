@@ -8,11 +8,30 @@ import SiteFooter from './SiteFooter'
 const t = getCommonStrings('bn')
 
 const NAV_ITEMS = [
-  { to: '/', label: t['student.nav.home'], end: true },
+  { to: '/', label: t['student.nav.home'], end: true, icon: true },
   { to: '/books', label: t['student.nav.books'] },
   { to: '/video-lecture', label: t['student.nav.videoLecture'] },
   { to: '/exams', label: t['student.nav.exams'] },
 ]
+
+function HomeIcon() {
+  return (
+    <svg
+      width={16}
+      height={16}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M3 10.5 12 3l9 7.5" />
+      <path d="M5.5 9v10a1 1 0 0 0 1 1h4v-6h3v6h4a1 1 0 0 0 1-1V9" />
+    </svg>
+  )
+}
 
 export default function SiteShell() {
   const { token, clearToken } = useAuth()
@@ -34,7 +53,10 @@ export default function SiteShell() {
     <div className="flex min-h-screen flex-col bg-white text-primary-900">
       <header className="sticky top-0 z-20 border-b border-primary-100 bg-white">
         <div className="flex items-center justify-between gap-4 px-4 py-3 lg:px-8">
-          <Link to="/" className="flex items-center gap-2 text-lg font-bold text-primary-700">
+          <Link
+            to="/"
+            className="flex items-center gap-2 text-lg font-bold text-primary-700 transition-colors hover:text-primary-600"
+          >
             <img src="/logo.webp" alt="" aria-hidden="true" className="h-9 w-9 object-contain" />
             {t['landing.brand']}
           </Link>
@@ -48,8 +70,15 @@ export default function SiteShell() {
                 key={item.to}
                 to={item.to}
                 end={item.end}
-                className={({ isActive }) => (isActive ? 'text-primary-600' : 'hover:text-primary-600')}
+                className={({ isActive }) =>
+                  `flex items-center gap-1.5 border-b-2 pb-1 transition-colors ${
+                    isActive
+                      ? 'border-primary-600 font-semibold text-primary-600'
+                      : 'border-transparent hover:border-primary-200 hover:text-primary-600'
+                  }`
+                }
               >
+                {item.icon && <HomeIcon />}
                 {item.label}
               </NavLink>
             ))}
@@ -99,11 +128,12 @@ export default function SiteShell() {
                 end={item.end}
                 onClick={() => setMenuOpen(false)}
                 className={({ isActive }) =>
-                  `border-t border-primary-100 px-4 py-3 text-sm font-medium first:border-t-0 ${
-                    isActive ? 'text-primary-600' : 'text-primary-800'
+                  `flex items-center gap-1.5 border-t border-primary-100 px-4 py-3 text-sm font-medium first:border-t-0 ${
+                    isActive ? 'text-primary-600' : 'text-primary-800 hover:text-primary-600'
                   }`
                 }
               >
+                {item.icon && <HomeIcon />}
                 {item.label}
               </NavLink>
             ))}
