@@ -75,22 +75,20 @@ export async function subjectsForClass(classId: number | null): Promise<Subject[
   return [...bySubjectId.values()].sort((a, b) => a.name.localeCompare(b.name))
 }
 
-export interface ChapterWithVideoCount {
+export interface ChapterWithBook {
   chapter: Chapter
   book: Book
-  videoCount: number
 }
 
-// One level deeper than `booksForClassAndSubject`: for every cross-school
-// book found for this class/subject, fetch its chapters, then check each
-// chapter for at least one (enabled) video. This is an N+2 from the
-// frontend's perspective (books -> chapters -> per-chapter video lookup),
-// consistent with the already-accepted N+1 pattern `booksForClassAndSubject`
-// itself uses for cross-school books.
-export async function chaptersWithVideosForClassAndSubject(
+// One level deeper than `booksForClassAndSubject`: every chapter under
+// every cross-school book for this class/subject, paired with its own
+// book. No video filtering here — `chaptersWithVideosForClassAndSubject`
+// (below) adds that on top; the practice-exam chapter picker needs every
+// chapter regardless of whether it has a video.
+export async function chaptersForClassAndSubject(
   classId: number | null,
   subjectId: number | null,
-): Promise<ChapterWithVideoCount[]> {
+): Promise<ChapterWithBook[]> {
   const books = await booksForClassAndSubject(classId, subjectId)
 
   const chapterLists = await Promise.all(
@@ -100,7 +98,24 @@ export async function chaptersWithVideosForClassAndSubject(
     }),
   )
 
-  const chaptersWithBooks = chapterLists.flat()
+  return chapterLists.flat()
+}
+
+export interface ChapterWithVideoCount {
+  chapter: Chapter
+  book: Book
+  videoCount: number
+}
+
+// One level deeper than `chaptersForClassAndSubject`: for every chapter,
+// check for at least one (enabled) video. This is an N+1 from the
+// frontend's perspective (chapters -> per-chapter video lookup), on top
+// of `chaptersForClassAndSubject`'s own already-accepted N+1.
+export async function chaptersWithVideosForClassAndSubject(
+  classId: number | null,
+  subjectId: number | null,
+): Promise<ChapterWithVideoCount[]> {
+  const chaptersWithBooks = await chaptersForClassAndSubject(classId, subjectId)
 
   const withCounts = await Promise.all(
     chaptersWithBooks.map(async ({ chapter, book }) => {
