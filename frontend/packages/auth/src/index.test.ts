@@ -3,12 +3,15 @@ import {
   clearStoredName,
   clearStoredRole,
   clearStoredToken,
+  clearStoredUserId,
   getStoredName,
   getStoredRole,
   getStoredToken,
+  getStoredUserId,
   storeName,
   storeRole,
   storeToken,
+  storeUserId,
 } from './index'
 
 class MemoryStorage implements Storage {
@@ -129,5 +132,32 @@ describe('name storage', () => {
 
     expect(getStoredToken()).toBe('abc123')
     expect(getStoredRole()).toBe('student')
+  })
+})
+
+describe('userId storage', () => {
+  beforeEach(() => {
+    vi.stubGlobal('localStorage', new MemoryStorage())
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('returns null when no userId is stored', () => {
+    expect(getStoredUserId()).toBeNull()
+  })
+
+  it('stores and retrieves a userId as a number', () => {
+    storeUserId(42)
+
+    expect(getStoredUserId()).toBe(42)
+  })
+
+  it('clears a stored userId', () => {
+    storeUserId(42)
+    clearStoredUserId()
+
+    expect(getStoredUserId()).toBeNull()
   })
 })

@@ -69,6 +69,7 @@
   "student.books.materialsLoadError": "এই মুহূর্তে ম্যাটেরিয়াল লোড করা যায়নি। আবার চেষ্টা করুন।",
   "student.books.noMaterials": "এখনও কোনো ম্যাটেরিয়াল যোগ করা হয়নি।",
   "student.books.materialLinkError": "এই মুহূর্তে এই ম্যাটেরিয়ালটি খোলা যায়নি। আবার চেষ্টা করুন।",
+  "student.books.yourClass": "তোমার শ্রেণি: {class}",
 
   "student.videoLecture.title": "ভিডিও লেকচার",
   "student.videoLecture.allClasses": "সকল শ্রেণি",

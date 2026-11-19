@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { type Book, type SchoolClass, type Subject } from '@ttla/api-client'
-import { allClasses, currentYearBooks, subjectsForClass } from '../lib/resolveContent'
+import { useAuth } from '@ttla/auth'
+import { allClasses, currentYearBooks, ownClassId, subjectsForClass } from '../lib/resolveContent'
 import { useLocale } from '../lib/locale'
 
 const PAGE_SIZE = 10
@@ -32,10 +33,17 @@ function InfoAlert({ message }: { message: string }) {
 
 export default function BooksPage() {
   const { t } = useLocale()
+  const { token, userId } = useAuth()
 
   const [classes, setClasses] = useState<SchoolClass[]>([])
   const [classesById, setClassesById] = useState<Map<number, SchoolClass>>(new Map())
   const [classId, setClassId] = useState<number | null>(null)
+
+  // Once a logged-in student's own class resolves, the class filter locks
+  // to it (shown as a badge, not a dropdown) — "own classes book" means
+  // there's nothing else to pick. Guests, and a student whose profile has
+  // no class assigned yet, keep the full selector.
+  const [ownClassLocked, setOwnClassLocked] = useState(false)
 
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [subjectId, setSubjectId] = useState<number | null>(null)
@@ -57,6 +65,24 @@ export default function BooksPage() {
         setClassesById(new Map())
       })
   }, [])
+
+  useEffect(() => {
+    if (!token || !userId) return
+
+    let active = true
+
+    ownClassId(userId, token)
+      .then((result) => {
+        if (!active || result === null) return
+        setClassId(result)
+        setOwnClassLocked(true)
+      })
+      .catch(() => {})
+
+    return () => {
+      active = false
+    }
+  }, [token, userId])
 
   // The subject filter is class-wise, not the full national list: only
   // subjects actually taught for the selected class (across every school's
@@ -121,26 +147,34 @@ export default function BooksPage() {
     setPage(1)
   }
 
+  const ownClass = ownClassLocked && classId !== null ? classesById.get(classId) : undefined
+
   return (
     <section className="mx-auto max-w-6xl px-4 py-8 lg:px-8">
       <h1 className="text-2xl font-bold text-primary-800">{t['student.books.title']}</h1>
 
-      <div className="mt-4 flex flex-wrap gap-3">
-        <select
-          className="h-10 min-w-[12rem] rounded-md border border-primary-200 px-3 text-sm"
-          value={classId ?? ''}
-          onChange={(event) => {
-            setClassId(event.target.value ? Number(event.target.value) : null)
-            resetToFirstPage()
-          }}
-        >
-          <option value="">{t['student.books.allClasses']}</option>
-          {classes.map((schoolClass) => (
-            <option key={schoolClass.id} value={schoolClass.id}>
-              {schoolClass.bn_name ?? schoolClass.name}
-            </option>
-          ))}
-        </select>
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        {ownClassLocked ? (
+          <span className="inline-flex h-10 items-center rounded-md bg-primary-50 px-3 text-sm font-semibold text-primary-700">
+            {t['student.books.yourClass'].replace('{class}', ownClass ? (ownClass.bn_name ?? ownClass.name) : '')}
+          </span>
+        ) : (
+          <select
+            className="h-10 min-w-[12rem] rounded-md border border-primary-200 px-3 text-sm"
+            value={classId ?? ''}
+            onChange={(event) => {
+              setClassId(event.target.value ? Number(event.target.value) : null)
+              resetToFirstPage()
+            }}
+          >
+            <option value="">{t['student.books.allClasses']}</option>
+            {classes.map((schoolClass) => (
+              <option key={schoolClass.id} value={schoolClass.id}>
+                {schoolClass.bn_name ?? schoolClass.name}
+              </option>
+            ))}
+          </select>
+        )}
 
         <select
           className="h-10 min-w-[12rem] rounded-md border border-primary-200 px-3 text-sm disabled:cursor-not-allowed disabled:opacity-60"
@@ -177,15 +211,25 @@ export default function BooksPage() {
 
       {!loading && visibleBooks.length > 0 && (
         <>
-          <div className="mt-6 overflow-x-auto rounded-lg border border-primary-100">
+          <div className="mt-6 overflow-x-auto rounded-lg border border-gray-100">
             <table className="w-full min-w-[40rem] text-left text-sm">
-              <thead className="bg-primary-50 text-primary-700">
+              <thead>
                 <tr>
-                  <th className="px-4 py-3 font-semibold">{t['student.books.colName']}</th>
-                  <th className="px-4 py-3 font-semibold">{t['student.books.colClass']}</th>
-                  <th className="px-4 py-3 font-semibold">{t['student.books.colVersion']}</th>
-                  <th className="px-4 py-3 font-semibold">{t['student.books.colAcademicYear']}</th>
-                  <th className="px-4 py-3 font-semibold">{t['student.books.colAction']}</th>
+                  <th className="bg-primary-50 px-5 py-3 font-medium whitespace-nowrap text-primary-900">
+                    {t['student.books.colName']}
+                  </th>
+                  <th className="bg-primary-50 px-5 py-3 font-medium whitespace-nowrap text-primary-900">
+                    {t['student.books.colClass']}
+                  </th>
+                  <th className="bg-primary-50 px-5 py-3 font-medium whitespace-nowrap text-primary-900">
+                    {t['student.books.colVersion']}
+                  </th>
+                  <th className="bg-primary-50 px-5 py-3 font-medium whitespace-nowrap text-primary-900">
+                    {t['student.books.colAcademicYear']}
+                  </th>
+                  <th className="bg-primary-50 px-5 py-3 font-medium whitespace-nowrap text-primary-900">
+                    {t['student.books.colAction']}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -193,21 +237,26 @@ export default function BooksPage() {
                   const schoolClass = book.class_version?.class_id ? classesById.get(book.class_version.class_id) : undefined
 
                   return (
-                    <tr key={book.id} className="border-t border-primary-100">
-                      <td className="px-4 py-3 text-primary-800">{book.bn_name ?? book.name}</td>
-                      <td className="px-4 py-3 text-primary-700">
+                    <tr key={book.id}>
+                      <td className="border-b border-gray-100 px-5 py-4 whitespace-nowrap">
+                        <span className="font-medium text-primary-900">{book.bn_name ?? book.name}</span>
+                      </td>
+                      <td className="border-b border-gray-100 px-5 py-4 whitespace-nowrap text-gray-500">
                         {schoolClass ? (schoolClass.bn_name ?? schoolClass.name) : ''}
                       </td>
-                      <td className="px-4 py-3 text-primary-700">
+                      <td className="border-b border-gray-100 px-5 py-4 whitespace-nowrap text-gray-500">
                         {book.class_version ? (book.class_version.bn_name ?? book.class_version.name) : ''}
                       </td>
-                      <td className="px-4 py-3 text-primary-700">{book.academic_year?.name ?? ''}</td>
-                      <td className="px-4 py-3">
+                      <td className="border-b border-gray-100 px-5 py-4 whitespace-nowrap text-gray-500">
+                        {book.academic_year?.name ?? ''}
+                      </td>
+                      <td className="border-b border-gray-100 px-5 py-4 whitespace-nowrap">
                         <Link
                           to={`/books/${book.id}`}
-                          className="cursor-pointer rounded-md border border-primary-300 px-3 py-1.5 text-xs font-semibold text-primary-700 hover:bg-[#EB1F27] hover:text-white"
+                          className="inline-flex cursor-pointer items-center gap-1.5 text-primary-600 hover:text-[#EB1F27]"
                         >
-                          {t['student.books.viewDetails']}
+                          <span className="material-symbols-outlined !text-[18px] leading-none">visibility</span>
+                          <span className="text-xs font-semibold">{t['student.books.viewDetails']}</span>
                         </Link>
                       </td>
                     </tr>

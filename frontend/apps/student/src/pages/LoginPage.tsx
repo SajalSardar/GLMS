@@ -45,7 +45,7 @@ function Icon({ name }: { name: IconName }) {
 }
 
 function LoginCard() {
-  const { setToken, setName } = useAuth()
+  const { setToken, setName, setUserId } = useAuth()
   const { t } = useLocale()
   const navigate = useNavigate()
   const studentIdFieldId = useId()
@@ -69,6 +69,9 @@ function LoginCard() {
       // Persisted so the certificate can print the student's real name
       // rather than a generic "Student" label.
       setName(result.data?.name ?? null)
+      // Persisted so BooksPage can look up this student's own class via
+      // /student-profiles?user_id=... without a dedicated "me" endpoint.
+      setUserId(result.data?.id ?? null)
       navigate('/dashboard')
     } catch {
       setError(t['landing.login.errorGeneric'])

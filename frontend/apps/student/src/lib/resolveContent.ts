@@ -5,6 +5,7 @@ import {
   listChapterVideos,
   listClasses,
   listClassVersions,
+  listStudentProfiles,
   listSubjects,
   type Book,
   type Chapter,
@@ -40,6 +41,26 @@ export function allSubjects(): Promise<Subject[]> {
   }
 
   return allSubjectsPromise
+}
+
+// The logged-in student's own class_id (the generic SchoolClass, e.g.
+// "Class 6" — not a particular school's ClassVersion), resolved from their
+// own StudentProfile. There is no dedicated "/me" endpoint; the student
+// role already carries student_profiles.view, so this just filters that
+// index by their own user_id. Cached per userId since it never changes
+// within a session, mirroring the other caches in this file.
+let ownClassIdPromise: Promise<number | null> | null = null
+let ownClassIdForUserId: number | null = null
+
+export function ownClassId(userId: number, token: string): Promise<number | null> {
+  if (!ownClassIdPromise || ownClassIdForUserId !== userId) {
+    ownClassIdForUserId = userId
+    ownClassIdPromise = listStudentProfiles({ userId, perPage: 1 }, token).then(
+      (result) => result.data[0]?.class_id ?? null,
+    )
+  }
+
+  return ownClassIdPromise
 }
 
 // There is exactly one current academic year nationally at a time

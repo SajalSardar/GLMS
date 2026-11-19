@@ -10,6 +10,7 @@ import {
 const TOKEN_STORAGE_KEY = 'ttla.authToken'
 const ROLE_STORAGE_KEY = 'ttla.authRole'
 const NAME_STORAGE_KEY = 'ttla.authName'
+const USER_ID_STORAGE_KEY = 'ttla.authUserId'
 
 export function getStoredToken(): string | null {
   return localStorage.getItem(TOKEN_STORAGE_KEY)
@@ -47,6 +48,19 @@ export function clearStoredName(): void {
   localStorage.removeItem(NAME_STORAGE_KEY)
 }
 
+export function getStoredUserId(): number | null {
+  const raw = localStorage.getItem(USER_ID_STORAGE_KEY)
+  return raw === null ? null : Number(raw)
+}
+
+export function storeUserId(userId: number): void {
+  localStorage.setItem(USER_ID_STORAGE_KEY, String(userId))
+}
+
+export function clearStoredUserId(): void {
+  localStorage.removeItem(USER_ID_STORAGE_KEY)
+}
+
 export interface AuthContextValue {
   token: string | null
   role: string | null
@@ -56,9 +70,16 @@ export interface AuthContextValue {
    * before this field existed — consumers must have a fallback.
    */
   name: string | null
+  /**
+   * The signed-in user's own numeric id, when the login flow supplied one.
+   * Null for a guest, and also null for a session stored before this field
+   * existed — consumers must have a fallback.
+   */
+  userId: number | null
   setToken: (token: string) => void
   setRole: (role: string | null) => void
   setName: (name: string | null) => void
+  setUserId: (userId: number | null) => void
   clearToken: () => void
 }
 
@@ -68,6 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setTokenState] = useState<string | null>(() => getStoredToken())
   const [role, setRoleState] = useState<string | null>(() => getStoredRole())
   const [name, setNameState] = useState<string | null>(() => getStoredName())
+  const [userId, setUserIdState] = useState<number | null>(() => getStoredUserId())
 
   const setToken = useCallback((next: string) => {
     storeToken(next)
@@ -92,18 +114,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setNameState(next)
   }, [])
 
+  const setUserId = useCallback((next: number | null) => {
+    if (next !== null) {
+      storeUserId(next)
+    } else {
+      clearStoredUserId()
+    }
+    setUserIdState(next)
+  }, [])
+
   const clearToken = useCallback(() => {
     clearStoredToken()
     clearStoredRole()
     clearStoredName()
+    clearStoredUserId()
     setTokenState(null)
     setRoleState(null)
     setNameState(null)
+    setUserIdState(null)
   }, [])
 
   const value = useMemo<AuthContextValue>(
-    () => ({ token, role, name, setToken, setRole, setName, clearToken }),
-    [token, role, name, setToken, setRole, setName, clearToken],
+    () => ({ token, role, name, userId, setToken, setRole, setName, setUserId, clearToken }),
+    [token, role, name, userId, setToken, setRole, setName, setUserId, clearToken],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

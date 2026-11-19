@@ -69,6 +69,7 @@
   "student.books.materialsLoadError": "Could not load materials right now. Please try again.",
   "student.books.noMaterials": "No materials have been added yet.",
   "student.books.materialLinkError": "Could not open this material right now. Please try again.",
+  "student.books.yourClass": "Your class: {class}",
 
   "student.videoLecture.title": "Video Lecture",
   "student.videoLecture.allClasses": "All classes",
