@@ -357,9 +357,6 @@ export default function LandingLogin() {
       </section>
 
       <section className="bg-primary-50 px-5 py-12" id="features">
-        <h2 className="mb-7 text-center text-[1.4rem] font-display md:text-left">
-          {t['landing.features.heading']}
-        </h2>
         <div className="mx-auto grid max-w-[64rem] grid-cols-[repeat(auto-fit,minmax(9.5rem,1fr))] gap-4">
           {FEATURES.map((feature) => (
             <div className="rounded-2xl bg-white px-[1.1rem] py-6 text-center shadow-[0_14px_30px_-24px_rgba(20,36,32,0.25)]" key={feature.title}>
