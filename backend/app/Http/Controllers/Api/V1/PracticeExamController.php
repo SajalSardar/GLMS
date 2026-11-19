@@ -11,7 +11,6 @@ use App\Models\Question;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class PracticeExamController extends Controller
@@ -69,19 +68,17 @@ class PracticeExamController extends Controller
         $questionCount = min($configuredCount, $eligibleCount);
 
         [$classVersionId, $academicYearId, $schoolId, $districtId] = $this->resolveOwnerContext($request, $chapterIds);
+        [$name, $bnName] = $this->namesFromChapters($chapterIds);
 
-        $exam = DB::transaction(function () use ($classVersionId, $subjectId, $academicYearId, $schoolId, $districtId, $questionCount, $chapterIds) {
+        $exam = DB::transaction(function () use ($classVersionId, $subjectId, $academicYearId, $schoolId, $districtId, $questionCount, $chapterIds, $name, $bnName) {
             $exam = Exam::create([
                 'class_version_id' => $classVersionId,
                 'subject_id' => $subjectId,
                 'academic_year_id' => $academicYearId,
                 'school_id' => $schoolId,
                 'district_id' => $districtId,
-                'name' => 'Practice #'.Str::random(8),
-                // ExamRunnerPage renders bn_name ?? name as its <h1>;
-                // without this the student sees the generated English
-                // slug as a heading in an otherwise Bangla UI.
-                'bn_name' => 'অনুশীলন পরীক্ষা',
+                'name' => $name,
+                'bn_name' => $bnName,
                 'selection_mode' => 'per_attempt_random',
                 'random_question_count' => $questionCount,
                 'marks_per_question' => 1,
@@ -144,5 +141,26 @@ class PracticeExamController extends Controller
         }
 
         return [$classVersion->id, $academicYearId, $classVersion->school_id, $classVersion->district_id];
+    }
+
+    /**
+     * Builds the exam's own name/bn_name from the submitted chapters'
+     * names, joined in the order they were submitted — replaces the
+     * previous synthetic "Practice #<random>" slug so a student's score
+     * history (ExamsPage.tsx) can show which chapter(s) a practice exam
+     * actually covered instead of an internal label.
+     *
+     * @param  list<int>  $chapterIds
+     * @return array{0: string, 1: string}
+     */
+    private function namesFromChapters(array $chapterIds): array
+    {
+        $chaptersById = Chapter::whereIn('id', $chapterIds)->get(['id', 'name', 'bn_name'])->keyBy('id');
+        $orderedChapters = collect($chapterIds)->map(fn (int $id) => $chaptersById->get($id))->filter();
+
+        $name = $orderedChapters->pluck('name')->implode(', ');
+        $bnName = $orderedChapters->map(fn (Chapter $chapter) => $chapter->bn_name ?? $chapter->name)->implode(', ');
+
+        return [$name, $bnName];
     }
 }

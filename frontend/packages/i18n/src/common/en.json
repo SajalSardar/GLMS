@@ -156,7 +156,7 @@
   "student.practiceExam.questionHintMulti": "Picking multiple chapters gives you {count} questions.",
   "student.practiceExam.submit": "Start Exam",
   "student.practiceExam.scoresTitle": "Your practice exam scores",
-  "student.practiceExam.colSubject": "Subject",
+  "student.practiceExam.colChapter": "Chapter",
   "student.practiceExam.colScore": "Score",
   "student.practiceExam.colResult": "Result",
   "student.practiceExam.submitting": "Preparing...",

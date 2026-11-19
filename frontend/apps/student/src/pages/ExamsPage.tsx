@@ -422,7 +422,7 @@ export default function ExamsPage() {
               <thead>
                 <tr>
                   <th className="bg-primary-50 px-5 py-3 font-medium whitespace-nowrap text-primary-900">
-                    {t['student.practiceExam.colSubject']}
+                    {t['student.practiceExam.colChapter']}
                   </th>
                   <th className="bg-primary-50 px-5 py-3 font-medium whitespace-nowrap text-primary-900">
                     {t['student.practiceExam.colScore']}
@@ -434,13 +434,16 @@ export default function ExamsPage() {
               </thead>
               <tbody>
                 {pastAttempts.map((attempt) => {
-                  const subject = attempt.exam?.subject
-                  const subjectName = subject ? (subject.bn_name ?? subject.name) : ''
+                  // PracticeExamController::store() names the exam after the
+                  // chapter(s) it was built from (comma-joined when several
+                  // were picked), so this is the real chapter name — not a
+                  // synthetic label.
+                  const chapterName = attempt.exam ? (attempt.exam.bn_name ?? attempt.exam.name) : ''
 
                   return (
                     <tr key={attempt.id}>
                       <td className="border-b border-gray-100 px-5 py-4 whitespace-nowrap text-gray-500">
-                        {subjectName}
+                        {chapterName}
                       </td>
                       <td className="border-b border-gray-100 px-5 py-4 whitespace-nowrap text-gray-500">
                         {attempt.score ?? 0} / {attempt.total_possible_marks ?? 0}

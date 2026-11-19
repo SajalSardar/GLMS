@@ -156,7 +156,7 @@
   "student.practiceExam.questionHintMulti": "একাধিক অধ্যায় নির্বাচন করলে পরীক্ষায় থাকবে {count}টি প্রশ্ন।",
   "student.practiceExam.submit": "পরীক্ষা শুরু করো",
   "student.practiceExam.scoresTitle": "তোমার অনুশীলন পরীক্ষার স্কোর",
-  "student.practiceExam.colSubject": "বিষয়",
+  "student.practiceExam.colChapter": "অধ্যায়",
   "student.practiceExam.colScore": "স্কোর",
   "student.practiceExam.colResult": "ফলাফল",
   "student.practiceExam.submitting": "তৈরি হচ্ছে...",

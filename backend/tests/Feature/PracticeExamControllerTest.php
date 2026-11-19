@@ -261,13 +261,28 @@ class PracticeExamControllerTest extends TestCase
         $this->assertSame(3, $exam->random_question_count);
     }
 
-    public function test_the_provisioned_exam_carries_a_bangla_display_name(): void
+    public function test_the_provisioned_exam_name_is_built_from_its_chapters(): void
     {
+        $response = $this->postJson('/api/v1/practice-exams', [
+            'subject_id' => $this->subject->id,
+            'chapter_ids' => [$this->chapterOne->id, $this->chapterTwo->id],
+        ])->assertCreated();
+
+        $exam = Exam::findOrFail($response->json('data.id'));
+
+        $this->assertSame('Chapter 1, Chapter 2', $exam->name);
+        $this->assertSame('Chapter 1, Chapter 2', $exam->bn_name);
+    }
+
+    public function test_the_exam_bn_name_prefers_each_chapters_own_bn_name(): void
+    {
+        $this->chapterOne->update(['bn_name' => 'অধ্যায় ১']);
+
         $response = $this->postJson('/api/v1/practice-exams', [
             'subject_id' => $this->subject->id,
             'chapter_ids' => [$this->chapterOne->id],
         ])->assertCreated();
 
-        $this->assertSame('অনুশীলন পরীক্ষা', Exam::findOrFail($response->json('data.id'))->bn_name);
+        $this->assertSame('অধ্যায় ১', Exam::findOrFail($response->json('data.id'))->bn_name);
     }
 }

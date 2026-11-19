@@ -172,16 +172,14 @@ function totalExamMinutes(exam: Exam): number {
   return exam.time_limit_minutes ?? totalQuestionCount(exam)
 }
 
-// A practice exam's own name/bn_name is a synthetic, internal label —
-// PracticeExamController::store() always sets bn_name to a fixed Bangla
-// string and name to a random slug — neither is meant to be read as
-// user-facing content, which is exactly why it never responded to the
-// language switcher (it isn't translated text, it's fixed backend data).
-// The locale dictionary is the actual title here instead. A teacher
-// created exam's name IS real content a teacher chose, so it's shown as
-// written regardless of locale.
-function examTitle(exam: Exam, t: CommonStrings): string {
-  return exam.is_practice ? t['student.practiceExam.title'] : (exam.bn_name ?? exam.name)
+// PracticeExamController::store() now sets name/bn_name from the
+// submitted chapters' own names (previously a synthetic random slug with
+// a fixed Bangla label, which this function used to substitute for), so
+// both practice and teacher-created exams show their real name the same
+// way — the setup card's type badge (see the 'setup' render below)
+// already communicates which kind this is.
+function examTitle(exam: Exam): string {
+  return exam.bn_name ?? exam.name
 }
 
 function formatClock(totalSeconds: number): string {
@@ -511,7 +509,7 @@ export default function ExamRunnerPage() {
           <p className="text-sm text-primary-600">{t['student.exams.loading']}</p>
         ) : !token && !examPreview.is_practice ? (
           <div className="w-full max-w-md rounded-2xl border border-primary-100 bg-white p-8 text-center shadow-sm">
-            <h1 className="text-2xl font-bold text-primary-800">{examTitle(examPreview, t)}</h1>
+            <h1 className="text-2xl font-bold text-primary-800">{examTitle(examPreview)}</h1>
             <p className="mt-4 text-sm text-danger-600">{t['student.exams.loginRequired']}</p>
             <Link to="/login" className="mt-4 inline-block text-sm font-semibold text-primary-700 underline">
               {t['student.nav.signIn']}
@@ -522,7 +520,7 @@ export default function ExamRunnerPage() {
             <span className="inline-block rounded-full bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700">
               {examPreview.is_practice ? t['student.nav.exams'] : t['student.nav.classExams']}
             </span>
-            <h1 className="mt-3 text-xl font-bold text-primary-800">{examTitle(examPreview, t)}</h1>
+            <h1 className="mt-3 text-xl font-bold text-primary-800">{examTitle(examPreview)}</h1>
             <p className="mt-1 text-sm text-primary-600">
               {examPreview.is_practice ? t['student.exams.practiceExamNote'] : t['student.exams.classExamNote']}
             </p>
