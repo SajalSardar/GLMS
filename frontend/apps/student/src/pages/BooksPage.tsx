@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { listClasses, type Book, type SchoolClass, type Subject } from '@ttla/api-client'
-import { currentYearBooks, subjectsForClass } from '../lib/resolveContent'
+import { type Book, type SchoolClass, type Subject } from '@ttla/api-client'
+import { allClasses, currentYearBooks, subjectsForClass } from '../lib/resolveContent'
 import { useLocale } from '../lib/locale'
 
 const PAGE_SIZE = 10
@@ -47,10 +47,10 @@ export default function BooksPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    listClasses({ perPage: 500 })
+    allClasses()
       .then((result) => {
-        setClasses(result.data)
-        setClassesById(new Map(result.data.map((schoolClass) => [schoolClass.id, schoolClass])))
+        setClasses(result)
+        setClassesById(new Map(result.map((schoolClass) => [schoolClass.id, schoolClass])))
       })
       .catch(() => {
         setClasses([])

@@ -3,13 +3,44 @@ import {
   listBooks,
   listChapters,
   listChapterVideos,
+  listClasses,
   listClassVersions,
+  listSubjects,
   type Book,
   type Chapter,
   type ChapterVideo,
   type ClassVersion,
+  type SchoolClass,
   type Subject,
 } from '@ttla/api-client'
+
+// The full, unfiltered national class/subject lists — cached for the same
+// reason as allBooks()/allClassVersions() below. Several pages
+// (VideoLecturePage, VideoPlaylistPage, ExamsPage, BooksPage) each fetch
+// these directly for their class-filter dropdown; without caching, React
+// 18 StrictMode's dev-mode double-invoked effects fire the identical
+// `/classes?per_page=500` or `/subjects?per_page=500` request twice on a
+// single page load, and navigating between those pages re-fetches the same
+// unfiltered list again.
+let allClassesPromise: Promise<SchoolClass[]> | null = null
+
+export function allClasses(): Promise<SchoolClass[]> {
+  if (!allClassesPromise) {
+    allClassesPromise = listClasses({ perPage: 500 }).then((result) => result.data)
+  }
+
+  return allClassesPromise
+}
+
+let allSubjectsPromise: Promise<Subject[]> | null = null
+
+export function allSubjects(): Promise<Subject[]> {
+  if (!allSubjectsPromise) {
+    allSubjectsPromise = listSubjects({ perPage: 500 }).then((result) => result.data)
+  }
+
+  return allSubjectsPromise
+}
 
 // There is exactly one current academic year nationally at a time
 // (AcademicYearController::setCurrent() enforces this backend-side), so

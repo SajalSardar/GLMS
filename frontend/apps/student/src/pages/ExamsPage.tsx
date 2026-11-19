@@ -4,13 +4,12 @@ import {
   ApiError,
   createPracticeExam,
   getPracticeExamConfig,
-  listClasses,
   type PracticeExamConfig,
   type SchoolClass,
   type Subject,
 } from '@ttla/api-client'
 import { useAuth } from '@ttla/auth'
-import { chaptersForClassAndSubject, subjectsForClass, type ChapterWithBook } from '../lib/resolveContent'
+import { allClasses, chaptersForClassAndSubject, subjectsForClass, type ChapterWithBook } from '../lib/resolveContent'
 import { useLocale } from '../lib/locale'
 
 function InfoAlert({ message }: { message: string }) {
@@ -147,8 +146,8 @@ export default function ExamsPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    listClasses({ perPage: 500 })
-      .then((result) => setClasses(result.data))
+    allClasses()
+      .then((result) => setClasses(result))
       .catch(() => setClasses([]))
 
     getPracticeExamConfig()

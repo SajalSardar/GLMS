@@ -3,13 +3,13 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   ApiError,
   listChapterVideos,
-  listClasses,
   type ChapterVideo,
   type ClassVersion,
   type SchoolClass,
   type Subject,
 } from '@ttla/api-client'
 import {
+  allClasses,
   chaptersWithVideosForClassAndSubject,
   classVersionsForClass,
   subjectsForClass,
@@ -72,8 +72,8 @@ export default function VideoPlaylistPage() {
   const [videosError, setVideosError] = useState<string | null>(null)
 
   useEffect(() => {
-    listClasses({ perPage: 500 })
-      .then((result) => setClasses(result.data))
+    allClasses()
+      .then((result) => setClasses(result))
       .catch(() => setClasses([]))
   }, [])
 
