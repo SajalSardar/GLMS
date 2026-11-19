@@ -364,4 +364,87 @@ class ChapterMaterialControllerTest extends TestCase
             ->assertOk()
             ->assertJsonCount(1, 'data');
     }
+
+    public function test_mine_returns_only_materials_matching_the_students_own_full_scope_tuple(): void
+    {
+        $classVersionId = $this->chapterA->book->class_version_id;
+        $classId = $this->chapterA->book->classVersion->class_id;
+        $shift = Shift::create(['class_version_id' => $classVersionId, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'name' => 'Shift', 'start_time' => '08:00', 'end_time' => '13:00', 'days_of_week' => ['saturday']]);
+        $teacher = $this->teacherActorWithPermissions(['chapter_materials.create'], $this->schoolA->id, $this->schoolA->district_id);
+        $ownSection = Section::create(['shift_id' => $shift->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'name' => 'Section A', 'class_teacher_id' => $teacher->id]);
+        $otherSection = Section::create(['shift_id' => $shift->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'name' => 'Section B']);
+
+        $file = UploadedFile::fake()->create('chapter1.pdf', 100, 'application/pdf');
+        $scopedMaterialId = $this->actingAs($teacher, 'sanctum')
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'primary', 'pdf' => $file])
+            ->json('data.id');
+
+        // A legacy/unscoped material (section_id null) must NOT appear via
+        // /mine — unlike index(), which deliberately shows it to everyone,
+        // /mine only answers "is there a material matching MY exact scope."
+        ChapterMaterial::create([
+            'chapter_id' => $this->chapterA->id,
+            'type' => 'supplementary',
+            'title' => 'Legacy Material',
+            'original_filename' => 'notes.pdf',
+            'stored_path' => 'demo/notes.pdf',
+            'disk' => 'local',
+            'mime_type' => 'application/pdf',
+            'size_bytes' => 1000,
+            'order_index' => 2,
+        ]);
+
+        $studentInSection = $this->studentActorWithPermissions([], $this->schoolA->id, $this->schoolA->district_id);
+        StudentProfile::create([
+            'user_id' => $studentInSection->id,
+            'school_id' => $this->schoolA->id,
+            'district_id' => $this->schoolA->district_id,
+            'section_id' => $ownSection->id,
+            'shift_id' => $shift->id,
+            'class_version_id' => $classVersionId,
+            'class_id' => $classId,
+        ]);
+
+        $this->actingAs($studentInSection, 'sanctum')
+            ->getJson('/api/v1/chapter-materials/mine')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $scopedMaterialId);
+
+        $studentInOtherSection = $this->studentActorWithPermissions([], $this->schoolA->id, $this->schoolA->district_id);
+        StudentProfile::create([
+            'user_id' => $studentInOtherSection->id,
+            'school_id' => $this->schoolA->id,
+            'district_id' => $this->schoolA->district_id,
+            'section_id' => $otherSection->id,
+            'shift_id' => $shift->id,
+            'class_version_id' => $classVersionId,
+            'class_id' => $classId,
+        ]);
+
+        $this->actingAs($studentInOtherSection, 'sanctum')
+            ->getJson('/api/v1/chapter-materials/mine')
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+    }
+
+    public function test_mine_is_empty_for_a_student_with_no_section_assigned(): void
+    {
+        $student = $this->studentActorWithPermissions([], $this->schoolA->id, $this->schoolA->district_id);
+        StudentProfile::create(['user_id' => $student->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id]);
+
+        $this->actingAs($student, 'sanctum')
+            ->getJson('/api/v1/chapter-materials/mine')
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+    }
+
+    public function test_mine_is_forbidden_for_a_non_student_actor(): void
+    {
+        $teacher = $this->teacherActorWithPermissions([], $this->schoolA->id, $this->schoolA->district_id);
+
+        $this->actingAs($teacher, 'sanctum')
+            ->getJson('/api/v1/chapter-materials/mine')
+            ->assertForbidden();
+    }
 }

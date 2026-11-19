@@ -31,6 +31,7 @@
   "student.dashboard.welcome": "Welcome, {name}!",
   "student.dashboard.welcomeGeneric": "Welcome!",
   "student.dashboard.subtitle": "Start your learning journey from here.",
+  "student.dashboard.newMaterials": "{count} new material(s) are available for your class. Tap to view.",
   "student.dashboard.booksTitle": "Books",
   "student.dashboard.booksDesc": "Read your class textbooks.",
   "student.dashboard.videoLectureTitle": "Video Lecture",

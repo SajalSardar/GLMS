@@ -774,6 +774,17 @@ export function listChapterMaterials(
   return apiFetch<{ data: ChapterMaterial[] }>(`/chapter-materials${buildQuery(query)}`)
 }
 
+// The current student's own materials — scoped server-side to their
+// exact school/district/shift/section/class/class_version tuple (see
+// ChapterMaterialController::mine()), so e.g. DashboardPage.tsx can show
+// "new materials for your class" without fetching every chapter's
+// materials and filtering client-side.
+export function listMyChapterMaterials(token: string): Promise<{ data: ChapterMaterial[] }> {
+  return apiFetch<{ data: ChapterMaterial[] }>('/chapter-materials/mine', {
+    headers: authHeaders(token),
+  })
+}
+
 export interface ChapterMaterialLinks {
   download_url: string
   preview_url: string

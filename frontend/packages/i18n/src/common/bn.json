@@ -31,6 +31,7 @@
   "student.dashboard.welcome": "স্বাগতম, {name}!",
   "student.dashboard.welcomeGeneric": "স্বাগতম!",
   "student.dashboard.subtitle": "তোমার শেখার যাত্রা এখান থেকেই শুরু করো।",
+  "student.dashboard.newMaterials": "তোমার শ্রেণির জন্য {count}টি নতুন উপকরণ পাওয়া যাচ্ছে। দেখতে ট্যাপ করো।",
   "student.dashboard.booksTitle": "বই",
   "student.dashboard.booksDesc": "তোমার ক্লাসের পাঠ্যবই পড়ো।",
   "student.dashboard.videoLectureTitle": "ভিডিও লেকচার",

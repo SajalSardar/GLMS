@@ -25,6 +25,7 @@ import {
   listAcademicYears,
   listBooks,
   listChapterMaterials,
+  listMyChapterMaterials,
   listChapters,
   listChapterVideos,
   listClasses,
@@ -900,6 +901,19 @@ describe('chapter materials', () => {
     await listChapterMaterials({ chapterId: 7 })
 
     expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/chapter-materials?chapter_id=7`)
+  })
+
+  it("lists the current student's own scoped materials with a required token", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ data: [] }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    await listMyChapterMaterials('tok')
+
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/chapter-materials/mine`)
+    expect(mockFetch.mock.calls[0][1]).toMatchObject({ headers: { Authorization: 'Bearer tok' } })
   })
 
   it('requests a chapter material\'s download/preview links with a required token', async () => {

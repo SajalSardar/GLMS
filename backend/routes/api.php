@@ -68,6 +68,12 @@ Route::prefix('v1')->group(function (): void {
     // in this "public" section — see QuestionPolicy::export().
     Route::get('/questions/export', [QuestionController::class, 'export'])->middleware('auth:sanctum');
     Route::apiResource('questions', QuestionController::class)->only(['index', 'show']);
+    // Must be registered before the apiResource's wildcard
+    // {chapter_material} show route below, or "mine" would be matched as
+    // a chapter_material ID and routed to show() instead of mine().
+    // Requires auth despite sitting in this "public" section — self-
+    // scoped to the logged-in student.
+    Route::get('/chapter-materials/mine', [ChapterMaterialController::class, 'mine'])->middleware('auth:sanctum');
     Route::apiResource('chapter-materials', ChapterMaterialController::class)->only(['index', 'show']);
     Route::apiResource('chapter-videos', ChapterVideoController::class)->only(['index', 'show']);
     Route::apiResource('academic-years', AcademicYearController::class)->only(['index', 'show']);

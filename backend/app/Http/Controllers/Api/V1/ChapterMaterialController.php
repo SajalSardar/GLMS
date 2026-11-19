@@ -60,6 +60,43 @@ class ChapterMaterialController extends Controller
         return new ChapterMaterialResource($chapter_material->load('chapter'));
     }
 
+    /**
+     * Materials scoped to exactly this student's own school/district/
+     * shift/class_version/class/section — e.g. so DashboardPage.tsx can
+     * surface "new materials for your class" without the student ever
+     * having to open the chapter materials list. All six fields are
+     * checked explicitly (not just section_id, even though
+     * resolveUploaderScope() above only ever sets them together) so this
+     * stays correct even if that invariant is ever broken by a future
+     * change or a direct DB edit. A student with no section assigned yet
+     * has nothing to match against, so this is always empty for them.
+     */
+    public function mine(Request $request): AnonymousResourceCollection
+    {
+        $actor = $request->user();
+        abort_unless($actor instanceof StudentUser, 403);
+
+        $profile = $actor->profile;
+
+        if ($profile === null || $profile->section_id === null) {
+            return ChapterMaterialResource::collection(collect());
+        }
+
+        $materials = ChapterMaterial::query()
+            ->with('chapter')
+            ->where('status', 'active')
+            ->where('school_id', $profile->school_id)
+            ->where('district_id', $profile->district_id)
+            ->where('shift_id', $profile->shift_id)
+            ->where('section_id', $profile->section_id)
+            ->where('class_id', $profile->class_id)
+            ->where('class_version_id', $profile->class_version_id)
+            ->orderByDesc('created_at')
+            ->get();
+
+        return ChapterMaterialResource::collection($materials);
+    }
+
     public function store(StoreChapterMaterialRequest $request): JsonResponse
     {
         $this->authorize('create', ChapterMaterial::class);
