@@ -14,6 +14,12 @@ export interface AppShellProps {
   // left of userLabel/logout — optional so existing consumers (management)
   // are unaffected.
   headerExtra?: ReactNode
+  // Override the <main> wrapper's classes. Defaults to this shell's own
+  // p-4 lg:p-6 padding; a consumer whose pages already carry their own
+  // outer padding (because those same pages also render under a second,
+  // unpadded shell — e.g. the student app's SiteShell for guests) can pass
+  // 'flex-1' here to avoid doubling up.
+  mainClassName?: string
 }
 
 const currentYear = new Date().getFullYear()
@@ -26,6 +32,7 @@ export default function AppShell({
   onLogout,
   logoutLabel = 'Logout',
   headerExtra,
+  mainClassName = 'flex-1 p-4 lg:p-6',
 }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
@@ -99,7 +106,7 @@ export default function AppShell({
           </div>
         </header>
 
-        <main className="flex-1 p-4 lg:p-6">
+        <main className={mainClassName}>
           <Outlet />
         </main>
 

@@ -74,6 +74,7 @@ export default function StudentAppShell() {
       userLabel={name ?? undefined}
       onLogout={handleLogout}
       logoutLabel={t['student.nav.logout']}
+      mainClassName="flex-1"
       headerExtra={
         <LanguageSwitcher locale={locale} setLocale={setLocale} ariaLabel={t['student.nav.languageSwitcher']} />
       }
