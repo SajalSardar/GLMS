@@ -9,7 +9,13 @@ import {
   type Subject,
 } from '@ttla/api-client'
 import { useAuth } from '@ttla/auth'
-import { allClasses, chaptersForClassAndSubject, subjectsForClass, type ChapterWithBook } from '../lib/resolveContent'
+import {
+  allClasses,
+  chaptersForClassAndSubject,
+  ownClassId,
+  subjectsForClass,
+  type ChapterWithBook,
+} from '../lib/resolveContent'
 import { useLocale } from '../lib/locale'
 
 function InfoAlert({ message }: { message: string }) {
@@ -105,7 +111,7 @@ function chapterLabel(entry: ChapterWithBook): string {
 }
 
 export default function ExamsPage() {
-  const { token } = useAuth()
+  const { token, userId } = useAuth()
   const { t } = useLocale()
   const navigate = useNavigate()
   const location = useLocation()
@@ -121,7 +127,14 @@ export default function ExamsPage() {
   const initialChapterAppliedRef = useRef(false)
 
   const [classes, setClasses] = useState<SchoolClass[]>([])
+  const [classesById, setClassesById] = useState<Map<number, SchoolClass>>(new Map())
   const [classId, setClassId] = useState<number | null>(initialSelection?.classId ?? null)
+
+  // Same pattern as BooksPage.tsx/VideoLecturePage.tsx — a logged-in
+  // student's own class locks the filter (shown as a badge), UNLESS a
+  // specific class already arrived via initialSelection (VideoPlaylistPage's
+  // "start exam" button), which takes priority.
+  const [ownClassLocked, setOwnClassLocked] = useState(false)
 
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [subjectId, setSubjectId] = useState<number | null>(initialSelection?.subjectId ?? null)
@@ -147,13 +160,34 @@ export default function ExamsPage() {
 
   useEffect(() => {
     allClasses()
-      .then((result) => setClasses(result))
+      .then((result) => {
+        setClasses(result)
+        setClassesById(new Map(result.map((schoolClass) => [schoolClass.id, schoolClass])))
+      })
       .catch(() => setClasses([]))
 
     getPracticeExamConfig()
       .then(setConfig)
       .catch(() => setConfig(null))
   }, [])
+
+  useEffect(() => {
+    if (!token || !userId || initialSelection) return
+
+    let active = true
+
+    ownClassId(userId, token)
+      .then((result) => {
+        if (!active || result === null) return
+        setClassId(result)
+        setOwnClassLocked(true)
+      })
+      .catch(() => {})
+
+    return () => {
+      active = false
+    }
+  }, [token, userId, initialSelection])
 
   useEffect(() => {
     if (previousClassIdRef.current !== classId) {
@@ -261,6 +295,7 @@ export default function ExamsPage() {
   }
 
   const hint = questionHint()
+  const ownClass = ownClassLocked && classId !== null ? classesById.get(classId) : undefined
 
   return (
     <section className="mx-auto max-w-4xl px-4 py-8 lg:px-8">
@@ -269,18 +304,24 @@ export default function ExamsPage() {
       {sessionEndedMessage && <WarningAlert message={t['student.exams.sessionEnded']} />}
 
       <div className="mt-4 flex flex-wrap gap-3">
-        <select
-          className="h-10 min-w-[12rem] rounded-md border border-primary-200 px-3 text-sm"
-          value={classId ?? ''}
-          onChange={(event) => setClassId(event.target.value ? Number(event.target.value) : null)}
-        >
-          <option value="">{t['student.practiceExam.allClasses']}</option>
-          {classes.map((schoolClass) => (
-            <option key={schoolClass.id} value={schoolClass.id}>
-              {schoolClass.bn_name ?? schoolClass.name}
-            </option>
-          ))}
-        </select>
+        {ownClassLocked ? (
+          <span className="inline-flex h-10 items-center rounded-md bg-primary-50 px-3 text-sm font-semibold text-primary-700">
+            {t['student.practiceExam.yourClass'].replace('{class}', ownClass ? (ownClass.bn_name ?? ownClass.name) : '')}
+          </span>
+        ) : (
+          <select
+            className="h-10 min-w-[12rem] rounded-md border border-primary-200 px-3 text-sm"
+            value={classId ?? ''}
+            onChange={(event) => setClassId(event.target.value ? Number(event.target.value) : null)}
+          >
+            <option value="">{t['student.practiceExam.allClasses']}</option>
+            {classes.map((schoolClass) => (
+              <option key={schoolClass.id} value={schoolClass.id}>
+                {schoolClass.bn_name ?? schoolClass.name}
+              </option>
+            ))}
+          </select>
+        )}
 
         <select
           className="h-10 min-w-[12rem] rounded-md border border-primary-200 px-3 text-sm disabled:cursor-not-allowed disabled:opacity-60"

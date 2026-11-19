@@ -73,6 +73,7 @@
 
   "student.videoLecture.title": "ভিডিও লেকচার",
   "student.videoLecture.allClasses": "সকল শ্রেণি",
+  "student.videoLecture.yourClass": "তোমার শ্রেণি: {class}",
   "student.videoLecture.loading": "লোড হচ্ছে...",
   "student.videoLecture.pickClass": "বিষয় দেখতে একটি শ্রেণি নির্বাচন করুন।",
   "student.videoLecture.noSubjects": "এই শ্রেণির জন্য কোনো বিষয় পাওয়া যায়নি।",
@@ -118,6 +119,7 @@
   "student.practiceExam.pickClass": "শ্রেণি নির্বাচন করো",
   "student.practiceExam.pickSubject": "বিষয় নির্বাচন করো",
   "student.practiceExam.allClasses": "শ্রেণি নির্বাচন করো",
+  "student.practiceExam.yourClass": "তোমার শ্রেণি: {class}",
   "student.practiceExam.allSubjects": "বিষয় নির্বাচন করো",
   "student.practiceExam.chaptersHeading": "অধ্যায় নির্বাচন করো",
   "student.practiceExam.noChapters": "এই বিষয়ে কোনো অধ্যায় পাওয়া যায়নি।",

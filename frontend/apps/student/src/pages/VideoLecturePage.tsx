@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { type SchoolClass, type Subject } from '@ttla/api-client'
-import { allClasses, allClassVersions, allSubjects, classSubjectPairsWithVideos } from '../lib/resolveContent'
+import { useAuth } from '@ttla/auth'
+import { allClasses, allClassVersions, allSubjects, classSubjectPairsWithVideos, ownClassId } from '../lib/resolveContent'
 import { useLocale } from '../lib/locale'
 
 type CardTone = 'primary' | 'secondary'
@@ -82,13 +83,37 @@ function SubjectCard({
 
 export default function VideoLecturePage() {
   const { t } = useLocale()
+  const { token, userId } = useAuth()
   const navigate = useNavigate()
 
   const [classes, setClasses] = useState<SchoolClass[]>([])
+  const [classesById, setClassesById] = useState<Map<number, SchoolClass>>(new Map())
   const [classFilter, setClassFilter] = useState<number | null>(null)
+
+  // Same pattern as BooksPage.tsx — a logged-in student's own class locks
+  // the filter (shown as a badge) instead of a dropdown over every class.
+  const [ownClassLocked, setOwnClassLocked] = useState(false)
 
   const [allEntries, setAllEntries] = useState<SubjectCardEntry[]>([])
   const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!token || !userId) return
+
+    let active = true
+
+    ownClassId(userId, token)
+      .then((result) => {
+        if (!active || result === null) return
+        setClassFilter(result)
+        setOwnClassLocked(true)
+      })
+      .catch(() => {})
+
+    return () => {
+      active = false
+    }
+  }, [token, userId])
 
   useEffect(() => {
     let active = true
@@ -103,6 +128,7 @@ export default function VideoLecturePage() {
         const versionsById = new Map(versions.map((version) => [version.id, version]))
 
         setClasses(classesList)
+        setClassesById(classesById)
 
         const entries = pairs
           .map((pair) => {
@@ -135,24 +161,31 @@ export default function VideoLecturePage() {
   }, [])
 
   const visibleEntries = classFilter === null ? allEntries : allEntries.filter((entry) => entry.classId === classFilter)
+  const ownClass = ownClassLocked && classFilter !== null ? classesById.get(classFilter) : undefined
 
   return (
     <section className="mx-auto max-w-6xl px-4 py-8 lg:px-8">
       <h1 className="text-2xl font-bold text-primary-800">{t['student.videoLecture.title']}</h1>
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
-        <select
-          className="h-10 min-w-[12rem] rounded-md border border-primary-200 px-3 text-sm"
-          value={classFilter ?? ''}
-          onChange={(event) => setClassFilter(event.target.value ? Number(event.target.value) : null)}
-        >
-          <option value="">{t['student.videoLecture.allClasses']}</option>
-          {classes.map((schoolClass) => (
-            <option key={schoolClass.id} value={schoolClass.id}>
-              {schoolClass.bn_name ?? schoolClass.name}
-            </option>
-          ))}
-        </select>
+        {ownClassLocked ? (
+          <span className="inline-flex h-10 items-center rounded-md bg-primary-50 px-3 text-sm font-semibold text-primary-700">
+            {t['student.videoLecture.yourClass'].replace('{class}', ownClass ? (ownClass.bn_name ?? ownClass.name) : '')}
+          </span>
+        ) : (
+          <select
+            className="h-10 min-w-[12rem] rounded-md border border-primary-200 px-3 text-sm"
+            value={classFilter ?? ''}
+            onChange={(event) => setClassFilter(event.target.value ? Number(event.target.value) : null)}
+          >
+            <option value="">{t['student.videoLecture.allClasses']}</option>
+            {classes.map((schoolClass) => (
+              <option key={schoolClass.id} value={schoolClass.id}>
+                {schoolClass.bn_name ?? schoolClass.name}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       {loading && <p className="mt-6 text-sm text-primary-600">{t['student.videoLecture.loading']}</p>}

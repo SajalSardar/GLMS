@@ -73,6 +73,7 @@
 
   "student.videoLecture.title": "Video Lecture",
   "student.videoLecture.allClasses": "All classes",
+  "student.videoLecture.yourClass": "Your class: {class}",
   "student.videoLecture.loading": "Loading...",
   "student.videoLecture.pickClass": "Pick a class to see its subjects.",
   "student.videoLecture.noSubjects": "No subjects found for this class.",
@@ -118,6 +119,7 @@
   "student.practiceExam.pickClass": "Select a class",
   "student.practiceExam.pickSubject": "Select a subject",
   "student.practiceExam.allClasses": "Select a class",
+  "student.practiceExam.yourClass": "Your class: {class}",
   "student.practiceExam.allSubjects": "Select a subject",
   "student.practiceExam.chaptersHeading": "Select chapters",
   "student.practiceExam.noChapters": "No chapters found for this subject.",
