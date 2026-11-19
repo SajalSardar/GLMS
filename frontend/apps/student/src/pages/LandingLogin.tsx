@@ -256,13 +256,13 @@ export default function LandingLogin() {
   return (
     <div className="overflow-x-hidden text-[color:var(--color-ink)]">
       <section className="relative overflow-hidden bg-[url('/hero-banner.png')] bg-cover bg-center" id="top">
-        {/* Below lg, content stacks vertically (no left/right split), so a
-            uniform overlay reads better than a directional one; at lg the
-            two-column layout earns the left-to-right fade — opaque behind
-            the headline, fading out so the photo shows through on the right
-            behind the login card (which is opaque on its own anyway). */}
+        {/* A light wash, not a near-opaque one — the photo should stay
+            clearly visible. Below lg it's a uniform tint (content stacks
+            vertically, no left/right split); at lg it's a left-to-right
+            fade so the headline side has a touch more contrast while the
+            photo shows fully behind the login card. */}
         <div
-          className="absolute inset-0 bg-white/90 lg:bg-gradient-to-r lg:from-white lg:via-white/85 lg:to-white/30"
+          className="absolute inset-0 bg-white/20 lg:bg-gradient-to-r lg:from-white/55 lg:via-white/25 lg:to-transparent"
           aria-hidden="true"
         />
         <div className="relative mx-auto flex max-w-[76rem] flex-col gap-10 px-5 pt-8 pb-12 lg:flex-row lg:items-center lg:pt-12 lg:pb-16">
@@ -285,12 +285,12 @@ export default function LandingLogin() {
           </div>
 
           <div className="lg:order-1 lg:flex-[1.2] lg:text-left">
-            <h1 className="text-center text-[clamp(1.75rem,6vw,2.6rem)] font-bold leading-[1.22] font-display lg:text-left">
+            <h1 className="text-center text-[clamp(1.75rem,6vw,2.6rem)] font-bold leading-[1.22] font-display [text-shadow:0_1px_3px_rgba(255,255,255,0.9),0_0_14px_rgba(255,255,255,0.85)] lg:text-left">
               {t['landing.hero.heading1']}
               <br />
               {t['landing.hero.heading2']}
             </h1>
-            <p className="mx-auto mt-4 max-w-[34ch] text-center text-[1.02rem] leading-[1.7] text-[color:var(--color-muted)] lg:ml-0 lg:text-left">
+            <p className="mx-auto mt-4 max-w-[34ch] text-center text-[1.02rem] leading-[1.7] text-[color:var(--color-ink)] [text-shadow:0_1px_3px_rgba(255,255,255,0.9),0_0_14px_rgba(255,255,255,0.85)] lg:ml-0 lg:text-left">
               {t['landing.hero.sub1']}
               <br />
               {t['landing.hero.sub2']}
@@ -298,7 +298,10 @@ export default function LandingLogin() {
 
             <ul className="mt-6 grid list-none grid-cols-2 justify-items-center gap-x-6 gap-y-4 p-0 sm:grid-cols-4 lg:justify-items-start">
               {HERO_BADGES.map((badge) => (
-                <li key={badge.label} className="flex flex-col items-center gap-1 text-[0.8rem] font-medium text-[color:var(--color-ink)]">
+                <li
+                  key={badge.label}
+                  className="flex flex-col items-center gap-1 text-[0.8rem] font-medium text-[color:var(--color-ink)] [text-shadow:0_1px_3px_rgba(255,255,255,0.9),0_0_14px_rgba(255,255,255,0.85)]"
+                >
                   <img src={badge.image} alt="" className="h-12 w-12 object-contain" />
                   {badge.label}
                 </li>
