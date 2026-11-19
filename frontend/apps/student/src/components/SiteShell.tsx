@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
+import { Link, NavLink, Outlet } from 'react-router-dom'
 import { logout as apiLogout } from '@ttla/api-client'
 import { useAuth } from '@ttla/auth'
 import { getCommonStrings } from '@ttla/i18n'
+import SiteFooter from './SiteFooter'
 
 const t = getCommonStrings('bn')
 
@@ -16,7 +17,6 @@ const NAV_ITEMS = [
 export default function SiteShell() {
   const { token, clearToken } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
-  const { pathname } = useLocation()
 
   // Revokes the token server-side before dropping it locally — clearToken()
   // alone only clears localStorage, which would leave the token valid
@@ -29,12 +29,6 @@ export default function SiteShell() {
     }
     clearToken()
   }
-  // The landing page (`/`) already renders its own complete footer (brand,
-  // quick links, help, copyright) — this thin site-wide footer is only for
-  // routes that don't have one of their own (Books/Videos/Exams, added by
-  // later tasks). Without this guard, `/` would show two footers stacked
-  // back-to-back.
-  const showFooter = pathname !== '/'
 
   return (
     <div className="flex min-h-screen flex-col bg-white text-primary-900">
@@ -148,11 +142,7 @@ export default function SiteShell() {
         <Outlet />
       </main>
 
-      {showFooter && (
-        <footer className="border-t border-primary-100 bg-primary-50 px-4 py-6 text-center text-sm text-primary-700 lg:px-8">
-          © {new Date().getFullYear()} {t['landing.brand']}
-        </footer>
-      )}
+      <SiteFooter />
     </div>
   )
 }
