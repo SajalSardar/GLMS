@@ -38,6 +38,7 @@ class Exam extends Model
         'available_from',
         'available_until',
         'status',
+        'is_practice',
         'random_question_count',
         'random_difficulty',
         'marks_per_question',
@@ -113,26 +114,33 @@ class Exam extends Model
 
     /**
      * The single source of truth for "which questions can a
-     * fixed_random/per_attempt_random draw pick from": every chapter
-     * reachable through a book under this exam's (class_version_id,
-     * subject_id), optionally narrowed by exam_random_chapters,
-     * optionally filtered by random_difficulty. Used by both
-     * ExamController::randomize() and ExamAttemptController::start() —
-     * must not be duplicated a third time.
+     * fixed_random/per_attempt_random draw pick from": exam_random_chapters
+     * directly when set (chapters may span multiple schools), otherwise
+     * every chapter reachable through a book under this exam's
+     * (class_version_id, subject_id). Optionally filtered by
+     * random_difficulty. Used by both ExamController::randomize() and
+     * ExamAttemptController::start() — must not be duplicated a third time.
      *
      * @return Collection<int, int>
      */
     public function eligibleRandomQuestionIds(): Collection
     {
-        $chapterIds = Chapter::query()
-            ->whereHas('book', fn ($query) => $query->where('class_version_id', $this->class_version_id)->where('subject_id', $this->subject_id))
-            ->pluck('id');
-
         $allowedChapterIds = $this->randomChapters()->pluck('chapters.id');
 
-        if ($allowedChapterIds->isNotEmpty()) {
-            $chapterIds = $chapterIds->intersect($allowedChapterIds);
-        }
+        // When exam_random_chapters is explicitly set, trust it directly —
+        // it may span multiple schools' class_versions (a practice exam's
+        // chapters are pooled cross-school by the student's own picks).
+        // Only fall back to "every chapter under this exam's own
+        // (class_version_id, subject_id)" when nothing has been narrowed.
+        // Behavior-preserving for every pre-existing exam:
+        // SetExamRandomChaptersRequest already requires any chapter it
+        // accepts to belong to the exam's own class_version_id/subject_id,
+        // so for those exams this is the exact same set as before.
+        $chapterIds = $allowedChapterIds->isNotEmpty()
+            ? $allowedChapterIds
+            : Chapter::query()
+                ->whereHas('book', fn ($query) => $query->where('class_version_id', $this->class_version_id)->where('subject_id', $this->subject_id))
+                ->pluck('id');
 
         return Question::query()
             ->whereIn('chapter_id', $chapterIds)

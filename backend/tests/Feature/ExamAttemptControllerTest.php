@@ -240,4 +240,52 @@ class ExamAttemptControllerTest extends TestCase
 
         $this->actingAs($student, 'sanctum')->getJson("/api/v1/exams/{$this->manualExam->id}/attempts")->assertForbidden();
     }
+
+    public function test_eligible_random_question_ids_pools_chapters_across_class_versions_when_narrowed(): void
+    {
+        $otherSchool = School::create(['division_id' => $this->school->division_id, 'district_id' => $this->school->district_id, 'upazila_id' => $this->school->upazila_id, 'name' => 'Other School']);
+        $otherClass = SchoolClass::create(['name' => 'Class 6 Other']);
+        $otherVersion = ClassVersion::create(['class_id' => $otherClass->id, 'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id, 'name' => 'Other Version']);
+        $otherBook = Book::create(['class_version_id' => $otherVersion->id, 'subject_id' => $this->subject->id, 'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id, 'name' => 'Other Book']);
+        $otherChapter = Chapter::create(['book_id' => $otherBook->id, 'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id, 'name' => 'Other Chapter']);
+        $otherQuestion = Question::create(['chapter_id' => $otherChapter->id, 'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id, 'question_type' => 'mcq_single', 'question_text' => 'Other Q', 'marks' => 1]);
+
+        // $this->chapter (from setUp) belongs to $this->version's school;
+        // $otherChapter belongs to a completely different school/class_version.
+        // Narrowing the exam's own class_version_id/subject_id to $this->version
+        // but pointing exam_random_chapters at BOTH chapters must still surface
+        // both chapters' questions — not just $this->chapter's.
+        $exam = Exam::create(['class_version_id' => $this->version->id, 'subject_id' => $this->subject->id, 'academic_year_id' => $this->academicYear->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Cross-School Practice', 'selection_mode' => 'per_attempt_random', 'random_question_count' => 2, 'marks_per_question' => 1, 'status' => 'published']);
+
+        $ownQuestion = Question::create(['chapter_id' => $this->chapter->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'question_type' => 'mcq_single', 'question_text' => 'Own Q', 'marks' => 1]);
+
+        $exam->randomChapters()->attach([$this->chapter->id, $otherChapter->id]);
+
+        $eligible = $exam->eligibleRandomQuestionIds();
+
+        $this->assertTrue($eligible->contains($ownQuestion->id));
+        $this->assertTrue($eligible->contains($otherQuestion->id));
+    }
+
+    public function test_eligible_random_question_ids_still_filters_to_the_exams_own_class_version_when_not_narrowed(): void
+    {
+        $otherSchool = School::create(['division_id' => $this->school->division_id, 'district_id' => $this->school->district_id, 'upazila_id' => $this->school->upazila_id, 'name' => 'Other School']);
+        $otherClass = SchoolClass::create(['name' => 'Class 6 Other 2']);
+        $otherVersion = ClassVersion::create(['class_id' => $otherClass->id, 'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id, 'name' => 'Other Version 2']);
+        $otherBook = Book::create(['class_version_id' => $otherVersion->id, 'subject_id' => $this->subject->id, 'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id, 'name' => 'Other Book 2']);
+        $otherChapter = Chapter::create(['book_id' => $otherBook->id, 'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id, 'name' => 'Other Chapter 2']);
+        Question::create(['chapter_id' => $otherChapter->id, 'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id, 'question_type' => 'mcq_single', 'question_text' => 'Other Q 2', 'marks' => 1]);
+
+        $exam = Exam::create(['class_version_id' => $this->version->id, 'subject_id' => $this->subject->id, 'academic_year_id' => $this->academicYear->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Unnarrowed', 'selection_mode' => 'per_attempt_random', 'random_question_count' => 1, 'marks_per_question' => 1, 'status' => 'published']);
+
+        $ownQuestion = Question::create(['chapter_id' => $this->chapter->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'question_type' => 'mcq_single', 'question_text' => 'Own Q 2', 'marks' => 1]);
+
+        // No exam_random_chapters attached at all — must fall back to
+        // "every chapter under this exam's own class_version_id/subject_id",
+        // exactly as before this task's change.
+        $eligible = $exam->eligibleRandomQuestionIds();
+
+        $this->assertTrue($eligible->contains($ownQuestion->id));
+        $this->assertCount(1, $eligible);
+    }
 }
