@@ -214,6 +214,38 @@ class PortalLoginTest extends TestCase
         $this->assertIsString($response->json('token'));
     }
 
+    public function test_logout_revokes_the_token_used_to_authenticate_the_request(): void
+    {
+        $role = $this->roleNamed('national_admin');
+        $user = User::factory()->create(['role_id' => $role->id, 'email' => 'logout@example.test', 'password' => 'correct-password']);
+
+        $login = $this->postJson('/api/v1/auth/management/login', [
+            'login' => 'logout@example.test',
+            'password' => 'correct-password',
+        ])->assertOk();
+
+        $token = $login->json('token');
+
+        $this->withHeader('Authorization', "Bearer {$token}")
+            ->postJson('/api/v1/auth/logout')
+            ->assertNoContent();
+
+        // Sanctum's RequestGuard caches its resolved user for the
+        // container's lifetime (see AuthManager::guard()), so a second
+        // in-process request through the same guard would otherwise reuse
+        // the first call's cached auth rather than re-checking the
+        // now-deleted token — forgetGuards() forces a fresh resolution,
+        // same fix used elsewhere in this suite for this exact gotcha.
+        $this->app['auth']->forgetGuards();
+
+        // The same token, reused against the same auth:sanctum-gated route,
+        // now fails — proving the token row was actually deleted rather
+        // than just dropped client-side.
+        $this->withHeader('Authorization', "Bearer {$token}")
+            ->postJson('/api/v1/auth/logout')
+            ->assertUnauthorized();
+    }
+
     public function test_login_locks_out_after_five_failed_attempts(): void
     {
         $role = $this->roleNamed('national_admin');

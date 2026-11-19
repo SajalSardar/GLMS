@@ -69,7 +69,7 @@ export interface PortalLoginResponse {
 }
 
 function portalLogin(
-  portal: 'student' | 'teacher' | 'management',
+  portal: 'student' | 'management',
   login: string,
   password: string,
   deviceName?: string,
@@ -95,6 +95,17 @@ export function managementLogin(
   deviceName?: string,
 ): Promise<PortalLoginResponse> {
   return portalLogin('management', login, password, deviceName)
+}
+
+// Revokes the token server-side (AuthController::logout() deletes the
+// Sanctum PersonalAccessToken used to authenticate this request) — must be
+// called before the caller clears its locally stored token, otherwise the
+// token stays valid indefinitely (config/sanctum.php sets no expiration).
+export function logout(token: string): Promise<void> {
+  return apiFetch<void>('/auth/logout', {
+    method: 'POST',
+    headers: authHeaders(token),
+  })
 }
 
 // ---------- Geographic reference data (divisions / districts / upazilas) ----------

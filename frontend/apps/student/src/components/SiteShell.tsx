@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
+import { logout as apiLogout } from '@ttla/api-client'
 import { useAuth } from '@ttla/auth'
 import { getCommonStrings } from '@ttla/i18n'
 
@@ -16,6 +17,18 @@ export default function SiteShell() {
   const { token, clearToken } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
   const { pathname } = useLocation()
+
+  // Revokes the token server-side before dropping it locally — clearToken()
+  // alone only clears localStorage, which would leave the token valid
+  // indefinitely (Sanctum tokens never expire). If the revoke call fails
+  // (e.g. the token was already invalid), still clear local state so the
+  // user isn't stuck appearing logged in.
+  function handleLogout() {
+    if (token) {
+      apiLogout(token).catch(() => {})
+    }
+    clearToken()
+  }
   // The landing page (`/`) already renders its own complete footer (brand,
   // quick links, help, copyright) — this thin site-wide footer is only for
   // routes that don't have one of their own (Books/Videos/Exams, added by
@@ -52,7 +65,7 @@ export default function SiteShell() {
             {token ? (
               <button
                 type="button"
-                onClick={clearToken}
+                onClick={handleLogout}
                 className="cursor-pointer rounded-md border border-primary-200 px-3 py-1.5 text-sm font-medium text-primary-700 hover:bg-primary-50"
               >
                 {t['student.nav.logout']}
@@ -110,7 +123,7 @@ export default function SiteShell() {
                 <button
                   type="button"
                   onClick={() => {
-                    clearToken()
+                    handleLogout()
                     setMenuOpen(false)
                   }}
                   className="w-full cursor-pointer rounded-md border border-primary-200 px-3 py-1.5 text-sm font-medium text-primary-700 hover:bg-primary-50"

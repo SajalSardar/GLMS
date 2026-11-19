@@ -36,6 +36,10 @@ class AuthController extends Controller
 
         $user = User::where('email', $login)->orWhere('phone', $login)->first();
 
+        if (! $user) {
+            $this->dummyHashCheck();
+        }
+
         if (! $user || ! Hash::check($request->string('password')->toString(), $user->password)) {
             RateLimiter::hit($throttleKey);
 
@@ -128,6 +132,11 @@ class AuthController extends Controller
         }
 
         $allowedRoles = config($allowedRolesConfigKey);
+
+        if ($user === null) {
+            $this->dummyHashCheck();
+        }
+
         $credentialsValid = $user !== null
             && Hash::check($request->string('password')->toString(), $user->password)
             && in_array($user->role?->name, $allowedRoles, true);
@@ -160,10 +169,14 @@ class AuthController extends Controller
     }
 
     /**
-     * Return the currently authenticated user.
+     * Dummy-cost placeholder for the not-found path so an unknown login
+     * value takes roughly as long to reject as a wrong password for a
+     * real account — otherwise the real Hash::check() call's bcrypt cost
+     * only shows up when a matching user exists, letting a login/ID's
+     * existence leak through response-time differences.
      */
-    public function me(Request $request): UserResource
+    private function dummyHashCheck(): void
     {
-        return new UserResource($request->user()->load(['role.permissions', 'school', 'district']));
+        Hash::check('not-a-real-password', '$2y$12$xnHkXMbYRLNiIdEbf3VRdu3dj.KGkloOPgYou.CszpwQ.5c10a.IO');
     }
 }

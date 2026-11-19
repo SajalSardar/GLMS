@@ -35,6 +35,7 @@ import {
   listSubjects,
   listTeacherUsers,
   listUpazilas,
+  logout,
   managementLogin,
   randomDrawExamQuestions,
   saveExamAttemptAnswer,
@@ -156,6 +157,26 @@ describe('managementLogin', () => {
       body: JSON.stringify({ login: 'admin@example.com', password: 'secret', device_name: 'web' }),
     })
     expect(result.token).toBe('plain-text-token')
+  })
+})
+
+describe('logout', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('posts to the logout endpoint with a bearer token', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 204 })
+    vi.stubGlobal('fetch', mockFetch)
+
+    await logout('plain-text-token')
+
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/auth/logout`)
+    expect(mockFetch.mock.calls[0][1]).toMatchObject({
+      method: 'POST',
+      headers: { Authorization: 'Bearer plain-text-token' },
+    })
   })
 })
 

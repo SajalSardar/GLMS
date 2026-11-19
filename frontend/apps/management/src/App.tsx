@@ -1,4 +1,5 @@
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useNavigate } from 'react-router-dom'
+import { logout as apiLogout } from '@ttla/api-client'
 import { AppShell, type SidebarItem } from '@ttla/ui'
 import { AuthProvider, useAuth } from '@ttla/auth'
 import { getCommonStrings } from '@ttla/i18n'
@@ -117,10 +118,18 @@ function RequireSchoolManager() {
 }
 
 function DashboardLayout() {
-  const { clearToken, role } = useAuth()
+  const { clearToken, role, token } = useAuth()
   const navigate = useNavigate()
 
+  // Revokes the token server-side before dropping it locally — clearToken()
+  // alone only clears localStorage, which would leave the token valid
+  // indefinitely (Sanctum tokens never expire). If the revoke call fails
+  // (e.g. the token was already invalid), still clear local state so the
+  // user isn't stuck appearing logged in.
   function handleLogout() {
+    if (token) {
+      apiLogout(token).catch(() => {})
+    }
     clearToken()
     navigate('/', { replace: true })
   }

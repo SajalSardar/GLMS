@@ -34,15 +34,10 @@ use App\Http\Controllers\Api\V1\TeacherUserController;
 use App\Http\Controllers\Api\V1\TimetableEntryController;
 use App\Http\Controllers\Api\V1\UpazilaController;
 use App\Http\Controllers\Api\V1\UserController;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function (): void {
     Route::get('/health', HealthController::class);
-
-    Route::get('/user', function (Request $request) {
-        return $request->user();
-    })->middleware('auth:sanctum');
 
     Route::prefix('auth')->group(function (): void {
         Route::post('/login', [AuthController::class, 'login']);
@@ -53,7 +48,6 @@ Route::prefix('v1')->group(function (): void {
 
         Route::middleware('auth:sanctum')->group(function (): void {
             Route::post('/logout', [AuthController::class, 'logout']);
-            Route::get('/me', [AuthController::class, 'me']);
         });
     });
 
