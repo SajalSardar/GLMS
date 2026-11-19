@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import Sidebar, { type SidebarItem } from './Sidebar'
@@ -9,6 +10,10 @@ export interface AppShellProps {
   userLabel?: string
   onLogout?: () => void
   logoutLabel?: string
+  // Extra content (e.g. a language switcher) rendered in the topbar, to the
+  // left of userLabel/logout — optional so existing consumers (management)
+  // are unaffected.
+  headerExtra?: ReactNode
 }
 
 const currentYear = new Date().getFullYear()
@@ -20,6 +25,7 @@ export default function AppShell({
   userLabel,
   onLogout,
   logoutLabel = 'Logout',
+  headerExtra,
 }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
@@ -72,6 +78,7 @@ export default function AppShell({
           <span className="hidden text-sm font-semibold text-gray-700 lg:block">{title}</span>
 
           <div className="ml-auto flex items-center gap-3">
+            {headerExtra}
             {userLabel && (
               <span className="hidden items-center gap-2 text-sm font-medium text-gray-700 sm:flex">
                 <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-100 text-sm font-semibold text-primary-700">

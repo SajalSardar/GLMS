@@ -1,7 +1,8 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
-import { AuthProvider } from '@ttla/auth'
+import { AuthProvider, useAuth } from '@ttla/auth'
 import { LocaleProvider } from './lib/locale'
 import SiteShell from './components/SiteShell'
+import StudentAppShell from './components/StudentAppShell'
 import LandingLogin from './pages/LandingLogin'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
@@ -14,6 +15,14 @@ import ExamRunnerPage from './pages/ExamRunnerPage'
 import CertificatePage from './pages/CertificatePage'
 import NotFoundPage from './pages/NotFoundPage'
 
+// Logged-in students get the same sidebar+topbar AppShell the management
+// portal uses; guests browsing these same routes (books/video-lecture/
+// exams all support guest access) keep the public top-nav SiteShell.
+function StudentAreaShell() {
+  const { token } = useAuth()
+  return token ? <StudentAppShell /> : <SiteShell />
+}
+
 function App() {
   return (
     <LocaleProvider>
@@ -23,6 +32,9 @@ function App() {
             <Route element={<SiteShell />}>
               <Route index element={<LandingLogin />} />
               <Route path="login" element={<LoginPage />} />
+              <Route path="*" element={<NotFoundPage />} />
+            </Route>
+            <Route element={<StudentAreaShell />}>
               <Route path="dashboard" element={<DashboardPage />} />
               <Route path="books" element={<BooksPage />} />
               <Route path="books/:id" element={<BookDetailPage />} />
@@ -31,7 +43,6 @@ function App() {
               <Route path="exams" element={<ExamsPage />} />
               <Route path="exams/:id" element={<ExamRunnerPage />} />
               <Route path="exams/:id/certificate" element={<CertificatePage />} />
-              <Route path="*" element={<NotFoundPage />} />
             </Route>
           </Routes>
         </BrowserRouter>
