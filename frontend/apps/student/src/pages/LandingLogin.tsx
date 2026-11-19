@@ -353,19 +353,6 @@ export default function LandingLogin() {
               {t['landing.hero.filterSubmit']}
             </button>
           </form>
-
-          <figure className="mx-auto mt-8 text-center lg:ml-0 lg:text-left">
-            <img
-              src="/hero.png"
-              alt=""
-              className="mx-auto block w-[min(280px,70vw)] rounded-[1.1rem] object-cover lg:ml-0"
-            />
-            <figcaption className="mt-2 text-[0.82rem] leading-[1.5] font-semibold text-primary-700">
-              {t['landing.hero.illustrationCaption1']}
-              <br />
-              {t['landing.hero.illustrationCaption2']}
-            </figcaption>
-          </figure>
         </div>
       </section>
 
