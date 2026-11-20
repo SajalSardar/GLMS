@@ -46,18 +46,35 @@ class ClassRoutineController extends Controller
     }
 
     /**
-     * This student's own weekly routine — scoped to their exact school/
-     * district/class/section/shift/class_version (all six, same pattern as
-     * ChapterMaterialController::scopeToStudentsOwnProfile) and to the
-     * current academic year when one is configured. A student with no
-     * section assigned yet, or whose school still only uses the legacy
-     * class_id-only routines (no section_id on any row), sees nothing
-     * here rather than every class_id match — a routine row was never
-     * verified to belong to their exact section unless section_id is set.
+     * This actor's own weekly routine — a student's exact section (see
+     * below) or, for a teacher, every period they're assigned to teach
+     * across every class/section, optionally narrowed to one shift via
+     * `shift_id`. A teacher who teaches in more than one shift otherwise
+     * gets periods from different shifts' own period numbering mixed into
+     * the same grid, which reads as a conflict even though it isn't one —
+     * the frontend's shift filter (built from this same response's own
+     * distinct shifts) is what lets them pick one shift's grid at a time.
      */
     public function mine(Request $request): AnonymousResourceCollection
     {
         $actor = $request->user();
+
+        if ($actor instanceof TeacherUser) {
+            $currentAcademicYearId = AcademicYear::where('is_current', true)->value('id');
+
+            $routines = ClassRoutine::query()
+                ->with(['subject', 'schoolClass', 'section', 'shift', 'classroom', 'academicYear', 'classVersion'])
+                ->where('teacher_id', $actor->id)
+                ->when($request->integer('shift_id'), fn ($query, $shiftId) => $query->where('shift_id', $shiftId))
+                ->when($currentAcademicYearId, fn ($query, $yearId) => $query->where('academic_year_id', $yearId))
+                ->orderBy('period_no')
+                ->get()
+                ->sortBy(fn (ClassRoutine $routine) => array_search($routine->day_of_week, ClassRoutine::DAYS_OF_WEEK) * 100 + $routine->period_no)
+                ->values();
+
+            return ClassRoutineResource::collection($routines);
+        }
+
         abort_unless($actor instanceof StudentUser, 403);
 
         $profile = $actor->profile;

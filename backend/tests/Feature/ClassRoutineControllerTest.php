@@ -146,11 +146,78 @@ class ClassRoutineControllerTest extends TestCase
             ->assertJsonCount(0, 'data');
     }
 
-    public function test_mine_is_forbidden_for_a_non_student_actor(): void
+    public function test_mine_returns_only_this_teachers_own_routine_in_weekly_order(): void
     {
-        $teacher = $this->teacherActorWithPermissions([], $this->school->id, $this->school->district_id);
+        $version = ClassVersion::create(['class_id' => $this->class->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'General']);
+        $shift = Shift::create(['class_version_id' => $version->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Day Shift', 'start_time' => '08:00', 'end_time' => '13:00', 'days_of_week' => ['sunday', 'monday']]);
+        $section = Section::create(['shift_id' => $shift->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Main']);
+
+        $teacherA = $this->teacherActorWithPermissions(['class_routines.create'], $this->school->id, $this->school->district_id);
+        $teacherB = $this->teacherActorWithPermissions([], $this->school->id, $this->school->district_id);
+
+        $mondayId = $this->actingAs($teacherA, 'sanctum')->postJson('/api/v1/class-routines', [
+            'class_id' => $this->class->id, 'school_id' => $this->school->id, 'section_id' => $section->id,
+            'subject_id' => $this->subject->id, 'teacher_id' => $teacherA->id, 'day_of_week' => 'monday', 'period_no' => 1,
+        ])->json('data.id');
+
+        $sundayId = $this->actingAs($teacherA, 'sanctum')->postJson('/api/v1/class-routines', [
+            'class_id' => $this->class->id, 'school_id' => $this->school->id, 'section_id' => $section->id,
+            'subject_id' => $this->subject->id, 'teacher_id' => $teacherA->id, 'day_of_week' => 'sunday', 'period_no' => 1,
+        ])->json('data.id');
+
+        // Someone else's period in the very same slot shape — must not
+        // leak into teacherA's own "mine" response.
+        $this->actingAs($teacherA, 'sanctum')->postJson('/api/v1/class-routines', [
+            'class_id' => $this->class->id, 'school_id' => $this->school->id, 'section_id' => $section->id,
+            'subject_id' => $this->subject->id, 'teacher_id' => $teacherB->id, 'day_of_week' => 'sunday', 'period_no' => 2,
+        ])->assertCreated();
+
+        $this->actingAs($teacherA, 'sanctum')
+            ->getJson('/api/v1/class-routines/mine')
+            ->assertOk()
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('data.0.id', $sundayId)
+            ->assertJsonPath('data.1.id', $mondayId);
+    }
+
+    public function test_mine_filters_a_teachers_routine_by_shift(): void
+    {
+        $version = ClassVersion::create(['class_id' => $this->class->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'General']);
+
+        $dayShift = Shift::create(['class_version_id' => $version->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Day Shift', 'start_time' => '08:00', 'end_time' => '13:00', 'days_of_week' => ['sunday']]);
+        $daySection = Section::create(['shift_id' => $dayShift->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Main']);
+
+        $morningShift = Shift::create(['class_version_id' => $version->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Morning Shift', 'start_time' => '06:00', 'end_time' => '11:00', 'days_of_week' => ['sunday']]);
+        $morningSection = Section::create(['shift_id' => $morningShift->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Main']);
+
+        $teacher = $this->teacherActorWithPermissions(['class_routines.create'], $this->school->id, $this->school->district_id);
+
+        $dayRoutineId = $this->actingAs($teacher, 'sanctum')->postJson('/api/v1/class-routines', [
+            'class_id' => $this->class->id, 'school_id' => $this->school->id, 'section_id' => $daySection->id,
+            'subject_id' => $this->subject->id, 'teacher_id' => $teacher->id, 'day_of_week' => 'sunday', 'period_no' => 1,
+        ])->json('data.id');
+
+        // Different period_no — the same class_id can't be double-booked
+        // in the same day_of_week/period_no slot even across sections
+        // (the unique index has no section dimension), so this needs a
+        // slot of its own purely to coexist in the fixture.
+        $this->actingAs($teacher, 'sanctum')->postJson('/api/v1/class-routines', [
+            'class_id' => $this->class->id, 'school_id' => $this->school->id, 'section_id' => $morningSection->id,
+            'subject_id' => $this->subject->id, 'teacher_id' => $teacher->id, 'day_of_week' => 'sunday', 'period_no' => 2,
+        ])->assertCreated();
 
         $this->actingAs($teacher, 'sanctum')
+            ->getJson("/api/v1/class-routines/mine?shift_id={$dayShift->id}")
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $dayRoutineId);
+    }
+
+    public function test_mine_is_forbidden_for_a_non_student_non_teacher_actor(): void
+    {
+        $staff = $this->actorWithPermissions([], $this->school->id, $this->school->district_id);
+
+        $this->actingAs($staff, 'sanctum')
             ->getJson('/api/v1/class-routines/mine')
             ->assertForbidden();
     }

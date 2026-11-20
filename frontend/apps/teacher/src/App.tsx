@@ -6,6 +6,7 @@ import DashboardHomePage from './pages/DashboardHomePage'
 import LeaveApplicationsPage from './pages/LeaveApplicationsPage'
 import HolidaysPage from './pages/HolidaysPage'
 import AttendancePage from './pages/AttendancePage'
+import ClassRoutinePage from './pages/ClassRoutinePage'
 
 function LoginRoute() {
   const { token } = useAuth()
@@ -35,6 +36,7 @@ function App() {
               <Route path="attendance/take" element={<AttendancePage tab="take" />} />
               <Route path="attendance/list" element={<AttendancePage tab="list" />} />
               <Route path="attendance/report" element={<AttendancePage tab="report" />} />
+              <Route path="class-routine" element={<ClassRoutinePage />} />
               <Route path="leave-applications" element={<LeaveApplicationsPage />} />
               <Route path="holidays" element={<HolidaysPage />} />
             </Route>

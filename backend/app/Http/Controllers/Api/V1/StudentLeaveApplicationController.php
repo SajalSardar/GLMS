@@ -17,7 +17,11 @@ use Illuminate\Validation\ValidationException;
 
 class StudentLeaveApplicationController extends Controller
 {
-    private const WITH = ['studentProfile.user', 'section', 'shift', 'classVersion', 'academicYear', 'reviewedBy'];
+    // schoolClass was missing here despite StudentLeaveApplicationResource
+    // always referencing it — `class` silently came back empty on every
+    // response (whenLoaded() omits an unloaded relation rather than
+    // erroring), never caught because no UI rendered it until now.
+    private const WITH = ['studentProfile.user', 'schoolClass', 'section', 'shift', 'classVersion', 'academicYear', 'reviewedBy'];
 
     /**
      * Staff/teacher listing, scoped only by TenantScope (school/

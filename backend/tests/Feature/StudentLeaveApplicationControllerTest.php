@@ -250,6 +250,30 @@ class StudentLeaveApplicationControllerTest extends TestCase
         $this->assertFalse($otherRow['can_review']);
     }
 
+    /**
+     * Regression test: `schoolClass` was missing from the controller's
+     * own WITH list despite StudentLeaveApplicationResource always
+     * referencing it — `class` silently came back empty on every
+     * response (whenLoaded() omits an unloaded relation rather than
+     * erroring) until a UI finally rendered it and the gap became
+     * visible.
+     */
+    public function test_index_includes_the_students_class(): void
+    {
+        $teacher = $this->teacherActorWithPermissions(['student_leave_applications.view'], $this->school->id, $this->school->district_id);
+
+        $student = $this->studentInSection();
+        $this->actingAs($student, 'sanctum')->postJson('/api/v1/student-leave-applications', [
+            'from_date' => '2026-12-01', 'to_date' => '2026-12-02', 'reason' => 'Sick',
+        ])->assertCreated();
+
+        $this->actingAs($teacher, 'sanctum')
+            ->getJson('/api/v1/student-leave-applications')
+            ->assertOk()
+            ->assertJsonPath('data.0.class.id', $this->version->class_id)
+            ->assertJsonPath('data.0.class.name', 'Class 6');
+    }
+
     public function test_index_is_forbidden_without_the_view_permission(): void
     {
         $teacher = $this->teacherActorWithPermissions([], $this->school->id, $this->school->district_id);
