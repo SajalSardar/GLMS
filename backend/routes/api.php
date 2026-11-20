@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\AcademicExamTermController;
 use App\Http\Controllers\Api\V1\AcademicGradeConfigureController;
+use App\Http\Controllers\Api\V1\AcademicSubjectMarkConfigureController;
 use App\Http\Controllers\Api\V1\AcademicYearController;
 use App\Http\Controllers\Api\V1\AttendanceController;
 use App\Http\Controllers\Api\V1\AuthController;
@@ -84,6 +85,7 @@ Route::prefix('v1')->group(function (): void {
     Route::apiResource('academic-years', AcademicYearController::class)->only(['index', 'show']);
     Route::apiResource('academic-exam-terms', AcademicExamTermController::class)->only(['index', 'show']);
     Route::apiResource('academic-grade-configures', AcademicGradeConfigureController::class)->only(['index', 'show']);
+    Route::apiResource('academic-subject-mark-configures', AcademicSubjectMarkConfigureController::class)->only(['index', 'show']);
     Route::apiResource('holidays', HolidayController::class)->only(['index', 'show']);
     Route::apiResource('classrooms', ClassroomController::class)->only(['index', 'show']);
     // Must be registered before the apiResource's wildcard {class_routine}
@@ -154,6 +156,7 @@ Route::prefix('v1')->group(function (): void {
         Route::apiResource('holidays', HolidayController::class)->only(['store', 'update', 'destroy']);
         Route::apiResource('academic-exam-terms', AcademicExamTermController::class)->only(['store', 'update', 'destroy']);
         Route::apiResource('academic-grade-configures', AcademicGradeConfigureController::class)->only(['store', 'update', 'destroy']);
+        Route::apiResource('academic-subject-mark-configures', AcademicSubjectMarkConfigureController::class)->only(['store', 'update', 'destroy']);
 
         Route::apiResource('classrooms', ClassroomController::class)->only(['store', 'update', 'destroy']);
         Route::apiResource('class-routines', ClassRoutineController::class)->only(['store', 'update', 'destroy']);
