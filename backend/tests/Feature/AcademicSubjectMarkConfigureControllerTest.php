@@ -126,6 +126,18 @@ class AcademicSubjectMarkConfigureControllerTest extends TestCase
         ])->assertUnprocessable()->assertJsonValidationErrors('class_id');
     }
 
+    public function test_update_rejects_all_three_components_null(): void
+    {
+        $configure = AcademicSubjectMarkConfigure::create(['class_id' => $this->class->id, 'subject_id' => $this->subject->id, 'cq_full_marks' => 70, 'mcq_full_marks' => 30]);
+        $user = $this->actorWithPermissions(['academic_subject_mark_configures.update']);
+
+        $this->actingAs($user, 'sanctum')->patchJson("/api/v1/academic-subject-mark-configures/{$configure->id}", [
+            'cq_full_marks' => null,
+            'mcq_full_marks' => null,
+            'practical_full_marks' => null,
+        ])->assertUnprocessable()->assertJsonValidationErrors('cq_full_marks');
+    }
+
     public function test_destroy_requires_permission(): void
     {
         $configure = AcademicSubjectMarkConfigure::create(['class_id' => $this->class->id, 'subject_id' => $this->subject->id, 'cq_full_marks' => 70, 'mcq_full_marks' => 30]);
