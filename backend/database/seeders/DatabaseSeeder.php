@@ -43,6 +43,7 @@ class DatabaseSeeder extends Seeder
             GuardianSeeder::class,
             ClassRoutineSeeder::class,
             SectionBackfillSeeder::class,
+            StudentDemoSeeder::class,
             TimetableGenerationDemoSeeder::class,
             LmsContentDemoSeeder::class,
         ]);

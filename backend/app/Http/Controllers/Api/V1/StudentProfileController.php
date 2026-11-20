@@ -81,11 +81,17 @@ class StudentProfileController extends Controller
         $this->assertClassBelongsToSchool($classId, $targetUser->school_id);
 
         $attributes = [
-            ...$request->safe()->except(['user_id', 'class_id']),
+            // student_id excluded here too: StoreStudentProfileRequest
+            // already rejects it outright (`prohibited`), but excluding
+            // it from the spread as well means this stays correct even
+            // if that rule is ever relaxed — it's always server-
+            // generated below, never client-supplied.
+            ...$request->safe()->except(['user_id', 'class_id', 'student_id']),
             'user_id' => $targetUser->id,
             'school_id' => $targetUser->school_id,
             'district_id' => $targetUser->district_id,
             'class_id' => $classId,
+            'student_id' => StudentProfile::nextStudentId(),
         ];
 
         $profile = StudentProfile::onlyTrashed()->where('user_id', $targetUser->id)->first();

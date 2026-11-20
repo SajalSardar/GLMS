@@ -468,6 +468,7 @@
   "management.fields.permanentAddress": "স্থায়ী ঠিকানা",
   "management.fields.photoPath": "ছবির URL",
   "management.fields.studentId": "শিক্ষার্থী আইডি",
+  "management.fields.studentIdAutoHint": "সংরক্ষণের পর স্বয়ংক্রিয়ভাবে তৈরি হবে — এটি শিক্ষার্থীর লগইন আইডি।",
   "management.fields.rollNumber": "রোল নম্বর",
   "management.fields.admissionDate": "ভর্তির তারিখ",
   "management.fields.dateOfBirth": "জন্ম তারিখ",

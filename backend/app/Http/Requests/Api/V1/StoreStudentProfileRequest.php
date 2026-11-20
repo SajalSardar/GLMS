@@ -35,7 +35,12 @@ class StoreStudentProfileRequest extends FormRequest
                 Rule::unique('student_profiles', 'user_id')->withoutTrashed(),
             ],
             'class_id' => ['nullable', 'integer', Rule::exists('school_classes', 'id')->withoutTrashed()],
-            'student_id' => ['nullable', 'string', 'max:50', Rule::unique('student_profiles', 'student_id')->withoutTrashed()],
+            // student_id is the student's own login credential (see
+            // AuthController::studentLogin()) — always server-generated
+            // by StudentProfile::nextStudentId(), never accepted from an
+            // admin's request, so a client-supplied value is rejected
+            // outright rather than silently ignored.
+            'student_id' => ['prohibited'],
             'roll_number' => ['nullable', 'string', 'max:20'],
             'admission_date' => ['nullable', 'date'],
             'date_of_birth' => ['nullable', 'date', 'before:today'],

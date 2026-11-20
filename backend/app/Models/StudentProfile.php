@@ -95,4 +95,26 @@ class StudentProfile extends Model
             ->withPivot(['relation', 'is_primary'])
             ->withTimestamps();
     }
+
+    /**
+     * The next "STU-0001"-style id — student_id is the student's login
+     * credential (see AuthController::studentLogin(), which resolves
+     * purely by this column), so it's always server-generated rather
+     * than typed by an admin (see StudentProfileController::store(),
+     * which is the only caller — StoreStudentProfileRequest rejects a
+     * client-supplied student_id outright). withTrashed() so a number
+     * once used is never reissued, even if that row was later
+     * soft-deleted — student_id's DB-level unique index has no trashed
+     * exclusion, so reusing one would fail the insert outright.
+     */
+    public static function nextStudentId(): string
+    {
+        $maxNumber = static::withTrashed()
+            ->where('student_id', 'like', 'STU-%')
+            ->get(['student_id'])
+            ->map(fn (self $profile) => (int) substr($profile->student_id, 4))
+            ->max() ?? 0;
+
+        return 'STU-'.str_pad((string) ($maxNumber + 1), 4, '0', STR_PAD_LEFT);
+    }
 }

@@ -146,6 +146,48 @@ class StudentProfileAuthorizationTest extends TestCase
     }
 
     /**
+     * student_id is the student's own login credential (see
+     * AuthController::studentLogin()), so it's always server-generated —
+     * never left to an admin to type in, and always "STU-0001"-style,
+     * incrementing past whatever the highest existing number is.
+     */
+    public function test_store_auto_generates_a_sequential_student_id(): void
+    {
+        $existingStudentUser = StudentUser::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
+        StudentProfile::create([
+            'user_id' => $existingStudentUser->id,
+            'school_id' => $this->school->id,
+            'district_id' => $this->school->district_id,
+            'student_id' => 'STU-0007',
+        ]);
+
+        $studentUser = StudentUser::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
+        $allowed = $this->actorWithPermissions(['student_profiles.create'], $this->school->id, $this->school->district_id);
+
+        $this->actingAs($allowed, 'sanctum')
+            ->postJson('/api/v1/student-profiles', ['user_id' => $studentUser->id])
+            ->assertCreated()
+            ->assertJsonPath('data.student_id', 'STU-0008');
+    }
+
+    /**
+     * A client-supplied student_id is rejected outright (422) rather than
+     * silently overwritten — StoreStudentProfileRequest marks it
+     * `prohibited`, so an admin (or any other caller) attempting to set
+     * it directly gets a clear validation error, not a surprise.
+     */
+    public function test_store_rejects_a_client_supplied_student_id(): void
+    {
+        $studentUser = StudentUser::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
+        $allowed = $this->actorWithPermissions(['student_profiles.create'], $this->school->id, $this->school->district_id);
+
+        $this->actingAs($allowed, 'sanctum')
+            ->postJson('/api/v1/student-profiles', ['user_id' => $studentUser->id, 'student_id' => 'STU-9999'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('student_id');
+    }
+
+    /**
      * Regression/coverage test: StudentProfileController::assertClassBelongsToSchool()
      * must reject a class_id the student's school hasn't adopted via
      * class_schools, on both store() and update(), with a 422 (not a 403

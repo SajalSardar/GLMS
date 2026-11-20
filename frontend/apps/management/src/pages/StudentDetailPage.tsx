@@ -345,11 +345,17 @@ function StudentForm({
         </GeoField>
 
         <GeoField label={t['management.fields.studentId']} error={fieldErrors.student_id}>
-          <input
-            className={inputClass}
-            value={values.student_id}
-            onChange={(event) => onChange('student_id', event.target.value)}
-          />
+          {isCreate ? (
+            <p className="rounded-md border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-500">
+              {t['management.fields.studentIdAutoHint']}
+            </p>
+          ) : (
+            <input
+              className={inputClass}
+              value={values.student_id}
+              onChange={(event) => onChange('student_id', event.target.value)}
+            />
+          )}
         </GeoField>
 
         <GeoField label={t['management.fields.rollNumber']} error={fieldErrors.roll_number}>
@@ -1106,7 +1112,11 @@ export default function StudentDetailPage() {
 
       const profilePayload = {
         class_id: values.class_id ? Number(values.class_id) : null,
-        student_id: values.student_id || null,
+        // student_id is never sent on create — it's always server-
+        // generated (StoreStudentProfileRequest rejects a client-
+        // supplied value outright); only an edit of an already-created
+        // profile can touch it, to correct a mistake.
+        ...(isCreate ? {} : { student_id: values.student_id || null }),
         roll_number: values.roll_number || null,
         admission_date: values.admission_date || null,
         date_of_birth: values.date_of_birth || null,
@@ -1158,7 +1168,13 @@ export default function StudentDetailPage() {
           await updateStudentProfile(profile.id, profilePayload, token)
         } else if (savedProfileId !== null) {
           await updateStudentProfile(savedProfileId, profilePayload, token)
-        } else if (hasProfileData) {
+        } else if (isCreate || hasProfileData) {
+          // Unconditional on isCreate (not just when some other profile
+          // field was filled in): a profile is the only place
+          // student_id lives, and without one the student has no login
+          // credential at all (AuthController::studentLogin() resolves
+          // purely by it) — so Add Student always creates one, even if
+          // every other profile field was left blank.
           const createdProfile = await createStudentProfile({ ...profilePayload, user_id: savedStudentId }, token)
           savedProfileId = createdProfile.data.id
           setPendingProfileId(savedProfileId)

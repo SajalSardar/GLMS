@@ -468,6 +468,7 @@
   "management.fields.permanentAddress": "Permanent address",
   "management.fields.photoPath": "Photo URL",
   "management.fields.studentId": "Student ID",
+  "management.fields.studentIdAutoHint": "Generated automatically once saved — this is the student's login ID.",
   "management.fields.rollNumber": "Roll number",
   "management.fields.admissionDate": "Admission date",
   "management.fields.dateOfBirth": "Date of birth",
