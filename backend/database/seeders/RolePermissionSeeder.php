@@ -32,6 +32,7 @@ class RolePermissionSeeder extends Seeder
                 'class_versions.view', 'shifts.view', 'sections.view',
                 'subject_teacher_assignments.view', 'timetable_entries.view',
                 'teacher_profiles.view', 'student_profiles.view', 'student_leave_applications.view',
+                'attendances.view',
             ],
 
             'school_admin' => [
@@ -55,6 +56,7 @@ class RolePermissionSeeder extends Seeder
                 'teacher_profiles.view', 'teacher_profiles.create', 'teacher_profiles.update', 'teacher_profiles.delete',
                 'student_profiles.view', 'student_profiles.create', 'student_profiles.update', 'student_profiles.delete',
                 'student_leave_applications.view', 'student_leave_applications.update',
+                'attendances.view', 'attendances.update',
                 'guardians.view', 'guardians.create', 'guardians.update', 'guardians.delete',
             ],
 
@@ -72,6 +74,13 @@ class RolePermissionSeeder extends Seeder
                 // permission alone only lets a teacher actor reach the
                 // endpoint, not review anyone's application.
                 'student_leave_applications.view', 'student_leave_applications.update',
+                // Same shape as the leave-application pair above: actually
+                // recording attendance is additionally gated to the
+                // section's own class teacher (AttendancePolicy::
+                // recordSection()) — this pair alone only lets a teacher
+                // actor reach the endpoints, not record for every section
+                // in the school.
+                'attendances.view', 'attendances.update',
             ],
 
             'student' => [
@@ -101,6 +110,7 @@ class RolePermissionSeeder extends Seeder
                 'classrooms.view', 'class_routines.view', 'holidays.view',
                 'class_versions.view', 'shifts.view', 'sections.view', 'subject_teacher_assignments.view',
                 'teacher_profiles.view', 'student_profiles.view', 'student_leave_applications.view',
+                'attendances.view',
                 'guardians.view', 'guardians.create', 'guardians.update',
             ],
 
@@ -108,7 +118,7 @@ class RolePermissionSeeder extends Seeder
                 'schools.view', 'classes.view', 'subjects.view', 'chapter_videos.view', 'chapter_materials.view', 'books.view', 'chapters.view', 'questions.view', 'academic_years.view',
                 'classrooms.view', 'class_routines.view', 'holidays.view',
                 'class_versions.view', 'shifts.view', 'sections.view',
-                'student_profiles.view', 'guardians.view',
+                'student_profiles.view', 'guardians.view', 'attendances.view',
             ],
 
             'it_admin' => [
@@ -126,6 +136,7 @@ class RolePermissionSeeder extends Seeder
                 'subject_teacher_assignments.view', 'timetable_entries.view',
                 'users.view', 'roles.view', 'permissions.view',
                 'teacher_profiles.view', 'student_profiles.view', 'student_leave_applications.view', 'guardians.view',
+                'attendances.view',
             ],
         ];
 

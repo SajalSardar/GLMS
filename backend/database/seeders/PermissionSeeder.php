@@ -118,6 +118,17 @@ class PermissionSeeder extends Seeder
             ['name' => 'student_leave_applications.view', 'label' => 'View student leave applications'],
             ['name' => 'student_leave_applications.update', 'label' => 'Review student leave applications'],
 
+            // A student's own attendance is self-scoped outside this
+            // permission system (AttendanceController::mine() just checks
+            // the actor is a StudentUser, same as leave applications'
+            // mine()). .view/.update here only gate a staff actor's
+            // broader access — a teacher additionally needs
+            // AttendancePolicy::recordSection() (the section's own class
+            // teacher) to actually record, same convention as
+            // student_leave_applications.update + the review() policy.
+            ['name' => 'attendances.view', 'label' => 'View attendance reports'],
+            ['name' => 'attendances.update', 'label' => 'Record or update attendance'],
+
             ['name' => 'guardians.view', 'label' => 'View guardians'],
             ['name' => 'guardians.create', 'label' => 'Create guardians'],
             ['name' => 'guardians.update', 'label' => 'Update guardians'],

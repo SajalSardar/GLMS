@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AcademicYearController;
+use App\Http\Controllers\Api\V1\AttendanceController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BookController;
 use App\Http\Controllers\Api\V1\ChapterController;
@@ -181,6 +182,12 @@ Route::prefix('v1')->group(function (): void {
         Route::delete('/student-profiles/{student_profile}/guardians/{guardian}', [StudentProfileController::class, 'detachGuardian']);
         Route::post('/student-profiles/{student_profile}/transfer-section', [StudentProfileController::class, 'transferSection']);
         Route::get('/student-profiles/{student_profile}/dashboard', [StudentProfileController::class, 'dashboard']);
+
+        Route::get('/attendances/my-sections', [AttendanceController::class, 'mySections']);
+        Route::get('/attendances/roster', [AttendanceController::class, 'roster']);
+        Route::post('/attendances/record', [AttendanceController::class, 'record']);
+        Route::get('/attendances/report', [AttendanceController::class, 'report']);
+        Route::get('/attendances/mine', [AttendanceController::class, 'mine']);
 
         Route::post('/student-leave-applications', [StudentLeaveApplicationController::class, 'store']);
         // Must be registered before the {student_leave_application}

@@ -8,6 +8,7 @@ const t = getCommonStrings('en')
 
 const navItems: SidebarItem[] = [
   { to: '/dashboard', label: t['teacher.nav.dashboard'], icon: 'dashboard', end: true },
+  { to: '/attendance', label: t['teacher.nav.attendance'], icon: 'fact_check' },
   { to: '/leave-applications', label: t['teacher.nav.leaveApplications'], icon: 'event_busy' },
   { to: '/holidays', label: t['teacher.nav.holidays'], icon: 'celebration' },
 ]

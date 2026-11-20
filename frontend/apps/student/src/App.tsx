@@ -19,6 +19,7 @@ import DashboardClassExamsPage from './pages/dashboard/ClassExamsPage'
 import DashboardClassRoutinePage from './pages/dashboard/ClassRoutinePage'
 import DashboardLeaveApplicationPage from './pages/dashboard/LeaveApplicationPage'
 import DashboardHolidayCalendarPage from './pages/dashboard/HolidayCalendarPage'
+import DashboardAttendancePage from './pages/dashboard/AttendancePage'
 import DashboardBooksPage from './pages/dashboard/BooksPage'
 import DashboardVideoLecturePage from './pages/dashboard/VideoLecturePage'
 import DashboardExamsPage from './pages/dashboard/ExamsPage'
@@ -79,6 +80,7 @@ function App() {
                 <Route path="class-exams" element={<DashboardClassExamsPage />} />
                 <Route path="leave-application" element={<DashboardLeaveApplicationPage />} />
                 <Route path="holidays" element={<DashboardHolidayCalendarPage />} />
+                <Route path="attendance" element={<DashboardAttendancePage />} />
               </Route>
               <Route path="books" element={<BooksRoute />} />
               <Route path="books/:id" element={<BookDetailPage />} />

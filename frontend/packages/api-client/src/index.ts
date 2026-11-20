@@ -1808,3 +1808,139 @@ export function reviewLeaveApplication(
     body: JSON.stringify(payload),
   })
 }
+
+// ---------- Attendance ----------
+//
+// One row per student per calendar day — homeroom-style, not per-subject
+// (see the backend migration's own comment). A date covered by an active
+// Holiday is never recorded for at all; the report/calendar read that
+// date's holiday name directly from the Holiday calendar instead.
+
+export type AttendanceStatus = 'present' | 'absent' | 'leave'
+
+export interface AttendanceSection {
+  id: number
+  name: string
+  class_name: string | null
+  class_version: string | null
+  shift: string | null
+  academic_year: string | null
+  // Only the section's own class teacher gets true — every other teacher
+  // holding a SubjectTeacherAssignment there is view-only (see
+  // AttendancePolicy::recordSection()).
+  can_record: boolean
+}
+
+export function listMyAttendanceSections(token: string): Promise<{ data: AttendanceSection[] }> {
+  return apiFetch<{ data: AttendanceSection[] }>('/attendances/my-sections', {
+    headers: authHeaders(token),
+  })
+}
+
+export interface AttendanceRosterRow {
+  student_profile_id: number
+  name: string | null
+  roll_number: string | null
+  status: AttendanceStatus | null
+}
+
+export interface AttendanceRoster {
+  section_id: number
+  date: string
+  can_record: boolean
+  holiday_name: string | null
+  students: AttendanceRosterRow[]
+}
+
+export function getAttendanceRoster(
+  params: { sectionId: number; date: string },
+  token: string,
+): Promise<{ data: AttendanceRoster }> {
+  const query = buildQuery({ section_id: params.sectionId, date: params.date })
+
+  return apiFetch<{ data: AttendanceRoster }>(`/attendances/roster${query}`, {
+    headers: authHeaders(token),
+  })
+}
+
+// Bulk-records/updates one day's attendance for a section — only the
+// section's own class teacher (or a staff override) may call this; a
+// holiday date is rejected outright (422).
+export function recordAttendance(
+  payload: { section_id: number; date: string; records: { student_profile_id: number; status: AttendanceStatus }[] },
+  token: string,
+): Promise<{ data: AttendanceRoster }> {
+  return apiFetch<{ data: AttendanceRoster }>('/attendances/record', {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  })
+}
+
+export interface AttendanceReportDate {
+  date: string
+  day: number
+  holiday_name: string | null
+}
+
+export interface AttendanceReportStudentRow {
+  student_profile_id: number
+  name: string | null
+  roll_number: string | null
+  statuses: Record<string, AttendanceStatus>
+}
+
+export interface AttendanceReport {
+  section: {
+    id: number
+    name: string
+    school_name: string | null
+    school_address: string | null
+    class_name: string | null
+    class_version: string | null
+    shift: string | null
+    academic_year: string | null
+    class_teacher: string | null
+  }
+  year: number
+  month: number
+  dates: AttendanceReportDate[]
+  students: AttendanceReportStudentRow[]
+}
+
+export function getAttendanceReport(
+  params: { sectionId: number; year: number; month: number },
+  token: string,
+): Promise<{ data: AttendanceReport }> {
+  const query = buildQuery({ section_id: params.sectionId, year: params.year, month: params.month })
+
+  return apiFetch<{ data: AttendanceReport }>(`/attendances/report${query}`, {
+    headers: authHeaders(token),
+  })
+}
+
+export interface MyAttendanceDay {
+  date: string
+  status: AttendanceStatus | null
+  holiday_name: string | null
+}
+
+export interface MyAttendance {
+  year: number
+  month: number
+  days: MyAttendanceDay[]
+  summary: Record<AttendanceStatus, number>
+}
+
+// This student's own monthly attendance — the source data for the
+// student portal's calendar view.
+export function getMyAttendance(
+  params: { year: number; month: number },
+  token: string,
+): Promise<{ data: MyAttendance | null }> {
+  const query = buildQuery({ year: params.year, month: params.month })
+
+  return apiFetch<{ data: MyAttendance | null }>(`/attendances/mine${query}`, {
+    headers: authHeaders(token),
+  })
+}
