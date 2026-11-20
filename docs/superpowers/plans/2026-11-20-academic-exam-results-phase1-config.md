@@ -856,6 +856,30 @@ class AcademicGradeConfigureControllerTest extends TestCase
         ])->assertUnprocessable()->assertJsonValidationErrors('min_percent');
     }
 
+    public function test_update_with_only_max_percent_valid_against_stored_min_succeeds(): void
+    {
+        $grade = AcademicGradeConfigure::create(['min_percent' => 80, 'max_percent' => 100, 'grade_name' => 'A+', 'grade_point' => 5.00]);
+        $user = $this->actorWithPermissions(['academic_grade_configures.update']);
+
+        // Regression test: PATCH with only max_percent should not fail with gte:min_percent
+        // when the submitted max_percent is valid against the stored min_percent (80)
+        $this->actingAs($user, 'sanctum')->patchJson("/api/v1/academic-grade-configures/{$grade->id}", [
+            'max_percent' => 95,
+        ])->assertOk()->assertJsonPath('data.max_percent', '95.00');
+    }
+
+    public function test_update_with_only_min_percent_inverted_against_stored_max_rejected(): void
+    {
+        $grade = AcademicGradeConfigure::create(['min_percent' => 60, 'max_percent' => 70, 'grade_name' => 'B', 'grade_point' => 3.00]);
+        $user = $this->actorWithPermissions(['academic_grade_configures.update']);
+
+        // Regression test: PATCH with only min_percent set higher than stored max_percent
+        // should be rejected with validation error on max_percent (data-integrity protection)
+        $this->actingAs($user, 'sanctum')->patchJson("/api/v1/academic-grade-configures/{$grade->id}", [
+            'min_percent' => 75,
+        ])->assertUnprocessable()->assertJsonValidationErrors('max_percent');
+    }
+
     public function test_destroy_requires_permission(): void
     {
         $grade = AcademicGradeConfigure::create(['min_percent' => 80, 'max_percent' => 100, 'grade_name' => 'A+', 'grade_point' => 5.00]);
@@ -1026,7 +1050,7 @@ class UpdateAcademicGradeConfigureRequest extends FormRequest
     {
         return [
             'min_percent' => ['sometimes', 'required', 'numeric', 'min:0', 'max:100'],
-            'max_percent' => ['sometimes', 'required', 'numeric', 'min:0', 'max:100', 'gte:min_percent'],
+            'max_percent' => ['sometimes', 'required', 'numeric', 'min:0', 'max:100'],
             'grade_name' => ['sometimes', 'required', 'string', 'max:50'],
             'bn_grade_name' => ['sometimes', 'nullable', 'string', 'max:50'],
             'grade_point' => ['sometimes', 'required', 'numeric', 'min:0', 'max:5'],
@@ -1036,9 +1060,9 @@ class UpdateAcademicGradeConfigureRequest extends FormRequest
     }
 
     /**
-     * Same overlap guard as the store request, comparing the *effective*
-     * range (submitted value, falling back to the existing row) and
-     * excluding this row itself.
+     * Validates range consistency and overlap. Uses effective values (submitted
+     * or existing) to handle partial PATCH requests correctly. Checks min <= max
+     * first to prevent data-integrity bugs before proceeding to overlap checks.
      */
     public function withValidator(Validator $validator): void
     {
@@ -1049,13 +1073,19 @@ class UpdateAcademicGradeConfigureRequest extends FormRequest
                 return;
             }
 
+            $min = $this->input('min_percent', $configure->min_percent);
+            $max = $this->input('max_percent', $configure->max_percent);
+
+            if ((float) $min > (float) $max) {
+                $validator->errors()->add('max_percent', 'The max percent must be greater than or equal to min percent.');
+
+                return;
+            }
+
             $isActive = $this->boolean('is_active', $configure->is_active);
             if (! $isActive) {
                 return;
             }
-
-            $min = $this->input('min_percent', $configure->min_percent);
-            $max = $this->input('max_percent', $configure->max_percent);
 
             $overlaps = AcademicGradeConfigure::where('is_active', true)
                 ->whereKeyNot($configure->id)
@@ -1070,6 +1100,15 @@ class UpdateAcademicGradeConfigureRequest extends FormRequest
     }
 }
 ```
+
+> **Note (ruling, commit `03e6637`):** The original draft of this request attached
+> `gte:min_percent` directly to `max_percent`'s rule, which rejects a PATCH that only
+> submits `min_percent` higher than the row's already-stored `max_percent` with a
+> confusing error on the wrong field, and *passes* an equally-wrong PATCH that lowers
+> `min_percent` below the stored `max_percent` without re-checking the pair. The
+> shipped version removes `gte:min_percent` from the rule and instead checks
+> `min <= max` using effective values (submitted, falling back to the stored row) in
+> `withValidator()`, before the overlap check runs.
 
 - [ ] **Step 8: Write the API resource**
 
@@ -1218,7 +1257,7 @@ Route::apiResource('academic-grade-configures', AcademicGradeConfigureController
 cd backend && php artisan test --compact --filter=AcademicGradeConfigureControllerTest
 ```
 
-Expected: all 12 tests green.
+Expected: all 14 tests green.
 
 - [ ] **Step 12: Run Pint and the full suite**
 
@@ -1609,9 +1648,11 @@ class StoreAcademicSubjectMarkConfigureRequest extends FormRequest
         return [
             'class_id' => [
                 'required', 'integer', Rule::exists('school_classes', 'id')->withoutTrashed(),
-                Rule::unique('academic_subject_mark_configures')->withoutTrashed()->where(fn ($query) => $query->where('subject_id', $this->input('subject_id'))),
             ],
-            'subject_id' => ['required', 'integer', Rule::exists('subjects', 'id')->withoutTrashed()],
+            'subject_id' => [
+                'required', 'integer', Rule::exists('subjects', 'id')->withoutTrashed(),
+                Rule::unique('academic_subject_mark_configures')->withoutTrashed()->where(fn ($query) => $query->where('class_id', $this->input('class_id'))),
+            ],
             'cq_full_marks' => ['nullable', 'integer', 'min:1', 'max:1000'],
             'mcq_full_marks' => ['nullable', 'integer', 'min:1', 'max:1000'],
             'practical_full_marks' => ['nullable', 'integer', 'min:1', 'max:1000'],
@@ -1637,11 +1678,18 @@ class StoreAcademicSubjectMarkConfigureRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'class_id.unique' => 'This class/subject pair is already configured.',
+            'subject_id.unique' => 'This class/subject pair is already configured.',
         ];
     }
 }
 ```
+
+> **Note (ruling):** The unique check is attached to `subject_id`'s rule entry, not
+> `class_id`'s — a `Rule::unique(...)` on `class_id` alone would validate before
+> `subject_id` is known to be valid in the same request, and this plan's own Store
+> test (`test_store_rejects_a_duplicate_class_subject_pair`, Step 4 above) asserts
+> the validation error lands on `subject_id`. Keeping the check and the asserted
+> error field on the same rule entry keeps both consistent.
 
 `backend/app/Http/Requests/Api/V1/UpdateAcademicSubjectMarkConfigureRequest.php`:
 
