@@ -15,6 +15,20 @@ class StoreAcademicExamTermRequest extends FormRequest
     }
 
     /**
+     * A cleared Sort Order input sends literal null, which the
+     * `unsignedSmallInteger('sort_order')->default(0)` column rejects at
+     * the database level (a default only applies when the column is
+     * omitted entirely, not when null is explicitly sent). Coerce a
+     * present-but-null sort_order to 0 before validation runs.
+     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('sort_order') && $this->input('sort_order') === null) {
+            $this->merge(['sort_order' => 0]);
+        }
+    }
+
+    /**
      * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array

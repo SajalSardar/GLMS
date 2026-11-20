@@ -101,6 +101,30 @@ class AcademicExamTermControllerTest extends TestCase
         ])->assertOk()->assertJsonPath('data.name', 'Annual/Final Examination');
     }
 
+    public function test_store_coerces_a_null_sort_order_to_zero(): void
+    {
+        $user = $this->actorWithPermissions(['academic_exam_terms.create']);
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/academic-exam-terms', [
+            'name' => 'First Terminal Examination',
+            'sort_order' => null,
+        ])->assertCreated()->assertJsonPath('data.sort_order', 0);
+
+        $this->assertDatabaseHas('academic_exam_terms', ['name' => 'First Terminal Examination', 'sort_order' => 0]);
+    }
+
+    public function test_update_coerces_a_null_sort_order_to_zero(): void
+    {
+        $term = AcademicExamTerm::create(['name' => 'Second Terminal Examination', 'sort_order' => 2]);
+        $user = $this->actorWithPermissions(['academic_exam_terms.update']);
+
+        $this->actingAs($user, 'sanctum')->patchJson("/api/v1/academic-exam-terms/{$term->id}", [
+            'sort_order' => null,
+        ])->assertOk()->assertJsonPath('data.sort_order', 0);
+
+        $this->assertDatabaseHas('academic_exam_terms', ['id' => $term->id, 'sort_order' => 0]);
+    }
+
     public function test_destroy_requires_permission(): void
     {
         $term = AcademicExamTerm::create(['name' => 'First Terminal Examination', 'sort_order' => 1]);

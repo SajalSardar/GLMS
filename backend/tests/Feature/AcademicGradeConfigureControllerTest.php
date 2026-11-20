@@ -131,6 +131,29 @@ class AcademicGradeConfigureControllerTest extends TestCase
         ])->assertUnprocessable()->assertJsonValidationErrors('max_percent');
     }
 
+    public function test_store_coerces_a_null_sort_order_to_zero(): void
+    {
+        $user = $this->actorWithPermissions(['academic_grade_configures.create']);
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/academic-grade-configures', [
+            'min_percent' => 80, 'max_percent' => 100, 'grade_name' => 'A+', 'grade_point' => 5.00, 'sort_order' => null,
+        ])->assertCreated()->assertJsonPath('data.sort_order', 0);
+
+        $this->assertDatabaseHas('academic_grade_configures', ['grade_name' => 'A+', 'sort_order' => 0]);
+    }
+
+    public function test_update_coerces_a_null_sort_order_to_zero(): void
+    {
+        $grade = AcademicGradeConfigure::create(['min_percent' => 80, 'max_percent' => 100, 'grade_name' => 'A+', 'grade_point' => 5.00, 'sort_order' => 1]);
+        $user = $this->actorWithPermissions(['academic_grade_configures.update']);
+
+        $this->actingAs($user, 'sanctum')->patchJson("/api/v1/academic-grade-configures/{$grade->id}", [
+            'sort_order' => null,
+        ])->assertOk()->assertJsonPath('data.sort_order', 0);
+
+        $this->assertDatabaseHas('academic_grade_configures', ['id' => $grade->id, 'sort_order' => 0]);
+    }
+
     public function test_destroy_requires_permission(): void
     {
         $grade = AcademicGradeConfigure::create(['min_percent' => 80, 'max_percent' => 100, 'grade_name' => 'A+', 'grade_point' => 5.00]);
