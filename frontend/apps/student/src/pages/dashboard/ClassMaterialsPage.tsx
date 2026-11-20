@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { getChapterMaterialDownloadLink, listMyChapterMaterials, type ChapterMaterial, type Subject } from '@ttla/api-client'
 import { useAuth } from '@ttla/auth'
-import Pagination from '../components/Pagination'
-import { useLocale } from '../lib/locale'
+import Pagination from './components/Pagination'
+import SearchableSelect from './components/SearchableSelect'
+import { useLocale } from '../../lib/locale'
 
 const PAGE_SIZE = 10
 
@@ -132,26 +133,27 @@ export default function ClassMaterialsPage() {
   const visibleMaterials = filteredMaterials.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
 
   return (
-    <section className="mx-auto max-w-5xl px-4 py-8 lg:px-8">
+    <section className="px-4 py-6 lg:px-6">
       <h1 className="text-2xl font-bold text-primary-800">{t['student.classMaterials.title']}</h1>
 
       {!loading && materials.length > 0 && (
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          <select
-            className="h-10 min-w-[12rem] rounded-md border border-primary-200 px-3 text-sm"
-            value={subjectId ?? ''}
-            onChange={(event) => {
-              setSubjectId(event.target.value ? Number(event.target.value) : null)
-              setPage(1)
-            }}
-          >
-            <option value="">{t['student.classMaterials.allSubjects']}</option>
-            {subjects.map((subject) => (
-              <option key={subject.id} value={subject.id}>
-                {subject.bn_name ?? subject.name}
-              </option>
-            ))}
-          </select>
+        <div className="mt-4 flex flex-wrap items-center gap-3 rounded-md bg-white p-4 shadow-sm">
+          <div className="w-full sm:w-56">
+            <SearchableSelect
+              value={subjectId !== null ? String(subjectId) : ''}
+              onChange={(value) => {
+                setSubjectId(value ? Number(value) : null)
+                setPage(1)
+              }}
+              placeholder={t['student.classMaterials.allSubjects']}
+              searchPlaceholder={t['management.table.search']}
+              noMatchesLabel={t['management.table.noMatches']}
+              options={[
+                { value: '', label: t['student.classMaterials.allSubjects'] },
+                ...subjects.map((subject) => ({ value: String(subject.id), label: subject.bn_name ?? subject.name })),
+              ]}
+            />
+          </div>
         </div>
       )}
 
@@ -160,57 +162,45 @@ export default function ClassMaterialsPage() {
       {!loading && materials.length === 0 && <InfoAlert message={t['student.classMaterials.noMaterials']} />}
 
       {!loading && materials.length > 0 && (
-        <div className="mt-6 overflow-x-auto rounded-lg border border-gray-100">
-          <table className="w-full min-w-[40rem] text-left text-sm">
-            <thead>
+        <div className="mt-6 overflow-x-auto rounded-md bg-white shadow-sm">
+          <table className="w-full min-w-[40rem] text-sm">
+            <thead className="bg-primary-50 text-xs font-medium tracking-wide text-gray-500 uppercase">
               <tr>
-                <th className="bg-primary-50 px-5 py-3 font-medium whitespace-nowrap text-primary-900">
-                  {t['student.classMaterials.colMaterial']}
-                </th>
-                <th className="bg-primary-50 px-5 py-3 font-medium whitespace-nowrap text-primary-900">
-                  {t['student.classMaterials.colChapter']}
-                </th>
-                <th className="bg-primary-50 px-5 py-3 font-medium whitespace-nowrap text-primary-900">
-                  {t['student.classMaterials.colSubject']}
-                </th>
-                <th className="bg-primary-50 px-5 py-3 font-medium whitespace-nowrap text-primary-900">
-                  {t['student.classMaterials.colStatus']}
-                </th>
-                <th className="bg-primary-50 px-5 py-3 font-medium whitespace-nowrap text-primary-900">
-                  {t['student.classMaterials.colCreatedAt']}
-                </th>
-                <th className="bg-primary-50 px-5 py-3 font-medium whitespace-nowrap text-primary-900">
-                  {t['student.classMaterials.colAction']}
-                </th>
+                <th className="px-5 py-3 text-left whitespace-nowrap">{t['management.table.serial']}</th>
+                <th className="px-5 py-3 text-left whitespace-nowrap">{t['student.classMaterials.colMaterial']}</th>
+                <th className="px-5 py-3 text-left whitespace-nowrap">{t['student.classMaterials.colChapter']}</th>
+                <th className="px-5 py-3 text-left whitespace-nowrap">{t['student.classMaterials.colSubject']}</th>
+                <th className="px-5 py-3 text-left whitespace-nowrap">{t['student.classMaterials.colStatus']}</th>
+                <th className="px-5 py-3 text-left whitespace-nowrap">{t['student.classMaterials.colCreatedAt']}</th>
+                <th className="px-5 py-3 text-left whitespace-nowrap">{t['student.classMaterials.colAction']}</th>
               </tr>
             </thead>
             <tbody>
-              {visibleMaterials.map((material) => {
+              {visibleMaterials.map((material, index) => {
                 const size = formatFileSize(material.size_bytes)
                 const meta = [material.original_filename, size].filter(Boolean).join(' · ')
                 const subject = material.chapter?.book?.subject
 
                 return (
-                  <tr key={material.id}>
-                    <td className="border-b border-gray-100 px-5 py-4 whitespace-nowrap">
+                  <tr key={material.id} className="border-t border-gray-100">
+                    <td className="px-5 py-3.5 whitespace-nowrap text-gray-500">
+                      {(currentPage - 1) * PAGE_SIZE + index + 1}
+                    </td>
+                    <td className="px-5 py-3.5 whitespace-nowrap">
                       <span className="block font-medium text-primary-900">{material.title}</span>
                       {meta && <span className="block text-xs text-primary-500">{meta}</span>}
                     </td>
-                    <td className="border-b border-gray-100 px-5 py-4 whitespace-nowrap text-gray-500">
-                      {chapterLabel(material)}
-                    </td>
-                    <td className="border-b border-gray-100 px-5 py-4 whitespace-nowrap text-gray-500">
+                    <td className="px-5 py-3.5 whitespace-nowrap text-gray-500">{chapterLabel(material)}</td>
+                    <td className="px-5 py-3.5 whitespace-nowrap text-gray-500">
                       {subject ? (subject.bn_name ?? subject.name) : ''}
                     </td>
-                    <td className="border-b border-gray-100 px-5 py-4 whitespace-nowrap">
+                    <td className="px-5 py-3.5 whitespace-nowrap">
                       <span className="rounded-sm bg-success-50 px-2 py-0.5 text-xs font-medium text-success-600">
                         {material.status === 'active' ? t['student.classMaterials.statusActive'] : material.status}
                       </span>
                     </td>
-                    <td className="border-b border-gray-100 px-5 py-4 whitespace-nowrap text-gray-500">
-                      {formatDate(material.created_at)}
-                    </td>
-                    <td className="border-b border-gray-100 px-5 py-4 whitespace-nowrap">
+                    <td className="px-5 py-3.5 whitespace-nowrap text-gray-500">{formatDate(material.created_at)}</td>
+                    <td className="px-5 py-3.5 whitespace-nowrap">
                       <span className="flex flex-shrink-0 gap-2">
                         <button
                           type="button"
@@ -240,11 +230,14 @@ export default function ClassMaterialsPage() {
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
-          onPrevious={() => setPage((previous) => Math.max(1, previous - 1))}
-          onNext={() => setPage((previous) => Math.min(totalPages, previous + 1))}
+          onPageChange={(targetPage) => setPage(targetPage)}
+          visibleCount={visibleMaterials.length}
+          total={filteredMaterials.length}
+          showingLabel={t['management.table.showing']}
+          ofLabel={t['management.table.of']}
+          resultsLabel={t['management.table.results']}
           previousLabel={t['student.classMaterials.previousPage']}
           nextLabel={t['student.classMaterials.nextPage']}
-          pageOfLabel={t['student.classMaterials.pageOf']}
         />
       )}
 

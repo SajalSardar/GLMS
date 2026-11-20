@@ -115,6 +115,11 @@ function chapterLabel(entry: ChapterWithBook): string {
   return `${chapterName} — ${bookName}`
 }
 
+// Public website page (rendered under SiteShell for guests, and also for a
+// logged-in student visiting /exams since this route is intentionally
+// guest-accessible). Deliberately kept in its own simple style, separate
+// from the dashboard's management-portal-styled pages/dashboard/ExamsPage.tsx
+// — the two contexts' designs are not meant to match.
 export default function ExamsPage() {
   const { token, userId } = useAuth()
   const { t } = useLocale()

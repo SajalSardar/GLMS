@@ -31,6 +31,11 @@ function InfoAlert({ message }: { message: string }) {
   )
 }
 
+// Public website page (rendered under SiteShell for guests, and also for a
+// logged-in student visiting /books since this route is intentionally
+// guest-accessible). Deliberately kept in its own simple style, separate
+// from the dashboard's management-portal-styled pages/dashboard/BooksPage.tsx
+// — the two contexts' designs are not meant to match.
 export default function BooksPage() {
   const { t } = useLocale()
   const { token, userId } = useAuth()

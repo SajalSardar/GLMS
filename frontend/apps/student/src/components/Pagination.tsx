@@ -8,6 +8,10 @@ interface PaginationProps {
   pageOfLabel: string
 }
 
+// Simple prev/next pager for the public website pages (SiteShell) — kept
+// deliberately plain, distinct from the dashboard's numbered pager in
+// pages/dashboard/components/Pagination.tsx. The two contexts have
+// different visual styles on purpose and must not share this component.
 export default function Pagination({
   currentPage,
   totalPages,

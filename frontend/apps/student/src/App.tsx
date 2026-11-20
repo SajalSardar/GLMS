@@ -5,17 +5,20 @@ import SiteShell from './components/SiteShell'
 import StudentAppShell from './components/StudentAppShell'
 import LandingLogin from './pages/LandingLogin'
 import LoginPage from './pages/LoginPage'
-import DashboardPage from './pages/DashboardPage'
 import BooksPage from './pages/BooksPage'
 import BookDetailPage from './pages/BookDetailPage'
-import ClassMaterialsPage from './pages/ClassMaterialsPage'
-import ClassExamsPage from './pages/ClassExamsPage'
 import VideoLecturePage from './pages/VideoLecturePage'
 import VideoPlaylistPage from './pages/VideoPlaylistPage'
 import ExamsPage from './pages/ExamsPage'
 import ExamRunnerPage from './pages/ExamRunnerPage'
 import CertificatePage from './pages/CertificatePage'
 import NotFoundPage from './pages/NotFoundPage'
+import DashboardHomePage from './pages/dashboard/DashboardHomePage'
+import DashboardClassMaterialsPage from './pages/dashboard/ClassMaterialsPage'
+import DashboardClassExamsPage from './pages/dashboard/ClassExamsPage'
+import DashboardBooksPage from './pages/dashboard/BooksPage'
+import DashboardVideoLecturePage from './pages/dashboard/VideoLecturePage'
+import DashboardExamsPage from './pages/dashboard/ExamsPage'
 
 // Logged-in students get the same sidebar+topbar AppShell the management
 // portal uses; guests browsing these same routes (books/video-lecture/
@@ -33,6 +36,27 @@ function RequireAuth() {
   return token ? <Outlet /> : <Navigate to="/login" replace />
 }
 
+// books/video-lecture/exams are the three routes shared between the public
+// website and the dashboard (guest browsing is intentionally supported on
+// all three). The website and dashboard designs are not meant to match
+// (see pages/dashboard/*.tsx's own comments), so each route picks between
+// two entirely separate page components by auth state rather than a single
+// component branching on style internally.
+function BooksRoute() {
+  const { token } = useAuth()
+  return token ? <DashboardBooksPage /> : <BooksPage />
+}
+
+function VideoLectureRoute() {
+  const { token } = useAuth()
+  return token ? <DashboardVideoLecturePage /> : <VideoLecturePage />
+}
+
+function ExamsRoute() {
+  const { token } = useAuth()
+  return token ? <DashboardExamsPage /> : <ExamsPage />
+}
+
 function App() {
   return (
     <LocaleProvider>
@@ -46,15 +70,15 @@ function App() {
             </Route>
             <Route element={<StudentAreaShell />}>
               <Route element={<RequireAuth />}>
-                <Route path="dashboard" element={<DashboardPage />} />
-                <Route path="class-materials" element={<ClassMaterialsPage />} />
-                <Route path="class-exams" element={<ClassExamsPage />} />
+                <Route path="dashboard" element={<DashboardHomePage />} />
+                <Route path="class-materials" element={<DashboardClassMaterialsPage />} />
+                <Route path="class-exams" element={<DashboardClassExamsPage />} />
               </Route>
-              <Route path="books" element={<BooksPage />} />
+              <Route path="books" element={<BooksRoute />} />
               <Route path="books/:id" element={<BookDetailPage />} />
-              <Route path="video-lecture" element={<VideoLecturePage />} />
+              <Route path="video-lecture" element={<VideoLectureRoute />} />
               <Route path="video-lecture/:classId/:subjectId/:chapterId?" element={<VideoPlaylistPage />} />
-              <Route path="exams" element={<ExamsPage />} />
+              <Route path="exams" element={<ExamsRoute />} />
               <Route path="exams/:id" element={<ExamRunnerPage />} />
               <Route path="exams/:id/certificate" element={<CertificatePage />} />
             </Route>

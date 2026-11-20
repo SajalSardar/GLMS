@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { listMyChapterMaterials, type ChapterMaterial } from '@ttla/api-client'
 import { useAuth } from '@ttla/auth'
-import { useLocale } from '../lib/locale'
+import { useLocale } from '../../lib/locale'
 
 interface QuickLink {
   to: string
@@ -38,7 +38,7 @@ function MaterialsNotice({ count }: { count: number }) {
   )
 }
 
-export default function DashboardPage() {
+export default function DashboardHomePage() {
   const { t } = useLocale()
   const { name, token } = useAuth()
 
@@ -79,7 +79,7 @@ export default function DashboardPage() {
   const welcome = name ? t['student.dashboard.welcome'].replace('{name}', name) : t['student.dashboard.welcomeGeneric']
 
   return (
-    <section className="mx-auto max-w-5xl px-4 py-8 lg:px-8">
+    <section className="px-4 py-6 lg:px-6">
       <h1 className="text-2xl font-bold text-primary-800">{t['student.dashboard.title']}</h1>
       <p className="mt-1 text-base font-medium text-primary-700">{welcome}</p>
       <p className="mt-1 text-sm text-primary-600">{t['student.dashboard.subtitle']}</p>

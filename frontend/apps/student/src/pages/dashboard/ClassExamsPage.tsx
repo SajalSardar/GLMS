@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@ttla/auth'
-import { ownStudentDashboard } from '../lib/resolveContent'
-import { useLocale } from '../lib/locale'
-import Pagination from '../components/Pagination'
+import { ownStudentDashboard } from '../../lib/resolveContent'
+import { useLocale } from '../../lib/locale'
+import Pagination from './components/Pagination'
 
 const PAGE_SIZE = 10
 
@@ -55,6 +55,7 @@ export default function ClassExamsPage() {
   const [noClass, setNoClass] = useState(false)
   const [untakenExams, setUntakenExams] = useState<UntakenExamRow[]>([])
   const [takenExams, setTakenExams] = useState<TakenExamRow[]>([])
+  const [untakenPage, setUntakenPage] = useState(1)
   const [takenPage, setTakenPage] = useState(1)
 
   useEffect(() => {
@@ -116,12 +117,16 @@ export default function ClassExamsPage() {
     }
   }, [token, userId])
 
+  const untakenTotalPages = Math.max(1, Math.ceil(untakenExams.length / PAGE_SIZE))
+  const untakenCurrentPage = Math.min(untakenPage, untakenTotalPages)
+  const pagedUntakenExams = untakenExams.slice((untakenCurrentPage - 1) * PAGE_SIZE, untakenCurrentPage * PAGE_SIZE)
+
   const takenTotalPages = Math.max(1, Math.ceil(takenExams.length / PAGE_SIZE))
   const takenCurrentPage = Math.min(takenPage, takenTotalPages)
   const pagedTakenExams = takenExams.slice((takenCurrentPage - 1) * PAGE_SIZE, takenCurrentPage * PAGE_SIZE)
 
   return (
-    <section className="mx-auto max-w-4xl px-4 py-8 lg:px-8">
+    <section className="px-4 py-6 lg:px-6">
       <h1 className="text-2xl font-bold text-primary-800">{t['student.classExams.title']}</h1>
 
       {loading && <p className="mt-6 text-sm text-primary-600">{t['student.classExams.loading']}</p>}
@@ -131,81 +136,86 @@ export default function ClassExamsPage() {
       {!loading && !noClass && untakenExams.length === 0 && <InfoAlert message={t['student.classExams.empty']} />}
 
       {!loading && !noClass && untakenExams.length > 0 && (
-        <div className="mt-6 overflow-x-auto rounded-lg border border-gray-100">
-          <table className="w-full min-w-[32rem] text-left text-sm">
-            <thead>
-              <tr>
-                <th className="bg-primary-50 px-5 py-3 font-medium whitespace-nowrap text-primary-900">
-                  {t['student.classExams.colExam']}
-                </th>
-                <th className="bg-primary-50 px-5 py-3 font-medium whitespace-nowrap text-primary-900">
-                  {t['student.classExams.colSubject']}
-                </th>
-                <th className="bg-primary-50 px-5 py-3 font-medium whitespace-nowrap text-primary-900">
-                  {t['student.classExams.colAction']}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {untakenExams.map((exam) => (
-                <tr key={exam.examId}>
-                  <td className="border-b border-gray-100 px-5 py-4 whitespace-nowrap">
-                    <span className="font-medium text-primary-900">{exam.examName}</span>
-                  </td>
-                  <td className="border-b border-gray-100 px-5 py-4 whitespace-nowrap text-gray-500">
-                    {exam.subjectName}
-                  </td>
-                  <td className="border-b border-gray-100 px-5 py-4 whitespace-nowrap">
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/exams/${exam.examId}`)}
-                      className="cursor-pointer rounded-md bg-primary-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#EB1F27]"
-                    >
-                      {t['student.classExams.startExam']}
-                    </button>
-                  </td>
+        <>
+          <div className="mt-6 overflow-x-auto rounded-md bg-white shadow-sm">
+            <table className="w-full min-w-[32rem] text-sm">
+              <thead className="bg-primary-50 text-xs font-medium tracking-wide text-gray-500 uppercase">
+                <tr>
+                  <th className="px-5 py-3 text-left whitespace-nowrap">{t['management.table.serial']}</th>
+                  <th className="px-5 py-3 text-left whitespace-nowrap">{t['student.classExams.colExam']}</th>
+                  <th className="px-5 py-3 text-left whitespace-nowrap">{t['student.classExams.colSubject']}</th>
+                  <th className="px-5 py-3 text-left whitespace-nowrap">{t['student.classExams.colAction']}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {pagedUntakenExams.map((exam, index) => (
+                  <tr key={exam.examId} className="border-t border-gray-100">
+                    <td className="px-5 py-3.5 whitespace-nowrap text-gray-500">
+                      {(untakenCurrentPage - 1) * PAGE_SIZE + index + 1}
+                    </td>
+                    <td className="px-5 py-3.5 whitespace-nowrap">
+                      <span className="font-medium text-primary-900">{exam.examName}</span>
+                    </td>
+                    <td className="px-5 py-3.5 whitespace-nowrap text-gray-500">{exam.subjectName}</td>
+                    <td className="px-5 py-3.5 whitespace-nowrap">
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/exams/${exam.examId}`)}
+                        className="cursor-pointer rounded-md bg-primary-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#EB1F27]"
+                      >
+                        {t['student.classExams.startExam']}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <Pagination
+            currentPage={untakenCurrentPage}
+            totalPages={untakenTotalPages}
+            onPageChange={(targetPage) => setUntakenPage(targetPage)}
+            visibleCount={pagedUntakenExams.length}
+            total={untakenExams.length}
+            showingLabel={t['management.table.showing']}
+            ofLabel={t['management.table.of']}
+            resultsLabel={t['management.table.results']}
+            previousLabel={t['student.classExams.previousPage']}
+            nextLabel={t['student.classExams.nextPage']}
+          />
+        </>
       )}
 
       {!loading && !noClass && takenExams.length > 0 && (
         <>
           <h2 className="mt-10 text-lg font-semibold text-primary-800">{t['student.classExams.takenTitle']}</h2>
 
-          <div className="mt-3 overflow-x-auto rounded-lg border border-gray-100">
-            <table className="w-full min-w-[32rem] text-left text-sm">
-              <thead>
+          <div className="mt-3 overflow-x-auto rounded-md bg-white shadow-sm">
+            <table className="w-full min-w-[32rem] text-sm">
+              <thead className="bg-primary-50 text-xs font-medium tracking-wide text-gray-500 uppercase">
                 <tr>
-                  <th className="bg-primary-50 px-5 py-3 font-medium whitespace-nowrap text-primary-900">
-                    {t['student.classExams.colExam']}
-                  </th>
-                  <th className="bg-primary-50 px-5 py-3 font-medium whitespace-nowrap text-primary-900">
-                    {t['student.classExams.colSubject']}
-                  </th>
-                  <th className="bg-primary-50 px-5 py-3 font-medium whitespace-nowrap text-primary-900">
-                    {t['student.classExams.colScore']}
-                  </th>
-                  <th className="bg-primary-50 px-5 py-3 font-medium whitespace-nowrap text-primary-900">
-                    {t['student.classExams.colResult']}
-                  </th>
+                  <th className="px-5 py-3 text-left whitespace-nowrap">{t['management.table.serial']}</th>
+                  <th className="px-5 py-3 text-left whitespace-nowrap">{t['student.classExams.colExam']}</th>
+                  <th className="px-5 py-3 text-left whitespace-nowrap">{t['student.classExams.colSubject']}</th>
+                  <th className="px-5 py-3 text-left whitespace-nowrap">{t['student.classExams.colScore']}</th>
+                  <th className="px-5 py-3 text-left whitespace-nowrap">{t['student.classExams.colResult']}</th>
                 </tr>
               </thead>
               <tbody>
-                {pagedTakenExams.map((exam) => (
-                  <tr key={exam.examId}>
-                    <td className="border-b border-gray-100 px-5 py-4 whitespace-nowrap">
+                {pagedTakenExams.map((exam, index) => (
+                  <tr key={exam.examId} className="border-t border-gray-100">
+                    <td className="px-5 py-3.5 whitespace-nowrap text-gray-500">
+                      {(takenCurrentPage - 1) * PAGE_SIZE + index + 1}
+                    </td>
+                    <td className="px-5 py-3.5 whitespace-nowrap">
                       <span className="font-medium text-primary-900">{exam.examName}</span>
                     </td>
-                    <td className="border-b border-gray-100 px-5 py-4 whitespace-nowrap text-gray-500">
-                      {exam.subjectName}
-                    </td>
-                    <td className="border-b border-gray-100 px-5 py-4 whitespace-nowrap text-gray-500">
+                    <td className="px-5 py-3.5 whitespace-nowrap text-gray-500">{exam.subjectName}</td>
+                    <td className="px-5 py-3.5 whitespace-nowrap text-gray-500">
                       {exam.bestScore ?? 0} / {exam.totalPossibleMarks ?? 0}
                     </td>
-                    <td className="border-b border-gray-100 px-5 py-4 whitespace-nowrap">
+                    <td className="px-5 py-3.5 whitespace-nowrap">
                       {exam.passed === null ? (
                         <span className="text-gray-500">—</span>
                       ) : (
@@ -227,11 +237,14 @@ export default function ClassExamsPage() {
           <Pagination
             currentPage={takenCurrentPage}
             totalPages={takenTotalPages}
-            onPrevious={() => setTakenPage((previous) => Math.max(1, previous - 1))}
-            onNext={() => setTakenPage((previous) => Math.min(takenTotalPages, previous + 1))}
+            onPageChange={(targetPage) => setTakenPage(targetPage)}
+            visibleCount={pagedTakenExams.length}
+            total={takenExams.length}
+            showingLabel={t['management.table.showing']}
+            ofLabel={t['management.table.of']}
+            resultsLabel={t['management.table.results']}
             previousLabel={t['student.classExams.previousPage']}
             nextLabel={t['student.classExams.nextPage']}
-            pageOfLabel={t['student.classExams.pageOf']}
           />
         </>
       )}
