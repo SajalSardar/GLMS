@@ -30,6 +30,7 @@ class UpdateClassRoutineRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'section_id' => ['sometimes', 'nullable', 'integer', Rule::exists('sections', 'id')->withoutTrashed()],
             'subject_id' => ['sometimes', 'required', 'integer', Rule::exists('subjects', 'id')->withoutTrashed()],
             'teacher_id' => ['nullable', 'integer', Rule::exists('teacher_users', 'id')->withoutTrashed()],
             'classroom_id' => ['nullable', 'integer', Rule::exists('classrooms', 'id')->withoutTrashed()],

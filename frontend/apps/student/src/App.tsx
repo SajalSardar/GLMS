@@ -16,6 +16,7 @@ import NotFoundPage from './pages/NotFoundPage'
 import DashboardHomePage from './pages/dashboard/DashboardHomePage'
 import DashboardClassMaterialsPage from './pages/dashboard/ClassMaterialsPage'
 import DashboardClassExamsPage from './pages/dashboard/ClassExamsPage'
+import DashboardClassRoutinePage from './pages/dashboard/ClassRoutinePage'
 import DashboardBooksPage from './pages/dashboard/BooksPage'
 import DashboardVideoLecturePage from './pages/dashboard/VideoLecturePage'
 import DashboardExamsPage from './pages/dashboard/ExamsPage'
@@ -72,6 +73,7 @@ function App() {
               <Route element={<RequireAuth />}>
                 <Route path="dashboard" element={<DashboardHomePage />} />
                 <Route path="class-materials" element={<DashboardClassMaterialsPage />} />
+                <Route path="class-routine" element={<DashboardClassRoutinePage />} />
                 <Route path="class-exams" element={<DashboardClassExamsPage />} />
               </Route>
               <Route path="books" element={<BooksRoute />} />

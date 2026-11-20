@@ -23,6 +23,9 @@ class ClassRoutineResource extends JsonResource
             'school_id' => $this->school_id,
             'district_id' => $this->district_id,
             'class_id' => $this->class_id,
+            'section_id' => $this->section_id,
+            'shift_id' => $this->shift_id,
+            'class_version_id' => $this->class_version_id,
             'subject_id' => $this->subject_id,
             'teacher_id' => $this->teacher_id,
             'classroom_id' => $this->classroom_id,
@@ -43,6 +46,9 @@ class ClassRoutineResource extends JsonResource
             ]),
             'classroom' => new ClassroomResource($this->whenLoaded('classroom')),
             'academic_year' => new AcademicYearResource($this->whenLoaded('academicYear')),
+            'section' => new SectionResource($this->whenLoaded('section')),
+            'shift' => new ShiftResource($this->whenLoaded('shift')),
+            'class_version' => new ClassVersionResource($this->whenLoaded('classVersion')),
         ];
     }
 }

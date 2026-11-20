@@ -78,6 +78,12 @@ Route::prefix('v1')->group(function (): void {
     Route::apiResource('chapter-videos', ChapterVideoController::class)->only(['index', 'show']);
     Route::apiResource('academic-years', AcademicYearController::class)->only(['index', 'show']);
     Route::apiResource('classrooms', ClassroomController::class)->only(['index', 'show']);
+    // Must be registered before the apiResource's wildcard {class_routine}
+    // show route below, or "mine" would be matched as a class_routine ID
+    // and routed to show() instead of mine(). Requires auth despite
+    // sitting in this "public" section — self-scoped to the logged-in
+    // student, same pattern as chapter-materials/mine above.
+    Route::get('/class-routines/mine', [ClassRoutineController::class, 'mine'])->middleware('auth:sanctum');
     Route::apiResource('class-routines', ClassRoutineController::class)->only(['index', 'show']);
     Route::apiResource('class-versions', ClassVersionController::class)->only(['index', 'show']);
     Route::apiResource('shifts', ShiftController::class)->only(['index', 'show']);

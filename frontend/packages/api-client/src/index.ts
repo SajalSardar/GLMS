@@ -802,6 +802,48 @@ export function getChapterMaterialDownloadLink(materialId: number, token: string
   })
 }
 
+// ---------- Class routines ----------
+
+export interface ClassRoutine {
+  id: number
+  school_id: number
+  district_id: number
+  class_id: number
+  // Set only once a routine entry has been scoped to a specific section
+  // (see ClassRoutineController's section_id denormalization) — null for
+  // the legacy class_id-only rows that predate the Version/Shift/Section
+  // structure.
+  section_id: number | null
+  shift_id: number | null
+  class_version_id: number | null
+  subject_id: number
+  teacher_id: number | null
+  classroom_id: number | null
+  academic_year_id: number | null
+  day_of_week: string
+  period_no: number
+  start_time: string | null
+  end_time: string | null
+  subject?: Subject | null
+  teacher?: { id: number; name: string } | null
+  classroom?: { id: number; name: string } | null
+  class?: { id: number; name: string; bn_name: string | null; numeric_level: number | null } | null
+  academic_year?: { id: number; name: string } | null
+  section?: { id: number; name: string; bn_name: string | null } | null
+  shift?: { id: number; name: string; bn_name: string | null } | null
+  class_version?: { id: number; name: string; bn_name: string | null } | null
+}
+
+// The current student's own weekly class routine — scoped server-side to
+// their exact school/district/class/section/shift/class_version tuple
+// (see ClassRoutineController::mine()), already ordered by day-of-week
+// then period.
+export function listMyClassRoutines(token: string): Promise<{ data: ClassRoutine[] }> {
+  return apiFetch<{ data: ClassRoutine[] }>('/class-routines/mine', {
+    headers: authHeaders(token),
+  })
+}
+
 // ---------- Exams (public browsing + attempts) ----------
 
 export interface ExamQuestionOption {

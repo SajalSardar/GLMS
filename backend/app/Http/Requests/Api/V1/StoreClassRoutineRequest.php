@@ -32,6 +32,11 @@ class StoreClassRoutineRequest extends FormRequest
         return [
             'class_id' => ['required', 'integer', Rule::exists('school_classes', 'id')->withoutTrashed()],
             'school_id' => ['required', 'integer', Rule::exists('schools', 'id')->withoutTrashed()],
+            // Optional — schools that haven't adopted the Version/Shift/
+            // Section structure keep creating class_routines exactly as
+            // before. shift_id/class_version_id are never accepted
+            // directly; the controller denormalizes them from this section.
+            'section_id' => ['nullable', 'integer', Rule::exists('sections', 'id')->withoutTrashed()],
             'subject_id' => ['required', 'integer', Rule::exists('subjects', 'id')->withoutTrashed()],
             'teacher_id' => ['nullable', 'integer', Rule::exists('teacher_users', 'id')->withoutTrashed()],
             'classroom_id' => ['nullable', 'integer', Rule::exists('classrooms', 'id')->withoutTrashed()],

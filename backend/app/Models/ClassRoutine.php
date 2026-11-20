@@ -25,6 +25,9 @@ class ClassRoutine extends Model
         'school_id',
         'district_id',
         'class_id',
+        'section_id',
+        'shift_id',
+        'class_version_id',
         'subject_id',
         'teacher_id',
         'classroom_id',
@@ -46,6 +49,30 @@ class ClassRoutine extends Model
     public function schoolClass(): BelongsTo
     {
         return $this->belongsTo(SchoolClass::class, 'class_id');
+    }
+
+    /**
+     * Optional — only set for schools that have adopted the Version/Shift/
+     * Section structure (`section_id` is nullable), same as
+     * StudentProfile::section().
+     */
+    public function section(): BelongsTo
+    {
+        return $this->belongsTo(Section::class);
+    }
+
+    /**
+     * Denormalized from section_id — see the migration that added these
+     * two columns for why.
+     */
+    public function shift(): BelongsTo
+    {
+        return $this->belongsTo(Shift::class);
+    }
+
+    public function classVersion(): BelongsTo
+    {
+        return $this->belongsTo(ClassVersion::class);
     }
 
     public function subject(): BelongsTo

@@ -5,8 +5,11 @@ namespace Database\Seeders;
 use App\Models\AcademicYear;
 use App\Models\Classroom;
 use App\Models\ClassRoutine;
+use App\Models\ClassVersion;
 use App\Models\School;
 use App\Models\SchoolClass;
+use App\Models\Section;
+use App\Models\Shift;
 use App\Models\Subject;
 use App\Models\TeacherUser;
 use Illuminate\Database\Seeder;
@@ -24,6 +27,15 @@ class ClassRoutineSeeder extends Seeder
      * name alone rather than by (school_id 1, name) — the routine's own
      * school_id/district_id come from School::find(1) directly, since
      * SchoolClass no longer carries either.
+     *
+     * Each row also carries section_id/shift_id/class_version_id so
+     * ClassRoutineController::mine() can match it against the sample
+     * student's own profile scope. This seeder runs before
+     * SectionBackfillSeeder (see DatabaseSeeder), so the ClassVersion/
+     * Shift/Section chain is resolved here with the exact same
+     * firstOrCreate keys SectionBackfillSeeder uses for this same (class,
+     * school) pair — whichever seeder runs first creates it, the other
+     * just finds it, so there's no duplication either way.
      */
     public function run(): void
     {
@@ -36,6 +48,29 @@ class ClassRoutineSeeder extends Seeder
         if (! $class || ! $school) {
             return;
         }
+
+        $version = ClassVersion::firstOrCreate(
+            ['class_id' => $class->id, 'school_id' => $school->id, 'name' => 'General'],
+            ['district_id' => $school->district_id, 'is_active' => true],
+        );
+
+        $shift = Shift::firstOrCreate(
+            ['class_version_id' => $version->id, 'name' => 'Day Shift'],
+            [
+                'school_id' => $school->id,
+                'district_id' => $school->district_id,
+                'academic_year_id' => $academicYear?->id,
+                'start_time' => '08:00',
+                'end_time' => '13:00',
+                'days_of_week' => ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday'],
+                'is_active' => true,
+            ],
+        );
+
+        $section = Section::firstOrCreate(
+            ['shift_id' => $shift->id, 'name' => 'Main'],
+            ['school_id' => $school->id, 'district_id' => $school->district_id, 'is_active' => true],
+        );
 
         $periods = [
             ['period_no' => 1, 'subject' => 'Bangla', 'start_time' => '08:00', 'end_time' => '08:45'],
@@ -57,6 +92,9 @@ class ClassRoutineSeeder extends Seeder
                     ['class_id' => $class->id, 'school_id' => $school->id, 'day_of_week' => $day, 'period_no' => $period['period_no']],
                     [
                         'district_id' => $school->district_id,
+                        'section_id' => $section->id,
+                        'shift_id' => $shift->id,
+                        'class_version_id' => $version->id,
                         'subject_id' => $subject->id,
                         'teacher_id' => $teacher?->id,
                         'classroom_id' => $classroom?->id,

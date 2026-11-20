@@ -39,7 +39,7 @@ export default function AppShell({
   return (
     <div className="min-h-screen bg-gray-50 text-gray-700">
       <aside
-        className={`fixed inset-y-0 left-0 z-30 w-[260px] overflow-y-auto border-r border-gray-100 bg-white transition-transform duration-200 lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-30 w-[260px] overflow-y-auto border-r border-gray-100 bg-white transition-transform duration-200 print:hidden lg:translate-x-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -71,8 +71,8 @@ export default function AppShell({
         />
       )}
 
-      <div className="flex min-h-screen flex-col lg:pl-[260px]">
-        <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-gray-100 bg-white px-4 py-3 lg:px-6">
+      <div className="flex min-h-screen flex-col print:pl-0 lg:pl-[260px]">
+        <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-gray-100 bg-white px-4 py-3 print:hidden lg:px-6">
           <button
             type="button"
             className="cursor-pointer text-gray-600 transition-colors duration-150 hover:text-primary-500 lg:hidden"
@@ -106,11 +106,11 @@ export default function AppShell({
           </div>
         </header>
 
-        <main className={mainClassName}>
+        <main className={`${mainClassName} print:p-0`}>
           <Outlet />
         </main>
 
-        <footer className="border-t border-gray-100 bg-white px-4 py-4 text-center text-sm text-gray-500 lg:px-6">
+        <footer className="border-t border-gray-100 bg-white px-4 py-4 text-center text-sm text-gray-500 print:hidden lg:px-6">
           © {currentYear} {title}
         </footer>
       </div>
