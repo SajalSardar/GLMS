@@ -387,6 +387,7 @@
   "management.systemSetup.subjects": "বিষয় সমূহ",
   "management.systemSetup.academicExamTerms": "পরীক্ষার মেয়াদ",
   "management.systemSetup.academicGradeConfigures": "গ্রেড কনফিগারেশন",
+  "management.systemSetup.academicSubjectMarkConfigures": "বিষয়ভিত্তিক নম্বর কনফিগারেশন",
 
   "management.nav.classes": "ক্লাস সমূহ",
   "management.nav.holidays": "ছুটির ক্যালেন্ডার",
@@ -477,6 +478,10 @@
   "management.fields.gradeName": "গ্রেড",
   "management.fields.gradeBnName": "বাংলা গ্রেড",
   "management.fields.gradePoint": "গ্রেড পয়েন্ট",
+  "management.academicSubjectMarkConfigures.title": "বিষয়ভিত্তিক নম্বর কনফিগারেশন",
+  "management.fields.cqFullMarks": "সিকিউ পূর্ণমান",
+  "management.fields.mcqFullMarks": "এমসিকিউ পূর্ণমান",
+  "management.fields.practicalFullMarks": "ব্যবহারিক পূর্ণমান",
   "management.fields.startTime": "শুরুর সময়",
   "management.fields.endTime": "শেষের সময়",
   "management.fields.daysOfWeek": "সপ্তাহের দিন",
