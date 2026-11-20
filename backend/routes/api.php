@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\V1\GuardianController;
 use App\Http\Controllers\Api\V1\GuardianUserController;
 use App\Http\Controllers\Api\V1\GuestExamAttemptController;
 use App\Http\Controllers\Api\V1\HealthController;
+use App\Http\Controllers\Api\V1\HolidayController;
 use App\Http\Controllers\Api\V1\PermissionController;
 use App\Http\Controllers\Api\V1\PracticeExamController;
 use App\Http\Controllers\Api\V1\QuestionController;
@@ -78,6 +79,7 @@ Route::prefix('v1')->group(function (): void {
     Route::apiResource('chapter-materials', ChapterMaterialController::class)->only(['index', 'show']);
     Route::apiResource('chapter-videos', ChapterVideoController::class)->only(['index', 'show']);
     Route::apiResource('academic-years', AcademicYearController::class)->only(['index', 'show']);
+    Route::apiResource('holidays', HolidayController::class)->only(['index', 'show']);
     Route::apiResource('classrooms', ClassroomController::class)->only(['index', 'show']);
     // Must be registered before the apiResource's wildcard {class_routine}
     // show route below, or "mine" would be matched as a class_routine ID
@@ -143,6 +145,8 @@ Route::prefix('v1')->group(function (): void {
 
         Route::apiResource('academic-years', AcademicYearController::class)->only(['store', 'update', 'destroy']);
         Route::patch('/academic-years/{academic_year}/set-current', [AcademicYearController::class, 'setCurrent']);
+
+        Route::apiResource('holidays', HolidayController::class)->only(['store', 'update', 'destroy']);
 
         Route::apiResource('classrooms', ClassroomController::class)->only(['store', 'update', 'destroy']);
         Route::apiResource('class-routines', ClassRoutineController::class)->only(['store', 'update', 'destroy']);

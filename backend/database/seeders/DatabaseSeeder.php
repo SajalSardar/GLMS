@@ -28,6 +28,7 @@ class DatabaseSeeder extends Seeder
             UpazilaSeeder::class,
             SchoolSeeder::class,
             AcademicYearSeeder::class,
+            HolidaySeeder::class,
             ClassroomSeeder::class,
             SubjectSeeder::class,
             ClassSeeder::class,

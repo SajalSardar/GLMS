@@ -128,6 +128,15 @@ class PermissionSeeder extends Seeder
             ['name' => 'academic_years.update', 'label' => 'Update academic years'],
             ['name' => 'academic_years.delete', 'label' => 'Delete academic years'],
 
+            // The academic holiday calendar is national, not per-school —
+            // .create/.update/.delete are only ever granted to
+            // national_admin (see RolePermissionSeeder); every other
+            // role gets .view only.
+            ['name' => 'holidays.view', 'label' => 'View the holiday calendar'],
+            ['name' => 'holidays.create', 'label' => 'Create holidays'],
+            ['name' => 'holidays.update', 'label' => 'Update holidays'],
+            ['name' => 'holidays.delete', 'label' => 'Delete holidays'],
+
             ['name' => 'classrooms.view', 'label' => 'View classrooms'],
             ['name' => 'classrooms.create', 'label' => 'Create classrooms'],
             ['name' => 'classrooms.update', 'label' => 'Update classrooms'],

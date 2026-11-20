@@ -23,6 +23,14 @@ export default function DashboardHomePage() {
           <p className="font-semibold text-primary-700">{t['teacher.dashboard.leaveApplicationsTitle']}</p>
           <p className="mt-1 text-sm text-gray-500">{t['teacher.dashboard.leaveApplicationsDesc']}</p>
         </Link>
+
+        <Link
+          to="/holidays"
+          className="rounded-lg border border-gray-100 bg-white p-5 shadow-sm transition hover:border-primary-300 hover:shadow"
+        >
+          <p className="font-semibold text-primary-700">{t['teacher.dashboard.holidaysTitle']}</p>
+          <p className="mt-1 text-sm text-gray-500">{t['teacher.dashboard.holidaysDesc']}</p>
+        </Link>
       </div>
     </section>
   )

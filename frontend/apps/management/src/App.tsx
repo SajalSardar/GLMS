@@ -9,6 +9,7 @@ import ClassVersionsPage from './pages/ClassVersionsPage'
 import DashboardPlaceholder from './pages/DashboardPlaceholder'
 import DistrictsPage from './pages/DistrictsPage'
 import DivisionsPage from './pages/DivisionsPage'
+import HolidaysPage from './pages/HolidaysPage'
 import ManagementLogin from './pages/ManagementLogin'
 import SchoolDetailPage from './pages/SchoolDetailPage'
 import SchoolsPage from './pages/SchoolsPage'
@@ -36,6 +37,13 @@ const teachersNavItem: SidebarItem = { to: '/dashboard/teachers', label: t['mana
 // Same placement reasoning as teachersNavItem above — student accounts
 // share the same users.* grants and sit as their own top-level item too.
 const studentsNavItem: SidebarItem = { to: '/dashboard/students', label: t['management.nav.students'], icon: 'face' }
+
+// The academic holiday calendar is national, not per-school — only a
+// national_admin may create/update/delete it (see HolidayPolicy), so
+// unlike teachersNavItem/studentsNavItem above this is national_admin
+// only, not also school_admin. Teachers/students view it read-only from
+// their own portals instead of through this management UI.
+const holidaysNavItem: SidebarItem = { to: '/dashboard/holidays', label: t['management.nav.holidays'], icon: 'event_busy' }
 
 // Classes and academic years are configured per-school, not only by a
 // national admin — the backend grants school_admin create/update/delete
@@ -137,6 +145,7 @@ function DashboardLayout() {
   const navItems = [
     ...baseNavItems,
     ...(role === 'national_admin' || role === 'school_admin' ? [teachersNavItem, studentsNavItem] : []),
+    ...(role === 'national_admin' ? [holidaysNavItem] : []),
     ...(role === 'national_admin' ? [systemSetupItem] : role === 'school_admin' ? schoolManagedNavItems : []),
   ]
 
@@ -174,6 +183,9 @@ function App() {
                 <Route path="shifts" element={<ShiftsPage />} />
                 <Route path="sections" element={<SectionsPage />} />
                 <Route path="subject-teacher-assignments" element={<SubjectTeacherAssignmentsPage />} />
+              </Route>
+              <Route path="holidays" element={<RequireNationalAdmin />}>
+                <Route index element={<HolidaysPage />} />
               </Route>
               <Route path="system-setup" element={<RequireNationalAdmin />}>
                 <Route path="divisions" element={<DivisionsPage />} />

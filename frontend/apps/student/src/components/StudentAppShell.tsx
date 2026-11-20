@@ -61,6 +61,7 @@ export default function StudentAppShell() {
     { to: '/class-exams', label: t['student.nav.classExams'], icon: 'assignment' },
     { to: '/exams', label: t['student.nav.exams'], icon: 'quiz' },
     { to: '/leave-application', label: t['student.nav.leaveApplication'], icon: 'event_busy' },
+    { to: '/holidays', label: t['student.nav.holidays'], icon: 'celebration' },
   ]
 
   function handleLogout() {

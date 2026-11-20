@@ -4,6 +4,7 @@ import TeacherAppShell from './components/TeacherAppShell'
 import TeacherLogin from './pages/TeacherLogin'
 import DashboardHomePage from './pages/DashboardHomePage'
 import LeaveApplicationsPage from './pages/LeaveApplicationsPage'
+import HolidaysPage from './pages/HolidaysPage'
 
 function LoginRoute() {
   const { token } = useAuth()
@@ -25,6 +26,7 @@ function App() {
             <Route element={<TeacherAppShell />}>
               <Route path="dashboard" element={<DashboardHomePage />} />
               <Route path="leave-applications" element={<LeaveApplicationsPage />} />
+              <Route path="holidays" element={<HolidaysPage />} />
             </Route>
           </Route>
         </Routes>

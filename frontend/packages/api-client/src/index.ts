@@ -596,6 +596,76 @@ export function deleteAcademicYear(id: number, token: string): Promise<void> {
   return deleteGeo('academic-years', id, token)
 }
 
+// ---------- Holidays ----------
+
+export type HolidayType = 'weekly' | 'government' | 'other'
+
+export interface Holiday {
+  id: number
+  academic_year_id: number | null
+  type: HolidayType
+  // Set only for type 'weekly' (e.g. 'friday') — a recurring holiday
+  // with no specific date, applying every week indefinitely.
+  day_of_week: string | null
+  // Set only for type 'government'/'other' — a single day sets
+  // start_date = end_date; a multi-day holiday spans the range.
+  start_date: string | null
+  end_date: string | null
+  name: string
+  bn_name: string | null
+  description: string | null
+  is_active: boolean
+  academic_year?: AcademicYear | null
+}
+
+export interface HolidayPayload {
+  academic_year_id?: number | null
+  type: HolidayType
+  day_of_week?: string | null
+  start_date?: string | null
+  end_date?: string | null
+  name: string
+  bn_name?: string | null
+  description?: string | null
+  is_active?: boolean
+}
+
+export function listHolidays(
+  params: {
+    page?: number
+    perPage?: number
+    academicYearId?: number
+    type?: HolidayType
+    activeOnly?: boolean
+  } = {},
+): Promise<PaginatedResponse<Holiday>> {
+  const query: Record<string, string | number | undefined> = {
+    page: params.page,
+    per_page: params.perPage,
+    academic_year_id: params.academicYearId,
+    type: params.type,
+    active_only: params.activeOnly ? 'true' : undefined,
+  }
+
+  return apiFetch<PaginatedResponse<Holiday>>(`/holidays${buildQuery(query)}`)
+}
+
+export function createHoliday(payload: HolidayPayload, token: string): Promise<{ data: Holiday }> {
+  return createGeo<Holiday, HolidayPayload>('holidays', payload, token)
+}
+
+export function updateHoliday(
+  id: number,
+  payload: Partial<HolidayPayload>,
+  token: string,
+): Promise<{ data: Holiday }> {
+  return updateGeo<Holiday, Partial<HolidayPayload>>('holidays', id, payload, token)
+}
+
+export function deleteHoliday(id: number, token: string): Promise<void> {
+  return deleteGeo('holidays', id, token)
+}
+
 // ---------- Class versions ----------
 
 export interface ClassVersion {
