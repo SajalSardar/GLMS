@@ -185,6 +185,25 @@ class PermissionSeeder extends Seeder
             ['name' => 'timetable_entries.delete', 'label' => 'Delete timetable entries'],
             ['name' => 'timetable_entries.publish', 'label' => 'Publish or revise published timetable entries'],
             ['name' => 'timetable_entries.generate', 'label' => 'Automatically generate timetable entries for a shift'],
+
+            // The exam-term calendar, grade/GPA scale, and per-class-subject full
+            // marks are all national config (same tier as holidays.*) — .create/
+            // .update/.delete are only ever granted to national_admin; every other
+            // role gets .view only.
+            ['name' => 'academic_exam_terms.view', 'label' => 'View academic exam terms'],
+            ['name' => 'academic_exam_terms.create', 'label' => 'Create academic exam terms'],
+            ['name' => 'academic_exam_terms.update', 'label' => 'Update academic exam terms'],
+            ['name' => 'academic_exam_terms.delete', 'label' => 'Delete academic exam terms'],
+
+            ['name' => 'academic_grade_configures.view', 'label' => 'View the academic grade scale'],
+            ['name' => 'academic_grade_configures.create', 'label' => 'Create academic grade configuration'],
+            ['name' => 'academic_grade_configures.update', 'label' => 'Update academic grade configuration'],
+            ['name' => 'academic_grade_configures.delete', 'label' => 'Delete academic grade configuration'],
+
+            ['name' => 'academic_subject_mark_configures.view', 'label' => 'View subject mark configuration'],
+            ['name' => 'academic_subject_mark_configures.create', 'label' => 'Create subject mark configuration'],
+            ['name' => 'academic_subject_mark_configures.update', 'label' => 'Update subject mark configuration'],
+            ['name' => 'academic_subject_mark_configures.delete', 'label' => 'Delete subject mark configuration'],
         ];
 
         foreach ($permissions as $permission) {
