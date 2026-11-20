@@ -1952,3 +1952,162 @@ export function getMyAttendance(
     headers: authHeaders(token),
   })
 }
+
+// ---------- Academic exam terms ----------
+
+export interface AcademicExamTerm {
+  id: number
+  name: string
+  bn_name: string | null
+  sort_order: number
+  is_annual: boolean
+  is_active: boolean
+}
+
+export interface AcademicExamTermPayload {
+  name: string
+  bn_name?: string | null
+  sort_order?: number | null
+  is_annual?: boolean
+  is_active?: boolean
+}
+
+export function listAcademicExamTerms(
+  params: { page?: number; perPage?: number; activeOnly?: boolean } = {},
+): Promise<PaginatedResponse<AcademicExamTerm>> {
+  const query: Record<string, string | number | undefined> = {
+    page: params.page,
+    per_page: params.perPage,
+    active_only: params.activeOnly ? 'true' : undefined,
+  }
+
+  return apiFetch<PaginatedResponse<AcademicExamTerm>>(`/academic-exam-terms${buildQuery(query)}`)
+}
+
+export function createAcademicExamTerm(payload: AcademicExamTermPayload, token: string): Promise<{ data: AcademicExamTerm }> {
+  return createGeo<AcademicExamTerm, AcademicExamTermPayload>('academic-exam-terms', payload, token)
+}
+
+export function updateAcademicExamTerm(
+  id: number,
+  payload: Partial<AcademicExamTermPayload>,
+  token: string,
+): Promise<{ data: AcademicExamTerm }> {
+  return updateGeo<AcademicExamTerm, Partial<AcademicExamTermPayload>>('academic-exam-terms', id, payload, token)
+}
+
+export function deleteAcademicExamTerm(id: number, token: string): Promise<void> {
+  return deleteGeo('academic-exam-terms', id, token)
+}
+
+// ---------- Academic grade configures ----------
+
+export interface AcademicGradeConfigure {
+  id: number
+  min_percent: string
+  max_percent: string
+  grade_name: string
+  bn_grade_name: string | null
+  grade_point: string
+  sort_order: number
+  is_active: boolean
+}
+
+export interface AcademicGradeConfigurePayload {
+  min_percent: number
+  max_percent: number
+  grade_name: string
+  bn_grade_name?: string | null
+  grade_point: number
+  sort_order?: number | null
+  is_active?: boolean
+}
+
+export function listAcademicGradeConfigures(
+  params: { page?: number; perPage?: number; activeOnly?: boolean } = {},
+): Promise<PaginatedResponse<AcademicGradeConfigure>> {
+  const query: Record<string, string | number | undefined> = {
+    page: params.page,
+    per_page: params.perPage,
+    active_only: params.activeOnly ? 'true' : undefined,
+  }
+
+  return apiFetch<PaginatedResponse<AcademicGradeConfigure>>(`/academic-grade-configures${buildQuery(query)}`)
+}
+
+export function createAcademicGradeConfigure(
+  payload: AcademicGradeConfigurePayload,
+  token: string,
+): Promise<{ data: AcademicGradeConfigure }> {
+  return createGeo<AcademicGradeConfigure, AcademicGradeConfigurePayload>('academic-grade-configures', payload, token)
+}
+
+export function updateAcademicGradeConfigure(
+  id: number,
+  payload: Partial<AcademicGradeConfigurePayload>,
+  token: string,
+): Promise<{ data: AcademicGradeConfigure }> {
+  return updateGeo<AcademicGradeConfigure, Partial<AcademicGradeConfigurePayload>>('academic-grade-configures', id, payload, token)
+}
+
+export function deleteAcademicGradeConfigure(id: number, token: string): Promise<void> {
+  return deleteGeo('academic-grade-configures', id, token)
+}
+
+// ---------- Academic subject mark configures ----------
+
+export interface AcademicSubjectMarkConfigure {
+  id: number
+  class_id: number
+  subject_id: number
+  cq_full_marks: number | null
+  mcq_full_marks: number | null
+  practical_full_marks: number | null
+  class?: SchoolClass | null
+  subject?: Subject | null
+}
+
+export interface AcademicSubjectMarkConfigurePayload {
+  class_id: number
+  subject_id: number
+  cq_full_marks?: number | null
+  mcq_full_marks?: number | null
+  practical_full_marks?: number | null
+}
+
+export function listAcademicSubjectMarkConfigures(
+  params: { page?: number; perPage?: number; classId?: number; subjectId?: number } = {},
+): Promise<PaginatedResponse<AcademicSubjectMarkConfigure>> {
+  const query: Record<string, string | number | undefined> = {
+    page: params.page,
+    per_page: params.perPage,
+    class_id: params.classId,
+    subject_id: params.subjectId,
+  }
+
+  return apiFetch<PaginatedResponse<AcademicSubjectMarkConfigure>>(`/academic-subject-mark-configures${buildQuery(query)}`)
+}
+
+export function createAcademicSubjectMarkConfigure(
+  payload: AcademicSubjectMarkConfigurePayload,
+  token: string,
+): Promise<{ data: AcademicSubjectMarkConfigure }> {
+  return createGeo<AcademicSubjectMarkConfigure, AcademicSubjectMarkConfigurePayload>('academic-subject-mark-configures', payload, token)
+}
+
+export function updateAcademicSubjectMarkConfigure(
+  id: number,
+  payload: Partial<AcademicSubjectMarkConfigurePayload>,
+  token: string,
+): Promise<{ data: AcademicSubjectMarkConfigure }> {
+  return updateGeo<AcademicSubjectMarkConfigure, Partial<AcademicSubjectMarkConfigurePayload>>(
+    'academic-subject-mark-configures',
+    id,
+    payload,
+    token,
+  )
+}
+
+export function deleteAcademicSubjectMarkConfigure(id: number, token: string): Promise<void> {
+  return deleteGeo('academic-subject-mark-configures', id, token)
+}
