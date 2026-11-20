@@ -107,6 +107,30 @@ class AcademicGradeConfigureControllerTest extends TestCase
         ])->assertUnprocessable()->assertJsonValidationErrors('min_percent');
     }
 
+    public function test_update_with_only_max_percent_valid_against_stored_min_succeeds(): void
+    {
+        $grade = AcademicGradeConfigure::create(['min_percent' => 80, 'max_percent' => 100, 'grade_name' => 'A+', 'grade_point' => 5.00]);
+        $user = $this->actorWithPermissions(['academic_grade_configures.update']);
+
+        // Regression test: PATCH with only max_percent should not fail with gte:min_percent
+        // when the submitted max_percent is valid against the stored min_percent (80)
+        $this->actingAs($user, 'sanctum')->patchJson("/api/v1/academic-grade-configures/{$grade->id}", [
+            'max_percent' => 95,
+        ])->assertOk()->assertJsonPath('data.max_percent', '95.00');
+    }
+
+    public function test_update_with_only_min_percent_inverted_against_stored_max_rejected(): void
+    {
+        $grade = AcademicGradeConfigure::create(['min_percent' => 60, 'max_percent' => 70, 'grade_name' => 'B', 'grade_point' => 3.00]);
+        $user = $this->actorWithPermissions(['academic_grade_configures.update']);
+
+        // Regression test: PATCH with only min_percent set higher than stored max_percent
+        // should be rejected with validation error on max_percent (data-integrity protection)
+        $this->actingAs($user, 'sanctum')->patchJson("/api/v1/academic-grade-configures/{$grade->id}", [
+            'min_percent' => 75,
+        ])->assertUnprocessable()->assertJsonValidationErrors('max_percent');
+    }
+
     public function test_destroy_requires_permission(): void
     {
         $grade = AcademicGradeConfigure::create(['min_percent' => 80, 'max_percent' => 100, 'grade_name' => 'A+', 'grade_point' => 5.00]);
