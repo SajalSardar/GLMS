@@ -1821,9 +1821,17 @@ export type AttendanceStatus = 'present' | 'absent' | 'leave'
 export interface AttendanceSection {
   id: number
   name: string
+  // IDs alongside the display labels — used to group this flat list into
+  // cascading Academic Year -> Class -> Class Version -> Shift -> Section
+  // filters (see the teacher portal's Attendance List/Monthly Report
+  // pages) without a second endpoint.
+  class_id: number | null
   class_name: string | null
+  class_version_id: number | null
   class_version: string | null
+  shift_id: number | null
   shift: string | null
+  academic_year_id: number | null
   academic_year: string | null
   // Only the section's own class teacher gets true — every other teacher
   // holding a SubjectTeacherAssignment there is view-only (see

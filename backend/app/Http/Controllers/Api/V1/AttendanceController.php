@@ -43,9 +43,19 @@ class AttendanceController extends Controller
             'data' => $sections->map(fn (Section $section) => [
                 'id' => $section->id,
                 'name' => $section->bn_name ?? $section->name,
+                // IDs alongside the display labels — the teacher portal's
+                // Attendance List/Monthly Report filters group this flat
+                // list into cascading Academic Year -> Class -> Class
+                // Version -> Shift -> Section dropdowns entirely
+                // client-side (a teacher's own section count is small
+                // enough that a second endpoint isn't worth it).
+                'class_id' => $section->shift?->classVersion?->class_id,
                 'class_name' => $section->shift?->classVersion?->schoolClass?->name,
+                'class_version_id' => $section->shift?->class_version_id,
                 'class_version' => $section->shift?->classVersion?->name,
+                'shift_id' => $section->shift_id,
                 'shift' => $section->shift?->name,
+                'academic_year_id' => $section->shift?->academic_year_id,
                 'academic_year' => $section->shift?->academicYear?->name,
                 'can_record' => $section->class_teacher_id === $teacher->id,
             ])->values(),

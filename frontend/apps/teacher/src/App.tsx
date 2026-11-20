@@ -26,7 +26,15 @@ function App() {
           <Route element={<RequireAuth />}>
             <Route element={<TeacherAppShell />}>
               <Route path="dashboard" element={<DashboardHomePage />} />
-              <Route path="attendance" element={<AttendancePage />} />
+              {/* "attendance" itself redirects rather than rendering Take
+                  Attendance directly — none of the three paths below may be
+                  a literal prefix of another, or the shared Sidebar's child
+                  links (which don't take `end`) would show more than one
+                  submenu item active at once. */}
+              <Route path="attendance" element={<Navigate to="/attendance/take" replace />} />
+              <Route path="attendance/take" element={<AttendancePage tab="take" />} />
+              <Route path="attendance/list" element={<AttendancePage tab="list" />} />
+              <Route path="attendance/report" element={<AttendancePage tab="report" />} />
               <Route path="leave-applications" element={<LeaveApplicationsPage />} />
               <Route path="holidays" element={<HolidaysPage />} />
             </Route>

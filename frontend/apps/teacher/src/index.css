@@ -4,26 +4,30 @@
 @theme {
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
 
-  --color-primary-50: #ecf0ff;
-  --color-primary-100: #dde4ff;
-  --color-primary-200: #c2cdff;
-  --color-primary-300: #9caaff;
-  --color-primary-400: #757dff;
-  --color-primary-500: #605dff;
-  --color-primary-600: #4936f5;
-  --color-primary-700: #3e2ad8;
-  --color-primary-800: #3225ae;
+  /* Matches the management portal's palette (government seal's green/red)
+     so every portal reads as one platform. */
+  --color-primary-50: #e8f3ec;
+  --color-primary-100: #cde7d7;
+  --color-primary-200: #9fd0b1;
+  --color-primary-300: #6cb787;
+  --color-primary-400: #2f9c60;
+  --color-primary-500: #046a38;
+  --color-primary-600: #035c30;
+  --color-primary-700: #034d29;
+  --color-primary-800: #023620;
 
   --color-success-50: #eeffe5;
   --color-success-100: #d8ffc8;
   --color-success-500: #37d80a;
   --color-success-600: #25b003;
 
-  --color-danger-50: #fff2f0;
-  --color-danger-100: #ffe1dd;
-  --color-danger-400: #ff6d57;
-  --color-danger-500: #ff4023;
-  --color-danger-600: #ec1f00;
+  --color-danger-50: #fde9ea;
+  --color-danger-100: #fbd0d3;
+  --color-danger-200: #f7a3a9;
+  --color-danger-400: #f44f59;
+  --color-danger-500: #f42a41;
+  --color-danger-600: #d81f35;
+  --color-danger-700: #b8182b;
 
   --color-warning-50: #fff8e1;
   --color-warning-500: #ffc107;
@@ -31,6 +35,11 @@
 
 :root {
   color-scheme: light;
+
+  /* Sidebar hover state uses the logo's red, distinct from the green
+     primary/active color — see packages/ui Sidebar.tsx. */
+  --sidebar-hover-bg: var(--color-danger-50);
+  --sidebar-hover-text: var(--color-danger-500);
 }
 
 body {
