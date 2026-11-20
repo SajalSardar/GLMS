@@ -1,17 +1,31 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
-import { AppShell } from '@ttla/ui'
-import { AuthProvider } from '@ttla/auth'
-import DashboardPlaceholder from './pages/DashboardPlaceholder'
+import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom'
+import { AuthProvider, useAuth } from '@ttla/auth'
+import TeacherAppShell from './components/TeacherAppShell'
+import TeacherLogin from './pages/TeacherLogin'
+import DashboardHomePage from './pages/DashboardHomePage'
+import LeaveApplicationsPage from './pages/LeaveApplicationsPage'
 
-const navItems = [{ to: '/', label: 'Dashboard', icon: 'dashboard' }]
+function LoginRoute() {
+  const { token } = useAuth()
+  return token ? <Navigate to="/dashboard" replace /> : <TeacherLogin />
+}
+
+function RequireAuth() {
+  const { token } = useAuth()
+  return token ? <Outlet /> : <Navigate to="/" replace />
+}
 
 function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<AppShell title="Teacher Portal" navItems={navItems} />}>
-            <Route index element={<DashboardPlaceholder />} />
+          <Route path="/" element={<LoginRoute />} />
+          <Route element={<RequireAuth />}>
+            <Route element={<TeacherAppShell />}>
+              <Route path="dashboard" element={<DashboardHomePage />} />
+              <Route path="leave-applications" element={<LeaveApplicationsPage />} />
+            </Route>
           </Route>
         </Routes>
       </BrowserRouter>

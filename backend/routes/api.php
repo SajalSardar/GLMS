@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\V1\RoleController;
 use App\Http\Controllers\Api\V1\SchoolController;
 use App\Http\Controllers\Api\V1\SectionController;
 use App\Http\Controllers\Api\V1\ShiftController;
+use App\Http\Controllers\Api\V1\StudentLeaveApplicationController;
 use App\Http\Controllers\Api\V1\StudentProfileController;
 use App\Http\Controllers\Api\V1\StudentUserController;
 use App\Http\Controllers\Api\V1\SubjectController;
@@ -176,6 +177,15 @@ Route::prefix('v1')->group(function (): void {
         Route::delete('/student-profiles/{student_profile}/guardians/{guardian}', [StudentProfileController::class, 'detachGuardian']);
         Route::post('/student-profiles/{student_profile}/transfer-section', [StudentProfileController::class, 'transferSection']);
         Route::get('/student-profiles/{student_profile}/dashboard', [StudentProfileController::class, 'dashboard']);
+
+        Route::post('/student-leave-applications', [StudentLeaveApplicationController::class, 'store']);
+        // Must be registered before the {student_leave_application}
+        // wildcard show route below, or "mine" would be matched as an
+        // application ID — same gotcha as chapter-materials/mine.
+        Route::get('/student-leave-applications/mine', [StudentLeaveApplicationController::class, 'mine']);
+        Route::get('/student-leave-applications', [StudentLeaveApplicationController::class, 'index']);
+        Route::get('/student-leave-applications/{student_leave_application}', [StudentLeaveApplicationController::class, 'show']);
+        Route::patch('/student-leave-applications/{student_leave_application}/review', [StudentLeaveApplicationController::class, 'review']);
 
         Route::apiResource('guardians', GuardianController::class);
     });

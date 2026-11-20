@@ -31,7 +31,7 @@ class RolePermissionSeeder extends Seeder
                 'classrooms.view', 'class_routines.view',
                 'class_versions.view', 'shifts.view', 'sections.view',
                 'subject_teacher_assignments.view', 'timetable_entries.view',
-                'teacher_profiles.view', 'student_profiles.view',
+                'teacher_profiles.view', 'student_profiles.view', 'student_leave_applications.view',
             ],
 
             'school_admin' => [
@@ -54,6 +54,7 @@ class RolePermissionSeeder extends Seeder
                 'users.view', 'users.create', 'users.update',
                 'teacher_profiles.view', 'teacher_profiles.create', 'teacher_profiles.update', 'teacher_profiles.delete',
                 'student_profiles.view', 'student_profiles.create', 'student_profiles.update', 'student_profiles.delete',
+                'student_leave_applications.view', 'student_leave_applications.update',
                 'guardians.view', 'guardians.create', 'guardians.update', 'guardians.delete',
             ],
 
@@ -65,6 +66,12 @@ class RolePermissionSeeder extends Seeder
                 'questions.view',
                 'exams.view', 'exams.create', 'exams.update', 'exam_attempts.view', 'student_progress.view',
                 'teacher_profiles.view', 'student_profiles.view',
+                // Reviewing a leave application is additionally gated to
+                // the class teacher of that student's own section (see
+                // StudentLeaveApplicationPolicy::review()) — this
+                // permission alone only lets a teacher actor reach the
+                // endpoint, not review anyone's application.
+                'student_leave_applications.view', 'student_leave_applications.update',
             ],
 
             'student' => [
@@ -93,7 +100,7 @@ class RolePermissionSeeder extends Seeder
                 'classes.view', 'subjects.view', 'chapter_videos.view', 'chapter_materials.view', 'books.view', 'chapters.view', 'questions.view', 'academic_years.view',
                 'classrooms.view', 'class_routines.view',
                 'class_versions.view', 'shifts.view', 'sections.view', 'subject_teacher_assignments.view',
-                'teacher_profiles.view', 'student_profiles.view',
+                'teacher_profiles.view', 'student_profiles.view', 'student_leave_applications.view',
                 'guardians.view', 'guardians.create', 'guardians.update',
             ],
 
@@ -118,7 +125,7 @@ class RolePermissionSeeder extends Seeder
                 'class_versions.view', 'shifts.view', 'sections.view',
                 'subject_teacher_assignments.view', 'timetable_entries.view',
                 'users.view', 'roles.view', 'permissions.view',
-                'teacher_profiles.view', 'student_profiles.view', 'guardians.view',
+                'teacher_profiles.view', 'student_profiles.view', 'student_leave_applications.view', 'guardians.view',
             ],
         ];
 

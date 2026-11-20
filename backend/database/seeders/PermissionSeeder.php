@@ -109,6 +109,15 @@ class PermissionSeeder extends Seeder
             ['name' => 'student_profiles.update', 'label' => 'Update student profiles'],
             ['name' => 'student_profiles.delete', 'label' => 'Delete student profiles'],
 
+            // A student submits their own leave application outside this
+            // permission system entirely (StoreStudentLeaveApplicationRequest
+            // just checks the actor is a StudentUser, same as how
+            // chapter-materials/mine and exam attempt creation bypass
+            // Role/Permission) — these two only gate a staff/teacher
+            // actor's ability to review other students' applications.
+            ['name' => 'student_leave_applications.view', 'label' => 'View student leave applications'],
+            ['name' => 'student_leave_applications.update', 'label' => 'Review student leave applications'],
+
             ['name' => 'guardians.view', 'label' => 'View guardians'],
             ['name' => 'guardians.create', 'label' => 'Create guardians'],
             ['name' => 'guardians.update', 'label' => 'Update guardians'],

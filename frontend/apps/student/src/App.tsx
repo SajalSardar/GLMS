@@ -17,6 +17,7 @@ import DashboardHomePage from './pages/dashboard/DashboardHomePage'
 import DashboardClassMaterialsPage from './pages/dashboard/ClassMaterialsPage'
 import DashboardClassExamsPage from './pages/dashboard/ClassExamsPage'
 import DashboardClassRoutinePage from './pages/dashboard/ClassRoutinePage'
+import DashboardLeaveApplicationPage from './pages/dashboard/LeaveApplicationPage'
 import DashboardBooksPage from './pages/dashboard/BooksPage'
 import DashboardVideoLecturePage from './pages/dashboard/VideoLecturePage'
 import DashboardExamsPage from './pages/dashboard/ExamsPage'
@@ -75,6 +76,7 @@ function App() {
                 <Route path="class-materials" element={<DashboardClassMaterialsPage />} />
                 <Route path="class-routine" element={<DashboardClassRoutinePage />} />
                 <Route path="class-exams" element={<DashboardClassExamsPage />} />
+                <Route path="leave-application" element={<DashboardLeaveApplicationPage />} />
               </Route>
               <Route path="books" element={<BooksRoute />} />
               <Route path="books/:id" element={<BookDetailPage />} />

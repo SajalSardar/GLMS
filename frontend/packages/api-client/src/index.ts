@@ -69,7 +69,7 @@ export interface PortalLoginResponse {
 }
 
 function portalLogin(
-  portal: 'student' | 'management',
+  portal: 'student' | 'management' | 'teacher',
   login: string,
   password: string,
   deviceName?: string,
@@ -95,6 +95,14 @@ export function managementLogin(
   deviceName?: string,
 ): Promise<PortalLoginResponse> {
   return portalLogin('management', login, password, deviceName)
+}
+
+export function teacherLogin(
+  login: string,
+  password: string,
+  deviceName?: string,
+): Promise<PortalLoginResponse> {
+  return portalLogin('teacher', login, password, deviceName)
 }
 
 // Revokes the token server-side (AuthController::logout() deletes the
@@ -1637,5 +1645,96 @@ export interface StudentDashboard {
 export function getStudentDashboard(studentProfileId: number, token: string): Promise<{ data: StudentDashboard }> {
   return apiFetch<{ data: StudentDashboard }>(`/student-profiles/${studentProfileId}/dashboard`, {
     headers: authHeaders(token),
+  })
+}
+
+// ---------- Student leave applications ----------
+
+export type StudentLeaveApplicationStatus = 'pending' | 'approved' | 'rejected'
+
+export interface StudentLeaveApplication {
+  id: number
+  student_profile_id: number
+  school_id: number
+  district_id: number
+  class_id: number
+  section_id: number
+  shift_id: number
+  class_version_id: number
+  academic_year_id: number | null
+  from_date: string
+  to_date: string
+  reason: string
+  status: StudentLeaveApplicationStatus
+  teacher_comment: string | null
+  reviewed_by_id: number | null
+  reviewed_at: string | null
+  created_at: string
+  student_profile?: StudentProfile | null
+  class?: SchoolClass | null
+  section?: Section | null
+  shift?: Shift | null
+  class_version?: ClassVersion | null
+  academic_year?: AcademicYear | null
+  reviewed_by?: { id: number; name: string } | null
+  // Set server-side from StudentLeaveApplicationPolicy::review() — true
+  // only for the section's own class teacher (or a staff actor with the
+  // .update permission), never derived client-side.
+  can_review: boolean
+}
+
+// A student submits their own leave application — scoped server-side to
+// their exact school/district/class/section/shift/class_version (see
+// StudentLeaveApplicationController::store()); the student never picks
+// these themselves.
+export function createLeaveApplication(
+  payload: { from_date: string; to_date: string; reason: string },
+  token: string,
+): Promise<{ data: StudentLeaveApplication }> {
+  return apiFetch<{ data: StudentLeaveApplication }>('/student-leave-applications', {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  })
+}
+
+// This student's own leave applications, most recent first.
+export function listMyLeaveApplications(token: string): Promise<{ data: StudentLeaveApplication[] }> {
+  return apiFetch<{ data: StudentLeaveApplication[] }>('/student-leave-applications/mine', {
+    headers: authHeaders(token),
+  })
+}
+
+// Staff/teacher listing — any actor with student_leave_applications.view
+// sees every application in their own school (TenantScope); each row's
+// `can_review` says whether this actor may act on that specific one.
+export function listLeaveApplications(
+  params: { status?: StudentLeaveApplicationStatus; sectionId?: number } = {},
+  token: string,
+): Promise<{ data: StudentLeaveApplication[] }> {
+  const query = buildQuery({ status: params.status, section_id: params.sectionId })
+
+  return apiFetch<{ data: StudentLeaveApplication[] }>(`/student-leave-applications${query}`, {
+    headers: authHeaders(token),
+  })
+}
+
+export function getLeaveApplication(id: number, token: string): Promise<{ data: StudentLeaveApplication }> {
+  return apiFetch<{ data: StudentLeaveApplication }>(`/student-leave-applications/${id}`, {
+    headers: authHeaders(token),
+  })
+}
+
+// Approve or reject, with an optional comment — only valid for a row
+// whose `can_review` came back true.
+export function reviewLeaveApplication(
+  id: number,
+  payload: { status: 'approved' | 'rejected'; teacher_comment?: string | null },
+  token: string,
+): Promise<{ data: StudentLeaveApplication }> {
+  return apiFetch<{ data: StudentLeaveApplication }>(`/student-leave-applications/${id}/review`, {
+    method: 'PATCH',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
   })
 }
