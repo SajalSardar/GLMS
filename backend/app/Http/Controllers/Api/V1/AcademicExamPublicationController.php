@@ -9,6 +9,7 @@ use App\Models\AcademicExamPublication;
 use App\Models\AcademicSubjectMarkConfigure;
 use App\Models\Section;
 use App\Models\StudentProfile;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -73,13 +74,23 @@ class AcademicExamPublicationController extends Controller
         $yearId = $request->integer('academic_year_id');
 
         if (! AcademicExamPublication::isPublished($section->id, $termId, $yearId)) {
-            AcademicExamPublication::create([
-                'section_id' => $section->id,
-                'academic_exam_term_id' => $termId,
-                'academic_year_id' => $yearId,
-                'school_id' => $section->school_id,
-                'district_id' => $section->district_id,
-            ]);
+            try {
+                AcademicExamPublication::create([
+                    'section_id' => $section->id,
+                    'academic_exam_term_id' => $termId,
+                    'academic_year_id' => $yearId,
+                    'school_id' => $section->school_id,
+                    'district_id' => $section->district_id,
+                ]);
+            } catch (QueryException $exception) {
+                // Lost the race to a concurrent publish for the exact same
+                // (section, term, year) — the unique index already prevented
+                // a duplicate row; treat this exactly like the
+                // already-published branch above, not an error.
+                if ($exception->getCode() !== '23000') {
+                    throw $exception;
+                }
+            }
         }
 
         return response()->json([
