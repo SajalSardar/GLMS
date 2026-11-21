@@ -808,7 +808,7 @@ class StoreStudentPromotionRequest extends FormRequest
             'to_section_id' => ['required', 'integer', 'exists:sections,id'],
             'override_capacity' => ['sometimes', 'boolean'],
             'records' => ['required', 'array', 'min:1'],
-            'records.*.student_profile_id' => ['required', 'integer'],
+            'records.*.student_profile_id' => ['required', 'integer', 'distinct'],
             'records.*.promote' => ['required', 'boolean'],
         ];
     }
@@ -1109,7 +1109,7 @@ Expected: Pint `{"result":"passed"}`; full suite fully green (no regressions).
 - [ ] **Step 12: Commit**
 
 ```bash
-cd backend && git add app/Models/StudentClassPromotion.php app/Policies/StudentClassPromotionPolicy.php app/Http/Requests/Api/V1/StoreStudentPromotionRequest.php app/Http/Controllers/Api/V1/StudentPromotionController.php database/migrations tests/Feature/StudentPromotionControllerTest.php routes/api.php
+cd backend && git add app/Models/StudentClassPromotion.php app/Policies/StudentClassPromotionPolicy.php app/Http/Requests/Api/V1/StoreStudentPromotionRequest.php app/Http/Requests/Api/V1/PreviewStudentPromotionRequest.php app/Http/Controllers/Api/V1/StudentPromotionController.php database/migrations tests/Feature/StudentPromotionControllerTest.php routes/api.php
 git commit -m "Add student_class_promotions: bulk promotion with per-student override"
 ```
 
