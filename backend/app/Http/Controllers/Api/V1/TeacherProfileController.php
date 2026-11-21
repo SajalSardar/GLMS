@@ -51,10 +51,10 @@ class TeacherProfileController extends Controller
      * Store a newly created resource in storage.
      *
      * school_id/district_id are derived from the target user, never
-     * trusted from client input. A soft-deleted profile for the same user
-     * is restored and updated in place, rather than attempting a second
-     * insert that would collide with the still-present unique index on a
-     * trashed row.
+     * trusted from client input. A soft-deleted profile matching the same
+     * user_id, employee_id, or nid_number is restored and updated in
+     * place, rather than attempting a second insert that would collide
+     * with the still-present unique index on a trashed row.
      */
     public function store(StoreTeacherProfileRequest $request): JsonResponse
     {
@@ -77,6 +77,21 @@ class TeacherProfileController extends Controller
         ];
 
         $profile = TeacherProfile::onlyTrashed()->where('user_id', $targetUser->id)->first();
+
+        // employee_id and nid_number each carry their own unique index, and
+        // their validation rules are withoutTrashed() (trusting this
+        // restore-check to catch a trashed collision) — so a submission
+        // that doesn't match an old profile by user_id may still collide
+        // with a trashed row on one of these. $attributes below is always
+        // the full submitted payload, so restoring and overwriting here
+        // leaves no stale field from whoever the row used to belong to.
+        if ($profile === null && ($attributes['employee_id'] ?? null) !== null) {
+            $profile = TeacherProfile::onlyTrashed()->where('employee_id', $attributes['employee_id'])->first();
+        }
+
+        if ($profile === null && ($attributes['nid_number'] ?? null) !== null) {
+            $profile = TeacherProfile::onlyTrashed()->where('nid_number', $attributes['nid_number'])->first();
+        }
 
         if ($profile) {
             $profile->restore();
