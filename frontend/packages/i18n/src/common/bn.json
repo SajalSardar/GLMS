@@ -681,7 +681,7 @@
   "management.promoteStudents.resultFail": "অকৃতকার্য",
   "management.promoteStudents.resultNoMarks": "নম্বর নেই",
   "management.promoteStudents.actionPromote": "উত্তরণ",
-  "management.promoteStudents.actionRetain": "অবনমন",
+  "management.promoteStudents.actionRetain": "অপরিবর্তিত",
   "management.promoteStudents.overrideCapacity": "লক্ষ্য শাখার ধারণক্ষমতা অতিক্রম করার অনুমতি দিন",
   "management.promoteStudents.confirm": "উত্তরণ নিশ্চিত করুন",
   "management.promoteStudents.confirming": "নিশ্চিত করা হচ্ছে…",
