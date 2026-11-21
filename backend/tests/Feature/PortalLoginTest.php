@@ -214,6 +214,53 @@ class PortalLoginTest extends TestCase
         $this->assertIsString($response->json('token'));
     }
 
+    /**
+     * The generic endpoint's defining difference from the four portal
+     * ones: it has no role allowlist, on purpose. `trainer` is mapped to
+     * no portal in config/portals.php, yet holds a real permission grant
+     * (RolePermissionSeeder) and a seeded login-ready account
+     * (UserSeeder) — this endpoint is its only way in. Asserted
+     * explicitly so that narrowing /auth/login to a portal allowlist (a
+     * tempting-looking consistency fix) fails here instead of silently
+     * locking out trainer/office_staff/it_admin/auditor. See
+     * AuthController::login()'s docblock.
+     */
+    public function test_generic_login_accepts_a_role_mapped_to_no_portal(): void
+    {
+        $this->assertNotContains('trainer', array_merge(...array_values(config('portals'))));
+
+        $role = $this->roleNamed('trainer');
+        $user = User::factory()->create(['role_id' => $role->id, 'email' => 'trainer@example.test', 'password' => 'correct-password']);
+
+        $response = $this->postJson('/api/v1/auth/login', [
+            'login' => 'trainer@example.test',
+            'password' => 'correct-password',
+        ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('data.id', $user->id);
+        $this->assertIsString($response->json('token'));
+    }
+
+    /**
+     * The flip side: a portal-less role is still rejected by every portal
+     * endpoint, with the same generic message — the allowlist asymmetry
+     * is confined to /auth/login and is not a general weakening.
+     */
+    public function test_portal_logins_reject_a_role_mapped_to_no_portal(): void
+    {
+        $role = $this->roleNamed('auditor');
+        User::factory()->create(['role_id' => $role->id, 'email' => 'auditor@example.test', 'password' => 'correct-password']);
+
+        $response = $this->postJson('/api/v1/auth/management/login', [
+            'login' => 'auditor@example.test',
+            'password' => 'correct-password',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['login' => 'The provided credentials are incorrect.']);
+    }
+
     public function test_logout_revokes_the_token_used_to_authenticate_the_request(): void
     {
         $role = $this->roleNamed('national_admin');

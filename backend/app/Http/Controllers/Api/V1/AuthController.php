@@ -22,6 +22,36 @@ class AuthController extends Controller
 {
     /**
      * Authenticate the user and issue a new personal access token.
+     *
+     * Deliberately has no `config/portals.php` role allowlist, unlike the
+     * four portal-specific logins below — it is the portal-agnostic
+     * endpoint, retained for tooling/admin use and consumed by no portal
+     * frontend (`docs/ARCHITECTURE.md` "a generic, portal-agnostic
+     * POST /api/v1/auth/login also exists (any role, no allowlist)"; the
+     * design spec lists leaving it unrestricted twice, once as an
+     * explicit decision and once as out-of-scope). Three things make the
+     * asymmetry safe rather than a hole, and they are worth stating here
+     * because the shape invites exactly the opposite reading:
+     *
+     * 1. The boundary the four portal logins enforce — that a student
+     *    cannot authenticate at the teacher portal — cannot be crossed
+     *    here at all. This method resolves against `User`, whose table
+     *    holds only management/staff accounts; teacher, student and
+     *    guardian credentials live in `teacher_users`/`student_users`/
+     *    `guardian_users` and are unreachable from here.
+     * 2. The only roles reachable here that no portal accepts are
+     *    `trainer`, `office_staff`, `it_admin` and `auditor`. Each has a
+     *    real permission grant (RolePermissionSeeder) and a seeded
+     *    login-ready account (UserSeeder); this endpoint is their only
+     *    way in, so adding the allowlist would lock them out rather than
+     *    close anything.
+     * 3. A token issued here carries only its own role's permissions, and
+     *    every endpoint is Policy-gated on those — authenticating is not
+     *    itself an authorization.
+     *
+     * Retiring this endpoint once all portal frontends are confirmed to
+     * use their own is the documented future cleanup; narrowing it is
+     * not.
      */
     public function login(LoginRequest $request): JsonResponse
     {
