@@ -11,6 +11,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class GuardianController extends Controller
@@ -46,13 +47,15 @@ class GuardianController extends Controller
      * A soft-deleted guardian matching the same phone, nid_number, or
      * user_id is restored and updated in place, rather than attempting a
      * second insert that would collide with the still-present unique
-     * index on a trashed row.
+     * index on a trashed row. That restore writes the COMPLETE attribute
+     * set (see completeAttributes()), so the reused row keeps nothing of
+     * whoever it used to belong to.
      */
     public function store(StoreGuardianRequest $request): JsonResponse
     {
         $this->authorize('create', Guardian::class);
 
-        $data = $request->validated();
+        $data = $this->completeAttributes($request);
 
         $guardian = Guardian::onlyTrashed()->where('phone', $data['phone'])->first();
 
@@ -60,9 +63,7 @@ class GuardianController extends Controller
         // their validation rules are withoutTrashed() (trusting this
         // restore-check to catch a trashed collision) — so a submission
         // that doesn't match an old guardian by phone may still collide
-        // with a trashed row on one of these. $data below is always the
-        // full submitted payload, so restoring and overwriting here
-        // leaves no stale field from whoever the row used to belong to.
+        // with a trashed row on one of these.
         if ($guardian === null && ($data['nid_number'] ?? null) !== null) {
             $guardian = Guardian::onlyTrashed()->where('nid_number', $data['nid_number'])->first();
         }
@@ -74,8 +75,14 @@ class GuardianController extends Controller
         if ($guardian) {
             $this->guardAgainstConflictingRestore($guardian, $data);
 
-            $guardian->restore();
-            $guardian->update($data);
+            // restore() and update() are two separate writes: if the
+            // second one fails, an unwrapped pair would leave the row
+            // un-deleted — a request that returned 500 to the caller would
+            // have silently resurrected a deleted guardian.
+            DB::transaction(function () use ($guardian, $data) {
+                $guardian->restore();
+                $guardian->update($data);
+            });
         } else {
             $guardian = Guardian::create($data);
         }
@@ -83,6 +90,37 @@ class GuardianController extends Controller
         return (new GuardianResource($guardian))
             ->response()
             ->setStatusCode(Response::HTTP_CREATED);
+    }
+
+    /**
+     * Build the complete attribute set for this submission: every fillable
+     * column the request did not include is explicitly set to null.
+     *
+     * A restore-check match can land on a trashed guardian that is a
+     * COMPLETELY DIFFERENT person (it is matched by phone, nid_number or
+     * user_id — any one of them is enough). Updating such a row with just
+     * the submitted keys is a partial merge, not a replacement: every
+     * fillable column absent from the new submission silently keeps the
+     * previous owner's value. At its worst that includes user_id, so a
+     * brand-new guardian submitted with no user_id at all would come back
+     * still linked to the deleted guardian's login account — one person's
+     * account answering to another person's record — alongside the old
+     * email, nid_number and occupation. Restoring a trashed row found via
+     * ANY column match must therefore behave exactly like a fresh
+     * create() with complete, honest data, never a partial merge that can
+     * leak a previous, unrelated owner's PII onto a new identity.
+     *
+     * @return array<string, mixed>
+     */
+    private function completeAttributes(StoreGuardianRequest $request): array
+    {
+        $data = [];
+
+        foreach ((new Guardian)->getFillable() as $column) {
+            $data[$column] = $request->has($column) ? $request->validated($column) : null;
+        }
+
+        return $data;
     }
 
     /**
