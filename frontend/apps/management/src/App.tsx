@@ -15,6 +15,7 @@ import DistrictsPage from './pages/DistrictsPage'
 import DivisionsPage from './pages/DivisionsPage'
 import HolidaysPage from './pages/HolidaysPage'
 import ManagementLogin from './pages/ManagementLogin'
+import PublishResultsPage from './pages/PublishResultsPage'
 import SchoolDetailPage from './pages/SchoolDetailPage'
 import SchoolsPage from './pages/SchoolsPage'
 import SectionsPage from './pages/SectionsPage'
@@ -46,6 +47,11 @@ const studentsNavItem: SidebarItem = { to: '/dashboard/students', label: t['mana
 // same school_admin/national_admin pair as teachersNavItem/studentsNavItem
 // above, since recording itself stays in the teacher portal.
 const attendanceNavItem: SidebarItem = { to: '/dashboard/attendance', label: t['management.nav.attendance'], icon: 'fact_check' }
+
+// Same placement/visibility reasoning as attendanceNavItem above —
+// school_admin/national_admin only; recording stays in the teacher
+// portal, this page only reports status and fires the publish action.
+const publishResultsNavItem: SidebarItem = { to: '/dashboard/publish-results', label: t['management.nav.publishResults'], icon: 'campaign' }
 
 // The academic holiday calendar is national, not per-school — only a
 // national_admin may create/update/delete it (see HolidayPolicy), so
@@ -156,7 +162,7 @@ function DashboardLayout() {
 
   const navItems = [
     ...baseNavItems,
-    ...(role === 'national_admin' || role === 'school_admin' ? [teachersNavItem, studentsNavItem, attendanceNavItem] : []),
+    ...(role === 'national_admin' || role === 'school_admin' ? [teachersNavItem, studentsNavItem, attendanceNavItem, publishResultsNavItem] : []),
     ...(role === 'national_admin' ? [holidaysNavItem] : []),
     ...(role === 'national_admin' ? [systemSetupItem] : role === 'school_admin' ? schoolManagedNavItems : []),
   ]
@@ -196,6 +202,7 @@ function App() {
                 <Route path="sections" element={<SectionsPage />} />
                 <Route path="subject-teacher-assignments" element={<SubjectTeacherAssignmentsPage />} />
                 <Route path="attendance" element={<AttendanceReportPage />} />
+                <Route path="publish-results" element={<PublishResultsPage />} />
               </Route>
               <Route path="holidays" element={<RequireNationalAdmin />}>
                 <Route index element={<HolidaysPage />} />
