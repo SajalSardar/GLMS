@@ -45,6 +45,8 @@ class AcademicExamTermController extends Controller
      */
     public function store(StoreAcademicExamTermRequest $request): JsonResponse
     {
+        $this->authorize('create', AcademicExamTerm::class);
+
         $data = $request->validated();
         $data['is_annual'] = $request->boolean('is_annual');
         $data['is_active'] = $request->boolean('is_active', true);
@@ -61,6 +63,8 @@ class AcademicExamTermController extends Controller
      */
     public function update(UpdateAcademicExamTermRequest $request, AcademicExamTerm $academic_exam_term): AcademicExamTermResource
     {
+        $this->authorize('update', $academic_exam_term);
+
         $academic_exam_term->update($request->validated());
 
         return new AcademicExamTermResource($academic_exam_term);

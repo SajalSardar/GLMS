@@ -83,6 +83,8 @@ class StudentPromotionController extends Controller
      */
     public function store(StoreStudentPromotionRequest $request): JsonResponse
     {
+        $this->authorize('create', StudentClassPromotion::class);
+
         $section = Section::with('shift.classVersion')->findOrFail($request->integer('section_id'));
         $term = AcademicExamTerm::where('is_annual', true)->first();
 

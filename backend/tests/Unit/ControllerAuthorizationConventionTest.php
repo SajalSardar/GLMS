@@ -2,6 +2,10 @@
 
 namespace Tests\Unit;
 
+use App\Http\Controllers\Api\V1\AcademicExamPublicationController;
+use App\Http\Controllers\Api\V1\AcademicExamTermController;
+use App\Http\Controllers\Api\V1\AcademicGradeConfigureController;
+use App\Http\Controllers\Api\V1\AcademicSubjectMarkConfigureController;
 use App\Http\Controllers\Api\V1\AcademicYearController;
 use App\Http\Controllers\Api\V1\BookController;
 use App\Http\Controllers\Api\V1\ChapterController;
@@ -23,6 +27,7 @@ use App\Http\Controllers\Api\V1\SchoolController;
 use App\Http\Controllers\Api\V1\SectionController;
 use App\Http\Controllers\Api\V1\ShiftController;
 use App\Http\Controllers\Api\V1\StudentProfileController;
+use App\Http\Controllers\Api\V1\StudentPromotionController;
 use App\Http\Controllers\Api\V1\StudentUserController;
 use App\Http\Controllers\Api\V1\SubjectController;
 use App\Http\Controllers\Api\V1\SubjectTeacherAssignmentController;
@@ -70,6 +75,18 @@ class ControllerAuthorizationConventionTest extends TestCase
     public static function mutatingActions(): array
     {
         $actions = [
+            [AcademicExamPublicationController::class, 'store'],
+            [AcademicExamPublicationController::class, 'destroy'],
+
+            [AcademicExamTermController::class, 'store'],
+            [AcademicExamTermController::class, 'update'],
+
+            [AcademicGradeConfigureController::class, 'store'],
+            [AcademicGradeConfigureController::class, 'update'],
+
+            [AcademicSubjectMarkConfigureController::class, 'store'],
+            [AcademicSubjectMarkConfigureController::class, 'update'],
+
             [AcademicYearController::class, 'store'],
             [AcademicYearController::class, 'update'],
             [AcademicYearController::class, 'destroy'],
@@ -163,6 +180,8 @@ class ControllerAuthorizationConventionTest extends TestCase
             [StudentProfileController::class, 'attachGuardian'],
             [StudentProfileController::class, 'detachGuardian'],
             [StudentProfileController::class, 'transferSection'],
+
+            [StudentPromotionController::class, 'store'],
 
             [StudentUserController::class, 'store'],
             [StudentUserController::class, 'update'],

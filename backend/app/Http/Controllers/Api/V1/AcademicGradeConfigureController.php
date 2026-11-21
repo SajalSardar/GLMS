@@ -43,6 +43,8 @@ class AcademicGradeConfigureController extends Controller
      */
     public function store(StoreAcademicGradeConfigureRequest $request): JsonResponse
     {
+        $this->authorize('create', AcademicGradeConfigure::class);
+
         $data = $request->validated();
         $data['is_active'] = $request->boolean('is_active', true);
 
@@ -58,6 +60,8 @@ class AcademicGradeConfigureController extends Controller
      */
     public function update(UpdateAcademicGradeConfigureRequest $request, AcademicGradeConfigure $academic_grade_configure): AcademicGradeConfigureResource
     {
+        $this->authorize('update', $academic_grade_configure);
+
         $academic_grade_configure->update($request->validated());
 
         return new AcademicGradeConfigureResource($academic_grade_configure);
