@@ -80,12 +80,15 @@ class ControllerAuthorizationConventionTest extends TestCase
 
             [AcademicExamTermController::class, 'store'],
             [AcademicExamTermController::class, 'update'],
+            [AcademicExamTermController::class, 'destroy'],
 
             [AcademicGradeConfigureController::class, 'store'],
             [AcademicGradeConfigureController::class, 'update'],
+            [AcademicGradeConfigureController::class, 'destroy'],
 
             [AcademicSubjectMarkConfigureController::class, 'store'],
             [AcademicSubjectMarkConfigureController::class, 'update'],
+            [AcademicSubjectMarkConfigureController::class, 'destroy'],
 
             [AcademicYearController::class, 'store'],
             [AcademicYearController::class, 'update'],
