@@ -124,7 +124,11 @@ export default function ResultsPage() {
 
           {loadingMarksheet && <p className="mt-6 text-sm text-primary-600 print:hidden">{t['student.results.loading']}</p>}
 
-          {!loadingMarksheet && marksheet && (
+          {!loadingMarksheet && marksheet && marksheet.subjects.length === 0 && (
+            <p className="mt-6 text-sm text-primary-600 print:hidden">{t['student.results.noMarksRecorded']}</p>
+          )}
+
+          {!loadingMarksheet && marksheet && marksheet.subjects.length > 0 && (
             <div className="mt-4 rounded-md bg-white p-6 shadow-sm print:mt-0 print:rounded-none print:p-0 print:shadow-none">
               <div className="overflow-x-auto rounded-md border border-gray-100">
                 <table className="w-full min-w-[32rem] text-sm">

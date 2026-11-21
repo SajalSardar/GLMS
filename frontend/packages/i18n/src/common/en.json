@@ -191,6 +191,7 @@
   "student.results.sectionPosition": "Section Position",
   "student.results.classPosition": "Class Position",
   "student.results.positionNotAvailable": "Not available",
+  "student.results.noMarksRecorded": "No marks have been recorded for this exam term yet.",
 
   "student.videoLecture.title": "Video Lecture",
   "student.videoLecture.allClasses": "All classes",
@@ -827,5 +828,6 @@
   "teacher.marksheets.resultFail": "Fail",
   "teacher.marksheets.sectionPosition": "Section Position",
   "teacher.marksheets.classPosition": "Class Position",
-  "teacher.marksheets.positionNotAvailable": "Not available (not yet published)"
+  "teacher.marksheets.positionNotAvailable": "Not available (not yet published)",
+  "teacher.marksheets.noMarksRecorded": "No marks have been recorded for this exam term yet."
 }

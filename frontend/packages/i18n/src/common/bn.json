@@ -191,6 +191,7 @@
   "student.results.sectionPosition": "শাখা অবস্থান",
   "student.results.classPosition": "শ্রেণি অবস্থান",
   "student.results.positionNotAvailable": "উপলব্ধ নয়",
+  "student.results.noMarksRecorded": "এই পরীক্ষার মেয়াদের জন্য এখনও কোনো নম্বর রেকর্ড করা হয়নি।",
 
   "student.videoLecture.title": "ভিডিও লেকচার",
   "student.videoLecture.allClasses": "সকল শ্রেণি",
@@ -827,5 +828,6 @@
   "teacher.marksheets.resultFail": "অকৃতকার্য",
   "teacher.marksheets.sectionPosition": "শাখা অবস্থান",
   "teacher.marksheets.classPosition": "শ্রেণি অবস্থান",
-  "teacher.marksheets.positionNotAvailable": "উপলব্ধ নয় (এখনও প্রকাশিত হয়নি)"
+  "teacher.marksheets.positionNotAvailable": "উপলব্ধ নয় (এখনও প্রকাশিত হয়নি)",
+  "teacher.marksheets.noMarksRecorded": "এই পরীক্ষার মেয়াদের জন্য এখনও কোনো নম্বর রেকর্ড করা হয়নি।"
 }
