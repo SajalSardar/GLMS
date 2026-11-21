@@ -48,7 +48,20 @@ class AcademicSubjectMarkConfigureController extends Controller
      */
     public function store(StoreAcademicSubjectMarkConfigureRequest $request): JsonResponse
     {
-        $configure = AcademicSubjectMarkConfigure::create($request->validated());
+        $this->authorize('create', AcademicSubjectMarkConfigure::class);
+
+        $trashed = AcademicSubjectMarkConfigure::onlyTrashed()
+            ->where('class_id', $request->integer('class_id'))
+            ->where('subject_id', $request->integer('subject_id'))
+            ->first();
+
+        if ($trashed !== null) {
+            $trashed->restore();
+            $trashed->update($request->validated());
+            $configure = $trashed;
+        } else {
+            $configure = AcademicSubjectMarkConfigure::create($request->validated());
+        }
 
         return (new AcademicSubjectMarkConfigureResource($configure->load(self::WITH)))
             ->response()
@@ -60,6 +73,8 @@ class AcademicSubjectMarkConfigureController extends Controller
      */
     public function update(UpdateAcademicSubjectMarkConfigureRequest $request, AcademicSubjectMarkConfigure $academic_subject_mark_configure): AcademicSubjectMarkConfigureResource
     {
+        $this->authorize('update', $academic_subject_mark_configure);
+
         $academic_subject_mark_configure->update($request->validated());
 
         return new AcademicSubjectMarkConfigureResource($academic_subject_mark_configure->load(self::WITH));

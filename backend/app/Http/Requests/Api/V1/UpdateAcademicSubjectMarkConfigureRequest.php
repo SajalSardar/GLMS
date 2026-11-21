@@ -54,7 +54,8 @@ class UpdateAcademicSubjectMarkConfigureRequest extends FormRequest
             $classId = $this->input('class_id', $configure->class_id);
             $subjectId = $this->input('subject_id', $configure->subject_id);
 
-            $duplicate = AcademicSubjectMarkConfigure::where('class_id', $classId)
+            $duplicate = AcademicSubjectMarkConfigure::withTrashed()
+                ->where('class_id', $classId)
                 ->where('subject_id', $subjectId)
                 ->whereKeyNot($configure->id)
                 ->exists();

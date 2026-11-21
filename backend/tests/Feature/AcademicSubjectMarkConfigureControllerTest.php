@@ -89,6 +89,45 @@ class AcademicSubjectMarkConfigureControllerTest extends TestCase
         ])->assertUnprocessable()->assertJsonValidationErrors('subject_id');
     }
 
+    public function test_store_restores_a_soft_deleted_row_for_the_same_class_subject_pair(): void
+    {
+        $configure = AcademicSubjectMarkConfigure::create([
+            'class_id' => $this->class->id, 'subject_id' => $this->subject->id, 'cq_full_marks' => 70, 'mcq_full_marks' => 30,
+        ]);
+        $configure->delete();
+
+        $user = $this->actorWithPermissions(['academic_subject_mark_configures.create']);
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/academic-subject-mark-configures', [
+            'class_id' => $this->class->id, 'subject_id' => $this->subject->id, 'cq_full_marks' => 50, 'mcq_full_marks' => 50,
+        ])->assertCreated()
+            ->assertJsonPath('data.cq_full_marks', 50)
+            ->assertJsonPath('data.mcq_full_marks', 50);
+
+        $this->assertSame(1, AcademicSubjectMarkConfigure::withTrashed()
+            ->where('class_id', $this->class->id)
+            ->where('subject_id', $this->subject->id)
+            ->count());
+    }
+
+    public function test_update_rejects_a_pair_already_held_by_a_trashed_row(): void
+    {
+        $subjectB = Subject::create(['name' => 'English']);
+
+        $configureA = AcademicSubjectMarkConfigure::create(['class_id' => $this->class->id, 'subject_id' => $this->subject->id, 'cq_full_marks' => 70, 'mcq_full_marks' => 30]);
+        $configureB = AcademicSubjectMarkConfigure::create(['class_id' => $this->class->id, 'subject_id' => $subjectB->id, 'cq_full_marks' => 60, 'mcq_full_marks' => 40]);
+        $configureB->delete();
+
+        $user = $this->actorWithPermissions(['academic_subject_mark_configures.update']);
+
+        $this->actingAs($user, 'sanctum')->patchJson("/api/v1/academic-subject-mark-configures/{$configureA->id}", [
+            'subject_id' => $subjectB->id,
+        ])->assertUnprocessable()->assertJsonValidationErrors('class_id');
+
+        $this->assertSame(70, $configureA->refresh()->cq_full_marks);
+        $this->assertSame($this->subject->id, $configureA->subject_id);
+    }
+
     public function test_update_requires_permission(): void
     {
         $configure = AcademicSubjectMarkConfigure::create(['class_id' => $this->class->id, 'subject_id' => $this->subject->id, 'cq_full_marks' => 70, 'mcq_full_marks' => 30]);
