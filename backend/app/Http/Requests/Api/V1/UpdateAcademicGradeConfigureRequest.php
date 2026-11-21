@@ -82,32 +82,6 @@ class UpdateAcademicGradeConfigureRequest extends FormRequest
 
             if ($overlaps) {
                 $validator->errors()->add('min_percent', 'This range overlaps another active grade configuration.');
-
-                return;
-            }
-
-            $ranges = AcademicGradeConfigure::where('is_active', true)
-                ->whereKeyNot($configure->id)
-                ->get(['min_percent', 'max_percent'])
-                ->push((object) ['min_percent' => $min, 'max_percent' => $max])
-                ->map(fn ($row) => ['min' => (float) $row->min_percent, 'max' => (float) $row->max_percent])
-                ->sortBy('min')
-                ->values();
-
-            $leavesGap = $ranges->first()['min'] !== 0.0 || $ranges->last()['max'] !== 100.0;
-
-            if (! $leavesGap) {
-                for ($i = 0; $i < $ranges->count() - 1; $i++) {
-                    if (round($ranges[$i + 1]['min'] - $ranges[$i]['max'], 2) > 0.01) {
-                        $leavesGap = true;
-
-                        break;
-                    }
-                }
-            }
-
-            if ($leavesGap) {
-                $validator->errors()->add('min_percent', 'This range leaves a gap in grade coverage (0% to 100% must be fully covered with no gaps).');
             }
         });
     }
