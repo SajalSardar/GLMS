@@ -62,7 +62,7 @@
   ```
 - Consumes: `App\Models\AcademicExamMark`, `App\Models\AcademicSubjectMarkConfigure`, `App\Models\AcademicGradeConfigure::forPercent()`, `App\Models\AcademicExamPublication::isPublished()`, `App\Models\Section` (all from Phase 1/2, already committed) and `App\Models\StudentProfile` — no changes to any of them.
 
-- [ ] **Step 1: Write the failing unit test**
+- [x] **Step 1: Write the failing unit test**
 
 `backend/tests/Unit/MarksheetBuilderTest.php`:
 
@@ -311,7 +311,9 @@ class MarksheetBuilderTest extends TestCase
         $mine = $this->studentInSection('1', $this->section);
         $this->mark($mine, $subject, ['cq_marks_obtained' => 50]);
 
-        $otherSectionStudent = $this->studentInSection('1', $otherSection);
+        // Distinct roll_number — student_profiles has a unique(class_id, roll_number)
+        // constraint, and this student shares the same class_id as $mine.
+        $otherSectionStudent = $this->studentInSection('2', $otherSection);
         $this->mark($otherSectionStudent, $subject, ['cq_marks_obtained' => 95]);
 
         // Only MY section is published — the other section's student must not appear in my class-wide ranking.
@@ -328,7 +330,7 @@ class MarksheetBuilderTest extends TestCase
 }
 ```
 
-- [ ] **Step 2: Run the test to confirm it fails**
+- [x] **Step 2: Run the test to confirm it fails**
 
 ```bash
 cd backend && php artisan test --compact --filter=MarksheetBuilderTest
@@ -336,7 +338,7 @@ cd backend && php artisan test --compact --filter=MarksheetBuilderTest
 
 Expected: FAIL — `App\Support\MarksheetBuilder` doesn't exist yet.
 
-- [ ] **Step 3: Write the Support class**
+- [x] **Step 3: Write the Support class**
 
 `backend/app/Support/MarksheetBuilder.php`:
 
@@ -547,7 +549,7 @@ class MarksheetBuilder
 }
 ```
 
-- [ ] **Step 4: Run the test to confirm it passes**
+- [x] **Step 4: Run the test to confirm it passes**
 
 ```bash
 cd backend && php artisan test --compact --filter=MarksheetBuilderTest
@@ -555,7 +557,7 @@ cd backend && php artisan test --compact --filter=MarksheetBuilderTest
 
 Expected: all 9 tests green.
 
-- [ ] **Step 5: Run Pint and the full suite**
+- [x] **Step 5: Run Pint and the full suite**
 
 ```bash
 cd backend && vendor/bin/pint --dirty --format agent && php artisan test --compact
@@ -563,7 +565,7 @@ cd backend && vendor/bin/pint --dirty --format agent && php artisan test --compa
 
 Expected: Pint `{"result":"passed"}`; full suite fully green (no regressions).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 cd backend && git add app/Support/MarksheetBuilder.php tests/Unit/MarksheetBuilderTest.php
@@ -584,7 +586,7 @@ git commit -m "Add MarksheetBuilder: grade/GPA/pass/position computation"
 - Produces: `AcademicExamMarkPolicy::viewMarksheet(Authenticatable $user, Section $section): bool` — a new, broader (whole-section, not per-subject) ability. Routes (`auth:sanctum`): `GET /api/v1/academic-exam-marks/marksheet`, `GET /api/v1/academic-exam-marks/section-students`.
 - Consumes: `App\Support\MarksheetBuilder::build()` (Task 1, same plan), `App\Models\AcademicExamMark`/`Section`/`StudentProfile`/`SubjectTeacherAssignment`/`TeacherUser` (Phase 1/2, already committed).
 
-- [ ] **Step 1: Write the failing feature tests**
+- [x] **Step 1: Write the failing feature tests**
 
 Append to `backend/tests/Feature/AcademicExamMarkControllerTest.php` (inside the existing `AcademicExamMarkControllerTest` class, after the last existing test method, before the closing `}`):
 
@@ -674,7 +676,7 @@ Append to `backend/tests/Feature/AcademicExamMarkControllerTest.php` (inside the
     }
 ```
 
-- [ ] **Step 2: Run the tests to confirm they fail**
+- [x] **Step 2: Run the tests to confirm they fail**
 
 ```bash
 cd backend && php artisan test --compact --filter=AcademicExamMarkControllerTest
@@ -682,7 +684,7 @@ cd backend && php artisan test --compact --filter=AcademicExamMarkControllerTest
 
 Expected: the 6 new tests FAIL (route/policy method/controller actions don't exist yet); the 16 pre-existing tests still PASS.
 
-- [ ] **Step 3: Add the policy method**
+- [x] **Step 3: Add the policy method**
 
 In `backend/app/Policies/AcademicExamMarkPolicy.php`, add this method to the `AcademicExamMarkPolicy` class, after `recordSection()`:
 
@@ -706,7 +708,7 @@ In `backend/app/Policies/AcademicExamMarkPolicy.php`, add this method to the `Ac
     }
 ```
 
-- [ ] **Step 4: Add the controller actions**
+- [x] **Step 4: Add the controller actions**
 
 In `backend/app/Http/Controllers/Api/V1/AcademicExamMarkController.php`:
 
@@ -774,7 +776,7 @@ Add these two methods, after `record()`:
     }
 ```
 
-- [ ] **Step 5: Register the routes**
+- [x] **Step 5: Register the routes**
 
 In `backend/routes/api.php`, add to the `auth:sanctum` block, right after the three existing `/academic-exam-marks/*` lines from Phase 2:
 
@@ -783,7 +785,7 @@ Route::get('/academic-exam-marks/marksheet', [AcademicExamMarkController::class,
 Route::get('/academic-exam-marks/section-students', [AcademicExamMarkController::class, 'sectionStudents']);
 ```
 
-- [ ] **Step 6: Run the tests to confirm they pass**
+- [x] **Step 6: Run the tests to confirm they pass**
 
 ```bash
 cd backend && php artisan test --compact --filter=AcademicExamMarkControllerTest
@@ -791,7 +793,7 @@ cd backend && php artisan test --compact --filter=AcademicExamMarkControllerTest
 
 Expected: all 22 tests green (16 pre-existing + 6 new).
 
-- [ ] **Step 7: Run Pint and the full suite**
+- [x] **Step 7: Run Pint and the full suite**
 
 ```bash
 cd backend && vendor/bin/pint --dirty --format agent && php artisan test --compact
@@ -799,7 +801,7 @@ cd backend && vendor/bin/pint --dirty --format agent && php artisan test --compa
 
 Expected: both green.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 cd backend && git add app/Policies/AcademicExamMarkPolicy.php app/Http/Controllers/Api/V1/AcademicExamMarkController.php tests/Feature/AcademicExamMarkControllerTest.php routes/api.php
@@ -819,7 +821,7 @@ git commit -m "Add teacher/staff marksheet lookup and section-students listing"
 - Produces: Routes (`auth:sanctum`): `GET /api/v1/academic-exam-marks/mine/terms`, `GET /api/v1/academic-exam-marks/mine`.
 - Consumes: `App\Support\MarksheetBuilder::build()` (Task 1), `App\Models\StudentUser`/`AcademicExamTerm`/`AcademicYear`/`AcademicExamPublication` — no changes to any of them. The constructor-injected `$this->marksheetBuilder` added in Task 2 is reused here, not re-added.
 
-- [ ] **Step 1: Write the failing feature test**
+- [x] **Step 1: Write the failing feature test**
 
 `backend/tests/Feature/AcademicExamMarkMineControllerTest.php`:
 
@@ -925,6 +927,25 @@ class AcademicExamMarkMineControllerTest extends TestCase
             'school_id' => $this->school->id,
             'district_id' => $this->school->district_id,
         ]);
+
+        // Marks exist for the unpublished term too, but deliberately no
+        // corresponding AcademicExamPublication row — so the fixture has
+        // a state where "marks exist" and "is published" disagree, and
+        // mineTerms()'s filter is proven to key on publish state rather
+        // than mark existence.
+        AcademicExamMark::create([
+            'student_profile_id' => $this->profile->id,
+            'subject_id' => $this->subject->id,
+            'academic_exam_term_id' => $this->unpublishedTerm->id,
+            'academic_year_id' => $this->year->id,
+            'school_id' => $this->school->id,
+            'district_id' => $this->school->district_id,
+            'class_id' => $this->class->id,
+            'section_id' => $this->section->id,
+            'shift_id' => $this->section->shift_id,
+            'class_version_id' => $this->section->shift->class_version_id,
+            'cq_marks_obtained' => 70,
+        ]);
     }
 
     public function test_mine_terms_lists_only_published_terms(): void
@@ -973,7 +994,7 @@ class AcademicExamMarkMineControllerTest extends TestCase
 }
 ```
 
-- [ ] **Step 2: Run the test to confirm it fails**
+- [x] **Step 2: Run the test to confirm it fails**
 
 ```bash
 cd backend && php artisan test --compact --filter=AcademicExamMarkMineControllerTest
@@ -981,7 +1002,7 @@ cd backend && php artisan test --compact --filter=AcademicExamMarkMineController
 
 Expected: FAIL — routes/actions don't exist yet.
 
-- [ ] **Step 3: Add the controller actions**
+- [x] **Step 3: Add the controller actions**
 
 In `backend/app/Http/Controllers/Api/V1/AcademicExamMarkController.php`, add the import:
 
@@ -1061,7 +1082,7 @@ Add these two methods, after `sectionStudents()`:
     }
 ```
 
-- [ ] **Step 4: Register the routes**
+- [x] **Step 4: Register the routes**
 
 In `backend/routes/api.php`, add to the `auth:sanctum` block, right after the two lines added in Task 2:
 
@@ -1070,7 +1091,7 @@ Route::get('/academic-exam-marks/mine/terms', [AcademicExamMarkController::class
 Route::get('/academic-exam-marks/mine', [AcademicExamMarkController::class, 'mine']);
 ```
 
-- [ ] **Step 5: Run the test to confirm it passes**
+- [x] **Step 5: Run the test to confirm it passes**
 
 ```bash
 cd backend && php artisan test --compact --filter=AcademicExamMarkMineControllerTest
@@ -1078,7 +1099,7 @@ cd backend && php artisan test --compact --filter=AcademicExamMarkMineController
 
 Expected: all 5 tests green.
 
-- [ ] **Step 6: Run Pint and the full suite**
+- [x] **Step 6: Run Pint and the full suite**
 
 ```bash
 cd backend && vendor/bin/pint --dirty --format agent && php artisan test --compact
@@ -1086,7 +1107,7 @@ cd backend && vendor/bin/pint --dirty --format agent && php artisan test --compa
 
 Expected: both green.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 cd backend && git add app/Http/Controllers/Api/V1/AcademicExamMarkController.php tests/Feature/AcademicExamMarkMineControllerTest.php routes/api.php
@@ -1104,7 +1125,7 @@ git commit -m "Add student's own results: mine/terms list and mine marksheet"
 - Produces: TypeScript types `AcademicExamMarksheetSubject`, `AcademicExamMarksheet`, `AcademicExamSectionStudent`, `MyAcademicExamResultTerm`, and functions `getAcademicExamMarksheet`, `getAcademicExamSectionStudents`, `listMyAcademicExamResultTerms`, `getMyAcademicExamResult` — **these exact names are what Tasks 5-6's pages import.**
 - Consumes: the existing `apiFetch`/`authHeaders`/`buildQuery` helpers already used throughout this file (same ones Phase 2's additions used).
 
-- [ ] **Step 1: Add the four sections**
+- [x] **Step 1: Add the four sections**
 
 Append to the end of `frontend/packages/api-client/src/index.ts`:
 
@@ -1198,7 +1219,7 @@ export function getMyAcademicExamResult(
 }
 ```
 
-- [ ] **Step 2: Typecheck**
+- [x] **Step 2: Typecheck**
 
 ```bash
 cd frontend/packages/api-client && npx tsc -b --noEmit
@@ -1206,7 +1227,7 @@ cd frontend/packages/api-client && npx tsc -b --noEmit
 
 Expected: no output (clean).
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 cd frontend && git add packages/api-client/src/index.ts
@@ -1228,7 +1249,7 @@ git commit -m "Add api-client types/functions for marksheet viewing"
 - Consumes: `listMyAcademicExamMarkAssignments` (Phase 2, for the Section picker — reusing the already-deduplicated section list, not inventing a second one), `getAcademicExamSectionStudents`, `getAcademicExamMarksheet`, `listAcademicExamTerms`, `listAcademicYears`, and their types from Task 4/Phase 1/2.
 - Produces: route `/marksheets`, a flat nav item right after `/marks-entry`.
 
-- [ ] **Step 1: Add i18n keys**
+- [x] **Step 1: Add i18n keys**
 
 In `frontend/packages/i18n/src/common/en.json`, add:
 
@@ -1297,7 +1318,7 @@ console.log('missing in en:', bnKeys.filter(k => !enKeys.includes(k)));
 
 Expected: both arrays empty.
 
-- [ ] **Step 2: Write the page**
+- [x] **Step 2: Write the page**
 
 `frontend/apps/teacher/src/pages/MarksheetsPage.tsx`:
 
@@ -1383,7 +1404,6 @@ export default function MarksheetsPage() {
       .then((result) => {
         if (!active) return
         setStudents(result.data.students)
-        setStudentProfileId(null)
       })
       .catch(() => {
         if (active) setStudents([])
@@ -1434,7 +1454,10 @@ export default function MarksheetsPage() {
         <select
           className="h-11 min-w-[12rem] rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-800 outline-none transition-colors focus:border-primary-500"
           value={sectionId ?? ''}
-          onChange={(event) => setSectionId(event.target.value ? Number(event.target.value) : null)}
+          onChange={(event) => {
+            setSectionId(event.target.value ? Number(event.target.value) : null)
+            setStudentProfileId(null)
+          }}
         >
           <option value="">{t['teacher.marksheets.selectSection']}</option>
           {sections.map((row) => (
@@ -1505,7 +1528,11 @@ export default function MarksheetsPage() {
 
       {loadingMarksheet && <p className="mt-6 text-sm text-gray-500 print:hidden">{t['teacher.marksheets.loading']}</p>}
 
-      {!loadingMarksheet && marksheet && (
+      {!loadingMarksheet && marksheet && marksheet.subjects.length === 0 && (
+        <p className="mt-6 text-sm text-gray-500 print:hidden">{t['teacher.marksheets.noMarksRecorded']}</p>
+      )}
+
+      {!loadingMarksheet && marksheet && marksheet.subjects.length > 0 && (
         <div className="mt-4 rounded-md bg-white p-6 shadow-sm print:mt-0 print:rounded-none print:p-0 print:shadow-none">
           <div className="overflow-x-auto rounded-md border border-gray-100">
             <table className="w-full min-w-[32rem] text-sm">
@@ -1571,7 +1598,7 @@ export default function MarksheetsPage() {
 }
 ```
 
-- [ ] **Step 3: Wire the route and nav item**
+- [x] **Step 3: Wire the route and nav item**
 
 In `frontend/apps/teacher/src/App.tsx`, add the import:
 
@@ -1591,7 +1618,7 @@ In `frontend/apps/teacher/src/components/TeacherAppShell.tsx`, add the nav item 
 { to: '/marksheets', label: t['teacher.nav.marksheets'], icon: 'description' },
 ```
 
-- [ ] **Step 4: Typecheck and build**
+- [x] **Step 4: Typecheck and build**
 
 ```bash
 cd frontend/apps/teacher && npx tsc -b --noEmit && npm run build
@@ -1599,7 +1626,7 @@ cd frontend/apps/teacher && npx tsc -b --noEmit && npm run build
 
 Expected: no typecheck output; build succeeds.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd frontend && git add apps/teacher/src/pages/MarksheetsPage.tsx apps/teacher/src/App.tsx apps/teacher/src/components/TeacherAppShell.tsx packages/i18n/src/common/en.json packages/i18n/src/common/bn.json
@@ -1621,7 +1648,7 @@ git commit -m "Add teacher Marksheets lookup page"
 - Consumes: `listMyAcademicExamResultTerms`, `getMyAcademicExamResult`, and their types from Task 4; this app's own `useLocale()` hook (not `getCommonStrings('en')` — the student app supports live locale switching, unlike teacher/management).
 - Produces: route `/results`, a flat nav item in `StudentAppShell.tsx`'s `navItems`.
 
-- [ ] **Step 1: Add i18n keys**
+- [x] **Step 1: Add i18n keys**
 
 In `frontend/packages/i18n/src/common/en.json`, add:
 
@@ -1673,7 +1700,7 @@ In `frontend/packages/i18n/src/common/bn.json`, mirrored with real Bengali trans
 
 Verify parity with the same `node -e` command as Task 5 Step 1.
 
-- [ ] **Step 2: Write the page**
+- [x] **Step 2: Write the page**
 
 `frontend/apps/student/src/pages/dashboard/ResultsPage.tsx`:
 
@@ -1872,7 +1899,7 @@ export default function ResultsPage() {
 }
 ```
 
-- [ ] **Step 3: Wire the route and nav item**
+- [x] **Step 3: Wire the route and nav item**
 
 In `frontend/apps/student/src/App.tsx`, add the import:
 
@@ -1892,7 +1919,7 @@ In `frontend/apps/student/src/components/StudentAppShell.tsx`, add the nav item 
 { to: '/results', label: t['student.nav.results'], icon: 'school' },
 ```
 
-- [ ] **Step 4: Typecheck and build**
+- [x] **Step 4: Typecheck and build**
 
 ```bash
 cd frontend/apps/student && npx tsc -b --noEmit && npm run build
@@ -1900,7 +1927,7 @@ cd frontend/apps/student && npx tsc -b --noEmit && npm run build
 
 Expected: no typecheck output; build succeeds.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd frontend && git add apps/student/src/pages/dashboard/ResultsPage.tsx apps/student/src/App.tsx apps/student/src/components/StudentAppShell.tsx packages/i18n/src/common/en.json packages/i18n/src/common/bn.json
@@ -1915,7 +1942,7 @@ git commit -m "Add student Results page"
 
 **Interfaces:** none.
 
-- [ ] **Step 1: Run the full backend suite one more time**
+- [x] **Step 1: Run the full backend suite one more time**
 
 ```bash
 cd backend && php artisan test --compact && vendor/bin/pint --dirty --format agent
@@ -1923,7 +1950,7 @@ cd backend && php artisan test --compact && vendor/bin/pint --dirty --format age
 
 Expected: both fully green.
 
-- [ ] **Step 2: Typecheck and build all three frontend apps one more time**
+- [x] **Step 2: Typecheck and build all three frontend apps one more time**
 
 ```bash
 cd frontend/apps/teacher && npx tsc -b --noEmit && npm run build
@@ -1946,6 +1973,49 @@ Using the data seeded by Phases 1-2's own smoke tests (exam terms, grade scale, 
 Report back what you observed; this step has no pass/fail assertion beyond "did the two screens behave as described."
 
 - [ ] **Step 4: No commit for this task** (verification-only).
+
+---
+
+## Post-review fixes
+
+The final whole-branch review (after all 6 tasks above had already
+passed their own task-level reviews) found and fixed two cross-cutting
+issues:
+
+- **`MarksheetBuilder::publishedClassmateIds()` had no explicit school
+  boundary.** It built the class-wide ranking pool by filtering
+  `school_classes`-backed sections by `class_id` alone, relying on the
+  ambient `TenantScope` global scope to keep the pool within one
+  school. Since `school_classes` is a national table shared by every
+  school, this meant a `national_admin` viewer (no `school_id` of
+  their own) got a ranking pool spanning every school in the country,
+  and a district-scoped staff viewer got one spanning the whole
+  district — the same marksheet's `class_position`/
+  `class_total_students` would differ depending on who requested it.
+  Fixed by adding an explicit `->where('school_id', $profile->school_id)`
+  to both the `Section` and `StudentProfile` queries in
+  `publishedClassmateIds()`, so the computation is correct regardless
+  of the viewer's own scope. A regression test
+  (`test_class_position_excludes_students_from_a_different_school_sharing_the_same_class`)
+  was added to `MarksheetBuilderTest`, using a second school that
+  reuses the same `SchoolClass` row.
+- **An empty marksheet (zero subjects) rendered a confident green
+  "Pass."** `Collection::every()` on an empty collection is vacuously
+  `true`, so `MarksheetBuilder::build()` correctly (and deliberately,
+  per this plan's Global Constraints) returns `result: 'pass'`, `gpa:
+  0.0` for a student with no `academic_exam_marks` rows for the
+  requested (term, year). Neither `MarksheetsPage.tsx` nor
+  `ResultsPage.tsx` checked for this case before rendering, so a
+  genuinely empty marksheet looked identical to a real, passing one.
+  Both pages now branch on `marksheet.subjects.length === 0` and render
+  an i18n'd empty-state message (`teacher.marksheets.noMarksRecorded` /
+  `student.results.noMarksRecorded`, both with real Bengali
+  translations) instead of the table/summary in that case. The
+  `MarksheetsPage.tsx` code block in Task 5 above already reflects this
+  fix (along with the unrelated `setStudentProfileId(null)` ordering
+  fix from commit `998f588`); the equivalent branch in
+  `ResultsPage.tsx` (Task 6) is the same shape, gated on
+  `student.results.noMarksRecorded`.
 
 ---
 
