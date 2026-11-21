@@ -106,6 +106,50 @@ class AcademicExamPublicationControllerTest extends TestCase
             ->assertJsonPath('data.is_published', false);
     }
 
+    public function test_status_entered_count_ignores_all_null_rows(): void
+    {
+        $realStudent = $this->studentInSection('1');
+        $allNullStudent = $this->studentInSection('2');
+
+        AcademicExamMark::create([
+            'student_profile_id' => $realStudent->profile->id,
+            'subject_id' => $this->subject->id,
+            'academic_exam_term_id' => $this->term->id,
+            'academic_year_id' => $this->year->id,
+            'school_id' => $this->school->id,
+            'district_id' => $this->school->district_id,
+            'class_id' => $this->class->id,
+            'section_id' => $this->section->id,
+            'shift_id' => $this->section->shift_id,
+            'class_version_id' => $this->section->shift->class_version_id,
+            'cq_marks_obtained' => 60,
+        ]);
+
+        AcademicExamMark::create([
+            'student_profile_id' => $allNullStudent->profile->id,
+            'subject_id' => $this->subject->id,
+            'academic_exam_term_id' => $this->term->id,
+            'academic_year_id' => $this->year->id,
+            'school_id' => $this->school->id,
+            'district_id' => $this->school->district_id,
+            'class_id' => $this->class->id,
+            'section_id' => $this->section->id,
+            'shift_id' => $this->section->shift_id,
+            'class_version_id' => $this->section->shift->class_version_id,
+            'cq_marks_obtained' => null,
+            'mcq_marks_obtained' => null,
+            'practical_marks_obtained' => null,
+        ]);
+
+        $admin = $this->actorWithPermissions(['academic_exam_marks.view'], $this->school->id, $this->school->district_id);
+
+        $this->actingAs($admin, 'sanctum')
+            ->getJson("/api/v1/academic-exam-publications/status?section_id={$this->section->id}&academic_exam_term_id={$this->term->id}&academic_year_id={$this->year->id}")
+            ->assertOk()
+            ->assertJsonPath('data.roster_size', 2)
+            ->assertJsonPath('data.subjects.0.entered_count', 1);
+    }
+
     public function test_status_requires_view_permission(): void
     {
         $viewer = $this->actorWithPermissions([], $this->school->id, $this->school->district_id);

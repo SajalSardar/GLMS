@@ -288,4 +288,137 @@ class AcademicExamMarkControllerTest extends TestCase
         $this->actingAs($schoolAdmin, 'sanctum')->postJson('/api/v1/academic-exam-marks/record', $this->recordPayload($profile->id))
             ->assertOk();
     }
+
+    public function test_an_all_null_record_for_an_untouched_student_does_not_create_a_row(): void
+    {
+        $classTeacher = $this->teacherActorWithPermissions(['academic_exam_marks.view', 'academic_exam_marks.update'], $this->school->id, $this->school->district_id);
+        $this->section->update(['class_teacher_id' => $classTeacher->id]);
+
+        $touchedStudent = $this->studentInSection('1');
+        $untouchedStudent = $this->studentInSection('2');
+
+        $payload = [
+            'section_id' => $this->section->id,
+            'subject_id' => $this->subject->id,
+            'academic_exam_term_id' => $this->term->id,
+            'academic_year_id' => $this->year->id,
+            'records' => [
+                [
+                    'student_profile_id' => $touchedStudent->profile->id,
+                    'cq_marks_obtained' => 60,
+                    'mcq_marks_obtained' => 25,
+                    'practical_marks_obtained' => null,
+                ],
+                [
+                    'student_profile_id' => $untouchedStudent->profile->id,
+                    'cq_marks_obtained' => null,
+                    'mcq_marks_obtained' => null,
+                    'practical_marks_obtained' => null,
+                ],
+            ],
+        ];
+
+        $this->actingAs($classTeacher, 'sanctum')->postJson('/api/v1/academic-exam-marks/record', $payload)->assertOk();
+
+        $this->assertDatabaseCount('academic_exam_marks', 1);
+        $this->assertDatabaseHas('academic_exam_marks', ['student_profile_id' => $touchedStudent->profile->id]);
+        $this->assertDatabaseMissing('academic_exam_marks', ['student_profile_id' => $untouchedStudent->profile->id]);
+    }
+
+    public function test_saving_an_all_null_record_for_a_student_with_an_existing_row_clears_it(): void
+    {
+        $classTeacher = $this->teacherActorWithPermissions(['academic_exam_marks.view', 'academic_exam_marks.update'], $this->school->id, $this->school->district_id);
+        $this->section->update(['class_teacher_id' => $classTeacher->id]);
+
+        $student = $this->studentInSection();
+        $profile = $student->profile;
+
+        // First save gives this student a real mark row.
+        $this->actingAs($classTeacher, 'sanctum')->postJson('/api/v1/academic-exam-marks/record', $this->recordPayload($profile->id))->assertOk();
+        $this->assertDatabaseCount('academic_exam_marks', 1);
+
+        // A second save clearing every field must still update that
+        // existing row to null rather than being skipped as "untouched".
+        $clearPayload = [
+            'section_id' => $this->section->id,
+            'subject_id' => $this->subject->id,
+            'academic_exam_term_id' => $this->term->id,
+            'academic_year_id' => $this->year->id,
+            'records' => [
+                [
+                    'student_profile_id' => $profile->id,
+                    'cq_marks_obtained' => null,
+                    'mcq_marks_obtained' => null,
+                    'practical_marks_obtained' => null,
+                ],
+            ],
+        ];
+
+        $this->actingAs($classTeacher, 'sanctum')->postJson('/api/v1/academic-exam-marks/record', $clearPayload)->assertOk();
+
+        $this->assertDatabaseCount('academic_exam_marks', 1);
+        $this->assertDatabaseHas('academic_exam_marks', [
+            'student_profile_id' => $profile->id,
+            'cq_marks_obtained' => null,
+            'mcq_marks_obtained' => null,
+            'practical_marks_obtained' => null,
+        ]);
+    }
+
+    public function test_academic_year_id_must_match_the_sections_own_academic_year(): void
+    {
+        $this->section->shift->update(['academic_year_id' => $this->year->id]);
+
+        $otherYear = AcademicYear::create(['name' => '2027', 'start_date' => '2027-01-01', 'end_date' => '2027-12-31', 'is_current' => false]);
+
+        $classTeacher = $this->teacherActorWithPermissions(['academic_exam_marks.view', 'academic_exam_marks.update'], $this->school->id, $this->school->district_id);
+        $this->section->update(['class_teacher_id' => $classTeacher->id]);
+
+        $student = $this->studentInSection();
+        $profile = $student->profile;
+
+        $payload = array_merge($this->recordPayload($profile->id), ['academic_year_id' => $otherYear->id]);
+
+        $this->actingAs($classTeacher, 'sanctum')->postJson('/api/v1/academic-exam-marks/record', $payload)
+            ->assertUnprocessable()->assertJsonValidationErrors('academic_year_id');
+    }
+
+    public function test_roster_for_an_unrelated_teacher_is_forbidden(): void
+    {
+        $unrelatedTeacher = $this->teacherActorWithPermissions(['academic_exam_marks.view', 'academic_exam_marks.update'], $this->school->id, $this->school->district_id);
+        $this->studentInSection();
+
+        $this->actingAs($unrelatedTeacher, 'sanctum')
+            ->getJson('/api/v1/academic-exam-marks/roster?'.http_build_query([
+                'section_id' => $this->section->id,
+                'subject_id' => $this->subject->id,
+                'academic_exam_term_id' => $this->term->id,
+                'academic_year_id' => $this->year->id,
+            ]))
+            ->assertForbidden();
+    }
+
+    public function test_roster_for_a_subject_teacher_who_is_not_the_class_teacher_allows_recording(): void
+    {
+        $subjectTeacher = $this->teacherActorWithPermissions(['academic_exam_marks.view', 'academic_exam_marks.update'], $this->school->id, $this->school->district_id);
+        SubjectTeacherAssignment::create([
+            'section_id' => $this->section->id,
+            'subject_id' => $this->subject->id,
+            'teacher_id' => $subjectTeacher->id,
+            'school_id' => $this->school->id,
+            'district_id' => $this->school->district_id,
+        ]);
+
+        $this->studentInSection();
+
+        $this->actingAs($subjectTeacher, 'sanctum')
+            ->getJson('/api/v1/academic-exam-marks/roster?'.http_build_query([
+                'section_id' => $this->section->id,
+                'subject_id' => $this->subject->id,
+                'academic_exam_term_id' => $this->term->id,
+                'academic_year_id' => $this->year->id,
+            ]))
+            ->assertOk()
+            ->assertJsonPath('data.can_record', true);
+    }
 }

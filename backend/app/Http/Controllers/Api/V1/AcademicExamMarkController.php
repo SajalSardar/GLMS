@@ -130,9 +130,22 @@ class AcademicExamMarkController extends Controller
                 ->where('academic_year_id', $yearId)
                 ->first();
 
+            $isAllNull = $attributes['cq_marks_obtained'] === null
+                && $attributes['mcq_marks_obtained'] === null
+                && $attributes['practical_marks_obtained'] === null;
+
             if ($existing !== null) {
+                // Always update an existing row, even to all-null — that's
+                // a teacher deliberately clearing a previously-entered
+                // mark, which must keep working.
                 $existing->update($attributes);
-            } else {
+            } elseif (! $isAllNull) {
+                // Never create a brand-new row for a student the teacher
+                // never actually touched — the frontend sends one
+                // "record" per roster student regardless of whether they
+                // typed anything in, and an all-null row would otherwise
+                // be indistinguishable from "entered and scored zero"
+                // once MarksheetBuilder computes a result from it.
                 AcademicExamMark::create([
                     ...$attributes,
                     'student_profile_id' => $studentProfileId,

@@ -62,6 +62,14 @@ class RecordAcademicExamMarkRequest extends FormRequest
             $section = Section::find($this->integer('section_id'));
             $classId = $section?->shift?->classVersion?->class_id;
 
+            $sectionAcademicYearId = $section?->shift?->academic_year_id;
+
+            if ($sectionAcademicYearId !== null && $sectionAcademicYearId !== $this->integer('academic_year_id')) {
+                $validator->errors()->add('academic_year_id', "This doesn't match the section's own academic year.");
+
+                return;
+            }
+
             $configure = AcademicSubjectMarkConfigure::where('class_id', $classId)
                 ->where('subject_id', $this->integer('subject_id'))
                 ->first();

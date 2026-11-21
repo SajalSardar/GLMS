@@ -40,6 +40,9 @@ class AcademicExamPublicationController extends Controller
                 ->where('subject_id', $configure->subject_id)
                 ->where('academic_exam_term_id', $termId)
                 ->where('academic_year_id', $yearId)
+                ->where(fn ($query) => $query->whereNotNull('cq_marks_obtained')
+                    ->orWhereNotNull('mcq_marks_obtained')
+                    ->orWhereNotNull('practical_marks_obtained'))
                 ->count();
 
             return [
