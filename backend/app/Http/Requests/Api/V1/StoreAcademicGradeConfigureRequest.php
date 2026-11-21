@@ -47,7 +47,14 @@ class StoreAcademicGradeConfigureRequest extends FormRequest
     /**
      * No two active rows' [min_percent, max_percent] ranges may overlap —
      * AcademicGradeConfigure::forPercent() assumes exactly one active row
-     * matches any given percentage.
+     * matches any given percentage. Coverage GAPS between active ranges
+     * are deliberately NOT validated here: an earlier attempt enforced
+     * full 0-100 coverage per-row, which made a multi-row scale
+     * impossible to edit at all (every intermediate state of a
+     * legitimate multi-step edit violates a whole-set invariant checked
+     * one row at a time). A gap is tolerated instead — forPercent()
+     * returns null for a percent inside one, and every caller is
+     * null-safe (see MarksheetBuilder's use of it).
      */
     public function withValidator(Validator $validator): void
     {
