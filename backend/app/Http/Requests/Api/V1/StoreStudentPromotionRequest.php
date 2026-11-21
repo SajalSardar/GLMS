@@ -2,9 +2,11 @@
 
 namespace App\Http\Requests\Api\V1;
 
+use App\Models\Section;
 use App\Models\StudentClassPromotion;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 class StoreStudentPromotionRequest extends FormRequest
 {
@@ -27,5 +29,26 @@ class StoreStudentPromotionRequest extends FormRequest
             'records.*.student_profile_id' => ['required', 'integer', 'distinct'],
             'records.*.promote' => ['required', 'boolean'],
         ];
+    }
+
+    /**
+     * Checks the SOURCE section_id, not to_section_id — the target
+     * section legitimately may belong to a different year's structure,
+     * that's out of scope here.
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            if ($validator->errors()->isNotEmpty()) {
+                return;
+            }
+
+            $section = Section::find($this->integer('section_id'));
+            $sectionAcademicYearId = $section?->shift?->academic_year_id;
+
+            if ($sectionAcademicYearId !== null && $sectionAcademicYearId !== $this->integer('academic_year_id')) {
+                $validator->errors()->add('academic_year_id', "This doesn't match the section's own academic year.");
+            }
+        });
     }
 }

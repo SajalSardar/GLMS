@@ -398,6 +398,37 @@ class StudentPromotionControllerTest extends TestCase
         $this->assertSame($this->class7->id, $unrelated->class_id);
     }
 
+    public function test_preview_rejects_an_academic_year_id_that_does_not_match_the_sections_own_academic_year(): void
+    {
+        $this->section->shift->update(['academic_year_id' => $this->year->id]);
+        $otherYear = AcademicYear::create(['name' => '2027', 'start_date' => '2027-01-01', 'end_date' => '2027-12-31', 'is_current' => false]);
+
+        $admin = $this->actorWithPermissions(['student_promotions.create'], $this->school->id, $this->school->district_id);
+
+        $this->actingAs($admin, 'sanctum')
+            ->getJson("/api/v1/student-promotions/preview?section_id={$this->section->id}&academic_year_id={$otherYear->id}")
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('academic_year_id');
+    }
+
+    public function test_store_rejects_an_academic_year_id_that_does_not_match_the_sections_own_academic_year(): void
+    {
+        $this->section->shift->update(['academic_year_id' => $this->year->id]);
+        $otherYear = AcademicYear::create(['name' => '2027', 'start_date' => '2027-01-01', 'end_date' => '2027-12-31', 'is_current' => false]);
+
+        $pass = $this->studentInSection('1', 85);
+        $admin = $this->actorWithPermissions(['student_promotions.create'], $this->school->id, $this->school->district_id);
+
+        $this->actingAs($admin, 'sanctum')->postJson('/api/v1/student-promotions', [
+            'section_id' => $this->section->id,
+            'academic_year_id' => $otherYear->id,
+            'to_section_id' => $this->toSection->id,
+            'records' => [['student_profile_id' => $pass->id, 'promote' => true]],
+        ])->assertUnprocessable()->assertJsonValidationErrors('academic_year_id');
+
+        $this->assertDatabaseCount('student_class_promotions', 0);
+    }
+
     public function test_preview_rejects_a_nonexistent_academic_year_id(): void
     {
         $admin = $this->actorWithPermissions(['student_promotions.create'], $this->school->id, $this->school->district_id);
