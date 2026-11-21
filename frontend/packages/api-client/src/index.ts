@@ -925,6 +925,37 @@ export function listMyClassRoutines(token: string): Promise<{ data: ClassRoutine
   })
 }
 
+// Arbitrary-actor class routine lookup (ClassRoutineController::index()) —
+// public, same tier as /schools or /classes, no token required. Used by
+// the Management Portal's Teacher/Class Routine pages to look up any
+// teacher's or any section's routine, unlike listMyClassRoutines() above
+// which is always the CALLER's own.
+export function listClassRoutines(params: {
+  schoolId?: number
+  districtId?: number
+  classId?: number
+  classVersionId?: number
+  shiftId?: number
+  sectionId?: number
+  teacherId?: number
+  academicYearId?: number
+  dayOfWeek?: string
+}): Promise<{ data: ClassRoutine[] }> {
+  const query = buildQuery({
+    school_id: params.schoolId,
+    district_id: params.districtId,
+    class_id: params.classId,
+    class_version_id: params.classVersionId,
+    shift_id: params.shiftId,
+    section_id: params.sectionId,
+    teacher_id: params.teacherId,
+    academic_year_id: params.academicYearId,
+    day_of_week: params.dayOfWeek,
+  })
+
+  return apiFetch<{ data: ClassRoutine[] }>(`/class-routines${query}`)
+}
+
 // ---------- Exams (public browsing + attempts) ----------
 
 export interface ExamQuestionOption {
