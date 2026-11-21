@@ -2111,3 +2111,141 @@ export function updateAcademicSubjectMarkConfigure(
 export function deleteAcademicSubjectMarkConfigure(id: number, token: string): Promise<void> {
   return deleteGeo('academic-subject-mark-configures', id, token)
 }
+
+// ---------- Academic exam marks (teacher mark entry) ----------
+
+export interface AcademicExamMarkAssignment {
+  section_id: number
+  section_name: string
+  subject_id: number
+  subject_name: string
+  class_id: number | null
+  class_name: string | null
+  class_version_id: number | null
+  class_version: string | null
+  shift_id: number | null
+  shift: string | null
+  academic_year_id: number | null
+  academic_year: string | null
+}
+
+export function listMyAcademicExamMarkAssignments(token: string): Promise<{ data: AcademicExamMarkAssignment[] }> {
+  return apiFetch<{ data: AcademicExamMarkAssignment[] }>('/academic-exam-marks/my-assignments', {
+    headers: authHeaders(token),
+  })
+}
+
+export interface AcademicExamMarkRosterRow {
+  student_profile_id: number
+  name: string | null
+  roll_number: string | null
+  cq_marks_obtained: number | null
+  mcq_marks_obtained: number | null
+  practical_marks_obtained: number | null
+}
+
+export interface AcademicExamMarkRoster {
+  section_id: number
+  subject_id: number
+  academic_exam_term_id: number
+  academic_year_id: number
+  can_record: boolean
+  cq_full_marks: number | null
+  mcq_full_marks: number | null
+  practical_full_marks: number | null
+  students: AcademicExamMarkRosterRow[]
+}
+
+export function getAcademicExamMarkRoster(
+  params: { sectionId: number; subjectId: number; academicExamTermId: number; academicYearId: number },
+  token: string,
+): Promise<{ data: AcademicExamMarkRoster }> {
+  const query = buildQuery({
+    section_id: params.sectionId,
+    subject_id: params.subjectId,
+    academic_exam_term_id: params.academicExamTermId,
+    academic_year_id: params.academicYearId,
+  })
+
+  return apiFetch<{ data: AcademicExamMarkRoster }>(`/academic-exam-marks/roster${query}`, {
+    headers: authHeaders(token),
+  })
+}
+
+// Bulk-records/updates marks for a (section, subject, exam term,
+// academic year) — only a teacher who may touch that section/subject
+// (or a staff override) may call this; a (class, subject) pair with no
+// configured full marks is rejected outright (422).
+export function recordAcademicExamMarks(
+  payload: {
+    section_id: number
+    subject_id: number
+    academic_exam_term_id: number
+    academic_year_id: number
+    records: {
+      student_profile_id: number
+      cq_marks_obtained: number | null
+      mcq_marks_obtained: number | null
+      practical_marks_obtained: number | null
+    }[]
+  },
+  token: string,
+): Promise<{ data: AcademicExamMarkRoster }> {
+  return apiFetch<{ data: AcademicExamMarkRoster }>('/academic-exam-marks/record', {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  })
+}
+
+// ---------- Academic exam publications (publish gate) ----------
+
+export interface AcademicExamPublicationSubjectRow {
+  subject_id: number
+  subject_name: string | null
+  entered_count: number
+}
+
+export interface AcademicExamPublicationStatus {
+  section_id: number
+  academic_exam_term_id: number
+  academic_year_id: number
+  roster_size: number
+  subjects: AcademicExamPublicationSubjectRow[]
+  is_published: boolean
+}
+
+export function getAcademicExamPublicationStatus(
+  params: { sectionId: number; academicExamTermId: number; academicYearId: number },
+  token: string,
+): Promise<{ data: AcademicExamPublicationStatus }> {
+  const query = buildQuery({
+    section_id: params.sectionId,
+    academic_exam_term_id: params.academicExamTermId,
+    academic_year_id: params.academicYearId,
+  })
+
+  return apiFetch<{ data: AcademicExamPublicationStatus }>(`/academic-exam-publications/status${query}`, {
+    headers: authHeaders(token),
+  })
+}
+
+export interface AcademicExamPublicationResult {
+  section_id: number
+  academic_exam_term_id: number
+  academic_year_id: number
+  is_published: boolean
+}
+
+// Publishing an already-published (section, term, year) is a no-op on
+// the backend (still 201), not an error.
+export function publishAcademicExamResults(
+  payload: { section_id: number; academic_exam_term_id: number; academic_year_id: number },
+  token: string,
+): Promise<{ data: AcademicExamPublicationResult }> {
+  return apiFetch<{ data: AcademicExamPublicationResult }>('/academic-exam-publications', {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  })
+}
