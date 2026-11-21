@@ -186,6 +186,41 @@ class TeacherUserAuthorizationTest extends TestCase
         $this->assertSame(1, TeacherUser::withTrashed()->where('phone', '01913000000')->count());
     }
 
+    public function test_store_rejects_a_restore_that_would_collide_with_a_different_trashed_teacher_on_phone(): void
+    {
+        $actor = $this->actorWithPermissions(['users.create', 'users.delete']);
+
+        $firstPayload = ['name' => 'Teacher A', 'email' => 'teacher-a@example.test', 'phone' => '01913000001', 'password' => 'password123'];
+        $createdA = $this->actingAs($actor, 'sanctum')->postJson('/api/v1/teacher-users', $firstPayload)->assertCreated();
+        $teacherAId = $createdA->json('data.id');
+        $this->actingAs($actor, 'sanctum')->deleteJson("/api/v1/teacher-users/{$teacherAId}")->assertNoContent();
+
+        $secondPayload = ['name' => 'Teacher B', 'email' => 'teacher-b@example.test', 'phone' => '01913000002', 'password' => 'password123'];
+        $createdB = $this->actingAs($actor, 'sanctum')->postJson('/api/v1/teacher-users', $secondPayload)->assertCreated();
+        $teacherBId = $createdB->json('data.id');
+        $this->actingAs($actor, 'sanctum')->deleteJson("/api/v1/teacher-users/{$teacherBId}")->assertNoContent();
+
+        // Matches teacher A by email, but the phone collides with teacher B's phone.
+        $conflictingPayload = ['name' => 'New Teacher', 'email' => 'teacher-a@example.test', 'phone' => '01913000002', 'password' => 'password123'];
+        $this->actingAs($actor, 'sanctum')->postJson('/api/v1/teacher-users', $conflictingPayload)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['phone']);
+
+        $this->assertDatabaseHas('teacher_users', [
+            'id' => $teacherAId,
+            'email' => 'teacher-a@example.test',
+            'phone' => '01913000001',
+        ]);
+        $this->assertSoftDeleted('teacher_users', ['id' => $teacherAId]);
+
+        $this->assertDatabaseHas('teacher_users', [
+            'id' => $teacherBId,
+            'email' => 'teacher-b@example.test',
+            'phone' => '01913000002',
+        ]);
+        $this->assertSoftDeleted('teacher_users', ['id' => $teacherBId]);
+    }
+
     public function test_recreating_a_soft_deleted_teacher_from_a_different_school_is_rejected(): void
     {
         $division = Division::create(['name' => 'Division', 'bn_name' => 'বিভাগ']);

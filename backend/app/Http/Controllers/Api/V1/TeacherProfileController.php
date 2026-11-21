@@ -94,6 +94,8 @@ class TeacherProfileController extends Controller
         }
 
         if ($profile) {
+            $this->guardAgainstConflictingRestore($profile, $attributes);
+
             $profile->restore();
             $profile->update($attributes);
         } else {
@@ -103,6 +105,40 @@ class TeacherProfileController extends Controller
         return (new TeacherProfileResource($profile->load(['user', 'school', 'district'])))
             ->response()
             ->setStatusCode(Response::HTTP_CREATED);
+    }
+
+    /**
+     * The user_id/employee_id/nid_number match above can land on a trashed
+     * profile that only partially matches the incoming data (e.g. matched
+     * on employee_id while a *different* trashed or live profile already
+     * holds the incoming nid_number). Restoring and updating in that case
+     * would either collide with the still-present unique index (an
+     * unhandled 500) or silently overwrite the wrong record. Reject it the
+     * same way the create path would via validation.
+     *
+     * user_id itself needs no guard here: it genuinely identifies the
+     * specific person this profile belongs to, so a user_id-matched
+     * restore is always correct to proceed.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    private function guardAgainstConflictingRestore(TeacherProfile $profile, array $attributes): void
+    {
+        $errors = [];
+
+        if (($attributes['employee_id'] ?? null) !== null
+            && TeacherProfile::withTrashed()->where('id', '!=', $profile->id)->where('employee_id', $attributes['employee_id'])->exists()) {
+            $errors['employee_id'] = ['The employee id has already been taken.'];
+        }
+
+        if (($attributes['nid_number'] ?? null) !== null
+            && TeacherProfile::withTrashed()->where('id', '!=', $profile->id)->where('nid_number', $attributes['nid_number'])->exists()) {
+            $errors['nid_number'] = ['The nid number has already been taken.'];
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
     }
 
     /**

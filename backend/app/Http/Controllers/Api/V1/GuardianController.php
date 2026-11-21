@@ -11,6 +11,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
+use Illuminate\Validation\ValidationException;
 
 class GuardianController extends Controller
 {
@@ -71,6 +72,8 @@ class GuardianController extends Controller
         }
 
         if ($guardian) {
+            $this->guardAgainstConflictingRestore($guardian, $data);
+
             $guardian->restore();
             $guardian->update($data);
         } else {
@@ -80,6 +83,40 @@ class GuardianController extends Controller
         return (new GuardianResource($guardian))
             ->response()
             ->setStatusCode(Response::HTTP_CREATED);
+    }
+
+    /**
+     * The phone/nid_number/user_id match above can land on a trashed
+     * guardian that only partially matches the incoming data (e.g. matched
+     * on nid_number while a *different* trashed or live guardian already
+     * holds the incoming user_id). Restoring and updating in that case
+     * would either collide with the still-present unique index (an
+     * unhandled 500) or silently overwrite the wrong record. Reject it the
+     * same way the create path would via validation.
+     *
+     * phone itself needs no guard here: it's the primary match the
+     * restore-check above already keys its main lookup on, so a
+     * phone-matched restore is always correct to proceed.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function guardAgainstConflictingRestore(Guardian $guardian, array $data): void
+    {
+        $errors = [];
+
+        if (($data['nid_number'] ?? null) !== null
+            && Guardian::withTrashed()->where('id', '!=', $guardian->id)->where('nid_number', $data['nid_number'])->exists()) {
+            $errors['nid_number'] = ['The nid number has already been taken.'];
+        }
+
+        if (($data['user_id'] ?? null) !== null
+            && Guardian::withTrashed()->where('id', '!=', $guardian->id)->where('user_id', $data['user_id'])->exists()) {
+            $errors['user_id'] = ['The user id has already been taken.'];
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
     }
 
     /**

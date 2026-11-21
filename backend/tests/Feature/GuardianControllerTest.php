@@ -77,4 +77,55 @@ class GuardianControllerTest extends TestCase
             'deleted_at' => null,
         ]);
     }
+
+    public function test_store_rejects_a_restore_that_would_collide_with_a_different_trashed_guardian_on_user_id(): void
+    {
+        $actor = $this->actorWithPermissions(['guardians.create']);
+        $guardianUser = GuardianUser::factory()->create();
+
+        $guardianA = Guardian::create([
+            'name' => 'Guardian A',
+            'phone' => '0100000005',
+            'nid_number' => 'NID-A',
+        ]);
+        $guardianA->delete();
+
+        $guardianB = Guardian::create([
+            'user_id' => $guardianUser->id,
+            'name' => 'Guardian B',
+            'phone' => '0100000006',
+            'nid_number' => 'NID-B',
+        ]);
+        $guardianB->delete();
+
+        // Matches guardian A by nid_number, but the user_id collides with
+        // guardian B's user_id.
+        $this->actingAs($actor, 'sanctum')
+            ->postJson('/api/v1/guardians', [
+                'user_id' => $guardianUser->id,
+                'name' => 'New Guardian',
+                'phone' => '0100000007',
+                'nid_number' => 'NID-A',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['user_id']);
+
+        $this->assertDatabaseHas('guardians', [
+            'id' => $guardianA->id,
+            'name' => 'Guardian A',
+            'phone' => '0100000005',
+            'nid_number' => 'NID-A',
+            'user_id' => null,
+        ]);
+        $this->assertSoftDeleted('guardians', ['id' => $guardianA->id]);
+
+        $this->assertDatabaseHas('guardians', [
+            'id' => $guardianB->id,
+            'user_id' => $guardianUser->id,
+            'name' => 'Guardian B',
+            'phone' => '0100000006',
+            'nid_number' => 'NID-B',
+        ]);
+        $this->assertSoftDeleted('guardians', ['id' => $guardianB->id]);
+    }
 }

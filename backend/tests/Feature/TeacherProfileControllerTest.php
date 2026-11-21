@@ -82,4 +82,54 @@ class TeacherProfileControllerTest extends TestCase
             'deleted_at' => null,
         ]);
     }
+
+    public function test_store_rejects_a_restore_that_would_collide_with_a_different_trashed_profile_on_nid_number(): void
+    {
+        $actor = $this->actorWithPermissions(['teacher_profiles.create']);
+
+        $teacherOne = TeacherUser::factory()->create();
+        $teacherTwo = TeacherUser::factory()->create();
+        $teacherThree = TeacherUser::factory()->create();
+
+        $profileA = TeacherProfile::create([
+            'user_id' => $teacherOne->id,
+            'employee_id' => 'EMP-A',
+            'nid_number' => 'NID-A',
+        ]);
+        $profileA->delete();
+
+        $profileB = TeacherProfile::create([
+            'user_id' => $teacherTwo->id,
+            'employee_id' => 'EMP-B',
+            'nid_number' => 'NID-B',
+        ]);
+        $profileB->delete();
+
+        // Matches profile A by employee_id, but the nid_number collides
+        // with profile B's nid_number.
+        $this->actingAs($actor, 'sanctum')
+            ->postJson('/api/v1/teacher-profiles', [
+                'user_id' => $teacherThree->id,
+                'employee_id' => 'EMP-A',
+                'nid_number' => 'NID-B',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['nid_number']);
+
+        $this->assertDatabaseHas('teacher_profiles', [
+            'id' => $profileA->id,
+            'user_id' => $teacherOne->id,
+            'employee_id' => 'EMP-A',
+            'nid_number' => 'NID-A',
+        ]);
+        $this->assertSoftDeleted('teacher_profiles', ['id' => $profileA->id]);
+
+        $this->assertDatabaseHas('teacher_profiles', [
+            'id' => $profileB->id,
+            'user_id' => $teacherTwo->id,
+            'employee_id' => 'EMP-B',
+            'nid_number' => 'NID-B',
+        ]);
+        $this->assertSoftDeleted('teacher_profiles', ['id' => $profileB->id]);
+    }
 }

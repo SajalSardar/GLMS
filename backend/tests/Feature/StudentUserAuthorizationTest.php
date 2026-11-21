@@ -165,6 +165,41 @@ class StudentUserAuthorizationTest extends TestCase
         $this->assertSame(1, StudentUser::withTrashed()->where('phone', '01913000000')->count());
     }
 
+    public function test_store_rejects_a_restore_that_would_collide_with_a_different_trashed_student_on_phone(): void
+    {
+        $actor = $this->actorWithPermissions(['users.create', 'users.delete']);
+
+        $firstPayload = ['name' => 'Student A', 'email' => 'student-a@example.test', 'phone' => '01913000001', 'password' => 'pin1'];
+        $createdA = $this->actingAs($actor, 'sanctum')->postJson('/api/v1/student-users', $firstPayload)->assertCreated();
+        $studentAId = $createdA->json('data.id');
+        $this->actingAs($actor, 'sanctum')->deleteJson("/api/v1/student-users/{$studentAId}")->assertNoContent();
+
+        $secondPayload = ['name' => 'Student B', 'email' => 'student-b@example.test', 'phone' => '01913000002', 'password' => 'pin1'];
+        $createdB = $this->actingAs($actor, 'sanctum')->postJson('/api/v1/student-users', $secondPayload)->assertCreated();
+        $studentBId = $createdB->json('data.id');
+        $this->actingAs($actor, 'sanctum')->deleteJson("/api/v1/student-users/{$studentBId}")->assertNoContent();
+
+        // Matches student A by email, but the phone collides with student B's phone.
+        $conflictingPayload = ['name' => 'New Student', 'email' => 'student-a@example.test', 'phone' => '01913000002', 'password' => 'pin1'];
+        $this->actingAs($actor, 'sanctum')->postJson('/api/v1/student-users', $conflictingPayload)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['phone']);
+
+        $this->assertDatabaseHas('student_users', [
+            'id' => $studentAId,
+            'email' => 'student-a@example.test',
+            'phone' => '01913000001',
+        ]);
+        $this->assertSoftDeleted('student_users', ['id' => $studentAId]);
+
+        $this->assertDatabaseHas('student_users', [
+            'id' => $studentBId,
+            'email' => 'student-b@example.test',
+            'phone' => '01913000002',
+        ]);
+        $this->assertSoftDeleted('student_users', ['id' => $studentBId]);
+    }
+
     public function test_recreating_a_soft_deleted_student_from_a_different_school_is_rejected(): void
     {
         $division = Division::create(['name' => 'Division', 'bn_name' => 'বিভাগ']);

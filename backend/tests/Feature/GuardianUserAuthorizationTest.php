@@ -168,6 +168,41 @@ class GuardianUserAuthorizationTest extends TestCase
         $this->assertSame(1, GuardianUser::withTrashed()->where('phone', '01913000000')->count());
     }
 
+    public function test_store_rejects_a_restore_that_would_collide_with_a_different_trashed_guardian_on_phone(): void
+    {
+        $actor = $this->actorWithPermissions(['users.create', 'users.delete']);
+
+        $firstPayload = ['name' => 'Guardian A', 'email' => 'guardian-a@example.test', 'phone' => '01913000001', 'password' => 'password123'];
+        $createdA = $this->actingAs($actor, 'sanctum')->postJson('/api/v1/guardian-users', $firstPayload)->assertCreated();
+        $guardianAId = $createdA->json('data.id');
+        $this->actingAs($actor, 'sanctum')->deleteJson("/api/v1/guardian-users/{$guardianAId}")->assertNoContent();
+
+        $secondPayload = ['name' => 'Guardian B', 'email' => 'guardian-b@example.test', 'phone' => '01913000002', 'password' => 'password123'];
+        $createdB = $this->actingAs($actor, 'sanctum')->postJson('/api/v1/guardian-users', $secondPayload)->assertCreated();
+        $guardianBId = $createdB->json('data.id');
+        $this->actingAs($actor, 'sanctum')->deleteJson("/api/v1/guardian-users/{$guardianBId}")->assertNoContent();
+
+        // Matches guardian A by email, but the phone collides with guardian B's phone.
+        $conflictingPayload = ['name' => 'New Guardian', 'email' => 'guardian-a@example.test', 'phone' => '01913000002', 'password' => 'password123'];
+        $this->actingAs($actor, 'sanctum')->postJson('/api/v1/guardian-users', $conflictingPayload)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['phone']);
+
+        $this->assertDatabaseHas('guardian_users', [
+            'id' => $guardianAId,
+            'email' => 'guardian-a@example.test',
+            'phone' => '01913000001',
+        ]);
+        $this->assertSoftDeleted('guardian_users', ['id' => $guardianAId]);
+
+        $this->assertDatabaseHas('guardian_users', [
+            'id' => $guardianBId,
+            'email' => 'guardian-b@example.test',
+            'phone' => '01913000002',
+        ]);
+        $this->assertSoftDeleted('guardian_users', ['id' => $guardianBId]);
+    }
+
     public function test_recreating_a_soft_deleted_guardian_from_a_different_school_is_rejected(): void
     {
         $division = Division::create(['name' => 'Division', 'bn_name' => 'বিভাগ']);

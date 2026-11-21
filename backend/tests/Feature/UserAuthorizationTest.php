@@ -99,6 +99,41 @@ class UserAuthorizationTest extends TestCase
         $this->assertSame(1, User::withTrashed()->where('phone', '01913000000')->count());
     }
 
+    public function test_store_rejects_a_restore_that_would_collide_with_a_different_trashed_user_on_phone(): void
+    {
+        $actor = $this->actorWithPermissions(['users.create', 'users.delete']);
+
+        $firstPayload = ['name' => 'User A', 'email' => 'user-a@example.test', 'phone' => '01913000001', 'password' => 'password123'];
+        $createdA = $this->actingAs($actor, 'sanctum')->postJson('/api/v1/users', $firstPayload)->assertCreated();
+        $userAId = $createdA->json('data.id');
+        $this->actingAs($actor, 'sanctum')->deleteJson("/api/v1/users/{$userAId}")->assertNoContent();
+
+        $secondPayload = ['name' => 'User B', 'email' => 'user-b@example.test', 'phone' => '01913000002', 'password' => 'password123'];
+        $createdB = $this->actingAs($actor, 'sanctum')->postJson('/api/v1/users', $secondPayload)->assertCreated();
+        $userBId = $createdB->json('data.id');
+        $this->actingAs($actor, 'sanctum')->deleteJson("/api/v1/users/{$userBId}")->assertNoContent();
+
+        // Matches user A by email, but the phone collides with user B's phone.
+        $conflictingPayload = ['name' => 'New User', 'email' => 'user-a@example.test', 'phone' => '01913000002', 'password' => 'password123'];
+        $this->actingAs($actor, 'sanctum')->postJson('/api/v1/users', $conflictingPayload)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['phone']);
+
+        $this->assertDatabaseHas('users', [
+            'id' => $userAId,
+            'email' => 'user-a@example.test',
+            'phone' => '01913000001',
+        ]);
+        $this->assertSoftDeleted('users', ['id' => $userAId]);
+
+        $this->assertDatabaseHas('users', [
+            'id' => $userBId,
+            'email' => 'user-b@example.test',
+            'phone' => '01913000002',
+        ]);
+        $this->assertSoftDeleted('users', ['id' => $userBId]);
+    }
+
     public function test_recreating_a_soft_deleted_user_from_a_different_school_is_rejected(): void
     {
         $division = Division::create(['name' => 'Division', 'bn_name' => 'বিভাগ']);

@@ -134,6 +134,8 @@ class TeacherUserController extends Controller
         }
 
         if ($trashedTeacher) {
+            $this->guardAgainstConflictingRestore($trashedTeacher, $attributes);
+
             DB::transaction(function () use ($trashedTeacher, $attributes) {
                 $trashedTeacher->restore();
                 $trashedTeacher->update($attributes);
@@ -146,6 +148,41 @@ class TeacherUserController extends Controller
         return (new TeacherUserResource($teacher->load(['role.permissions', 'school', 'district'])))
             ->response()
             ->setStatusCode(Response::HTTP_CREATED);
+    }
+
+    /**
+     * The email/phone match above can land on a trashed teacher that only
+     * partially matches the incoming data (e.g. matched on email while a
+     * *different* trashed or live teacher already holds the incoming
+     * phone). Restoring and updating in that case would either collide
+     * with the still-present unique index (an unhandled 500) or silently
+     * overwrite the wrong record. Reject it the same way the create path
+     * would via validation.
+     *
+     * The tenant global scope is bypassed for the same reason it is
+     * above: a conflicting row in a different school/district is still
+     * invisible to the real unique index, so it must not be invisible
+     * here either.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    private function guardAgainstConflictingRestore(TeacherUser $teacher, array $attributes): void
+    {
+        $errors = [];
+
+        if (($attributes['email'] ?? null) !== null
+            && TeacherUser::withTrashed()->withoutGlobalScope(TenantScope::class)->where('id', '!=', $teacher->id)->where('email', $attributes['email'])->exists()) {
+            $errors['email'] = ['The email has already been taken.'];
+        }
+
+        if (($attributes['phone'] ?? null) !== null
+            && TeacherUser::withTrashed()->withoutGlobalScope(TenantScope::class)->where('id', '!=', $teacher->id)->where('phone', $attributes['phone'])->exists()) {
+            $errors['phone'] = ['The phone has already been taken.'];
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
     }
 
     /**
