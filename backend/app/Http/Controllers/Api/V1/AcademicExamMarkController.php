@@ -5,10 +5,13 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\RecordAcademicExamMarkRequest;
 use App\Models\AcademicExamMark;
+use App\Models\AcademicExamPublication;
 use App\Models\AcademicExamTerm;
 use App\Models\AcademicSubjectMarkConfigure;
+use App\Models\AcademicYear;
 use App\Models\Section;
 use App\Models\StudentProfile;
+use App\Models\StudentUser;
 use App\Models\Subject;
 use App\Models\SubjectTeacherAssignment;
 use App\Models\TeacherUser;
@@ -209,6 +212,72 @@ class AcademicExamMarkController extends Controller
                     'roll_number' => $profile->roll_number,
                 ])->values()->all(),
             ],
+        ]);
+    }
+
+    /**
+     * Every exam term already published for this student's own section,
+     * in the current academic year — the source data behind the student
+     * portal's Results page list ("which terms can I see a result for").
+     */
+    public function mineTerms(Request $request): JsonResponse
+    {
+        $student = $request->user();
+        abort_unless($student instanceof StudentUser, 403);
+
+        $profile = $student->profile;
+
+        if ($profile === null || $profile->section_id === null) {
+            return response()->json(['data' => []]);
+        }
+
+        $academicYearId = AcademicYear::where('is_current', true)->value('id');
+
+        if ($academicYearId === null) {
+            return response()->json(['data' => []]);
+        }
+
+        $terms = AcademicExamTerm::where('is_active', true)->orderBy('sort_order')->get();
+
+        $published = $terms->filter(
+            fn (AcademicExamTerm $term) => AcademicExamPublication::isPublished($profile->section_id, $term->id, $academicYearId)
+        );
+
+        return response()->json([
+            'data' => $published->map(fn (AcademicExamTerm $term) => [
+                'academic_exam_term_id' => $term->id,
+                'term_name' => $term->bn_name ?? $term->name,
+                'academic_year_id' => $academicYearId,
+            ])->values(),
+        ]);
+    }
+
+    /**
+     * This student's own marksheet for one exam term/academic year —
+     * 404s outright unless that (section, term, year) has actually been
+     * published, same gate mineTerms() already filters its list by.
+     */
+    public function mine(Request $request): JsonResponse
+    {
+        $student = $request->user();
+        abort_unless($student instanceof StudentUser, 403);
+
+        $profile = $student->profile;
+
+        if ($profile === null) {
+            return response()->json(['data' => null]);
+        }
+
+        $term = AcademicExamTerm::findOrFail($request->integer('academic_exam_term_id'));
+        $academicYearId = $request->integer('academic_year_id');
+
+        abort_unless(
+            $profile->section_id !== null && AcademicExamPublication::isPublished($profile->section_id, $term->id, $academicYearId),
+            404
+        );
+
+        return response()->json([
+            'data' => $this->marksheetBuilder->build($profile, $term, $academicYearId),
         ]);
     }
 

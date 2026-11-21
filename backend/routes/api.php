@@ -205,6 +205,8 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/academic-exam-marks/record', [AcademicExamMarkController::class, 'record']);
         Route::get('/academic-exam-marks/marksheet', [AcademicExamMarkController::class, 'marksheet']);
         Route::get('/academic-exam-marks/section-students', [AcademicExamMarkController::class, 'sectionStudents']);
+        Route::get('/academic-exam-marks/mine/terms', [AcademicExamMarkController::class, 'mineTerms']);
+        Route::get('/academic-exam-marks/mine', [AcademicExamMarkController::class, 'mine']);
 
         Route::get('/academic-exam-publications/status', [AcademicExamPublicationController::class, 'status']);
         Route::post('/academic-exam-publications', [AcademicExamPublicationController::class, 'store']);
