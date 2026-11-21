@@ -30,17 +30,32 @@ class ClassRoutineController extends Controller
     public function index(Request $request): AnonymousResourceCollection
     {
         $routines = ClassRoutine::query()
-            ->with(['schoolClass', 'subject', 'teacher', 'classroom'])
+            // section/shift/classVersion/academicYear eager-loaded
+            // alongside index()'s original subject/teacher/classroom so
+            // the Management Portal's Teacher/Class Routine pages can
+            // render the same grid the Teacher/Student portals already
+            // do, without a second request per relation — same reasoning
+            // as mine()'s own eager-load list.
+            ->with(['schoolClass', 'subject', 'teacher', 'classroom', 'section', 'shift', 'classVersion', 'academicYear'])
             ->when($request->integer('school_id'), fn ($query, $schoolId) => $query->where('school_id', $schoolId))
             ->when($request->integer('district_id'), fn ($query, $districtId) => $query->where('district_id', $districtId))
             ->when($request->integer('class_id'), fn ($query, $classId) => $query->where('class_id', $classId))
+            ->when($request->integer('class_version_id'), fn ($query, $classVersionId) => $query->where('class_version_id', $classVersionId))
+            ->when($request->integer('shift_id'), fn ($query, $shiftId) => $query->where('shift_id', $shiftId))
+            ->when($request->integer('section_id'), fn ($query, $sectionId) => $query->where('section_id', $sectionId))
             ->when($request->integer('teacher_id'), fn ($query, $teacherId) => $query->where('teacher_id', $teacherId))
             ->when($request->integer('academic_year_id'), fn ($query, $academicYearId) => $query->where('academic_year_id', $academicYearId))
             ->when($request->string('day_of_week')->toString(), fn ($query, $day) => $query->where('day_of_week', $day))
             ->orderBy('class_id')
-            ->orderByRaw('field(day_of_week, '.implode(',', array_fill(0, count(ClassRoutine::DAYS_OF_WEEK), '?')).')', ClassRoutine::DAYS_OF_WEEK)
-            ->orderBy('period_no')
-            ->get();
+            ->get()
+            // Sorted in PHP rather than a MySQL-only orderByRaw('field(...)')
+            // — same convention and reasoning as mine()'s own sort, and it
+            // makes this endpoint testable against SQLite at all, which the
+            // previous MySQL-only ORDER BY silently never was (no test ever
+            // exercised index() before this). class_id stays the primary
+            // key so a broad, unfiltered call still groups by class first.
+            ->sortBy(fn (ClassRoutine $routine) => [$routine->class_id, array_search($routine->day_of_week, ClassRoutine::DAYS_OF_WEEK), $routine->period_no])
+            ->values();
 
         return ClassRoutineResource::collection($routines);
     }

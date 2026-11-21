@@ -51,6 +51,66 @@ class ClassRoutineControllerTest extends TestCase
         ]);
     }
 
+    public function test_index_filters_by_class_version_shift_and_section(): void
+    {
+        // Two DIFFERENT classes, not two versions of the same class:
+        // class_routines is unique on (class_id, school_id, day_of_week,
+        // period_no) — NOT section-scoped — so two versions of the SAME
+        // class could never both hold a Sunday-period-1 slot in the same
+        // school. Each school_class in practice gets exactly one
+        // class_version's worth of routine, so class_version_id/shift_id/
+        // section_id all narrow to the SAME single grid as class_id does
+        // here — this test just confirms each filter independently wires
+        // through to the right `where()`.
+        $classB = SchoolClass::create(['name' => 'Class 7']);
+        ClassSchool::create(['class_id' => $classB->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
+        DB::table('class_subjects')->insert([
+            'class_id' => $classB->id, 'school_id' => $this->school->id, 'subject_id' => $this->subject->id,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $versionA = ClassVersion::create(['class_id' => $this->class->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'General']);
+        $shiftA = Shift::create(['class_version_id' => $versionA->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Day Shift', 'start_time' => '08:00', 'end_time' => '13:00', 'days_of_week' => ['sunday']]);
+        $sectionA = Section::create(['shift_id' => $shiftA->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'A']);
+
+        $versionB = ClassVersion::create(['class_id' => $classB->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'General']);
+        $shiftB = Shift::create(['class_version_id' => $versionB->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Day Shift', 'start_time' => '08:00', 'end_time' => '13:00', 'days_of_week' => ['sunday']]);
+        $sectionB = Section::create(['shift_id' => $shiftB->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'B']);
+
+        $teacher = $this->teacherActorWithPermissions(['class_routines.create'], $this->school->id, $this->school->district_id);
+
+        $routineAId = $this->actingAs($teacher, 'sanctum')->postJson('/api/v1/class-routines', [
+            'class_id' => $this->class->id, 'school_id' => $this->school->id, 'section_id' => $sectionA->id,
+            'subject_id' => $this->subject->id, 'day_of_week' => 'sunday', 'period_no' => 1,
+        ])->json('data.id');
+
+        $this->actingAs($teacher, 'sanctum')->postJson('/api/v1/class-routines', [
+            'class_id' => $classB->id, 'school_id' => $this->school->id, 'section_id' => $sectionB->id,
+            'subject_id' => $this->subject->id, 'day_of_week' => 'sunday', 'period_no' => 1,
+        ])->assertCreated();
+
+        // section_id alone narrows to exactly one grid, same as shift_id
+        // or class_version_id alone would (each maps 1:1 to the other
+        // two here) — exercised separately so a future divergence in any
+        // one filter's `when()` clause is caught on its own.
+        $this->getJson("/api/v1/class-routines?section_id={$sectionA->id}")
+            ->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $routineAId);
+
+        $this->getJson("/api/v1/class-routines?shift_id={$shiftA->id}")
+            ->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $routineAId);
+
+        $this->getJson("/api/v1/class-routines?class_version_id={$versionA->id}")
+            ->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $routineAId);
+
+        // Eager-loaded relations the Management Portal's own Teacher/Class
+        // Routine pages need to render the same grid the Teacher/Student
+        // portals already do, without a second request per relation.
+        $this->getJson("/api/v1/class-routines?section_id={$sectionA->id}")
+            ->assertJsonPath('data.0.section.id', $sectionA->id)
+            ->assertJsonPath('data.0.shift.id', $shiftA->id)
+            ->assertJsonPath('data.0.class_version.id', $versionA->id);
+    }
+
     public function test_store_denormalizes_shift_and_class_version_from_the_given_section(): void
     {
         $version = ClassVersion::create(['class_id' => $this->class->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'General']);
