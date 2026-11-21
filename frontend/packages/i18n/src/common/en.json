@@ -785,5 +785,27 @@
   "teacher.marksEntry.save": "Save Marks",
   "teacher.marksEntry.saving": "Saving…",
   "teacher.marksEntry.saveSuccess": "Marks saved.",
-  "teacher.marksEntry.saveError": "Could not save marks. Please try again."
+  "teacher.marksEntry.saveError": "Could not save marks. Please try again.",
+
+  "teacher.nav.marksheets": "Marksheets",
+  "teacher.marksheets.selectSection": "Select section",
+  "teacher.marksheets.selectStudent": "Select student",
+  "teacher.marksheets.selectTerm": "Select exam term",
+  "teacher.marksheets.selectYear": "Select academic year",
+  "teacher.marksheets.loading": "Loading…",
+  "teacher.marksheets.pickAllFilters": "Pick a section, student, exam term, and academic year to view a marksheet.",
+  "teacher.marksheets.print": "Print",
+  "teacher.marksheets.colSubject": "Subject",
+  "teacher.marksheets.colCq": "CQ",
+  "teacher.marksheets.colMcq": "MCQ",
+  "teacher.marksheets.colPractical": "Practical",
+  "teacher.marksheets.colTotal": "Total",
+  "teacher.marksheets.colGrade": "Grade",
+  "teacher.marksheets.gpa": "GPA",
+  "teacher.marksheets.result": "Result",
+  "teacher.marksheets.resultPass": "Pass",
+  "teacher.marksheets.resultFail": "Fail",
+  "teacher.marksheets.sectionPosition": "Section Position",
+  "teacher.marksheets.classPosition": "Class Position",
+  "teacher.marksheets.positionNotAvailable": "Not available (not yet published)"
 }

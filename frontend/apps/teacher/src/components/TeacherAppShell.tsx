@@ -19,6 +19,7 @@ const navItems: SidebarItem[] = [
     ],
   },
   { to: '/marks-entry', label: t['teacher.nav.marksEntry'], icon: 'edit_note' },
+  { to: '/marksheets', label: t['teacher.nav.marksheets'], icon: 'description' },
   { to: '/leave-applications', label: t['teacher.nav.leaveApplications'], icon: 'event_busy' },
   { to: '/holidays', label: t['teacher.nav.holidays'], icon: 'celebration' },
 ]

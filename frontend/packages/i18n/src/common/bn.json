@@ -785,5 +785,27 @@
   "teacher.marksEntry.save": "নম্বর সংরক্ষণ করুন",
   "teacher.marksEntry.saving": "সংরক্ষণ হচ্ছে…",
   "teacher.marksEntry.saveSuccess": "নম্বর সংরক্ষণ করা হয়েছে।",
-  "teacher.marksEntry.saveError": "নম্বর সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।"
+  "teacher.marksEntry.saveError": "নম্বর সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।",
+
+  "teacher.nav.marksheets": "মার্কশিট",
+  "teacher.marksheets.selectSection": "শাখা নির্বাচন করুন",
+  "teacher.marksheets.selectStudent": "শিক্ষার্থী নির্বাচন করুন",
+  "teacher.marksheets.selectTerm": "পরীক্ষার মেয়াদ নির্বাচন করুন",
+  "teacher.marksheets.selectYear": "শিক্ষাবর্ষ নির্বাচন করুন",
+  "teacher.marksheets.loading": "লোড হচ্ছে…",
+  "teacher.marksheets.pickAllFilters": "মার্কশিট দেখতে একটি শাখা, শিক্ষার্থী, পরীক্ষার মেয়াদ এবং শিক্ষাবর্ষ নির্বাচন করুন।",
+  "teacher.marksheets.print": "প্রিন্ট করুন",
+  "teacher.marksheets.colSubject": "বিষয়",
+  "teacher.marksheets.colCq": "সিকিউ",
+  "teacher.marksheets.colMcq": "এমসিকিউ",
+  "teacher.marksheets.colPractical": "ব্যবহারিক",
+  "teacher.marksheets.colTotal": "মোট",
+  "teacher.marksheets.colGrade": "গ্রেড",
+  "teacher.marksheets.gpa": "জিপিএ",
+  "teacher.marksheets.result": "ফলাফল",
+  "teacher.marksheets.resultPass": "উত্তীর্ণ",
+  "teacher.marksheets.resultFail": "অকৃতকার্য",
+  "teacher.marksheets.sectionPosition": "শাখা অবস্থান",
+  "teacher.marksheets.classPosition": "শ্রেণি অবস্থান",
+  "teacher.marksheets.positionNotAvailable": "উপলব্ধ নয় (এখনও প্রকাশিত হয়নি)"
 }
