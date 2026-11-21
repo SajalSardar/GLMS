@@ -54,7 +54,7 @@ return new class extends Migration
             $table->softDeletes();
 
             $table->unique(['student_profile_id', 'subject_id', 'academic_exam_term_id', 'academic_year_id'], 'academic_exam_marks_unique');
-            $table->index(['section_id', 'subject_id', 'academic_exam_term_id']);
+            $table->index(['section_id', 'subject_id', 'academic_exam_term_id'], 'academic_exam_marks_section_subject_term_index');
         });
     }
 
