@@ -257,4 +257,63 @@ class MarksheetBuilderTest extends TestCase
         $this->assertSame(1, $result['class_position']);
         $this->assertSame(1, $result['class_total_students']);
     }
+
+    public function test_class_position_excludes_students_from_a_different_school_sharing_the_same_class(): void
+    {
+        // school_classes is a NATIONAL table — a second school's class
+        // version/shift/section can legitimately reuse the exact same
+        // SchoolClass row. publishedClassmateIds() must not let this
+        // other school's student leak into $mine's class-wide ranking,
+        // regardless of the ambient TenantScope (which this direct,
+        // no-actor-authenticated test never engages either way).
+        $subject = Subject::create(['name' => 'Mathematics']);
+        AcademicSubjectMarkConfigure::create(['class_id' => $this->class->id, 'subject_id' => $subject->id, 'cq_full_marks' => 100]);
+
+        $otherDivision = Division::create(['name' => 'Other Division', 'bn_name' => 'অন্য বিভাগ']);
+        $otherDistrict = District::create(['division_id' => $otherDivision->id, 'name' => 'Other District', 'bn_name' => 'অন্য জেলা']);
+        $otherUpazila = Upazila::create(['district_id' => $otherDistrict->id, 'name' => 'Other Upazila', 'bn_name' => 'অন্য উপজেলা']);
+        $otherSchool = School::create(['division_id' => $otherDivision->id, 'district_id' => $otherDistrict->id, 'upazila_id' => $otherUpazila->id, 'name' => 'Other School']);
+
+        $otherVersion = ClassVersion::create(['class_id' => $this->class->id, 'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id, 'name' => 'General']);
+        $otherShift = Shift::create(['class_version_id' => $otherVersion->id, 'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id, 'name' => 'Day Shift', 'start_time' => '08:00', 'end_time' => '13:00', 'days_of_week' => ['sunday']]);
+        $otherSchoolSection = Section::create(['shift_id' => $otherShift->id, 'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id, 'name' => 'Main']);
+
+        $mine = $this->studentInSection('1', $this->section);
+        $this->mark($mine, $subject, ['cq_marks_obtained' => 50]);
+
+        // Distinct roll_number — student_profiles has a unique(class_id,
+        // roll_number) constraint, and this student shares the same
+        // class_id as $mine (class_id is a national table, reused across
+        // schools).
+        $otherSchoolStudentUser = $this->studentActorWithPermissions([], $otherSchool->id, $otherSchool->district_id);
+        $otherSchoolStudent = StudentProfile::create([
+            'user_id' => $otherSchoolStudentUser->id,
+            'school_id' => $otherSchool->id,
+            'district_id' => $otherSchool->district_id,
+            'class_id' => $this->class->id,
+            'section_id' => $otherSchoolSection->id,
+            'shift_id' => $otherSchoolSection->shift_id,
+            'class_version_id' => $otherSchoolSection->shift->class_version_id,
+            'roll_number' => '2',
+        ]);
+        $this->mark($otherSchoolStudent, $subject, [
+            'cq_marks_obtained' => 95,
+            'school_id' => $otherSchool->id,
+            'district_id' => $otherSchool->district_id,
+        ]);
+
+        AcademicExamPublication::create([
+            'section_id' => $this->section->id, 'academic_exam_term_id' => $this->term->id, 'academic_year_id' => $this->year->id,
+            'school_id' => $this->school->id, 'district_id' => $this->school->district_id,
+        ]);
+        AcademicExamPublication::create([
+            'section_id' => $otherSchoolSection->id, 'academic_exam_term_id' => $this->term->id, 'academic_year_id' => $this->year->id,
+            'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id,
+        ]);
+
+        $result = $this->builder->build($mine, $this->term, $this->year->id);
+
+        $this->assertSame(1, $result['class_position']);
+        $this->assertSame(1, $result['class_total_students']);
+    }
 }

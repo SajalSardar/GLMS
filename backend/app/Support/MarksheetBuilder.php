@@ -189,16 +189,30 @@ class MarksheetBuilder
      * (term, year) — an unpublished sibling section is excluded entirely,
      * not silently counted with stale/missing data.
      *
+     * Both queries are explicitly scoped to $profile's own school_id
+     * rather than relying on the ambient TenantScope global scope:
+     * school_classes (the class_id filtered on here) is a NATIONAL
+     * table, so an unscoped query would span every school that happens
+     * to share the same SchoolClass. TenantScope only narrows a query
+     * when the AUTHENTICATED ACTOR has their own school_id — a
+     * national_admin (no school_id) gets no restriction at all, and a
+     * district-scoped staff actor gets restricted only to the district.
+     * This computation must be correct regardless of who's viewing it,
+     * so it never leans on the ambient scope here.
+     *
      * @return Collection<int, int>
      */
     private function publishedClassmateIds(StudentProfile $profile, int $termId, int $academicYearId): Collection
     {
         $publishedSectionIds = Section::query()
+            ->where('school_id', $profile->school_id)
             ->whereHas('shift.classVersion', fn ($query) => $query->where('class_id', $profile->class_id))
             ->get()
             ->filter(fn (Section $section) => AcademicExamPublication::isPublished($section->id, $termId, $academicYearId))
             ->pluck('id');
 
-        return StudentProfile::whereIn('section_id', $publishedSectionIds)->pluck('id');
+        return StudentProfile::whereIn('section_id', $publishedSectionIds)
+            ->where('school_id', $profile->school_id)
+            ->pluck('id');
     }
 }
