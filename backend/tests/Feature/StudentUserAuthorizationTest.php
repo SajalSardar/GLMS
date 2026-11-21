@@ -200,6 +200,50 @@ class StudentUserAuthorizationTest extends TestCase
         $this->assertSoftDeleted('student_users', ['id' => $studentBId]);
     }
 
+    /**
+     * Regression test: a trashed student matched by phone is a *different*
+     * person, so updating it with only the submitted keys is a partial
+     * merge. The new submission omits email and bn_name entirely, so a
+     * buggy partial merge would leave the old student's email and bn_name
+     * in place — a different person's email permanently squatted by a
+     * brand-new identity, and the real owner of that email locked out of
+     * ever creating an account with it.
+     */
+    public function test_restoring_a_student_matched_by_phone_does_not_inherit_the_previous_owners_data(): void
+    {
+        $actor = $this->actorWithPermissions(['users.create', 'users.delete']);
+
+        $firstPayload = [
+            'name' => 'Old Student',
+            'bn_name' => 'পুরনো ছাত্র',
+            'email' => 'old-student@example.test',
+            'phone' => '0171000001',
+            'password' => 'pin1',
+        ];
+        $created = $this->actingAs($actor, 'sanctum')->postJson('/api/v1/student-users', $firstPayload)->assertCreated();
+        $studentId = $created->json('data.id');
+        $this->actingAs($actor, 'sanctum')->deleteJson("/api/v1/student-users/{$studentId}")->assertNoContent();
+
+        $secondPayload = [
+            'name' => 'Brand New Student',
+            'phone' => '0171000001',
+            'password' => 'secret12',
+        ];
+
+        $this->actingAs($actor, 'sanctum')->postJson('/api/v1/student-users', $secondPayload)
+            ->assertCreated()
+            ->assertJsonPath('data.id', $studentId);
+
+        $this->assertDatabaseHas('student_users', [
+            'id' => $studentId,
+            'name' => 'Brand New Student',
+            'phone' => '0171000001',
+            'bn_name' => null,
+            'email' => null,
+            'deleted_at' => null,
+        ]);
+    }
+
     public function test_recreating_a_soft_deleted_student_from_a_different_school_is_rejected(): void
     {
         $division = Division::create(['name' => 'Division', 'bn_name' => 'বিভাগ']);

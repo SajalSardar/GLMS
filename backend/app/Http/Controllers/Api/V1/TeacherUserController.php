@@ -102,7 +102,7 @@ class TeacherUserController extends Controller
         }
 
         $attributes = [
-            ...$request->safe()->only(['name', 'bn_name', 'email', 'phone', 'password']),
+            ...$this->completeAttributes($request),
             'role_id' => $role?->id,
             'school_id' => $schoolId,
             'district_id' => $districtId,
@@ -183,6 +183,42 @@ class TeacherUserController extends Controller
         if ($errors !== []) {
             throw ValidationException::withMessages($errors);
         }
+    }
+
+    /**
+     * Build the complete attribute set for this submission: every fillable
+     * column the request did not include is explicitly set to null.
+     *
+     * A restore-check match can land on a trashed teacher that is a
+     * COMPLETELY DIFFERENT person (it is matched by phone, not only by
+     * email). Updating such a row with just the submitted keys is a
+     * partial merge, not a replacement: every fillable column absent from
+     * the new submission silently keeps the previous owner's value — a
+     * new teacher created without bn_name would come back still carrying
+     * the old teacher's bn_name. Restoring a trashed row found via ANY
+     * column match must therefore behave exactly like a fresh create()
+     * with complete, honest data.
+     *
+     * role_id/school_id/district_id are excluded because the caller
+     * resolves them from elsewhere (the fixed "teacher" role, and the
+     * actor's/explicit scope) rather than from raw input.
+     *
+     * @return array<string, mixed>
+     */
+    private function completeAttributes(StoreTeacherUserRequest $request): array
+    {
+        $resolvedColumns = ['role_id', 'school_id', 'district_id'];
+        $attributes = [];
+
+        foreach ((new TeacherUser)->getFillable() as $column) {
+            if (in_array($column, $resolvedColumns, true)) {
+                continue;
+            }
+
+            $attributes[$column] = $request->has($column) ? $request->validated($column) : null;
+        }
+
+        return $attributes;
     }
 
     /**

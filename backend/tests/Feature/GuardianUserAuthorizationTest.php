@@ -203,6 +203,51 @@ class GuardianUserAuthorizationTest extends TestCase
         $this->assertSoftDeleted('guardian_users', ['id' => $guardianBId]);
     }
 
+    /**
+     * Regression test: a trashed guardian matched by phone is a *different*
+     * person, so updating it with only the submitted keys is a partial
+     * merge. The new submission omits bn_name entirely, so a buggy partial
+     * merge would leave the old guardian's bn_name in place — a different
+     * person's name riding along on a brand-new identity. (email can't be
+     * used as the leaking field here: it's a required column on this
+     * endpoint, so it's always present in the submission.)
+     */
+    public function test_restoring_a_guardian_matched_by_phone_does_not_inherit_the_previous_owners_data(): void
+    {
+        $actor = $this->actorWithPermissions(['users.create', 'users.delete']);
+
+        $firstPayload = [
+            'name' => 'Old Guardian',
+            'bn_name' => 'পুরনো অভিভাবক',
+            'email' => 'old-guardian@example.test',
+            'phone' => '0171000001',
+            'password' => 'password123',
+        ];
+        $created = $this->actingAs($actor, 'sanctum')->postJson('/api/v1/guardian-users', $firstPayload)->assertCreated();
+        $guardianId = $created->json('data.id');
+        $this->actingAs($actor, 'sanctum')->deleteJson("/api/v1/guardian-users/{$guardianId}")->assertNoContent();
+
+        $secondPayload = [
+            'name' => 'Brand New Guardian',
+            'email' => 'brand-new-guardian@example.test',
+            'phone' => '0171000001',
+            'password' => 'secret123',
+        ];
+
+        $this->actingAs($actor, 'sanctum')->postJson('/api/v1/guardian-users', $secondPayload)
+            ->assertCreated()
+            ->assertJsonPath('data.id', $guardianId);
+
+        $this->assertDatabaseHas('guardian_users', [
+            'id' => $guardianId,
+            'name' => 'Brand New Guardian',
+            'email' => 'brand-new-guardian@example.test',
+            'phone' => '0171000001',
+            'bn_name' => null,
+            'deleted_at' => null,
+        ]);
+    }
+
     public function test_recreating_a_soft_deleted_guardian_from_a_different_school_is_rejected(): void
     {
         $division = Division::create(['name' => 'Division', 'bn_name' => 'বিভাগ']);

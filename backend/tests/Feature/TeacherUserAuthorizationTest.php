@@ -221,6 +221,51 @@ class TeacherUserAuthorizationTest extends TestCase
         $this->assertSoftDeleted('teacher_users', ['id' => $teacherBId]);
     }
 
+    /**
+     * Regression test: a trashed teacher matched by phone is a *different*
+     * person, so updating it with only the submitted keys is a partial
+     * merge. The new submission omits bn_name entirely, so a buggy partial
+     * merge would leave the old teacher's bn_name in place — a different
+     * person's name riding along on a brand-new identity. (email can't be
+     * used as the leaking field here: it's a required column on this
+     * endpoint, so it's always present in the submission.)
+     */
+    public function test_restoring_a_teacher_matched_by_phone_does_not_inherit_the_previous_owners_data(): void
+    {
+        $actor = $this->actorWithPermissions(['users.create', 'users.delete']);
+
+        $firstPayload = [
+            'name' => 'Old Teacher',
+            'bn_name' => 'পুরনো শিক্ষক',
+            'email' => 'old-teacher@example.test',
+            'phone' => '0171000001',
+            'password' => 'password123',
+        ];
+        $created = $this->actingAs($actor, 'sanctum')->postJson('/api/v1/teacher-users', $firstPayload)->assertCreated();
+        $teacherId = $created->json('data.id');
+        $this->actingAs($actor, 'sanctum')->deleteJson("/api/v1/teacher-users/{$teacherId}")->assertNoContent();
+
+        $secondPayload = [
+            'name' => 'Brand New Teacher',
+            'email' => 'brand-new-teacher@example.test',
+            'phone' => '0171000001',
+            'password' => 'secret123',
+        ];
+
+        $this->actingAs($actor, 'sanctum')->postJson('/api/v1/teacher-users', $secondPayload)
+            ->assertCreated()
+            ->assertJsonPath('data.id', $teacherId);
+
+        $this->assertDatabaseHas('teacher_users', [
+            'id' => $teacherId,
+            'name' => 'Brand New Teacher',
+            'email' => 'brand-new-teacher@example.test',
+            'phone' => '0171000001',
+            'bn_name' => null,
+            'deleted_at' => null,
+        ]);
+    }
+
     public function test_recreating_a_soft_deleted_teacher_from_a_different_school_is_rejected(): void
     {
         $division = Division::create(['name' => 'Division', 'bn_name' => 'বিভাগ']);
