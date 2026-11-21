@@ -132,10 +132,17 @@ class AcademicExamMarkMineControllerTest extends TestCase
 
     public function test_mine_returns_the_marksheet_for_a_published_term(): void
     {
+        // section_position/section_total_students pin build()'s default
+        // $withPositions=true at this call site — the lone student in a
+        // published section resolves to position 1 of 1; if a future
+        // change ever passed withPositions:false here, these would
+        // silently become null/0 and this assertion would catch it.
         $this->actingAs($this->student, 'sanctum')
             ->getJson("/api/v1/academic-exam-marks/mine?academic_exam_term_id={$this->publishedTerm->id}&academic_year_id={$this->year->id}")
             ->assertOk()
-            ->assertJsonPath('data.subjects.0.cq', 90);
+            ->assertJsonPath('data.subjects.0.cq', 90)
+            ->assertJsonPath('data.section_position', 1)
+            ->assertJsonPath('data.section_total_students', 1);
     }
 
     public function test_mine_404s_for_an_unpublished_term(): void

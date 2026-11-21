@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AcademicExamPublication;
 use App\Models\AcademicExamTerm;
 use App\Models\AcademicSubjectMarkConfigure;
 use App\Models\AcademicYear;
@@ -432,10 +433,26 @@ class AcademicExamMarkControllerTest extends TestCase
 
         $this->actingAs($classTeacher, 'sanctum')->postJson('/api/v1/academic-exam-marks/record', $this->recordPayload($profile->id))->assertOk();
 
+        // Published so position fields resolve to a real value rather than
+        // the "unpublished" branch's null/0 — this pins build()'s default
+        // $withPositions=true at this call site: if a future change ever
+        // passed withPositions:false here (as the new promotion call sites
+        // deliberately do), section_position would silently become null
+        // and this assertion would catch it.
+        AcademicExamPublication::create([
+            'section_id' => $this->section->id,
+            'academic_exam_term_id' => $this->term->id,
+            'academic_year_id' => $this->year->id,
+            'school_id' => $this->school->id,
+            'district_id' => $this->school->district_id,
+        ]);
+
         $this->actingAs($classTeacher, 'sanctum')
             ->getJson("/api/v1/academic-exam-marks/marksheet?student_profile_id={$profile->id}&academic_exam_term_id={$this->term->id}&academic_year_id={$this->year->id}")
             ->assertOk()
-            ->assertJsonPath('data.subjects.0.subject_id', $this->subject->id);
+            ->assertJsonPath('data.subjects.0.subject_id', $this->subject->id)
+            ->assertJsonPath('data.section_position', 1)
+            ->assertJsonPath('data.section_total_students', 1);
     }
 
     public function test_marksheet_is_viewable_by_a_subject_teacher_with_no_class_teacher_role(): void
