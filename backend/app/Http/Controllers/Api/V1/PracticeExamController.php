@@ -27,10 +27,21 @@ class PracticeExamController extends Controller
     }
 
     /**
-     * Creates a hidden, student-driven Exam (is_practice = true) scoped
-     * via exam_random_chapters to exactly the submitted chapters. No
-     * find-or-create/dedup — every call creates a fresh row (accepted
-     * tradeoff, see the design spec).
+     * Creates (or reuses) a hidden, student-driven Exam (is_practice =
+     * true) scoped via exam_random_chapters to exactly the submitted
+     * chapters.
+     *
+     * exams has a unique(class_version_id, subject_id, academic_year_id,
+     * name) constraint, and namesFromChapters() derives `name`
+     * deterministically from the chapter set — so re-practicing the same
+     * chapter(s) (by the same student or a different one) would hit that
+     * constraint and 500 if we always inserted. Every exam for the same
+     * (class_version_id, subject_id, academic_year_id, chapter set) is
+     * functionally identical — same random-draw configuration, same
+     * eligible question pool — so the correct behavior is to reuse the
+     * existing row rather than error or create a near-duplicate; each
+     * student's own attempts are already tracked independently via
+     * ExamAttempt(exam_id, user_id, attempt_number).
      *
      * This route sits outside the auth:sanctum group (it must also serve
      * guests), so the acting user is resolved explicitly from the
@@ -71,6 +82,45 @@ class PracticeExamController extends Controller
         [$name, $bnName] = $this->namesFromChapters($chapterIds);
 
         $exam = DB::transaction(function () use ($classVersionId, $subjectId, $academicYearId, $schoolId, $districtId, $questionCount, $chapterIds, $name, $bnName) {
+            $matching = fn ($query) => $query
+                ->where('class_version_id', $classVersionId)
+                ->where('subject_id', $subjectId)
+                ->where('academic_year_id', $academicYearId)
+                ->where('name', $name);
+
+            // A live exam already covers this exact chapter set: reuse it
+            // as-is. Its chapters are already correctly attached from
+            // when it was first created, so there's nothing left to do.
+            // Deliberately not "refreshed": a reused exam keeps whatever
+            // random_question_count/passing_score_percent etc. it had
+            // when first created, even if the practice_exams config has
+            // since changed — updating those is out of scope here.
+            $existing = $matching(Exam::query())->first();
+
+            if ($existing !== null) {
+                return $existing;
+            }
+
+            // No live match — check for a soft-deleted one (e.g. an admin
+            // previously deleted this exact practice exam) before
+            // inserting, since a trashed row still occupies the unique
+            // index slot and would otherwise make the insert below fail.
+            $trashed = $matching(Exam::onlyTrashed())->first();
+
+            if ($trashed !== null) {
+                $trashed->restore();
+
+                // syncWithoutDetaching rather than attach(): soft-deleting
+                // an exam (ExamController::destroy()) never detaches its
+                // exam_random_chapters pivot rows, so they're typically
+                // still there after restore() — attach() would try to
+                // re-insert them and collide with the pivot's own
+                // unique(exam_id, chapter_id) constraint.
+                $trashed->randomChapters()->syncWithoutDetaching($chapterIds);
+
+                return $trashed;
+            }
+
             $exam = Exam::create([
                 'class_version_id' => $classVersionId,
                 'subject_id' => $subjectId,

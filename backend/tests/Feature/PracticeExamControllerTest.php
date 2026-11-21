@@ -285,4 +285,69 @@ class PracticeExamControllerTest extends TestCase
 
         $this->assertSame('অধ্যায় ১', Exam::findOrFail($response->json('data.id'))->bn_name);
     }
+
+    public function test_re_practicing_the_same_chapter_reuses_the_existing_exam_instead_of_erroring(): void
+    {
+        $first = $this->postJson('/api/v1/practice-exams', [
+            'subject_id' => $this->subject->id,
+            'chapter_ids' => [$this->chapterOne->id],
+        ])->assertCreated();
+
+        // A second request for the exact same chapter set — by the same
+        // guest or a different student, it doesn't matter — used to hit
+        // the exams unique(class_version_id, subject_id, academic_year_id,
+        // name) constraint and 500, since `name` is derived deterministically
+        // from the chapter set.
+        $second = $this->postJson('/api/v1/practice-exams', [
+            'subject_id' => $this->subject->id,
+            'chapter_ids' => [$this->chapterOne->id],
+        ])->assertCreated();
+
+        $this->assertSame($first->json('data.id'), $second->json('data.id'));
+        $this->assertSame(1, Exam::where('class_version_id', $this->version->id)
+            ->where('subject_id', $this->subject->id)
+            ->where('academic_year_id', $this->academicYear->id)
+            ->where('name', 'Chapter 1')
+            ->count());
+    }
+
+    public function test_re_practicing_a_soft_deleted_exams_chapters_restores_it_instead_of_erroring(): void
+    {
+        $response = $this->postJson('/api/v1/practice-exams', [
+            'subject_id' => $this->subject->id,
+            'chapter_ids' => [$this->chapterOne->id],
+        ])->assertCreated();
+
+        $examId = $response->json('data.id');
+        Exam::findOrFail($examId)->delete();
+
+        $this->assertTrue(Exam::onlyTrashed()->whereKey($examId)->exists());
+
+        $restored = $this->postJson('/api/v1/practice-exams', [
+            'subject_id' => $this->subject->id,
+            'chapter_ids' => [$this->chapterOne->id],
+        ])->assertCreated();
+
+        $this->assertSame($examId, $restored->json('data.id'));
+
+        $exam = Exam::findOrFail($examId);
+        $this->assertNull($exam->deleted_at);
+        $this->assertSame([$this->chapterOne->id], $exam->randomChapters()->pluck('chapters.id')->all());
+    }
+
+    public function test_different_chapter_sets_each_get_their_own_distinct_exam(): void
+    {
+        $first = $this->postJson('/api/v1/practice-exams', [
+            'subject_id' => $this->subject->id,
+            'chapter_ids' => [$this->chapterOne->id],
+        ])->assertCreated();
+
+        $second = $this->postJson('/api/v1/practice-exams', [
+            'subject_id' => $this->subject->id,
+            'chapter_ids' => [$this->chapterTwo->id],
+        ])->assertCreated();
+
+        $this->assertNotSame($first->json('data.id'), $second->json('data.id'));
+        $this->assertSame(2, Exam::where('is_practice', true)->count());
+    }
 }
