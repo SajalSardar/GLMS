@@ -10,6 +10,7 @@ use App\Http\Requests\Api\V1\UpdateStudentProfileRequest;
 use App\Http\Resources\Api\V1\StudentProfileResource;
 use App\Http\Resources\Api\V1\StudentSectionTransferResource;
 use App\Models\ClassSchool;
+use App\Models\Scopes\TenantScope;
 use App\Models\Section;
 use App\Models\StudentProfile;
 use App\Models\StudentSectionTransfer;
@@ -20,6 +21,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class StudentProfileController extends Controller
@@ -203,28 +205,40 @@ class StudentProfileController extends Controller
             ]);
         }
 
+        $toClassId = $toSection->shift?->classVersion?->class_id;
+
+        $this->assertNoRollNumberCollision($student_profile, $toClassId);
+
         $fromSectionId = $student_profile->section_id;
+        $reason = $request->input('reason');
 
-        $transfer = StudentSectionTransfer::create([
-            'student_profile_id' => $student_profile->id,
-            'from_section_id' => $fromSectionId,
-            'to_section_id' => $toSection->id,
-            'transferred_by' => $actor->id,
-            'reason' => $request->input('reason'),
-            'transferred_at' => now(),
-        ]);
+        // Both writes go in one transaction: the audit row must never be
+        // committed without the profile move it claims happened (or vice
+        // versa), whatever makes either write fail.
+        $transfer = DB::transaction(function () use ($student_profile, $fromSectionId, $toSection, $toClassId, $actor, $reason) {
+            $transfer = StudentSectionTransfer::create([
+                'student_profile_id' => $student_profile->id,
+                'from_section_id' => $fromSectionId,
+                'to_section_id' => $toSection->id,
+                'transferred_by' => $actor->id,
+                'reason' => $reason,
+                'transferred_at' => now(),
+            ]);
 
-        // shift_id/class_version_id/class_id are all denormalized from
-        // section_id — this is the only place section_id ever changes, so
-        // it's the only place that needs to keep them in sync. class_id is
-        // resolved from the target section's own relations, the same way
-        // StudentPromotionController::store() resolves it for a batch move.
-        $student_profile->update([
-            'section_id' => $toSection->id,
-            'shift_id' => $toSection->shift_id,
-            'class_version_id' => $toSection->shift?->class_version_id,
-            'class_id' => $toSection->shift?->classVersion?->class_id,
-        ]);
+            // shift_id/class_version_id/class_id are all denormalized from
+            // section_id — this is the only place section_id ever changes, so
+            // it's the only place that needs to keep them in sync. class_id is
+            // resolved from the target section's own relations, the same way
+            // StudentPromotionController::store() resolves it for a batch move.
+            $student_profile->update([
+                'section_id' => $toSection->id,
+                'shift_id' => $toSection->shift_id,
+                'class_version_id' => $toSection->shift?->class_version_id,
+                'class_id' => $toClassId,
+            ]);
+
+            return $transfer;
+        });
 
         return new StudentSectionTransferResource($transfer->load(['fromSection', 'toSection']));
     }
@@ -240,6 +254,48 @@ class StudentProfileController extends Controller
         $this->authorize('viewDashboard', $student_profile);
 
         return response()->json(['data' => (new StudentDashboardBuilder)->build($student_profile)]);
+    }
+
+    /**
+     * Reject the move up front if the student's roll_number already
+     * belongs to some OTHER student already sitting in the target class.
+     * transferSection() carries roll_number over unchanged (same
+     * convention as StudentPromotionController), and student_profiles
+     * enforces unique(['class_id', 'roll_number']) — since the target
+     * section only has to be in the same SCHOOL, not the same class, two
+     * different classes' short sequential roll numbers collide routinely.
+     * Without this pre-check that collision surfaces as an unhandled 500
+     * on the profile update, after the transfer's audit row has already
+     * been written.
+     *
+     * withTrashed(): the unique(['class_id', 'roll_number']) index does
+     * NOT exclude soft-deleted rows, so a trashed student in the target
+     * class still blocks it — this pre-check must see it too.
+     * withoutGlobalScope(TenantScope): student_profiles.class_id
+     * references school_classes, a NATIONAL table, so the unique index is
+     * effectively global across schools, not per-school — a school-scoped
+     * actor's query must not be narrowed to their own school here or it
+     * misses cross-school collisions a national_admin would catch, giving
+     * the same request different behavior by actor.
+     */
+    private function assertNoRollNumberCollision(StudentProfile $profile, ?int $toClassId): void
+    {
+        if ($toClassId === null || $profile->roll_number === null || $profile->roll_number === '') {
+            return;
+        }
+
+        $collides = StudentProfile::withTrashed()
+            ->withoutGlobalScope(TenantScope::class)
+            ->where('class_id', $toClassId)
+            ->where('roll_number', $profile->roll_number)
+            ->whereKeyNot($profile->getKey())
+            ->exists();
+
+        if ($collides) {
+            throw ValidationException::withMessages([
+                'to_section_id' => ['Roll number '.$profile->roll_number.' already exists in the target class. Resolve the conflict before transferring this student.'],
+            ]);
+        }
     }
 
     /**
