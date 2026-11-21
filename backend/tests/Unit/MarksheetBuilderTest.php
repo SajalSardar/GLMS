@@ -316,4 +316,39 @@ class MarksheetBuilderTest extends TestCase
         $this->assertSame(1, $result['class_position']);
         $this->assertSame(1, $result['class_total_students']);
     }
+
+    public function test_with_positions_false_skips_ranking_but_leaves_subjects_gpa_and_result_unchanged(): void
+    {
+        $subject = Subject::create(['name' => 'Mathematics']);
+        AcademicSubjectMarkConfigure::create(['class_id' => $this->class->id, 'subject_id' => $subject->id, 'cq_full_marks' => 100]);
+
+        $top = $this->studentInSection('1');
+        $this->mark($top, $subject, ['cq_marks_obtained' => 90]);
+
+        $second = $this->studentInSection('2');
+        $this->mark($second, $subject, ['cq_marks_obtained' => 75]);
+
+        AcademicExamPublication::create([
+            'section_id' => $this->section->id, 'academic_exam_term_id' => $this->term->id, 'academic_year_id' => $this->year->id,
+            'school_id' => $this->school->id, 'district_id' => $this->school->district_id,
+        ]);
+
+        $withPositions = $this->builder->build($top, $this->term, $this->year->id);
+        $withoutPositions = $this->builder->build($top, $this->term, $this->year->id, withPositions: false);
+
+        // The flag must not change the actual marksheet content — only
+        // the position fields.
+        $this->assertSame($withPositions['subjects'], $withoutPositions['subjects']);
+        $this->assertSame($withPositions['gpa'], $withoutPositions['gpa']);
+        $this->assertSame($withPositions['result'], $withoutPositions['result']);
+
+        $this->assertNull($withoutPositions['section_position']);
+        $this->assertNull($withoutPositions['class_position']);
+        $this->assertSame(0, $withoutPositions['section_total_students']);
+        $this->assertSame(0, $withoutPositions['class_total_students']);
+
+        // Sanity check that positions WOULD have been non-null with the
+        // default — proving this test fixture actually exercises ranking.
+        $this->assertSame(1, $withPositions['section_position']);
+    }
 }

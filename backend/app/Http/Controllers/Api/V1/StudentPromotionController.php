@@ -48,7 +48,7 @@ class StudentPromotionController extends Controller
             ->values();
 
         $rows = $students->map(function (StudentProfile $profile) use ($term, $academicYearId) {
-            $marksheet = $this->marksheetBuilder->build($profile, $term, $academicYearId);
+            $marksheet = $this->marksheetBuilder->build($profile, $term, $academicYearId, withPositions: false);
             $hasMarks = count($marksheet['subjects']) > 0;
             $result = $hasMarks ? $marksheet['result'] : 'no_marks';
 
@@ -115,6 +115,12 @@ class StudentPromotionController extends Controller
             ]);
         }
 
+        if ($fromClassId === null) {
+            throw ValidationException::withMessages([
+                'section_id' => ['The source section is not attached to a class version; promotion cannot resolve the source class.'],
+            ]);
+        }
+
         $actor = $request->user();
         $now = now();
         $records = $request->array('records');
@@ -157,7 +163,7 @@ class StudentPromotionController extends Controller
                     continue;
                 }
 
-                $marksheet = $this->marksheetBuilder->build($profile, $term, $academicYearId);
+                $marksheet = $this->marksheetBuilder->build($profile, $term, $academicYearId, withPositions: false);
                 $hasMarks = count($marksheet['subjects']) > 0;
                 $result = $hasMarks ? $marksheet['result'] : 'no_marks';
                 $promote = (bool) ($record['promote'] ?? false);

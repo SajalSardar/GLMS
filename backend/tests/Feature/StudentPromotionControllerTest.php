@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\AcademicExamMark;
+use App\Models\AcademicExamPublication;
 use App\Models\AcademicExamTerm;
 use App\Models\AcademicSubjectMarkConfigure;
 use App\Models\AcademicYear;
@@ -17,6 +18,7 @@ use App\Models\StudentProfile;
 use App\Models\Subject;
 use App\Models\Upazila;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\Concerns\CreatesAuthorizedActors;
 use Tests\TestCase;
 
@@ -430,6 +432,87 @@ class StudentPromotionControllerTest extends TestCase
         $pass->refresh();
         $this->assertSame($this->class6->id, $pass->class_id);
         $this->assertNotNull($pass->class_id);
+    }
+
+    public function test_preview_does_not_perform_on2_ranking_work_per_student(): void
+    {
+        // A published section (see AcademicExamMarkControllerTest/
+        // AcademicExamPublicationControllerTest fixtures) so that WITHOUT
+        // this fix, MarksheetBuilder::rank() would do real ranking work
+        // per student instead of short-circuiting on the "unpublished"
+        // branch — otherwise this test couldn't tell the two code paths
+        // apart.
+        AcademicExamPublication::create([
+            'section_id' => $this->section->id,
+            'academic_exam_term_id' => $this->annualTerm->id,
+            'academic_year_id' => $this->year->id,
+            'school_id' => $this->school->id,
+            'district_id' => $this->school->district_id,
+        ]);
+
+        for ($i = 1; $i <= 10; $i++) {
+            $this->studentInSection((string) $i, 70 + $i);
+        }
+
+        $admin = $this->actorWithPermissions(['student_promotions.create'], $this->school->id, $this->school->district_id);
+
+        DB::enableQueryLog();
+
+        $this->actingAs($admin, 'sanctum')
+            ->getJson("/api/v1/student-promotions/preview?section_id={$this->section->id}&academic_year_id={$this->year->id}")
+            ->assertOk();
+
+        $queryCount = count(DB::getQueryLog());
+        DB::disableQueryLog();
+
+        // Generous bound, not a pinned exact count: real O(n) traffic for
+        // 10 students lands well under this. The O(n^2) ranking work this
+        // guards against (rank() re-running subjectResults() for every
+        // section-mate AND every classmate, per student) would blow well
+        // past it for the same fixture if withPositions: false were
+        // reverted.
+        $this->assertLessThan(150, $queryCount);
+    }
+
+    public function test_store_rejects_promotion_when_the_source_sections_class_version_has_been_soft_deleted(): void
+    {
+        // Mirror of the target-section case above, but breaking the
+        // SOURCE section's shift->classVersion chain instead — a
+        // soft-deleted ClassVersion elsewhere in the system (e.g. via
+        // ClassVersionController::destroy()'s unguarded soft-delete)
+        // must not let $fromClassId resolve to null and silently write
+        // a promotion audit row that doesn't know what class the
+        // student came from.
+        $brokenVersion = ClassVersion::create(['class_id' => $this->class6->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Broken']);
+        $brokenShift = Shift::create(['class_version_id' => $brokenVersion->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Day Shift', 'start_time' => '08:00', 'end_time' => '13:00', 'days_of_week' => ['sunday']]);
+        $brokenSection = Section::create(['shift_id' => $brokenShift->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Broken']);
+        $brokenVersion->delete();
+
+        $studentUser = $this->studentActorWithPermissions([], $this->school->id, $this->school->district_id);
+        $profile = StudentProfile::create([
+            'user_id' => $studentUser->id,
+            'school_id' => $this->school->id,
+            'district_id' => $this->school->district_id,
+            'class_id' => $this->class6->id,
+            'section_id' => $brokenSection->id,
+            'shift_id' => $brokenShift->id,
+            'class_version_id' => $brokenVersion->id,
+            'roll_number' => '1',
+        ]);
+
+        $admin = $this->actorWithPermissions(['student_promotions.create'], $this->school->id, $this->school->district_id);
+
+        $this->actingAs($admin, 'sanctum')->postJson('/api/v1/student-promotions', [
+            'section_id' => $brokenSection->id,
+            'academic_year_id' => $this->year->id,
+            'to_section_id' => $this->toSection->id,
+            'records' => [['student_profile_id' => $profile->id, 'promote' => true]],
+        ])->assertUnprocessable()->assertJsonValidationErrors('section_id');
+
+        $this->assertDatabaseCount('student_class_promotions', 0);
+        $profile->refresh();
+        $this->assertSame($this->class6->id, $profile->class_id);
+        $this->assertSame($brokenSection->id, $profile->section_id);
     }
 
     public function test_store_rejects_the_whole_batch_when_a_promoted_students_roll_number_collides_with_a_soft_deleted_target_class_student(): void

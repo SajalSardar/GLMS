@@ -35,16 +35,24 @@ class MarksheetBuilder
      *   class_position: ?int,
      *   class_total_students: int,
      * }
+     *
+     * `section_position`/`class_position`/`section_total_students`/`class_total_students`
+     * are `null`/`0` when `$withPositions` is false.
      */
-    public function build(StudentProfile $profile, AcademicExamTerm $term, int $academicYearId): array
+    public function build(StudentProfile $profile, AcademicExamTerm $term, int $academicYearId, bool $withPositions = true): array
     {
         $subjects = $this->subjectResults($profile, $term->id, $academicYearId);
 
         $gpa = $subjects->isEmpty() ? 0.0 : round($subjects->avg(fn (array $subject) => $subject['grade_point'] ?? 0.0), 2);
         $result = $subjects->every(fn (array $subject) => $subject['passed']) ? 'pass' : 'fail';
 
-        [$sectionPosition, $sectionTotal] = $this->rank($profile, $term->id, $academicYearId, acrossClass: false);
-        [$classPosition, $classTotal] = $this->rank($profile, $term->id, $academicYearId, acrossClass: true);
+        if ($withPositions) {
+            [$sectionPosition, $sectionTotal] = $this->rank($profile, $term->id, $academicYearId, acrossClass: false);
+            [$classPosition, $classTotal] = $this->rank($profile, $term->id, $academicYearId, acrossClass: true);
+        } else {
+            [$sectionPosition, $sectionTotal] = [null, 0];
+            [$classPosition, $classTotal] = [null, 0];
+        }
 
         return [
             'student_profile_id' => $profile->id,
