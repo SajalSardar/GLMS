@@ -191,7 +191,7 @@ export default function ClassRoutinePage() {
         <h1 className="text-2xl font-bold text-primary-700">{t['teacher.classRoutine.title']}</h1>
 
         <div className="flex items-center gap-3">
-          {shiftOptions.size > 1 && (
+          {shiftOptions.size > 0 && (
             <label className="flex items-center gap-2 text-sm">
               <span className="font-medium text-gray-700">{t['teacher.classRoutine.selectShift']}</span>
               <select
