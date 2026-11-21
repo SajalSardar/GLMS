@@ -14,6 +14,7 @@ import DashboardPlaceholder from './pages/DashboardPlaceholder'
 import DistrictsPage from './pages/DistrictsPage'
 import DivisionsPage from './pages/DivisionsPage'
 import HolidaysPage from './pages/HolidaysPage'
+import ManagementClassRoutinePage from './pages/ManagementClassRoutinePage'
 import ManagementLogin from './pages/ManagementLogin'
 import PromoteStudentsPage from './pages/PromoteStudentsPage'
 import PublishResultsPage from './pages/PublishResultsPage'
@@ -26,6 +27,7 @@ import StudentsPage from './pages/StudentsPage'
 import SubjectsPage from './pages/SubjectsPage'
 import SubjectTeacherAssignmentsPage from './pages/SubjectTeacherAssignmentsPage'
 import TeacherDetailPage from './pages/TeacherDetailPage'
+import TeacherRoutinePage from './pages/TeacherRoutinePage'
 import TeachersPage from './pages/TeachersPage'
 import UpazilasPage from './pages/UpazilasPage'
 
@@ -57,6 +59,22 @@ const publishResultsNavItem: SidebarItem = { to: '/dashboard/publish-results', l
 // Same placement/visibility reasoning as attendanceNavItem/publishResultsNavItem
 // above — school_admin/national_admin only.
 const promoteStudentsNavItem: SidebarItem = { to: '/dashboard/promote-students', label: t['management.nav.promoteStudents'], icon: 'move_up' }
+
+// A collapsible group (same shape as systemSetupItem below) rather than
+// two flat items — Teacher Routine mirrors the Teacher Portal's own
+// Class Routine page (any teacher, not just "mine"); Class Routine
+// mirrors the Student Portal's own Class Routine page (any section).
+// Same school_admin/national_admin visibility as the items above; each
+// page itself restricts a school_admin's own School picker to their own
+// school (see TeacherRoutinePage.tsx/ManagementClassRoutinePage.tsx).
+const routineNavItem: SidebarItem = {
+  label: t['management.nav.routine'],
+  icon: 'calendar_month',
+  children: [
+    { to: '/dashboard/routine/teacher', label: t['management.nav.teacherRoutine'], icon: 'person' },
+    { to: '/dashboard/routine/class', label: t['management.nav.classRoutine'], icon: 'groups' },
+  ],
+}
 
 // The academic holiday calendar is national, not per-school — only a
 // national_admin may create/update/delete it (see HolidayPolicy), so
@@ -167,7 +185,9 @@ function DashboardLayout() {
 
   const navItems = [
     ...baseNavItems,
-    ...(role === 'national_admin' || role === 'school_admin' ? [teachersNavItem, studentsNavItem, attendanceNavItem, publishResultsNavItem, promoteStudentsNavItem] : []),
+    ...(role === 'national_admin' || role === 'school_admin'
+      ? [teachersNavItem, studentsNavItem, attendanceNavItem, publishResultsNavItem, promoteStudentsNavItem, routineNavItem]
+      : []),
     ...(role === 'national_admin' ? [holidaysNavItem] : []),
     ...(role === 'national_admin' ? [systemSetupItem] : role === 'school_admin' ? schoolManagedNavItems : []),
   ]
@@ -209,6 +229,8 @@ function App() {
                 <Route path="attendance" element={<AttendanceReportPage />} />
                 <Route path="publish-results" element={<PublishResultsPage />} />
                 <Route path="promote-students" element={<PromoteStudentsPage />} />
+                <Route path="routine/teacher" element={<TeacherRoutinePage />} />
+                <Route path="routine/class" element={<ManagementClassRoutinePage />} />
               </Route>
               <Route path="holidays" element={<RequireNationalAdmin />}>
                 <Route index element={<HolidaysPage />} />
