@@ -14,6 +14,7 @@ use App\Models\Subject;
 use App\Models\Upazila;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Tests\Concerns\CreatesAuthorizedActors;
 use Tests\TestCase;
@@ -230,13 +231,14 @@ class BookPdfControllerTest extends TestCase
      * its actor from the default guard, so it would see a guest.
      *
      * The PDF is attached to the model directly rather than through the
-     * upload endpoint on purpose: one actingAs() call anywhere earlier in
-     * the test would leave `sanctum` as the default guard (forgetGuards()
-     * drops resolved guard instances but not AuthManager's default), and
-     * TenantScope's Auth::user() would then re-enter the half-resolved
-     * Sanctum guard while it loads the token's StudentUser tokenable —
-     * infinite recursion, a pure test artifact that does not occur behind
-     * the real middleware.
+     * upload endpoint simply to keep this test to a single request. It no
+     * longer has to be: an earlier actingAs() call used to leave `sanctum`
+     * as the default guard (forgetGuards() drops resolved guard instances
+     * but not AuthManager's default), and TenantScope's Auth::user() would
+     * then re-enter the half-resolved Sanctum guard while it loads the
+     * token's StudentUser tokenable — infinite recursion. That was a real
+     * bug, not a test artifact, and TenantScope now carries a re-entrancy
+     * guard for it; see the regression test below.
      */
     public function test_download_link_succeeds_for_a_student_authenticated_with_a_real_bearer_token(): void
     {
@@ -266,6 +268,90 @@ class BookPdfControllerTest extends TestCase
         $this->assertNotNull($log);
         $this->assertSame($student->id, $log->user_id);
         $this->assertSame(StudentUser::class, $log->user_type);
+    }
+
+    /**
+     * Regression test for an infinite recursion in TenantScope.
+     *
+     * The trigger is a bearer token being resolved while `sanctum` is
+     * ALREADY the default guard — i.e. the second or later resolution in a
+     * process, not the first. Sanctum then loads the token's `tokenable`
+     * row (a TenantScoped StudentUser query), TenantScope::apply() calls
+     * Auth::user() to decide how to scope it, and that re-enters the very
+     * same half-resolved Sanctum guard, which loads `tokenable` again —
+     * unbounded recursion that exhausted PHP's memory limit.
+     *
+     * forgetGuards() between the two requests is what makes the second
+     * resolution real: it drops the resolved guard instance (so the cached
+     * user is gone and the token must be parsed again) while leaving
+     * AuthManager's default pointing at `sanctum` from the first request's
+     * auth middleware.
+     */
+    public function test_a_bearer_token_resolves_without_recursion_when_sanctum_is_already_the_default_guard(): void
+    {
+        Storage::disk('local')->put('books/pdf/math.pdf', 'fake-pdf-bytes');
+        $this->book->update([
+            'pdf_original_filename' => 'math.pdf',
+            'pdf_stored_path' => 'books/pdf/math.pdf',
+            'pdf_disk' => 'local',
+            'pdf_mime_type' => 'application/pdf',
+            'pdf_size_bytes' => 14,
+            'pdf_status' => 'active',
+        ]);
+
+        $student = $this->studentActorWithPermissions(['books.view'], $this->school->id, $this->school->district_id);
+        $token = $student->createToken('test')->plainTextToken;
+
+        // First resolution: the auth middleware makes `sanctum` the default guard.
+        $this->withHeader('Authorization', "Bearer {$token}")
+            ->postJson("/api/v1/books/{$this->book->id}/pdf/download-link")
+            ->assertOk();
+
+        $this->app['auth']->forgetGuards();
+
+        // Second resolution, now with `sanctum` already the default guard:
+        // this is the call that used to recurse until memory was exhausted.
+        $this->withHeader('Authorization', "Bearer {$token}")
+            ->postJson("/api/v1/books/{$this->book->id}/pdf/download-link")
+            ->assertOk();
+
+        $this->assertSame($student->id, Auth::guard('sanctum')->id());
+    }
+
+    /**
+     * The re-entrancy guard must not leave tenant scoping switched off:
+     * once the actor IS resolved, a TenantScoped query made on their
+     * behalf is still restricted to their own school. School is itself
+     * TenantScoped, so a school-scoped student may see only their own
+     * school row out of the two that exist.
+     */
+    public function test_tenant_scoping_still_applies_after_a_real_bearer_token_resolution(): void
+    {
+        School::create([
+            'division_id' => $this->school->division_id,
+            'district_id' => $this->school->district_id,
+            'upazila_id' => $this->school->upazila_id,
+            'name' => 'Other School',
+        ]);
+
+        $student = $this->studentActorWithPermissions(['books.view'], $this->school->id, $this->school->district_id);
+        $token = $student->createToken('test')->plainTextToken;
+
+        $this->withHeader('Authorization', "Bearer {$token}")
+            ->postJson("/api/v1/books/{$this->book->id}/pdf/download-link")
+            ->assertUnprocessable();
+
+        $this->app['auth']->forgetGuards();
+
+        // Resolve the token again with `sanctum` already the default guard
+        // — the path that used to recurse — then assert the scope is back
+        // on and correctly restricted for the now-resolved actor.
+        $this->assertSame($student->id, Auth::guard('sanctum')->id());
+
+        $visibleSchools = School::all();
+
+        $this->assertCount(1, $visibleSchools);
+        $this->assertSame($this->school->id, $visibleSchools->first()->id);
     }
 
     public function test_preview_link_returns_a_working_signed_url_that_logs_access(): void

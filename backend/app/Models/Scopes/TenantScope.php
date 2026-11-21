@@ -11,6 +11,24 @@ use Illuminate\Support\Facades\Auth;
 class TenantScope implements Scope
 {
     /**
+     * Re-entrancy guard against infinite recursion: resolving the
+     * currently-authenticating actor (Auth::user()) can itself require
+     * querying a TenantScoped model — e.g. Sanctum loading a bearer
+     * token's `tokenable` row, which is a query against User/TeacherUser/
+     * etc. If THAT query also goes through this scope, it calls
+     * Auth::user() again to decide how to scope itself, which re-enters
+     * the SAME in-flight guard resolution Sanctum is mid-way through —
+     * unbounded recursion, confirmed to exhaust PHP's memory limit.
+     * The re-entrant call is, by definition, the query resolving the
+     * actor's own identity — it cannot be scoped by an identity that
+     * isn't resolved yet, so it must run unscoped, exactly like the
+     * explicit withoutGlobalScope() bypasses already used elsewhere in
+     * this codebase for the same reason (see e.g. UserController::store()'s
+     * trashed-row lookup).
+     */
+    private static bool $resolvingActor = false;
+
+    /**
      * Restrict the query to the authenticated actor's tenant: a
      * school-scoped actor sees only their own school's rows (or, for
      * School itself, only their own school row); a district-scoped actor
@@ -21,7 +39,17 @@ class TenantScope implements Scope
      */
     public function apply(Builder $builder, Model $model): void
     {
-        $user = Auth::user();
+        if (self::$resolvingActor) {
+            return;
+        }
+
+        self::$resolvingActor = true;
+
+        try {
+            $user = Auth::user();
+        } finally {
+            self::$resolvingActor = false;
+        }
 
         if ($user === null) {
             return;
