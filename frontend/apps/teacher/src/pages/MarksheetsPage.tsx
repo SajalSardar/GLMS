@@ -79,7 +79,6 @@ export default function MarksheetsPage() {
       .then((result) => {
         if (!active) return
         setStudents(result.data.students)
-        setStudentProfileId(null)
       })
       .catch(() => {
         if (active) setStudents([])
@@ -130,7 +129,10 @@ export default function MarksheetsPage() {
         <select
           className="h-11 min-w-[12rem] rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-800 outline-none transition-colors focus:border-primary-500"
           value={sectionId ?? ''}
-          onChange={(event) => setSectionId(event.target.value ? Number(event.target.value) : null)}
+          onChange={(event) => {
+            setSectionId(event.target.value ? Number(event.target.value) : null)
+            setStudentProfileId(null)
+          }}
         >
           <option value="">{t['teacher.marksheets.selectSection']}</option>
           {sections.map((row) => (
