@@ -60,6 +60,9 @@ export interface PortalUser {
   email: string | null
   phone: string | null
   role?: { id: number; name: string; label: string; permissions: string[] } | null
+  // Present only for a school-scoped management actor (e.g. school_admin);
+  // null for a national-level actor who has none.
+  school?: { id: number; name: string; bn_name: string | null } | null
   [key: string]: unknown
 }
 

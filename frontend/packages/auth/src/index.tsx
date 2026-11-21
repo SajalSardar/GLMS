@@ -11,6 +11,7 @@ const TOKEN_STORAGE_KEY = 'ttla.authToken'
 const ROLE_STORAGE_KEY = 'ttla.authRole'
 const NAME_STORAGE_KEY = 'ttla.authName'
 const USER_ID_STORAGE_KEY = 'ttla.authUserId'
+const SCHOOL_ID_STORAGE_KEY = 'ttla.authSchoolId'
 
 export function getStoredToken(): string | null {
   return localStorage.getItem(TOKEN_STORAGE_KEY)
@@ -61,6 +62,19 @@ export function clearStoredUserId(): void {
   localStorage.removeItem(USER_ID_STORAGE_KEY)
 }
 
+export function getStoredSchoolId(): number | null {
+  const raw = localStorage.getItem(SCHOOL_ID_STORAGE_KEY)
+  return raw === null ? null : Number(raw)
+}
+
+export function storeSchoolId(schoolId: number): void {
+  localStorage.setItem(SCHOOL_ID_STORAGE_KEY, String(schoolId))
+}
+
+export function clearStoredSchoolId(): void {
+  localStorage.removeItem(SCHOOL_ID_STORAGE_KEY)
+}
+
 export interface AuthContextValue {
   token: string | null
   role: string | null
@@ -76,10 +90,22 @@ export interface AuthContextValue {
    * existed — consumers must have a fallback.
    */
   userId: number | null
+  /**
+   * The signed-in user's own school_id, for a school-scoped actor (e.g.
+   * school_admin) — null for a national-level actor who has none, for a
+   * guest, and for a session stored before this field existed.
+   * Management-portal-only today (teacher/student logins don't set it);
+   * used to restrict a school picker to the admin's own school rather
+   * than trusting the backend to do it, since the underlying `/schools`
+   * endpoint is intentionally public/unscoped (see TenantScope's own
+   * doc comment) and returns every school regardless of who's asking.
+   */
+  schoolId: number | null
   setToken: (token: string) => void
   setRole: (role: string | null) => void
   setName: (name: string | null) => void
   setUserId: (userId: number | null) => void
+  setSchoolId: (schoolId: number | null) => void
   clearToken: () => void
 }
 
@@ -90,6 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [role, setRoleState] = useState<string | null>(() => getStoredRole())
   const [name, setNameState] = useState<string | null>(() => getStoredName())
   const [userId, setUserIdState] = useState<number | null>(() => getStoredUserId())
+  const [schoolId, setSchoolIdState] = useState<number | null>(() => getStoredSchoolId())
 
   const setToken = useCallback((next: string) => {
     storeToken(next)
@@ -123,20 +150,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUserIdState(next)
   }, [])
 
+  const setSchoolId = useCallback((next: number | null) => {
+    if (next !== null) {
+      storeSchoolId(next)
+    } else {
+      clearStoredSchoolId()
+    }
+    setSchoolIdState(next)
+  }, [])
+
   const clearToken = useCallback(() => {
     clearStoredToken()
     clearStoredRole()
     clearStoredName()
     clearStoredUserId()
+    clearStoredSchoolId()
     setTokenState(null)
     setRoleState(null)
     setNameState(null)
     setUserIdState(null)
+    setSchoolIdState(null)
   }, [])
 
   const value = useMemo<AuthContextValue>(
-    () => ({ token, role, name, userId, setToken, setRole, setName, setUserId, clearToken }),
-    [token, role, name, userId, setToken, setRole, setName, setUserId, clearToken],
+    () => ({ token, role, name, userId, schoolId, setToken, setRole, setName, setUserId, setSchoolId, clearToken }),
+    [token, role, name, userId, schoolId, setToken, setRole, setName, setUserId, setSchoolId, clearToken],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
