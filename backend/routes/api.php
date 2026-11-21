@@ -35,6 +35,7 @@ use App\Http\Controllers\Api\V1\SectionController;
 use App\Http\Controllers\Api\V1\ShiftController;
 use App\Http\Controllers\Api\V1\StudentLeaveApplicationController;
 use App\Http\Controllers\Api\V1\StudentProfileController;
+use App\Http\Controllers\Api\V1\StudentPromotionController;
 use App\Http\Controllers\Api\V1\StudentUserController;
 use App\Http\Controllers\Api\V1\SubjectController;
 use App\Http\Controllers\Api\V1\SubjectTeacherAssignmentController;
@@ -210,6 +211,9 @@ Route::prefix('v1')->group(function (): void {
 
         Route::get('/academic-exam-publications/status', [AcademicExamPublicationController::class, 'status']);
         Route::post('/academic-exam-publications', [AcademicExamPublicationController::class, 'store']);
+
+        Route::get('/student-promotions/preview', [StudentPromotionController::class, 'preview']);
+        Route::post('/student-promotions', [StudentPromotionController::class, 'store']);
 
         Route::post('/student-leave-applications', [StudentLeaveApplicationController::class, 'store']);
         // Must be registered before the {student_leave_application}
