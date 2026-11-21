@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AcademicExamMarkController;
+use App\Http\Controllers\Api\V1\AcademicExamPublicationController;
 use App\Http\Controllers\Api\V1\AcademicExamTermController;
 use App\Http\Controllers\Api\V1\AcademicGradeConfigureController;
 use App\Http\Controllers\Api\V1\AcademicSubjectMarkConfigureController;
@@ -202,6 +203,9 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/academic-exam-marks/my-assignments', [AcademicExamMarkController::class, 'myAssignments']);
         Route::get('/academic-exam-marks/roster', [AcademicExamMarkController::class, 'roster']);
         Route::post('/academic-exam-marks/record', [AcademicExamMarkController::class, 'record']);
+
+        Route::get('/academic-exam-publications/status', [AcademicExamPublicationController::class, 'status']);
+        Route::post('/academic-exam-publications', [AcademicExamPublicationController::class, 'store']);
 
         Route::post('/student-leave-applications', [StudentLeaveApplicationController::class, 'store']);
         // Must be registered before the {student_leave_application}
