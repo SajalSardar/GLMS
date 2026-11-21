@@ -2337,3 +2337,56 @@ export function getMyAcademicExamResult(
     headers: authHeaders(token),
   })
 }
+
+// ---------- Student promotions ----------
+
+export interface StudentPromotionPreviewRow {
+  student_profile_id: number
+  name: string | null
+  roll_number: string | null
+  result: 'pass' | 'fail' | 'no_marks'
+  gpa: number
+  default_action: 'promote' | 'retain'
+}
+
+export interface StudentPromotionPreview {
+  section_id: number
+  academic_exam_term_id: number
+  academic_year_id: number
+  suggested_to_class_id: number | null
+  suggested_to_class_name: string | null
+  students: StudentPromotionPreviewRow[]
+}
+
+export function getStudentPromotionPreview(
+  params: { sectionId: number; academicYearId: number },
+  token: string,
+): Promise<{ data: StudentPromotionPreview }> {
+  const query = buildQuery({ section_id: params.sectionId, academic_year_id: params.academicYearId })
+
+  return apiFetch<{ data: StudentPromotionPreview }>(`/student-promotions/preview${query}`, {
+    headers: authHeaders(token),
+  })
+}
+
+// Confirms a promotion batch — promoted students (per `records[].promote`)
+// have their StudentProfile moved to `to_section_id` in place; retained
+// students are left untouched. A student_class_promotions audit row is
+// written for every record either way. `override_capacity` requires the
+// acting user to hold the existing `sections.override_capacity` permission.
+export function confirmStudentPromotions(
+  payload: {
+    section_id: number
+    academic_year_id: number
+    to_section_id: number
+    override_capacity?: boolean
+    records: { student_profile_id: number; promote: boolean }[]
+  },
+  token: string,
+): Promise<{ data: { section_id: number; promoted: boolean } }> {
+  return apiFetch<{ data: { section_id: number; promoted: boolean } }>('/student-promotions', {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  })
+}
