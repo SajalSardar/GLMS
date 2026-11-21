@@ -552,7 +552,12 @@ class StudentPromotionControllerTest extends TestCase
             'school_id' => $this->school->id, 'district_id' => $this->school->district_id,
             'class_id' => $this->class7->id, 'section_id' => $this->toSection->id,
             'shift_id' => $this->toSection->shift_id, 'class_version_id' => $this->toSection->shift->class_version_id,
-            'roll_number' => '1',
+            // A different roll number than the promoted student below:
+            // class7 (the target class) already enforces a unique
+            // [class_id, roll_number] index, and this fixture's point is
+            // to fill the target section's capacity, not to also exercise
+            // that unrelated collision.
+            'roll_number' => '99',
         ]);
 
         $pass = $this->studentInSection('1', 85);
@@ -565,6 +570,175 @@ class StudentPromotionControllerTest extends TestCase
             'override_capacity' => true,
             'records' => [['student_profile_id' => $pass->id, 'promote' => true]],
         ])->assertCreated();
+    }
+
+    // Added in commit 2b23340 (before the final-review fix round): the
+    // roll-number collision pre-check itself.
+    public function test_store_rejects_the_whole_batch_when_a_promoted_students_roll_number_collides_with_an_unrelated_target_class_student(): void
+    {
+        $unrelatedTargetStudent = $this->studentActorWithPermissions([], $this->school->id, $this->school->district_id);
+        $unrelated = StudentProfile::create([
+            'user_id' => $unrelatedTargetStudent->id,
+            'school_id' => $this->school->id, 'district_id' => $this->school->district_id,
+            'class_id' => $this->class7->id, 'section_id' => $this->toSection->id,
+            'shift_id' => $this->toSection->shift_id, 'class_version_id' => $this->toSection->shift->class_version_id,
+            'roll_number' => '7',
+        ]);
+
+        $pass = $this->studentInSection('7', 85);
+        $otherPass = $this->studentInSection('8', 90);
+        $admin = $this->actorWithPermissions(['student_promotions.create'], $this->school->id, $this->school->district_id);
+
+        $response = $this->actingAs($admin, 'sanctum')->postJson('/api/v1/student-promotions', [
+            'section_id' => $this->section->id,
+            'academic_year_id' => $this->year->id,
+            'to_section_id' => $this->toSection->id,
+            'records' => [
+                ['student_profile_id' => $pass->id, 'promote' => true],
+                ['student_profile_id' => $otherPass->id, 'promote' => true],
+            ],
+        ])->assertUnprocessable()->assertJsonValidationErrors('records');
+
+        $this->assertStringContainsString('7', $response->json('errors.records.0'));
+
+        // Nothing committed — the colliding student's own collision must
+        // not partially apply, and the OTHER, non-colliding student in
+        // the same batch must not have been promoted either.
+        $this->assertDatabaseCount('student_class_promotions', 0);
+        $pass->refresh();
+        $otherPass->refresh();
+        $this->assertSame($this->class6->id, $pass->class_id);
+        $this->assertSame($this->section->id, $pass->section_id);
+        $this->assertSame($this->class6->id, $otherPass->class_id);
+        $this->assertSame($this->section->id, $otherPass->section_id);
+
+        $unrelated->refresh();
+        $this->assertSame($this->class7->id, $unrelated->class_id);
+    }
+
+    // Added in the final-review fix round (Fix 3): preview() previously
+    // took a bare Request with no validation on academic_year_id.
+    public function test_preview_rejects_a_nonexistent_academic_year_id(): void
+    {
+        $admin = $this->actorWithPermissions(['student_promotions.create'], $this->school->id, $this->school->district_id);
+
+        $this->actingAs($admin, 'sanctum')
+            ->getJson("/api/v1/student-promotions/preview?section_id={$this->section->id}&academic_year_id=999999")
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('academic_year_id');
+    }
+
+    // Added in the final-review fix round (Fix 1): a soft-deleted
+    // ClassVersion/Shift leaves the target Section row live but its
+    // shift->classVersion chain broken, so $toShift?->classVersion?->class_id
+    // resolves to null — store() must reject this, not silently promote
+    // into class_id: null.
+    public function test_store_rejects_promotion_when_the_target_sections_class_version_has_been_soft_deleted(): void
+    {
+        $brokenVersion = ClassVersion::create(['class_id' => $this->class7->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Broken']);
+        $brokenShift = Shift::create(['class_version_id' => $brokenVersion->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Day Shift', 'start_time' => '08:00', 'end_time' => '13:00', 'days_of_week' => ['sunday']]);
+        $brokenSection = Section::create(['shift_id' => $brokenShift->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Broken']);
+        $brokenVersion->delete();
+
+        $pass = $this->studentInSection('1', 85);
+        $admin = $this->actorWithPermissions(['student_promotions.create'], $this->school->id, $this->school->district_id);
+
+        $this->actingAs($admin, 'sanctum')->postJson('/api/v1/student-promotions', [
+            'section_id' => $this->section->id,
+            'academic_year_id' => $this->year->id,
+            'to_section_id' => $brokenSection->id,
+            'records' => [['student_profile_id' => $pass->id, 'promote' => true]],
+        ])->assertUnprocessable()->assertJsonValidationErrors('to_section_id');
+
+        $pass->refresh();
+        $this->assertSame($this->class6->id, $pass->class_id);
+        $this->assertNotNull($pass->class_id);
+    }
+
+    // Added in the final-review fix round (Fix 2a): the roll-number
+    // collision pre-check excluded soft-deleted rows, but the actual
+    // unique(['class_id', 'roll_number']) index does not — so a
+    // trashed student still blocked it, surfacing as an unhandled 500
+    // instead of this pre-check's 422.
+    public function test_store_rejects_the_whole_batch_when_a_promoted_students_roll_number_collides_with_a_soft_deleted_target_class_student(): void
+    {
+        $trashedTargetStudentUser = $this->studentActorWithPermissions([], $this->school->id, $this->school->district_id);
+        $trashed = StudentProfile::create([
+            'user_id' => $trashedTargetStudentUser->id,
+            'school_id' => $this->school->id, 'district_id' => $this->school->district_id,
+            'class_id' => $this->class7->id, 'section_id' => $this->toSection->id,
+            'shift_id' => $this->toSection->shift_id, 'class_version_id' => $this->toSection->shift->class_version_id,
+            'roll_number' => '5',
+        ]);
+        $trashed->delete();
+
+        $pass = $this->studentInSection('5', 85);
+        $admin = $this->actorWithPermissions(['student_promotions.create'], $this->school->id, $this->school->district_id);
+
+        $response = $this->actingAs($admin, 'sanctum')->postJson('/api/v1/student-promotions', [
+            'section_id' => $this->section->id,
+            'academic_year_id' => $this->year->id,
+            'to_section_id' => $this->toSection->id,
+            'records' => [['student_profile_id' => $pass->id, 'promote' => true]],
+        ])->assertUnprocessable()->assertJsonValidationErrors('records');
+
+        $this->assertStringContainsString('5', $response->json('errors.records.0'));
+        $this->assertDatabaseCount('student_class_promotions', 0);
+        $pass->refresh();
+        $this->assertSame($this->class6->id, $pass->class_id);
+        $this->assertSame($this->section->id, $pass->section_id);
+    }
+
+    // Added in the final-review fix round (Fix 2b): student_profiles.
+    // class_id references school_classes, a NATIONAL table, so the
+    // unique index is effectively global across schools — the
+    // collision pre-check's query must not be narrowed by TenantScope
+    // to the acting school_admin's own school, or it misses a
+    // different school's student occupying the same roll_number in the
+    // same national target class.
+    public function test_store_rejects_the_whole_batch_when_a_promoted_students_roll_number_collides_with_a_different_schools_student(): void
+    {
+        $otherDivision = Division::create(['name' => 'Other Division 2', 'bn_name' => 'অন্য বিভাগ ২']);
+        $otherDistrict = District::create(['division_id' => $otherDivision->id, 'name' => 'Other District 2', 'bn_name' => 'অন্য জেলা ২']);
+        $otherUpazila = Upazila::create(['district_id' => $otherDistrict->id, 'name' => 'Other Upazila 2', 'bn_name' => 'অন্য উপজেলা ২']);
+        $otherSchool = School::create(['division_id' => $otherDivision->id, 'district_id' => $otherDistrict->id, 'upazila_id' => $otherUpazila->id, 'name' => 'Other School 2']);
+
+        // school_classes is a national table, so this reuses $this->class7
+        // — the same target class the acting school's toSection resolves
+        // to — proving the unique index is effectively global.
+        $otherVersion = ClassVersion::create(['class_id' => $this->class7->id, 'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id, 'name' => 'General']);
+        $otherShift = Shift::create(['class_version_id' => $otherVersion->id, 'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id, 'name' => 'Day Shift', 'start_time' => '08:00', 'end_time' => '13:00', 'days_of_week' => ['sunday']]);
+        $otherSection = Section::create(['shift_id' => $otherShift->id, 'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id, 'name' => 'Main']);
+
+        $otherSchoolStudentUser = $this->studentActorWithPermissions([], $otherSchool->id, $otherSchool->district_id);
+        StudentProfile::create([
+            'user_id' => $otherSchoolStudentUser->id,
+            'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id,
+            'class_id' => $this->class7->id, 'section_id' => $otherSection->id,
+            'shift_id' => $otherShift->id, 'class_version_id' => $otherVersion->id,
+            'roll_number' => '3',
+        ]);
+
+        $pass = $this->studentInSection('3', 85);
+        // A genuinely tenant-scoped actor — a school_admin with a
+        // school_id, unlike test_store_rejects_a_target_section_from_a_
+        // different_school above, which deliberately uses an unscoped
+        // national_admin-shaped actor. This is what proves the
+        // withoutGlobalScope(TenantScope::class) fix, not just withTrashed().
+        $admin = $this->actorWithPermissions(['student_promotions.create'], $this->school->id, $this->school->district_id);
+
+        $response = $this->actingAs($admin, 'sanctum')->postJson('/api/v1/student-promotions', [
+            'section_id' => $this->section->id,
+            'academic_year_id' => $this->year->id,
+            'to_section_id' => $this->toSection->id,
+            'records' => [['student_profile_id' => $pass->id, 'promote' => true]],
+        ])->assertUnprocessable()->assertJsonValidationErrors('records');
+
+        $this->assertStringContainsString('3', $response->json('errors.records.0'));
+        $this->assertDatabaseCount('student_class_promotions', 0);
+        $pass->refresh();
+        $this->assertSame($this->class6->id, $pass->class_id);
+        $this->assertSame($this->section->id, $pass->section_id);
     }
 }
 ```
@@ -651,15 +825,16 @@ class StoreStudentPromotionRequest extends FormRequest
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\V1\PreviewStudentPromotionRequest;
 use App\Http\Requests\Api\V1\StoreStudentPromotionRequest;
 use App\Models\AcademicExamTerm;
 use App\Models\SchoolClass;
+use App\Models\Scopes\TenantScope;
 use App\Models\Section;
 use App\Models\StudentClassPromotion;
 use App\Models\StudentProfile;
 use App\Support\MarksheetBuilder;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -673,10 +848,9 @@ class StudentPromotionController extends Controller
      * promote/retain default, and the next numeric-level class as a
      * starting suggestion for the target class picker.
      */
-    public function preview(Request $request): JsonResponse
+    public function preview(PreviewStudentPromotionRequest $request): JsonResponse
     {
         $section = Section::with('shift.classVersion')->findOrFail($request->integer('section_id'));
-        $this->authorize('create', StudentClassPromotion::class);
 
         $term = AcademicExamTerm::where('is_annual', true)->first();
         if ($term === null) {
@@ -757,6 +931,16 @@ class StudentPromotionController extends Controller
         $toClassId = $toShift?->classVersion?->class_id;
         $fromClassId = $section->shift?->classVersion?->class_id;
 
+        // Guards against a soft-deleted ClassVersion/Shift leaving the
+        // Section row live but its shift->classVersion chain broken —
+        // without this, a promotion into such a section would silently
+        // write class_id: null onto the student's profile.
+        if ($toClassId === null) {
+            throw ValidationException::withMessages([
+                'to_section_id' => ['The selected section is not attached to a class version; promotion cannot resolve a target class.'],
+            ]);
+        }
+
         $actor = $request->user();
         $now = now();
         $records = $request->array('records');
@@ -769,13 +953,27 @@ class StudentPromotionController extends Controller
             ]);
         }
 
-        $promotingCount = count(array_filter($records, fn (array $record) => (bool) ($record['promote'] ?? false)));
+        // Count only records that actually resolve to a real StudentProfile
+        // within $section — a request with duplicate or bogus
+        // student_profile_ids should not inflate this count (the
+        // distinct rule in StoreStudentPromotionRequest narrows but
+        // doesn't fully close this gap, since it can't verify section
+        // membership).
+        $promotedIdsInRequest = array_values(array_filter(
+            array_map(fn (array $record) => (bool) ($record['promote'] ?? false) ? ($record['student_profile_id'] ?? null) : null, $records)
+        ));
+
+        $promotingCount = $promotedIdsInRequest === [] ? 0 : StudentProfile::where('section_id', $section->id)
+            ->whereIn('id', $promotedIdsInRequest)
+            ->count();
 
         if (! $overrideRequested && $toSection->capacity !== null && ($toSection->enrolledCount() + $promotingCount) > $toSection->capacity) {
             throw ValidationException::withMessages([
                 'to_section_id' => ['This section does not have enough remaining capacity for all promoted students.'],
             ]);
         }
+
+        $this->assertNoRollNumberCollision($records, $section, $toClassId);
 
         DB::transaction(function () use ($records, $section, $term, $academicYearId, $toSection, $toShift, $toClassId, $fromClassId, $actor, $now) {
             foreach ($records as $record) {
@@ -819,8 +1017,63 @@ class StudentPromotionController extends Controller
 
         return response()->json(['data' => ['section_id' => $section->id, 'promoted' => true]], 201);
     }
+
+    /**
+     * Reject the whole batch up front if any promoted student's
+     * roll_number already belongs to some OTHER student (not part of
+     * this batch) already sitting in the target class — student_profiles
+     * enforces unique(['class_id', 'roll_number']), and letting that
+     * collision surface mid-DB::transaction() would roll back every
+     * other student's legitimate promotion in the same request.
+     *
+     * @param  list<array{student_profile_id?:int, promote?:bool}>  $records
+     */
+    private function assertNoRollNumberCollision(array $records, Section $section, ?int $toClassId): void
+    {
+        $promotedProfileIds = array_values(array_filter(
+            array_map(fn (array $record) => (bool) ($record['promote'] ?? false) ? ($record['student_profile_id'] ?? null) : null, $records)
+        ));
+
+        if ($promotedProfileIds === [] || $toClassId === null) {
+            return;
+        }
+
+        $promotedRollNumbers = StudentProfile::where('section_id', $section->id)
+            ->whereIn('id', $promotedProfileIds)
+            ->pluck('roll_number')
+            ->filter()
+            ->all();
+
+        // withTrashed(): the unique(['class_id', 'roll_number']) index does
+        // NOT exclude soft-deleted rows, so a trashed student in the target
+        // class still blocks it — this pre-check must see it too, or the
+        // real collision only surfaces as an unhandled 500 mid-transaction.
+        // withoutGlobalScope(TenantScope): student_profiles.class_id
+        // references school_classes, a NATIONAL table, so the unique index
+        // is effectively global across schools, not per-school — a
+        // school_admin's query must not be narrowed to their own school
+        // here or it misses cross-school collisions a national_admin would
+        // catch, giving the same request different behavior by actor.
+        $occupiedRollNumbers = StudentProfile::withTrashed()
+            ->withoutGlobalScope(TenantScope::class)
+            ->where('class_id', $toClassId)
+            ->whereNotIn('id', $promotedProfileIds)
+            ->pluck('roll_number')
+            ->filter()
+            ->all();
+
+        $colliding = array_unique(array_intersect($promotedRollNumbers, $occupiedRollNumbers));
+
+        if ($colliding !== []) {
+            throw ValidationException::withMessages([
+                'records' => ['Roll number(s) '.implode(', ', $colliding).' already exist in the target class. Resolve the conflict before promoting these students.'],
+            ]);
+        }
+    }
 }
 ```
+
+> Note: `PreviewStudentPromotionRequest` (modeled on `StoreStudentPromotionRequest`, validating `section_id`/`academic_year_id`) was added in the Phase 4 final-review fix round, after this task originally shipped — `preview()` took a bare `Request` with no validation until then.
 
 - [ ] **Step 9: Register the routes**
 
@@ -843,7 +1096,7 @@ Route::post('/student-promotions', [StudentPromotionController::class, 'store'])
 cd backend && php artisan test --compact --filter=StudentPromotionControllerTest
 ```
 
-Expected: all 14 tests green.
+Expected: all tests green (14 as originally written here; 19 once commit `2b23340`'s and the final-review fix round's collision/validation regression tests, also shown above, are included).
 
 - [ ] **Step 11: Run Pint and the full suite**
 
