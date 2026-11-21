@@ -146,10 +146,21 @@ export default function ClassRoutinePage() {
   // routine rows themselves rather than a separate endpoint — the same
   // "derive the filter from the data already in hand" pattern as the
   // attendance filters' Academic Year/Class/Section cascade.
+  //
+  // Each shift belongs to exactly one ClassVersion, but Shift.name is
+  // almost always the generic "Day Shift" left over from System Setup's
+  // own default — so a teacher who teaches more than one class sees
+  // multiple options that are all labeled identically and can't tell
+  // them apart. Prefixing with the class (and version, when set) makes
+  // each option unique the same way sectionLabel()-style combined labels
+  // already do elsewhere in this codebase (e.g. PromoteStudentsPage.tsx).
   const shiftOptions = new Map<number, string>()
   for (const routine of routines) {
     if (routine.shift_id !== null && !shiftOptions.has(routine.shift_id)) {
-      shiftOptions.set(routine.shift_id, routine.shift ? (routine.shift.bn_name ?? routine.shift.name) : `#${routine.shift_id}`)
+      const shiftName = routine.shift ? (routine.shift.bn_name ?? routine.shift.name) : `#${routine.shift_id}`
+      const className = routine.class ? (routine.class.bn_name ?? routine.class.name) : null
+      const versionName = routine.class_version ? (routine.class_version.bn_name ?? routine.class_version.name) : null
+      shiftOptions.set(routine.shift_id, [className, versionName, shiftName].filter(Boolean).join(' - '))
     }
   }
 
