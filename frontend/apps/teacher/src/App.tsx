@@ -7,6 +7,7 @@ import LeaveApplicationsPage from './pages/LeaveApplicationsPage'
 import HolidaysPage from './pages/HolidaysPage'
 import AttendancePage from './pages/AttendancePage'
 import ClassRoutinePage from './pages/ClassRoutinePage'
+import MarksEntryPage from './pages/MarksEntryPage'
 
 function LoginRoute() {
   const { token } = useAuth()
@@ -39,6 +40,7 @@ function App() {
               <Route path="class-routine" element={<ClassRoutinePage />} />
               <Route path="leave-applications" element={<LeaveApplicationsPage />} />
               <Route path="holidays" element={<HolidaysPage />} />
+              <Route path="marks-entry" element={<MarksEntryPage />} />
             </Route>
           </Route>
         </Routes>

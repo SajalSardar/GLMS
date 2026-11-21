@@ -753,5 +753,24 @@
   "teacher.attendance.teacherLabel": "প্রধান শিক্ষক",
   "teacher.attendance.reportStatusP": "উ",
   "teacher.attendance.reportStatusA": "অ",
-  "teacher.attendance.reportStatusL": "ছ"
+  "teacher.attendance.reportStatusL": "ছ",
+
+  "teacher.nav.marksEntry": "নম্বর এন্ট্রি",
+  "teacher.marksEntry.selectSection": "শাখা নির্বাচন করুন",
+  "teacher.marksEntry.selectSubject": "বিষয় নির্বাচন করুন",
+  "teacher.marksEntry.selectTerm": "পরীক্ষার মেয়াদ নির্বাচন করুন",
+  "teacher.marksEntry.selectYear": "শিক্ষাবর্ষ নির্বাচন করুন",
+  "teacher.marksEntry.loading": "লোড হচ্ছে…",
+  "teacher.marksEntry.pickAllFilters": "রোস্টার লোড করতে একটি শাখা, বিষয়, পরীক্ষার মেয়াদ এবং শিক্ষাবর্ষ নির্বাচন করুন।",
+  "teacher.marksEntry.empty": "এই শাখায় কোনো শিক্ষার্থী পাওয়া যায়নি।",
+  "teacher.marksEntry.viewOnlyNotice": "আপনি এই রোস্টার দেখতে পারবেন, কিন্তু এখানে নম্বর এন্ট্রি করার অনুমতি আপনার নেই।",
+  "teacher.marksEntry.colRoll": "রোল",
+  "teacher.marksEntry.colStudent": "শিক্ষার্থী",
+  "teacher.marksEntry.colCq": "সিকিউ",
+  "teacher.marksEntry.colMcq": "এমসিকিউ",
+  "teacher.marksEntry.colPractical": "ব্যবহারিক",
+  "teacher.marksEntry.save": "নম্বর সংরক্ষণ করুন",
+  "teacher.marksEntry.saving": "সংরক্ষণ হচ্ছে…",
+  "teacher.marksEntry.saveSuccess": "নম্বর সংরক্ষণ করা হয়েছে।",
+  "teacher.marksEntry.saveError": "নম্বর সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।"
 }

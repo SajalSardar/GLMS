@@ -18,6 +18,7 @@ const navItems: SidebarItem[] = [
       { to: '/attendance/report', label: t['teacher.attendance.tabReport'], icon: 'summarize' },
     ],
   },
+  { to: '/marks-entry', label: t['teacher.nav.marksEntry'], icon: 'edit_note' },
   { to: '/leave-applications', label: t['teacher.nav.leaveApplications'], icon: 'event_busy' },
   { to: '/holidays', label: t['teacher.nav.holidays'], icon: 'celebration' },
 ]

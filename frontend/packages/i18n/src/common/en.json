@@ -753,5 +753,24 @@
   "teacher.attendance.teacherLabel": "Primary Teacher",
   "teacher.attendance.reportStatusP": "P",
   "teacher.attendance.reportStatusA": "A",
-  "teacher.attendance.reportStatusL": "L"
+  "teacher.attendance.reportStatusL": "L",
+
+  "teacher.nav.marksEntry": "Marks Entry",
+  "teacher.marksEntry.selectSection": "Select section",
+  "teacher.marksEntry.selectSubject": "Select subject",
+  "teacher.marksEntry.selectTerm": "Select exam term",
+  "teacher.marksEntry.selectYear": "Select academic year",
+  "teacher.marksEntry.loading": "Loading…",
+  "teacher.marksEntry.pickAllFilters": "Pick a section, subject, exam term, and academic year to load the roster.",
+  "teacher.marksEntry.empty": "No students found in this section.",
+  "teacher.marksEntry.viewOnlyNotice": "You can view this roster, but you don't have permission to record marks here.",
+  "teacher.marksEntry.colRoll": "Roll",
+  "teacher.marksEntry.colStudent": "Student",
+  "teacher.marksEntry.colCq": "CQ",
+  "teacher.marksEntry.colMcq": "MCQ",
+  "teacher.marksEntry.colPractical": "Practical",
+  "teacher.marksEntry.save": "Save Marks",
+  "teacher.marksEntry.saving": "Saving…",
+  "teacher.marksEntry.saveSuccess": "Marks saved.",
+  "teacher.marksEntry.saveError": "Could not save marks. Please try again."
 }
