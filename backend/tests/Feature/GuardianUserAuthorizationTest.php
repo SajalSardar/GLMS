@@ -168,6 +168,31 @@ class GuardianUserAuthorizationTest extends TestCase
         $this->assertSame(1, GuardianUser::withTrashed()->where('phone', '01913000000')->count());
     }
 
+    /**
+     * Regression test: Sanctum tokens never expire here, and store()'s
+     * email/phone-matched restore paths can repoint a trashed row at a
+     * *different* person. A token left behind on delete would then come
+     * back to life as the new owner's token, so destroy() must revoke
+     * every token the account holds.
+     */
+    public function test_deleting_a_guardian_revokes_their_api_tokens(): void
+    {
+        $actor = $this->actorWithPermissions(['users.delete']);
+        $target = GuardianUser::factory()->create();
+        $target->createToken('old-device');
+
+        $this->assertDatabaseCount('personal_access_tokens', 1);
+
+        $this->actingAs($actor, 'sanctum')->deleteJson("/api/v1/guardian-users/{$target->id}")->assertNoContent();
+
+        $this->assertSoftDeleted('guardian_users', ['id' => $target->id]);
+        $this->assertDatabaseMissing('personal_access_tokens', [
+            'tokenable_type' => GuardianUser::class,
+            'tokenable_id' => $target->id,
+        ]);
+        $this->assertDatabaseCount('personal_access_tokens', 0);
+    }
+
     public function test_store_rejects_a_restore_that_would_collide_with_a_different_trashed_guardian_on_phone(): void
     {
         $actor = $this->actorWithPermissions(['users.create', 'users.delete']);

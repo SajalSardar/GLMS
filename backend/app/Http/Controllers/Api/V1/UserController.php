@@ -178,6 +178,14 @@ class UserController extends Controller
 
     /**
      * Remove the specified resource from storage.
+     *
+     * Sanctum tokens never expire (`config/sanctum.php` sets
+     * `expiration` to null), and a soft-deleted row can later be restored
+     * in place and repointed to a *different* person by store()'s
+     * email/phone-matched restore paths. Leaving the old owner's tokens
+     * behind would therefore hand them API access to whoever next lands
+     * on that row, so revoke them here: a trashed account must never hold
+     * a live bearer token.
      */
     public function destroy(User $user): Response
     {
@@ -189,6 +197,7 @@ class UserController extends Controller
             ]);
         }
 
+        $user->tokens()->delete();
         $user->delete();
 
         return response()->noContent();

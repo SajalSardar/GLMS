@@ -165,6 +165,102 @@ class StudentUserAuthorizationTest extends TestCase
         $this->assertSame(1, StudentUser::withTrashed()->where('phone', '01913000000')->count());
     }
 
+    /**
+     * Regression test: Sanctum tokens never expire here, and store()'s
+     * email/phone-matched restore paths can repoint a trashed row at a
+     * *different* person. A token left behind on delete would then come
+     * back to life as the new owner's token, so destroy() must revoke
+     * every token the account holds.
+     */
+    public function test_deleting_a_student_revokes_their_api_tokens(): void
+    {
+        $actor = $this->actorWithPermissions(['users.delete']);
+        $target = StudentUser::factory()->create();
+        $target->createToken('old-device');
+
+        $this->assertDatabaseCount('personal_access_tokens', 1);
+
+        $this->actingAs($actor, 'sanctum')->deleteJson("/api/v1/student-users/{$target->id}")->assertNoContent();
+
+        $this->assertSoftDeleted('student_users', ['id' => $target->id]);
+        $this->assertDatabaseMissing('personal_access_tokens', [
+            'tokenable_type' => StudentUser::class,
+            'tokenable_id' => $target->id,
+        ]);
+        $this->assertDatabaseCount('personal_access_tokens', 0);
+    }
+
+    /**
+     * Regression test for the account-takeover vector that token
+     * revocation on delete closes, end to end.
+     *
+     * The old owner holds a bearer token that outlives their account:
+     * tokens never expire here, and nothing but destroy() revokes them.
+     * While the row is trashed the token cannot resolve its tokenable, so
+     * it looks dead — but a later registration with the same phone number
+     * restores that very row and repoints it at a brand-new, unrelated
+     * person. Without revocation on delete the old owner's saved token
+     * resumes authenticating, now as the new person, with zero
+     * interaction from them.
+     *
+     * The probe is `GET /api/v1/student-users`: it sits behind
+     * `auth:sanctum` and is policy-gated on `users.view`, which no
+     * student holds, so an *authenticated* caller gets 403 and an
+     * unauthenticated one gets 401. That split is what distinguishes "the
+     * token still works" from "the token is dead".
+     */
+    public function test_a_deleted_students_token_cannot_authenticate_as_the_new_owner_after_a_phone_matched_restore(): void
+    {
+        $actor = $this->actorWithPermissions(['users.create', 'users.delete']);
+
+        $firstPayload = ['name' => 'Old Student', 'email' => 'old-student@example.test', 'phone' => '01913000003', 'password' => 'pin1'];
+        $created = $this->actingAs($actor, 'sanctum')->postJson('/api/v1/student-users', $firstPayload)->assertCreated();
+        $studentId = $created->json('data.id');
+
+        $oldOwnerToken = StudentUser::findOrFail($studentId)->createToken('old-device')->plainTextToken;
+
+        // Authenticated (403, not 401) while the old owner's account is live.
+        $this->withHeader('Authorization', "Bearer {$oldOwnerToken}")
+            ->getJson('/api/v1/student-users')
+            ->assertForbidden();
+
+        $this->app['auth']->forgetGuards();
+
+        $this->actingAs($actor, 'sanctum')->deleteJson("/api/v1/student-users/{$studentId}")->assertNoContent();
+        $this->app['auth']->forgetGuards();
+
+        // Dead while the row is trashed.
+        $this->withHeader('Authorization', "Bearer {$oldOwnerToken}")
+            ->getJson('/api/v1/student-users')
+            ->assertUnauthorized();
+
+        $this->app['auth']->forgetGuards();
+
+        // A different, unrelated person registers with the same phone
+        // number, which restores the trashed row in place and repoints it
+        // at them.
+        $secondPayload = ['name' => 'Brand New Student', 'phone' => '01913000003', 'password' => 'secret12'];
+        $this->actingAs($actor, 'sanctum')->postJson('/api/v1/student-users', $secondPayload)
+            ->assertCreated()
+            ->assertJsonPath('data.id', $studentId);
+
+        $this->assertDatabaseHas('student_users', [
+            'id' => $studentId,
+            'name' => 'Brand New Student',
+            'deleted_at' => null,
+        ]);
+
+        $this->app['auth']->forgetGuards();
+
+        // The exploit: the old owner's token must stay dead rather than
+        // authenticating as the new person on the reused row.
+        $this->withHeader('Authorization', "Bearer {$oldOwnerToken}")
+            ->getJson('/api/v1/student-users')
+            ->assertUnauthorized();
+
+        $this->assertDatabaseCount('personal_access_tokens', 0);
+    }
+
     public function test_store_rejects_a_restore_that_would_collide_with_a_different_trashed_student_on_phone(): void
     {
         $actor = $this->actorWithPermissions(['users.create', 'users.delete']);
