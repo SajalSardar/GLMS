@@ -99,6 +99,25 @@ class AcademicExamMarkMineControllerTest extends TestCase
             'school_id' => $this->school->id,
             'district_id' => $this->school->district_id,
         ]);
+
+        // Marks exist for the unpublished term too, but deliberately no
+        // corresponding AcademicExamPublication row — so the fixture has
+        // a state where "marks exist" and "is published" disagree, and
+        // mineTerms()'s filter is proven to key on publish state rather
+        // than mark existence.
+        AcademicExamMark::create([
+            'student_profile_id' => $this->profile->id,
+            'subject_id' => $this->subject->id,
+            'academic_exam_term_id' => $this->unpublishedTerm->id,
+            'academic_year_id' => $this->year->id,
+            'school_id' => $this->school->id,
+            'district_id' => $this->school->district_id,
+            'class_id' => $this->class->id,
+            'section_id' => $this->section->id,
+            'shift_id' => $this->section->shift_id,
+            'class_version_id' => $this->section->shift->class_version_id,
+            'cq_marks_obtained' => 70,
+        ]);
     }
 
     public function test_mine_terms_lists_only_published_terms(): void
