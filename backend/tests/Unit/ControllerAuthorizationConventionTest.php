@@ -101,6 +101,15 @@ class ControllerAuthorizationConventionTest extends TestCase
             [BookController::class, 'uploadPdf'],
             [BookController::class, 'updatePdfStatus'],
             [BookController::class, 'deletePdf'],
+            // Not a mutating action, but it mints a signed URL that is
+            // itself the download credential for a private-disk PDF, and
+            // the routes that stream those bytes only validate the
+            // signature — so its authorize() call is the sole gate on the
+            // file's contents. It was once removed on the reasoning that
+            // this endpoint should match index()/show()'s public shape,
+            // which left every book PDF downloadable with no auth at all;
+            // it is listed here so a repeat of that revert fails loudly.
+            [BookController::class, 'pdfDownloadLink'],
 
             [ChapterMaterialController::class, 'store'],
             [ChapterMaterialController::class, 'update'],

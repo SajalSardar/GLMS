@@ -173,36 +173,49 @@ class BookController extends Controller
         return response()->noContent();
     }
 
+    /**
+     * Mint a short-lived signed download/preview URL for this book's PDF.
+     *
+     * Unlike index()/show() — which only expose non-sensitive reference
+     * metadata — this action hands out a credential for the PDF's actual
+     * bytes, which live on a private disk precisely because a licensed
+     * book PDF is confidential (see config/content.php's `pdf_disk`
+     * note). The two routes that stream those bytes
+     * (books.pdf.download/books.pdf.preview) are gated only by
+     * ValidateSignature, so the signature minted here IS the access
+     * credential and this authorize() call is the only gate on it.
+     * A previous revision dropped it "to match index()/show()'s public
+     * shape", which made every book PDF in the system downloadable with
+     * no authentication at all; it is deliberately restored.
+     *
+     * The route carries `auth:sanctum` for the same reason: $this->
+     * authorize() resolves its actor from the *default* guard, which is
+     * `web` (session) unless the auth middleware has called
+     * Auth::shouldUse('sanctum') for this request — so a bearer token on
+     * an unguarded route would authorize as a guest and be denied. All
+     * ten seeded roles hold `books.view` (RolePermissionSeeder), so every
+     * legitimate actor — student, teacher, guardian, admin, staff — still
+     * passes.
+     */
     public function pdfDownloadLink(Request $request, Book $book): JsonResponse
     {
+        $this->authorize('view', $book);
+
         if (! $book->hasAvailablePdf()) {
             throw ValidationException::withMessages([
                 'pdf' => ['This book has no available PDF to download.'],
             ]);
         }
 
-        // This route sits outside the auth:sanctum group (it must also
-        // serve anonymous requests), so the user is resolved explicitly
-        // from the sanctum guard rather than via $request->user() —
-        // same pattern as TimetableEntryController's public routes.
-        // A guest produces no actor_type/actor params at all, which
-        // downloadPdf()/previewPdf() already handle gracefully (their
-        // existing `?: null` fallback), matching books/chapters/other
-        // public content endpoints' already-established "no permission
-        // gate on read access" precedent — this method never called
-        // $this->authorize() for any other reason either; the removed
-        // `$this->authorize('view', $book)` call was the only gate, and
-        // it's dropped here to match index()/show()'s existing shape,
-        // not reintroduced with a null-guard workaround.
-        $actor = $request->user('sanctum');
+        $actor = $request->user();
 
         $expiry = now()->addMinutes(config('content.signed_download_expiry_minutes'));
-        $params = ['book' => $book->id];
 
-        if ($actor !== null) {
-            $params['actor_type'] = get_class($actor);
-            $params['actor'] = $actor->id;
-        }
+        $params = [
+            'book' => $book->id,
+            'actor_type' => get_class($actor),
+            'actor' => $actor->id,
+        ];
 
         return response()->json([
             'download_url' => URL::temporarySignedRoute('books.pdf.download', $expiry, $params),

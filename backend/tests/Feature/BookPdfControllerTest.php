@@ -9,6 +9,7 @@ use App\Models\District;
 use App\Models\Division;
 use App\Models\School;
 use App\Models\SchoolClass;
+use App\Models\StudentUser;
 use App\Models\Subject;
 use App\Models\Upazila;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -165,7 +166,16 @@ class BookPdfControllerTest extends TestCase
         $this->assertSame($allowed->id, $log->user_id);
     }
 
-    public function test_download_link_works_for_an_unauthenticated_guest(): void
+    /**
+     * Replaces an earlier test that asserted the opposite (a guest got a
+     * working signed URL back). That behavior was the bug: the signature
+     * this endpoint mints is itself the download credential for a
+     * private-disk, licensed PDF, and the streaming routes only validate
+     * the signature — so an anonymous caller could mint and redeem a
+     * credential for any book's PDF bytes. The endpoint is authenticated
+     * now, so a guest never gets that far.
+     */
+    public function test_download_link_is_rejected_for_an_unauthenticated_guest(): void
     {
         $allowed = $this->actorWithPermissions(['books.update'], $this->school->id, $this->school->district_id);
         $file = UploadedFile::fake()->create('math.pdf', 100, 'application/pdf');
@@ -174,10 +184,77 @@ class BookPdfControllerTest extends TestCase
         // actingAs() caches the user on the 'sanctum' guard instance for
         // the rest of this test, so without forgetting it here the
         // "unauthenticated" request below would still resolve $allowed
-        // via $request->user('sanctum') regardless of headers sent.
+        // regardless of headers sent.
         $this->app['auth']->forgetGuards();
 
-        $response = $this->postJson("/api/v1/books/{$this->book->id}/pdf/download-link")
+        $this->postJson("/api/v1/books/{$this->book->id}/pdf/download-link")
+            ->assertUnauthorized();
+
+        $this->assertSame(0, ContentAccessLog::where('book_id', $this->book->id)->count());
+    }
+
+    /**
+     * The guest rejection above must not depend on the book happening to
+     * have a PDF — a guest is turned away before any book state is
+     * considered (this used to 422 with "no available PDF", which leaked
+     * that the endpoint was reachable at all).
+     */
+    public function test_download_link_is_rejected_for_a_guest_even_without_an_available_pdf(): void
+    {
+        $this->postJson("/api/v1/books/{$this->book->id}/pdf/download-link")
+            ->assertUnauthorized();
+    }
+
+    public function test_download_link_requires_books_view_permission(): void
+    {
+        $uploader = $this->actorWithPermissions(['books.update'], $this->school->id, $this->school->district_id);
+        $file = UploadedFile::fake()->create('math.pdf', 100, 'application/pdf');
+        $this->actingAs($uploader, 'sanctum')->post("/api/v1/books/{$this->book->id}/pdf", ['pdf' => $file]);
+
+        $denied = $this->actorWithNoPermissions($this->school->id, $this->school->district_id);
+
+        $this->actingAs($denied, 'sanctum')
+            ->postJson("/api/v1/books/{$this->book->id}/pdf/download-link")
+            ->assertForbidden();
+    }
+
+    /**
+     * Non-regression test for the real-world caller shape: a student
+     * holding `books.view` (every seeded role holds it) still gets a
+     * working link, and does so via a genuine `Authorization: Bearer`
+     * header rather than actingAs(). This is the shape that matters:
+     * actingAs() calls Auth::shouldUse('sanctum') itself, so a route
+     * missing `auth:sanctum` would still look authorized under it — in a
+     * real request the default guard is the session-based `web` one until
+     * the auth middleware switches it, and $this->authorize() resolves
+     * its actor from the default guard, so it would see a guest.
+     *
+     * The PDF is attached to the model directly rather than through the
+     * upload endpoint on purpose: one actingAs() call anywhere earlier in
+     * the test would leave `sanctum` as the default guard (forgetGuards()
+     * drops resolved guard instances but not AuthManager's default), and
+     * TenantScope's Auth::user() would then re-enter the half-resolved
+     * Sanctum guard while it loads the token's StudentUser tokenable —
+     * infinite recursion, a pure test artifact that does not occur behind
+     * the real middleware.
+     */
+    public function test_download_link_succeeds_for_a_student_authenticated_with_a_real_bearer_token(): void
+    {
+        Storage::disk('local')->put('books/pdf/math.pdf', 'fake-pdf-bytes');
+        $this->book->update([
+            'pdf_original_filename' => 'math.pdf',
+            'pdf_stored_path' => 'books/pdf/math.pdf',
+            'pdf_disk' => 'local',
+            'pdf_mime_type' => 'application/pdf',
+            'pdf_size_bytes' => 14,
+            'pdf_status' => 'active',
+        ]);
+
+        $student = $this->studentActorWithPermissions(['books.view'], $this->school->id, $this->school->district_id);
+        $token = $student->createToken('test')->plainTextToken;
+
+        $response = $this->withHeader('Authorization', "Bearer {$token}")
+            ->postJson("/api/v1/books/{$this->book->id}/pdf/download-link")
             ->assertOk();
 
         $url = $response->json('download_url');
@@ -187,14 +264,8 @@ class BookPdfControllerTest extends TestCase
 
         $log = ContentAccessLog::where('book_id', $this->book->id)->where('action', 'downloaded')->first();
         $this->assertNotNull($log);
-        $this->assertNull($log->user_id);
-        $this->assertNull($log->user_type);
-    }
-
-    public function test_download_link_still_requires_an_available_pdf_for_a_guest(): void
-    {
-        $this->postJson("/api/v1/books/{$this->book->id}/pdf/download-link")
-            ->assertUnprocessable();
+        $this->assertSame($student->id, $log->user_id);
+        $this->assertSame(StudentUser::class, $log->user_type);
     }
 
     public function test_preview_link_returns_a_working_signed_url_that_logs_access(): void

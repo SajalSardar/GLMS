@@ -69,7 +69,6 @@ Route::prefix('v1')->group(function (): void {
     Route::apiResource('classes', ClassController::class)->only(['index', 'show']);
     Route::apiResource('class-schools', ClassSchoolController::class)->only(['index', 'show']);
     Route::apiResource('books', BookController::class)->only(['index', 'show']);
-    Route::post('/books/{book}/pdf/download-link', [BookController::class, 'pdfDownloadLink']);
     Route::apiResource('chapters', ChapterController::class)->only(['index', 'show']);
     // Must be registered before the apiResource's wildcard {question} show
     // route below, or "export" would be matched as a question ID and
@@ -139,6 +138,14 @@ Route::prefix('v1')->group(function (): void {
         Route::put('/exam-attempts/{exam_attempt}/answers/{question}', [ExamAttemptController::class, 'saveAnswer']);
         Route::post('/exam-attempts/{exam_attempt}/submit', [ExamAttemptController::class, 'submit']);
 
+        // Mints a signed URL for the PDF's actual bytes, so it is gated
+        // like the other book-PDF actions rather than sitting with the
+        // public metadata routes above — the signature it returns is a
+        // working download credential for a private-disk, licensed file,
+        // and the streaming routes themselves only validate that
+        // signature. Same reasoning as chapter-materials/download-link
+        // below, which has always lived in this group.
+        Route::post('/books/{book}/pdf/download-link', [BookController::class, 'pdfDownloadLink']);
         Route::post('/books/{book}/pdf', [BookController::class, 'uploadPdf']);
         Route::patch('/books/{book}/pdf/status', [BookController::class, 'updatePdfStatus']);
         Route::delete('/books/{book}/pdf', [BookController::class, 'deletePdf']);
