@@ -214,6 +214,11 @@ class PermissionSeeder extends Seeder
             ['name' => 'academic_exam_marks.view', 'label' => 'View exam marks'],
             ['name' => 'academic_exam_marks.update', 'label' => 'Record or update exam marks'],
             ['name' => 'academic_exam_marks.publish', 'label' => 'Publish exam results to students'],
+
+            // Granularity precedent: sections.override_capacity — a single,
+            // standalone action permission, not split into .view/.create/.update/
+            // .delete. No teacher exception anywhere: promotion is admin-only.
+            ['name' => 'student_promotions.create', 'label' => 'Promote students to the next class'],
         ];
 
         foreach ($permissions as $permission) {
