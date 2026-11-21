@@ -28,6 +28,16 @@ function toMinutes(time: string): number {
   return hours * 60 + minutes
 }
 
+// A Shift row belongs to exactly one ClassVersion, but what this picker
+// actually wants to filter by is the real-world shift (e.g. "Day" vs
+// "Morning") — not one option per class/version. Grouping by the
+// shift's own name (rather than its id) merges every class/version that
+// runs under the same named shift into a single filter option and a
+// single grid, same as the Teacher Portal's own Class Routine page.
+function shiftLabel(routine: ClassRoutine): string {
+  return routine.shift ? (routine.shift.bn_name ?? routine.shift.name) : `#${routine.shift_id}`
+}
+
 type Column = { type: 'period'; period: number } | { type: 'break'; minutes: number | null }
 
 // Same periods-as-columns / days-as-rows layout as the Teacher Portal's
@@ -80,7 +90,7 @@ export default function TeacherRoutinePage() {
   const [loading, setLoading] = useState(false)
   const [routines, setRoutines] = useState<ClassRoutine[]>([])
   const [school, setSchool] = useState<School | null>(null)
-  const [shiftId, setShiftId] = useState<number | null>(null)
+  const [shiftFilter, setShiftFilter] = useState<string | null>(null)
 
   useEffect(() => {
     if (role === 'school_admin' && ownSchoolId !== null) {
@@ -159,7 +169,8 @@ export default function TeacherRoutinePage() {
       .then((result) => {
         if (!active) return
         setRoutines(result.data)
-        setShiftId(result.data.find((routine) => routine.shift_id !== null)?.shift_id ?? null)
+        const firstWithShift = result.data.find((routine) => routine.shift_id !== null)
+        setShiftFilter(firstWithShift ? shiftLabel(firstWithShift) : null)
       })
       .catch(() => {
         if (active) setRoutines([])
@@ -173,24 +184,15 @@ export default function TeacherRoutinePage() {
     }
   }, [schoolId, teacherId])
 
-  // Shift options: this teacher's own distinct shifts, built from the
-  // routine rows themselves (same "derive the filter from data already
-  // in hand" pattern the Teacher Portal's own page uses) — prefixed with
-  // class/version since Shift.name is almost always the generic "Day
-  // Shift" left over from System Setup's own default, so a teacher
-  // teaching more than one class would otherwise see indistinguishable
-  // options.
-  const shiftOptions = new Map<number, string>()
+  // Shift options: this teacher's own distinct shift names, built from
+  // the routine rows themselves (same "derive the filter from data
+  // already in hand" pattern the Teacher Portal's own page uses).
+  const shiftOptions = new Set<string>()
   for (const routine of routines) {
-    if (routine.shift_id !== null && !shiftOptions.has(routine.shift_id)) {
-      const shiftName = routine.shift ? (routine.shift.bn_name ?? routine.shift.name) : `#${routine.shift_id}`
-      const className = routine.class ? (routine.class.bn_name ?? routine.class.name) : null
-      const versionName = routine.class_version ? (routine.class_version.bn_name ?? routine.class_version.name) : null
-      shiftOptions.set(routine.shift_id, [className, versionName, shiftName].filter(Boolean).join(' - '))
-    }
+    if (routine.shift_id !== null) shiftOptions.add(shiftLabel(routine))
   }
 
-  const shiftRoutines = shiftId !== null ? routines.filter((routine) => routine.shift_id === shiftId) : routines
+  const shiftRoutines = shiftFilter !== null ? routines.filter((routine) => routine.shift_id !== null && shiftLabel(routine) === shiftFilter) : routines
 
   const byDay = new Map<string, Map<number, ClassRoutine>>()
   for (const routine of shiftRoutines) {
@@ -242,16 +244,16 @@ export default function TeacherRoutinePage() {
           />
         </label>
 
-        {shiftOptions.size > 1 && (
+        {shiftOptions.size > 0 && (
           <label className="flex flex-col gap-1.5 text-sm">
             <span className="font-medium text-gray-700">{t['management.fields.shift']}</span>
             <select
               className={`${inputClass} min-w-[14rem]`}
-              value={shiftId ?? ''}
-              onChange={(event) => setShiftId(Number(event.target.value))}
+              value={shiftFilter ?? ''}
+              onChange={(event) => setShiftFilter(event.target.value)}
             >
-              {[...shiftOptions.entries()].map(([id, name]) => (
-                <option key={id} value={id}>
+              {[...shiftOptions].map((name) => (
+                <option key={name} value={name}>
                   {name}
                 </option>
               ))}
