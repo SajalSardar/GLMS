@@ -247,6 +247,136 @@ class AttendanceControllerTest extends TestCase
             ->assertOk();
     }
 
+    /**
+     * The monthly report reads its attendance from the denormalized
+     * attendances.section_id, so a student who attended here for part of the
+     * month and was then transferred out must stay on the roster — their rows
+     * are intact and belong to this section's own history.
+     */
+    public function test_report_keeps_a_transferred_out_student_whose_attendance_was_recorded_in_this_section(): void
+    {
+        $classTeacher = $this->teacherActorWithPermissions(['attendances.view', 'attendances.update'], $this->school->id, $this->school->district_id);
+        $this->section->update(['class_teacher_id' => $classTeacher->id]);
+
+        $transferred = $this->studentInSection('1');
+        $transferredProfile = $transferred->profile;
+
+        foreach (['2026-11-23', '2026-11-24'] as $date) {
+            $this->actingAs($classTeacher, 'sanctum')->postJson('/api/v1/attendances/record', [
+                'section_id' => $this->section->id,
+                'date' => $date,
+                'records' => [['student_profile_id' => $transferredProfile->id, 'status' => 'present']],
+            ])->assertOk();
+        }
+
+        $otherSection = Section::create(['shift_id' => $this->shift->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Section B']);
+        $transferredProfile->update(['section_id' => $otherSection->id]);
+
+        $neverRecorded = $this->studentInSection('2');
+        $neverRecordedProfile = $neverRecorded->profile;
+
+        $response = $this->actingAs($classTeacher, 'sanctum')
+            ->getJson("/api/v1/attendances/report?section_id={$this->section->id}&year=2026&month=11")
+            ->assertOk()
+            ->assertJsonCount(2, 'data.students');
+
+        $rows = collect($response->json('data.students'));
+
+        $transferredRow = $rows->firstWhere('student_profile_id', $transferredProfile->id);
+        $this->assertNotNull($transferredRow);
+        $this->assertSame(['2026-11-23' => 'present', '2026-11-24' => 'present'], $transferredRow['statuses']);
+
+        $neverRecordedRow = $rows->firstWhere('student_profile_id', $neverRecordedProfile->id);
+        $this->assertNotNull($neverRecordedRow);
+        $this->assertSame([], $neverRecordedRow['statuses']);
+
+        $this->assertDatabaseCount('attendances', 2);
+        foreach (['2026-11-23', '2026-11-24'] as $date) {
+            $this->assertDatabaseHas('attendances', [
+                'student_profile_id' => $transferredProfile->id,
+                'section_id' => $this->section->id,
+                'status' => 'present',
+                'marked_by_id' => $classTeacher->id,
+            ]);
+            $this->assertTrue(
+                Attendance::where('student_profile_id', $transferredProfile->id)
+                    ->where('section_id', $this->section->id)
+                    ->get()
+                    ->contains(fn (Attendance $row) => $row->date->toDateString() === $date)
+            );
+        }
+    }
+
+    /**
+     * The existing-row match is (student_profile_id, date) only, so a row
+     * earned in another section can surface here — updating it would rewrite
+     * that section's own record of the day rather than record anything new.
+     */
+    public function test_recording_for_a_transferred_student_does_not_overwrite_their_previous_sections_row(): void
+    {
+        $classTeacherA = $this->teacherActorWithPermissions(['attendances.view', 'attendances.update'], $this->school->id, $this->school->district_id);
+        $this->section->update(['class_teacher_id' => $classTeacherA->id]);
+
+        $student = $this->studentInSection();
+        $profile = $student->profile;
+
+        $this->actingAs($classTeacherA, 'sanctum')->postJson('/api/v1/attendances/record', [
+            'section_id' => $this->section->id,
+            'date' => '2026-11-23',
+            'records' => [['student_profile_id' => $profile->id, 'status' => 'present']],
+        ])->assertOk();
+
+        $originalId = Attendance::sole()->id;
+
+        $otherSection = Section::create(['shift_id' => $this->shift->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Section B']);
+        $classTeacherB = $this->teacherActorWithPermissions(['attendances.view', 'attendances.update'], $this->school->id, $this->school->district_id);
+        $otherSection->update(['class_teacher_id' => $classTeacherB->id]);
+        $profile->update(['section_id' => $otherSection->id]);
+
+        $this->actingAs($classTeacherB, 'sanctum')->postJson('/api/v1/attendances/record', [
+            'section_id' => $otherSection->id,
+            'date' => '2026-11-23',
+            'records' => [['student_profile_id' => $profile->id, 'status' => 'absent']],
+        ])
+            ->assertOk()
+            ->assertJsonPath('conflicted_student_ids', [$profile->id])
+            ->assertJsonPath('skipped_student_ids', []);
+
+        $this->assertDatabaseCount('attendances', 1);
+
+        $untouched = Attendance::find($originalId);
+        $this->assertNotNull($untouched);
+        $this->assertSame($this->section->id, $untouched->section_id);
+        $this->assertSame('present', $untouched->status);
+        $this->assertSame($classTeacherA->id, $untouched->marked_by_id);
+        $this->assertSame($this->shift->id, $untouched->shift_id);
+        $this->assertSame($this->version->id, $untouched->class_version_id);
+        $this->assertSame('2026-11-23', $untouched->date->toDateString());
+    }
+
+    public function test_recording_reports_back_students_who_are_no_longer_in_the_section(): void
+    {
+        $classTeacher = $this->teacherActorWithPermissions(['attendances.view', 'attendances.update'], $this->school->id, $this->school->district_id);
+        $this->section->update(['class_teacher_id' => $classTeacher->id]);
+
+        $student = $this->studentInSection();
+        $profile = $student->profile;
+
+        $otherSection = Section::create(['shift_id' => $this->shift->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Section B']);
+        $profile->update(['section_id' => $otherSection->id]);
+
+        $this->actingAs($classTeacher, 'sanctum')->postJson('/api/v1/attendances/record', [
+            'section_id' => $this->section->id,
+            'date' => '2026-11-23',
+            'records' => [['student_profile_id' => $profile->id, 'status' => 'present']],
+        ])
+            ->assertOk()
+            ->assertJsonPath('skipped_student_ids', [$profile->id])
+            ->assertJsonPath('conflicted_student_ids', []);
+
+        $this->assertDatabaseCount('attendances', 0);
+    }
+
     public function test_my_sections_flags_the_class_teacher_section_as_recordable_and_the_assignment_only_section_as_not(): void
     {
         $teacher = $this->teacherActorWithPermissions(['attendances.view', 'attendances.update'], $this->school->id, $this->school->district_id);

@@ -114,10 +114,17 @@ class AttendanceController extends Controller
         $validStudentIds = StudentProfile::where('section_id', $section->id)->pluck('id');
         $actor = $request->user();
 
+        /** @var list<int> $conflictedStudentIds */
+        $conflictedStudentIds = [];
+        /** @var list<int> $skippedStudentIds */
+        $skippedStudentIds = [];
+
         foreach ($request->array('records') as $record) {
             $studentProfileId = (int) ($record['student_profile_id'] ?? 0);
 
             if (! $validStudentIds->contains($studentProfileId)) {
+                $skippedStudentIds[] = $studentProfileId;
+
                 continue;
             }
 
@@ -131,6 +138,20 @@ class AttendanceController extends Controller
             $existing = Attendance::where('student_profile_id', $studentProfileId)
                 ->whereDate('date', $date->toDateString())
                 ->first();
+
+            // The match above is (student_profile_id, date) only — the unique
+            // index it mirrors has no section column — so a row this student
+            // earned in a DIFFERENT section can come back here. Updating it
+            // would rewrite that section's own record of the day
+            // (section_id/class_id/shift_id/class_version_id/status/marked_by_id
+            // all overwritten) instead of recording anything new, so skip it
+            // and report the student back to the caller rather than silently
+            // destroying history.
+            if ($existing !== null && $existing->section_id !== $section->id) {
+                $conflictedStudentIds[] = $studentProfileId;
+
+                continue;
+            }
 
             $attributes = [
                 'school_id' => $section->school_id,
@@ -163,6 +184,13 @@ class AttendanceController extends Controller
                 'holiday_name' => null,
                 'students' => $this->rosterRows($section, $date),
             ],
+            // Additive, alongside `data`: students whose submitted record was
+            // NOT written. `conflicted_student_ids` already hold a row for this
+            // date under another section; `skipped_student_ids` are no longer
+            // enrolled in this section at all. Both were previously silent
+            // no-ops inside an HTTP 200.
+            'conflicted_student_ids' => $conflictedStudentIds,
+            'skipped_student_ids' => $skippedStudentIds,
         ]);
     }
 
@@ -181,14 +209,29 @@ class AttendanceController extends Controller
         [$year, $month, $start, $end] = $this->resolveMonth($request);
         $dates = $this->dateRange($start, $end);
 
-        $students = StudentProfile::where('section_id', $section->id)->with('user')->get()
-            ->sortBy(fn (StudentProfile $profile) => (int) ($profile->roll_number ?? 0))
-            ->values();
-
         $attendanceByStudent = Attendance::where('section_id', $section->id)
             ->whereBetween('date', [$start->toDateString(), $end->toDateString()])
             ->get()
             ->groupBy('student_profile_id');
+
+        // The report's roster is the deduplicated UNION of (a) every student
+        // CURRENTLY enrolled in this section, and (b) every student carrying an
+        // attendance row denormalized to this section_id inside the report's
+        // month — the same union MarksheetBuilder::examRosterIds() resolves,
+        // for the same reason. (a) alone silently drops a student who attended
+        // here for part of the month and was then transferred/promoted out:
+        // their student_profiles.section_id no longer points at this section,
+        // so their whole month of intact attendance rows would vanish from the
+        // report. Reading the historical half off attendances.section_id is
+        // what that denormalized column exists for.
+        $rosterIds = StudentProfile::where('section_id', $section->id)->pluck('id')
+            ->concat($attendanceByStudent->keys()->map(fn ($id) => (int) $id))
+            ->unique()
+            ->values();
+
+        $students = StudentProfile::whereIn('id', $rosterIds)->with('user')->get()
+            ->sortBy(fn (StudentProfile $profile) => (int) ($profile->roll_number ?? 0))
+            ->values();
 
         $studentRows = $students->map(function (StudentProfile $profile) use ($attendanceByStudent) {
             $own = $attendanceByStudent->get($profile->id, collect())->keyBy(fn (Attendance $row) => $row->date->toDateString());
