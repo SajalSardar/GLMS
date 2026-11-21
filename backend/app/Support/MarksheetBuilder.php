@@ -215,10 +215,15 @@ class MarksheetBuilder
     /**
      * The (class_id, section_id) an exam was actually sat under — taken from
      * this student's own denormalized academic_exam_marks rows for this
-     * (term, year), never from the student's CURRENT profile. Returns
-     * [null, null] when the student has no marks for this (term, year) at
-     * all, in which case every caller already degrades to its existing
-     * "nothing to rank" behavior ([null, 0]).
+     * (term, year), never from the student's CURRENT profile whenever any
+     * such row exists.
+     *
+     * A student with no marks for this (term, year) at all falls back to
+     * their current placement: there is no historical exam placement to
+     * honor for an exam they never sat, so the fallback cannot contradict
+     * any history, and it preserves the established behavior that a
+     * never-graded student enrolled in a published section is still ranked
+     * (last, on a 0.0 GPA) rather than dropping to [null, 0].
      *
      * @return array{0: ?int, 1: ?int}
      */
@@ -229,24 +234,32 @@ class MarksheetBuilder
             ->where('academic_year_id', $academicYearId)
             ->first();
 
-        return [$mark?->class_id, $mark?->section_id];
+        if ($mark === null) {
+            return [$profile->class_id, $profile->section_id];
+        }
+
+        return [$mark->class_id, $mark->section_id];
     }
 
     /**
-     * Everyone who actually SAT this exam in one of $sectionIds, read from
-     * academic_exam_marks' own denormalized section_id — the same reason that
-     * denormalization exists, so a roster query never has to join through
-     * student_profiles. Reading the roster from student_profiles.section_id
-     * instead would reintroduce the very bug this class guards against from
-     * the other direction: a promoted student disappears from the section
-     * they were ranked in, silently renumbering their classmates' positions
-     * and their own already-published position along with them.
+     * The roster one exam is ranked against: the deduplicated UNION of
+     * (a) every student CURRENTLY enrolled in $sectionIds, and (b) every
+     * student carrying an academic_exam_marks row for this (term, year)
+     * denormalized to one of those section_ids.
      *
-     * A student who is currently in the section but has no marks for this
-     * (term, year) is therefore not counted — they did not sit this exam.
+     * (a) preserves the established semantics that the denominator is
+     * everyone enrolled — a never-graded student is still counted and still
+     * sorts last on a 0.0 GPA. (b) adds back a student who did sit the exam
+     * here but has since been promoted away: their current
+     * student_profiles.section_id no longer points at this section, so (a)
+     * alone would drop them out of their own already-published ranking and
+     * silently renumber everyone who stayed. Reading the historical half
+     * from academic_exam_marks is what that table's denormalized
+     * class_id/section_id exist for.
      *
-     * Explicitly scoped to $profile's own school_id rather than leaning on
-     * the ambient TenantScope, for the same reason as publishedClassmateIds().
+     * Both queries are explicitly scoped to $profile's own school_id rather
+     * than leaning on the ambient TenantScope, for the same reason as
+     * publishedClassmateIds().
      *
      * @param  list<int>  $sectionIds
      * @return Collection<int, int>
@@ -257,20 +270,28 @@ class MarksheetBuilder
             return collect();
         }
 
-        return AcademicExamMark::whereIn('section_id', $sectionIds)
+        $enrolledIds = StudentProfile::whereIn('section_id', $sectionIds)
+            ->where('school_id', $profile->school_id)
+            ->pluck('id');
+
+        $gradedIds = AcademicExamMark::whereIn('section_id', $sectionIds)
             ->where('academic_exam_term_id', $termId)
             ->where('academic_year_id', $academicYearId)
             ->where('school_id', $profile->school_id)
-            ->pluck('student_profile_id')
-            ->unique()
-            ->values();
+            ->pluck('student_profile_id');
+
+        // Currently-enrolled students lead, so ties keep the same order they
+        // resolved in before the historical half was unioned in (sortBy() is
+        // stable).
+        return $enrolledIds->concat($gradedIds)->unique()->values();
     }
 
     /**
-     * Everyone who sat this exam in a section belonging to $examClassId,
-     * restricted to sections that are themselves published for this exact
-     * (term, year) — an unpublished sibling section is excluded entirely,
-     * not silently counted with stale/missing data.
+     * The class-wide roster (see examRosterIds() for the union it resolves)
+     * across every section belonging to $examClassId, restricted to sections
+     * that are themselves published for this exact (term, year) — an
+     * unpublished sibling section is excluded entirely, not silently counted
+     * with stale/missing data.
      *
      * $examClassId is the class the EXAM was sat in (resolved by the
      * caller via examClassAndSection()), not necessarily $profile's current

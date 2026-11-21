@@ -509,4 +509,54 @@ class MarksheetBuilderTest extends TestCase
         // The student who stayed put must not be affected either.
         $this->assertSame($topBefore, $topAfter);
     }
+
+    public function test_a_never_graded_section_mate_still_counts_toward_the_totals_before_and_after_a_promotion(): void
+    {
+        $subject = Subject::create(['name' => 'Mathematics']);
+        AcademicSubjectMarkConfigure::create(['class_id' => $this->class->id, 'subject_id' => $subject->id, 'cq_full_marks' => 100]);
+
+        $graded = $this->studentInSection('1');
+        $this->mark($graded, $subject, ['cq_marks_obtained' => 90]);
+
+        // Enrolled in the published section but never graded for this
+        // (term, year) at all — no academic_exam_marks row whatsoever.
+        $ungraded = $this->studentInSection('2');
+
+        AcademicExamPublication::create([
+            'section_id' => $this->section->id, 'academic_exam_term_id' => $this->term->id, 'academic_year_id' => $this->year->id,
+            'school_id' => $this->school->id, 'district_id' => $this->school->district_id,
+        ]);
+
+        $gradedBefore = $this->builder->build($graded, $this->term, $this->year->id);
+        $ungradedBefore = $this->builder->build($ungraded, $this->term, $this->year->id);
+
+        // The denominator is everyone ENROLLED, not just everyone graded —
+        // the never-graded student counts and sorts last on a 0.0 GPA.
+        $this->assertSame(1, $gradedBefore['section_position']);
+        $this->assertSame(2, $gradedBefore['section_total_students']);
+        $this->assertSame(2, $gradedBefore['class_total_students']);
+        $this->assertSame([], $ungradedBefore['subjects']);
+        $this->assertSame(0.0, $ungradedBefore['gpa']);
+        $this->assertSame(2, $ungradedBefore['section_position']);
+        $this->assertSame(2, $ungradedBefore['section_total_students']);
+
+        // Promote ONLY the graded student out, into an empty section of a new
+        // class that is itself configured for this subject.
+        [$newClass, $newSection] = $this->otherClassAndSection('Class 7');
+        AcademicSubjectMarkConfigure::create(['class_id' => $newClass->id, 'subject_id' => $subject->id, 'cq_full_marks' => 100]);
+
+        $this->promote($graded, $newClass, $newSection);
+
+        $gradedAfter = $this->builder->build($graded->fresh(), $this->term, $this->year->id);
+        $ungradedAfter = $this->builder->build($ungraded->fresh(), $this->term, $this->year->id);
+
+        // The promoted student is no longer enrolled in the ranked section, so
+        // only the union's academic_exam_marks half still finds them there —
+        // and the never-graded student who stayed behind is only found by the
+        // enrolled half. Both halves are needed to keep this at 1 of 2.
+        $this->assertSame(1, $gradedAfter['section_position']);
+        $this->assertSame(2, $gradedAfter['section_total_students']);
+        $this->assertSame($gradedBefore, $gradedAfter);
+        $this->assertSame($ungradedBefore, $ungradedAfter);
+    }
 }
