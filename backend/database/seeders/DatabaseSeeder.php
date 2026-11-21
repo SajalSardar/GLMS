@@ -46,6 +46,7 @@ class DatabaseSeeder extends Seeder
             StudentDemoSeeder::class,
             TimetableGenerationDemoSeeder::class,
             LmsContentDemoSeeder::class,
+            AcademicExamResultsDemoSeeder::class,
         ]);
     }
 }
