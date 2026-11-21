@@ -5,17 +5,21 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\RecordAcademicExamMarkRequest;
 use App\Models\AcademicExamMark;
+use App\Models\AcademicExamTerm;
 use App\Models\AcademicSubjectMarkConfigure;
 use App\Models\Section;
 use App\Models\StudentProfile;
 use App\Models\Subject;
 use App\Models\SubjectTeacherAssignment;
 use App\Models\TeacherUser;
+use App\Support\MarksheetBuilder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class AcademicExamMarkController extends Controller
 {
+    public function __construct(private readonly MarksheetBuilder $marksheetBuilder) {}
+
     /**
      * Every (section, subject) combination this teacher may touch for
      * mark entry — the class teacher of a section gets one row per
@@ -158,6 +162,53 @@ class AcademicExamMarkController extends Controller
 
         return response()->json([
             'data' => $this->rosterPayload($request, $section, $subjectId, canRecord: true),
+        ]);
+    }
+
+    /**
+     * A student's full marksheet for one exam term/academic year —
+     * viewable by the section's class teacher, any teacher with a
+     * subject assignment in that section (for ANY subject, not just
+     * their own — see AcademicExamMarkPolicy::viewMarksheet()), or staff
+     * with academic_exam_marks.view.
+     */
+    public function marksheet(Request $request): JsonResponse
+    {
+        $profile = StudentProfile::findOrFail($request->integer('student_profile_id'));
+        $section = Section::findOrFail($profile->section_id);
+        $term = AcademicExamTerm::findOrFail($request->integer('academic_exam_term_id'));
+
+        $this->authorize('viewMarksheet', [AcademicExamMark::class, $section]);
+
+        return response()->json([
+            'data' => $this->marksheetBuilder->build($profile, $term, $request->integer('academic_year_id')),
+        ]);
+    }
+
+    /**
+     * Every student in a section, independent of subject — used by the
+     * teacher portal's Marksheets lookup to populate its Student picker
+     * once a Section has been chosen.
+     */
+    public function sectionStudents(Request $request): JsonResponse
+    {
+        $section = Section::findOrFail($request->integer('section_id'));
+
+        $this->authorize('viewMarksheet', [AcademicExamMark::class, $section]);
+
+        $students = StudentProfile::where('section_id', $section->id)->with('user')->get()
+            ->sortBy(fn (StudentProfile $profile) => (int) ($profile->roll_number ?? 0))
+            ->values();
+
+        return response()->json([
+            'data' => [
+                'section_id' => $section->id,
+                'students' => $students->map(fn (StudentProfile $profile) => [
+                    'student_profile_id' => $profile->id,
+                    'name' => $profile->user?->name,
+                    'roll_number' => $profile->roll_number,
+                ])->values()->all(),
+            ],
         ]);
     }
 

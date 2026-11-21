@@ -421,4 +421,88 @@ class AcademicExamMarkControllerTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.can_record', true);
     }
+
+    public function test_marksheet_is_viewable_by_the_class_teacher(): void
+    {
+        $classTeacher = $this->teacherActorWithPermissions(['academic_exam_marks.view', 'academic_exam_marks.update'], $this->school->id, $this->school->district_id);
+        $this->section->update(['class_teacher_id' => $classTeacher->id]);
+
+        $student = $this->studentInSection();
+        $profile = $student->profile;
+
+        $this->actingAs($classTeacher, 'sanctum')->postJson('/api/v1/academic-exam-marks/record', $this->recordPayload($profile->id))->assertOk();
+
+        $this->actingAs($classTeacher, 'sanctum')
+            ->getJson("/api/v1/academic-exam-marks/marksheet?student_profile_id={$profile->id}&academic_exam_term_id={$this->term->id}&academic_year_id={$this->year->id}")
+            ->assertOk()
+            ->assertJsonPath('data.subjects.0.subject_id', $this->subject->id);
+    }
+
+    public function test_marksheet_is_viewable_by_a_subject_teacher_with_no_class_teacher_role(): void
+    {
+        $otherSubject = Subject::create(['name' => 'English']);
+        AcademicSubjectMarkConfigure::create(['class_id' => $this->class->id, 'subject_id' => $otherSubject->id, 'cq_full_marks' => 100]);
+
+        $englishTeacher = $this->teacherActorWithPermissions(['academic_exam_marks.view', 'academic_exam_marks.update'], $this->school->id, $this->school->district_id);
+        SubjectTeacherAssignment::create([
+            'section_id' => $this->section->id, 'subject_id' => $otherSubject->id, 'teacher_id' => $englishTeacher->id,
+            'school_id' => $this->school->id, 'district_id' => $this->school->district_id,
+        ]);
+
+        $student = $this->studentInSection();
+        $profile = $student->profile;
+
+        // The English teacher may view the WHOLE marksheet (every subject,
+        // including Math) even though they only teach English — unlike
+        // per-subject recordSection(), which would reject them for Math.
+        $this->actingAs($englishTeacher, 'sanctum')
+            ->getJson("/api/v1/academic-exam-marks/marksheet?student_profile_id={$profile->id}&academic_exam_term_id={$this->term->id}&academic_year_id={$this->year->id}")
+            ->assertOk();
+    }
+
+    public function test_marksheet_is_forbidden_for_a_teacher_with_no_relation_to_the_section(): void
+    {
+        $unrelatedTeacher = $this->teacherActorWithPermissions(['academic_exam_marks.view', 'academic_exam_marks.update'], $this->school->id, $this->school->district_id);
+        $student = $this->studentInSection();
+        $profile = $student->profile;
+
+        $this->actingAs($unrelatedTeacher, 'sanctum')
+            ->getJson("/api/v1/academic-exam-marks/marksheet?student_profile_id={$profile->id}&academic_exam_term_id={$this->term->id}&academic_year_id={$this->year->id}")
+            ->assertForbidden();
+    }
+
+    public function test_marksheet_is_viewable_by_staff_with_academic_exam_marks_view(): void
+    {
+        $student = $this->studentInSection();
+        $profile = $student->profile;
+
+        $admin = $this->actorWithPermissions(['academic_exam_marks.view'], $this->school->id, $this->school->district_id);
+
+        $this->actingAs($admin, 'sanctum')
+            ->getJson("/api/v1/academic-exam-marks/marksheet?student_profile_id={$profile->id}&academic_exam_term_id={$this->term->id}&academic_year_id={$this->year->id}")
+            ->assertOk();
+    }
+
+    public function test_section_students_lists_the_whole_roster_for_the_class_teacher(): void
+    {
+        $classTeacher = $this->teacherActorWithPermissions(['academic_exam_marks.view', 'academic_exam_marks.update'], $this->school->id, $this->school->district_id);
+        $this->section->update(['class_teacher_id' => $classTeacher->id]);
+
+        $this->studentInSection('1');
+        $this->studentInSection('2');
+
+        $this->actingAs($classTeacher, 'sanctum')
+            ->getJson("/api/v1/academic-exam-marks/section-students?section_id={$this->section->id}")
+            ->assertOk()
+            ->assertJsonCount(2, 'data.students');
+    }
+
+    public function test_section_students_is_forbidden_for_a_teacher_with_no_relation_to_the_section(): void
+    {
+        $unrelatedTeacher = $this->teacherActorWithPermissions(['academic_exam_marks.view', 'academic_exam_marks.update'], $this->school->id, $this->school->district_id);
+
+        $this->actingAs($unrelatedTeacher, 'sanctum')
+            ->getJson("/api/v1/academic-exam-marks/section-students?section_id={$this->section->id}")
+            ->assertForbidden();
+    }
 }

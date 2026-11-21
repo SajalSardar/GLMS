@@ -35,6 +35,24 @@ class AcademicExamMarkPolicy
         return $this->canTouch($user, $section, $subjectId, 'academic_exam_marks.update');
     }
 
+    /**
+     * Whether $user may view the WHOLE marksheet (every subject) for a
+     * student in $section — broader than viewSection()/recordSection(),
+     * which both gate one specific subject. Any relationship to the
+     * section (class teacher, or any subject assignment at all) grants
+     * visibility into the full report card, since a report card spans
+     * every subject, not one.
+     */
+    public function viewMarksheet(Authenticatable $user, Section $section): bool
+    {
+        if ($user instanceof TeacherUser) {
+            return $section->class_teacher_id === $user->id
+                || SubjectTeacherAssignment::where('section_id', $section->id)->where('teacher_id', $user->id)->exists();
+        }
+
+        return $user->hasPermission('academic_exam_marks.view');
+    }
+
     private function canTouch(Authenticatable $user, Section $section, int $subjectId, string $staffPermission): bool
     {
         if ($user instanceof TeacherUser) {

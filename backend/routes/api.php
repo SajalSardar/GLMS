@@ -203,6 +203,8 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/academic-exam-marks/my-assignments', [AcademicExamMarkController::class, 'myAssignments']);
         Route::get('/academic-exam-marks/roster', [AcademicExamMarkController::class, 'roster']);
         Route::post('/academic-exam-marks/record', [AcademicExamMarkController::class, 'record']);
+        Route::get('/academic-exam-marks/marksheet', [AcademicExamMarkController::class, 'marksheet']);
+        Route::get('/academic-exam-marks/section-students', [AcademicExamMarkController::class, 'sectionStudents']);
 
         Route::get('/academic-exam-publications/status', [AcademicExamPublicationController::class, 'status']);
         Route::post('/academic-exam-publications', [AcademicExamPublicationController::class, 'store']);
