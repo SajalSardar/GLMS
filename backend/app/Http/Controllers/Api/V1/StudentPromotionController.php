@@ -129,6 +129,8 @@ class StudentPromotionController extends Controller
             ]);
         }
 
+        $this->assertNoRollNumberCollision($records, $section, $toClassId);
+
         DB::transaction(function () use ($records, $section, $term, $academicYearId, $toSection, $toShift, $toClassId, $fromClassId, $actor, $now) {
             foreach ($records as $record) {
                 $profile = StudentProfile::where('section_id', $section->id)->find($record['student_profile_id'] ?? 0);
@@ -170,5 +172,46 @@ class StudentPromotionController extends Controller
         });
 
         return response()->json(['data' => ['section_id' => $section->id, 'promoted' => true]], 201);
+    }
+
+    /**
+     * Reject the whole batch up front if any promoted student's
+     * roll_number already belongs to some OTHER student (not part of
+     * this batch) already sitting in the target class — student_profiles
+     * enforces unique(['class_id', 'roll_number']), and letting that
+     * collision surface mid-DB::transaction() would roll back every
+     * other student's legitimate promotion in the same request.
+     *
+     * @param  list<array{student_profile_id?:int, promote?:bool}>  $records
+     */
+    private function assertNoRollNumberCollision(array $records, Section $section, ?int $toClassId): void
+    {
+        $promotedProfileIds = array_values(array_filter(
+            array_map(fn (array $record) => (bool) ($record['promote'] ?? false) ? ($record['student_profile_id'] ?? null) : null, $records)
+        ));
+
+        if ($promotedProfileIds === [] || $toClassId === null) {
+            return;
+        }
+
+        $promotedRollNumbers = StudentProfile::where('section_id', $section->id)
+            ->whereIn('id', $promotedProfileIds)
+            ->pluck('roll_number')
+            ->filter()
+            ->all();
+
+        $occupiedRollNumbers = StudentProfile::where('class_id', $toClassId)
+            ->whereNotIn('id', $promotedProfileIds)
+            ->pluck('roll_number')
+            ->filter()
+            ->all();
+
+        $colliding = array_unique(array_intersect($promotedRollNumbers, $occupiedRollNumbers));
+
+        if ($colliding !== []) {
+            throw ValidationException::withMessages([
+                'records' => ['Roll number(s) '.implode(', ', $colliding).' already exist in the target class. Resolve the conflict before promoting these students.'],
+            ]);
+        }
     }
 }

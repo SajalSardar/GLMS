@@ -353,4 +353,46 @@ class StudentPromotionControllerTest extends TestCase
             'records' => [['student_profile_id' => $pass->id, 'promote' => true]],
         ])->assertCreated();
     }
+
+    public function test_store_rejects_the_whole_batch_when_a_promoted_students_roll_number_collides_with_an_unrelated_target_class_student(): void
+    {
+        $unrelatedTargetStudent = $this->studentActorWithPermissions([], $this->school->id, $this->school->district_id);
+        $unrelated = StudentProfile::create([
+            'user_id' => $unrelatedTargetStudent->id,
+            'school_id' => $this->school->id, 'district_id' => $this->school->district_id,
+            'class_id' => $this->class7->id, 'section_id' => $this->toSection->id,
+            'shift_id' => $this->toSection->shift_id, 'class_version_id' => $this->toSection->shift->class_version_id,
+            'roll_number' => '7',
+        ]);
+
+        $pass = $this->studentInSection('7', 85);
+        $otherPass = $this->studentInSection('8', 90);
+        $admin = $this->actorWithPermissions(['student_promotions.create'], $this->school->id, $this->school->district_id);
+
+        $response = $this->actingAs($admin, 'sanctum')->postJson('/api/v1/student-promotions', [
+            'section_id' => $this->section->id,
+            'academic_year_id' => $this->year->id,
+            'to_section_id' => $this->toSection->id,
+            'records' => [
+                ['student_profile_id' => $pass->id, 'promote' => true],
+                ['student_profile_id' => $otherPass->id, 'promote' => true],
+            ],
+        ])->assertUnprocessable()->assertJsonValidationErrors('records');
+
+        $this->assertStringContainsString('7', $response->json('errors.records.0'));
+
+        // Nothing committed — the colliding student's own collision must
+        // not partially apply, and the OTHER, non-colliding student in
+        // the same batch must not have been promoted either.
+        $this->assertDatabaseCount('student_class_promotions', 0);
+        $pass->refresh();
+        $otherPass->refresh();
+        $this->assertSame($this->class6->id, $pass->class_id);
+        $this->assertSame($this->section->id, $pass->section_id);
+        $this->assertSame($this->class6->id, $otherPass->class_id);
+        $this->assertSame($this->section->id, $otherPass->section_id);
+
+        $unrelated->refresh();
+        $this->assertSame($this->class7->id, $unrelated->class_id);
+    }
 }
