@@ -42,9 +42,10 @@ class GuardianController extends Controller
     /**
      * Store a newly created resource in storage.
      *
-     * A soft-deleted guardian with the same phone number is restored and
-     * updated in place, rather than attempting a second insert that would
-     * collide with the still-present unique index on a trashed row.
+     * A soft-deleted guardian matching the same phone, nid_number, or
+     * user_id is restored and updated in place, rather than attempting a
+     * second insert that would collide with the still-present unique
+     * index on a trashed row.
      */
     public function store(StoreGuardianRequest $request): JsonResponse
     {
@@ -53,6 +54,21 @@ class GuardianController extends Controller
         $data = $request->validated();
 
         $guardian = Guardian::onlyTrashed()->where('phone', $data['phone'])->first();
+
+        // nid_number and user_id each carry their own unique index, and
+        // their validation rules are withoutTrashed() (trusting this
+        // restore-check to catch a trashed collision) — so a submission
+        // that doesn't match an old guardian by phone may still collide
+        // with a trashed row on one of these. $data below is always the
+        // full submitted payload, so restoring and overwriting here
+        // leaves no stale field from whoever the row used to belong to.
+        if ($guardian === null && ($data['nid_number'] ?? null) !== null) {
+            $guardian = Guardian::onlyTrashed()->where('nid_number', $data['nid_number'])->first();
+        }
+
+        if ($guardian === null && ($data['user_id'] ?? null) !== null) {
+            $guardian = Guardian::onlyTrashed()->where('user_id', $data['user_id'])->first();
+        }
 
         if ($guardian) {
             $guardian->restore();

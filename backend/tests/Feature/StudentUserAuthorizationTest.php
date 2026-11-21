@@ -140,6 +140,31 @@ class StudentUserAuthorizationTest extends TestCase
         ]);
     }
 
+    public function test_recreating_a_soft_deleted_student_matched_by_phone_restores_it_in_place(): void
+    {
+        $actor = $this->actorWithPermissions(['users.create', 'users.delete']);
+
+        $firstPayload = ['name' => 'First Student', 'email' => 'first-student@example.test', 'phone' => '01913000000', 'password' => 'pin1'];
+
+        $created = $this->actingAs($actor, 'sanctum')->postJson('/api/v1/student-users', $firstPayload)->assertCreated();
+        $studentId = $created->json('data.id');
+
+        $this->actingAs($actor, 'sanctum')->deleteJson("/api/v1/student-users/{$studentId}")->assertNoContent();
+
+        $secondPayload = ['name' => 'Second Student', 'email' => 'second-student@example.test', 'phone' => '01913000000', 'password' => 'pin1'];
+
+        $this->actingAs($actor, 'sanctum')->postJson('/api/v1/student-users', $secondPayload)->assertCreated();
+
+        $this->assertDatabaseHas('student_users', [
+            'id' => $studentId,
+            'email' => 'second-student@example.test',
+            'phone' => '01913000000',
+            'deleted_at' => null,
+        ]);
+
+        $this->assertSame(1, StudentUser::withTrashed()->where('phone', '01913000000')->count());
+    }
+
     public function test_recreating_a_soft_deleted_student_from_a_different_school_is_rejected(): void
     {
         $division = Division::create(['name' => 'Division', 'bn_name' => 'বিভাগ']);

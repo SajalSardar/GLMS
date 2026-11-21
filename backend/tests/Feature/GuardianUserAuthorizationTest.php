@@ -143,6 +143,31 @@ class GuardianUserAuthorizationTest extends TestCase
         ]);
     }
 
+    public function test_recreating_a_soft_deleted_guardian_matched_by_phone_restores_it_in_place(): void
+    {
+        $actor = $this->actorWithPermissions(['users.create', 'users.delete']);
+
+        $firstPayload = ['name' => 'First Guardian', 'email' => 'first-guardian@example.test', 'phone' => '01913000000', 'password' => 'password123'];
+
+        $created = $this->actingAs($actor, 'sanctum')->postJson('/api/v1/guardian-users', $firstPayload)->assertCreated();
+        $guardianId = $created->json('data.id');
+
+        $this->actingAs($actor, 'sanctum')->deleteJson("/api/v1/guardian-users/{$guardianId}")->assertNoContent();
+
+        $secondPayload = ['name' => 'Second Guardian', 'email' => 'second-guardian@example.test', 'phone' => '01913000000', 'password' => 'password123'];
+
+        $this->actingAs($actor, 'sanctum')->postJson('/api/v1/guardian-users', $secondPayload)->assertCreated();
+
+        $this->assertDatabaseHas('guardian_users', [
+            'id' => $guardianId,
+            'email' => 'second-guardian@example.test',
+            'phone' => '01913000000',
+            'deleted_at' => null,
+        ]);
+
+        $this->assertSame(1, GuardianUser::withTrashed()->where('phone', '01913000000')->count());
+    }
+
     public function test_recreating_a_soft_deleted_guardian_from_a_different_school_is_rejected(): void
     {
         $division = Division::create(['name' => 'Division', 'bn_name' => 'বিভাগ']);

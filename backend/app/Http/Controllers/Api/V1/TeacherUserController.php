@@ -115,10 +115,21 @@ class TeacherUserController extends Controller
         // validation error. Bypass it here so the inScope() check below
         // is what actually decides, not an accident of query visibility.
         $trashedTeacher = TeacherUser::onlyTrashed()->withoutGlobalScope(TenantScope::class)->where('email', $attributes['email'])->first();
+        $matchedField = 'email';
+
+        // The unique index also covers phone, and the phone validation
+        // rule is deliberately withoutTrashed() to let a legitimate
+        // restore proceed — so a trashed row matched only on phone (a
+        // different email) has to be found here too, or it falls
+        // through to create() and crashes on the live unique index.
+        if ($trashedTeacher === null && ! empty($attributes['phone'])) {
+            $trashedTeacher = TeacherUser::onlyTrashed()->withoutGlobalScope(TenantScope::class)->where('phone', $attributes['phone'])->first();
+            $matchedField = 'phone';
+        }
 
         if ($trashedTeacher && ! $this->inScope($actor, $trashedTeacher->school_id, $trashedTeacher->district_id)) {
             throw ValidationException::withMessages([
-                'email' => ['The email has already been taken.'],
+                $matchedField => ["The {$matchedField} has already been taken."],
             ]);
         }
 

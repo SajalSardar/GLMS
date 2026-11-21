@@ -74,6 +74,31 @@ class UserAuthorizationTest extends TestCase
         $this->assertDatabaseMissing('users', ['email' => 'new-user@example.test']);
     }
 
+    public function test_recreating_a_soft_deleted_user_matched_by_phone_restores_it_in_place(): void
+    {
+        $actor = $this->actorWithPermissions(['users.create', 'users.delete']);
+
+        $firstPayload = ['name' => 'First User', 'email' => 'first-user@example.test', 'phone' => '01913000000', 'password' => 'password123'];
+
+        $created = $this->actingAs($actor, 'sanctum')->postJson('/api/v1/users', $firstPayload)->assertCreated();
+        $userId = $created->json('data.id');
+
+        $this->actingAs($actor, 'sanctum')->deleteJson("/api/v1/users/{$userId}")->assertNoContent();
+
+        $secondPayload = ['name' => 'Second User', 'email' => 'second-user@example.test', 'phone' => '01913000000', 'password' => 'password123'];
+
+        $this->actingAs($actor, 'sanctum')->postJson('/api/v1/users', $secondPayload)->assertCreated();
+
+        $this->assertDatabaseHas('users', [
+            'id' => $userId,
+            'email' => 'second-user@example.test',
+            'phone' => '01913000000',
+            'deleted_at' => null,
+        ]);
+
+        $this->assertSame(1, User::withTrashed()->where('phone', '01913000000')->count());
+    }
+
     public function test_recreating_a_soft_deleted_user_from_a_different_school_is_rejected(): void
     {
         $division = Division::create(['name' => 'Division', 'bn_name' => 'বিভাগ']);
