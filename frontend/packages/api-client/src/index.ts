@@ -2249,3 +2249,91 @@ export function publishAcademicExamResults(
     body: JSON.stringify(payload),
   })
 }
+
+// ---------- Academic exam marksheets (teacher/staff lookup) ----------
+
+export interface AcademicExamMarksheetSubject {
+  subject_id: number
+  subject_name: string
+  cq: number | null
+  cq_full: number | null
+  mcq: number | null
+  mcq_full: number | null
+  practical: number | null
+  practical_full: number | null
+  total_obtained: number
+  total_full: number
+  percent: number
+  grade_name: string | null
+  grade_point: number | null
+  passed: boolean
+}
+
+export interface AcademicExamMarksheet {
+  student_profile_id: number
+  subjects: AcademicExamMarksheetSubject[]
+  gpa: number
+  result: 'pass' | 'fail'
+  section_position: number | null
+  section_total_students: number
+  class_position: number | null
+  class_total_students: number
+}
+
+export function getAcademicExamMarksheet(
+  params: { studentProfileId: number; academicExamTermId: number; academicYearId: number },
+  token: string,
+): Promise<{ data: AcademicExamMarksheet }> {
+  const query = buildQuery({
+    student_profile_id: params.studentProfileId,
+    academic_exam_term_id: params.academicExamTermId,
+    academic_year_id: params.academicYearId,
+  })
+
+  return apiFetch<{ data: AcademicExamMarksheet }>(`/academic-exam-marks/marksheet${query}`, {
+    headers: authHeaders(token),
+  })
+}
+
+export interface AcademicExamSectionStudent {
+  student_profile_id: number
+  name: string | null
+  roll_number: string | null
+}
+
+export function getAcademicExamSectionStudents(
+  params: { sectionId: number },
+  token: string,
+): Promise<{ data: { section_id: number; students: AcademicExamSectionStudent[] } }> {
+  const query = buildQuery({ section_id: params.sectionId })
+
+  return apiFetch<{ data: { section_id: number; students: AcademicExamSectionStudent[] } }>(
+    `/academic-exam-marks/section-students${query}`,
+    { headers: authHeaders(token) },
+  )
+}
+
+// ---------- Academic exam results (student's own) ----------
+
+export interface MyAcademicExamResultTerm {
+  academic_exam_term_id: number
+  term_name: string
+  academic_year_id: number
+}
+
+export function listMyAcademicExamResultTerms(token: string): Promise<{ data: MyAcademicExamResultTerm[] }> {
+  return apiFetch<{ data: MyAcademicExamResultTerm[] }>('/academic-exam-marks/mine/terms', {
+    headers: authHeaders(token),
+  })
+}
+
+export function getMyAcademicExamResult(
+  params: { academicExamTermId: number; academicYearId: number },
+  token: string,
+): Promise<{ data: AcademicExamMarksheet | null }> {
+  const query = buildQuery({ academic_exam_term_id: params.academicExamTermId, academic_year_id: params.academicYearId })
+
+  return apiFetch<{ data: AcademicExamMarksheet | null }>(`/academic-exam-marks/mine${query}`, {
+    headers: authHeaders(token),
+  })
+}
