@@ -227,7 +227,7 @@ class MarksheetBuilder
      *
      * @return array{0: ?int, 1: ?int}
      */
-    private function examClassAndSection(StudentProfile $profile, int $termId, int $academicYearId): array
+    public function examClassAndSection(StudentProfile $profile, int $termId, int $academicYearId): array
     {
         $mark = AcademicExamMark::where('student_profile_id', $profile->id)
             ->where('academic_exam_term_id', $termId)

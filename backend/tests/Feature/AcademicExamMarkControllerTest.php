@@ -17,6 +17,7 @@ use App\Models\StudentProfile;
 use App\Models\StudentUser;
 use App\Models\Subject;
 use App\Models\SubjectTeacherAssignment;
+use App\Models\TeacherUser;
 use App\Models\Upazila;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\CreatesAuthorizedActors;
@@ -498,6 +499,142 @@ class AcademicExamMarkControllerTest extends TestCase
         $this->actingAs($admin, 'sanctum')
             ->getJson("/api/v1/academic-exam-marks/marksheet?student_profile_id={$profile->id}&academic_exam_term_id={$this->term->id}&academic_year_id={$this->year->id}")
             ->assertOk();
+    }
+
+    private function publishSectionTerm(Section $section): void
+    {
+        AcademicExamPublication::create([
+            'section_id' => $section->id,
+            'academic_exam_term_id' => $this->term->id,
+            'academic_year_id' => $this->year->id,
+            'school_id' => $this->school->id,
+            'district_id' => $this->school->district_id,
+        ]);
+    }
+
+    /**
+     * A second class/section a student can be "promoted" into, with its
+     * own class teacher. Its class configures CQ only — no MCQ component
+     * at all — which is what makes a cross-section overwrite destructive
+     * rather than merely wrong: the MCQ score recorded under the original
+     * class has nowhere to live here.
+     *
+     * @return array{0: Section, 1: TeacherUser}
+     */
+    private function promotionTargetSection(): array
+    {
+        $nextClass = SchoolClass::create(['name' => 'Class 7']);
+        $version = ClassVersion::create(['class_id' => $nextClass->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'General']);
+        $shift = Shift::create(['class_version_id' => $version->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Day Shift', 'start_time' => '08:00', 'end_time' => '13:00', 'days_of_week' => ['sunday']]);
+        $nextSection = Section::create(['shift_id' => $shift->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Seven-A']);
+
+        AcademicSubjectMarkConfigure::create(['class_id' => $nextClass->id, 'subject_id' => $this->subject->id, 'cq_full_marks' => 100]);
+
+        $nextClassTeacher = $this->teacherActorWithPermissions(['academic_exam_marks.view', 'academic_exam_marks.update'], $this->school->id, $this->school->district_id);
+        $nextSection->update(['class_teacher_id' => $nextClassTeacher->id]);
+
+        return [$nextSection, $nextClassTeacher];
+    }
+
+    /**
+     * Simulates a promotion/transfer by mutating the profile row in
+     * place — exactly what StudentPromotionController does, minus the
+     * endpoint.
+     */
+    private function moveProfileTo(StudentProfile $profile, Section $section): void
+    {
+        $profile->update([
+            'class_id' => $section->shift->classVersion->class_id,
+            'section_id' => $section->id,
+            'shift_id' => $section->shift_id,
+            'class_version_id' => $section->shift->class_version_id,
+        ]);
+    }
+
+    public function test_marksheet_stays_with_the_grading_sections_teacher_after_the_student_is_promoted_away(): void
+    {
+        $gradingTeacher = $this->teacherActorWithPermissions(['academic_exam_marks.view', 'academic_exam_marks.update'], $this->school->id, $this->school->district_id);
+        $this->section->update(['class_teacher_id' => $gradingTeacher->id]);
+
+        $student = $this->studentInSection();
+        $profile = $student->profile;
+
+        $this->actingAs($gradingTeacher, 'sanctum')->postJson('/api/v1/academic-exam-marks/record', $this->recordPayload($profile->id))->assertOk();
+        $this->publishSectionTerm($this->section);
+
+        [$nextSection, $nextClassTeacher] = $this->promotionTargetSection();
+        $this->moveProfileTo($profile, $nextSection);
+
+        $url = "/api/v1/academic-exam-marks/marksheet?student_profile_id={$profile->id}&academic_exam_term_id={$this->term->id}&academic_year_id={$this->year->id}";
+
+        // The teacher who actually graded this exam keeps access, and the
+        // marksheet still resolves against the class it was sat in.
+        $this->actingAs($gradingTeacher, 'sanctum')->getJson($url)
+            ->assertOk()
+            ->assertJsonPath('data.subjects.0.subject_id', $this->subject->id)
+            ->assertJsonPath('data.subjects.0.cq', 60)
+            ->assertJsonPath('data.subjects.0.mcq', 25)
+            ->assertJsonPath('data.section_position', 1)
+            ->assertJsonPath('data.section_total_students', 1);
+
+        // The new section's class teacher never taught this student for
+        // this exam and must NOT inherit their past marksheet.
+        $this->actingAs($nextClassTeacher, 'sanctum')->getJson($url)->assertForbidden();
+    }
+
+    public function test_record_refuses_to_overwrite_a_mark_belonging_to_a_different_section(): void
+    {
+        $gradingTeacher = $this->teacherActorWithPermissions(['academic_exam_marks.view', 'academic_exam_marks.update'], $this->school->id, $this->school->district_id);
+        $this->section->update(['class_teacher_id' => $gradingTeacher->id]);
+
+        $student = $this->studentInSection();
+        $profile = $student->profile;
+
+        $this->actingAs($gradingTeacher, 'sanctum')
+            ->postJson('/api/v1/academic-exam-marks/record', $this->recordPayload($profile->id, ['cq_marks_obtained' => 60, 'mcq_marks_obtained' => 28]))
+            ->assertOk();
+
+        [$nextSection, $nextClassTeacher] = $this->promotionTargetSection();
+        $this->moveProfileTo($profile, $nextSection);
+
+        // The new section's teacher records the SAME (subject, term, year)
+        // after the transfer. Overwriting the existing row would cross-wire
+        // it onto Class 7/Seven-A and wipe the MCQ 28 that Class 7 has no
+        // component for, so the record is skipped and reported instead.
+        $this->actingAs($nextClassTeacher, 'sanctum')->postJson('/api/v1/academic-exam-marks/record', [
+            'section_id' => $nextSection->id,
+            'subject_id' => $this->subject->id,
+            'academic_exam_term_id' => $this->term->id,
+            'academic_year_id' => $this->year->id,
+            'records' => [['student_profile_id' => $profile->id, 'cq_marks_obtained' => 40]],
+        ])
+            ->assertOk()
+            ->assertJsonPath('conflicted_student_ids', [$profile->id]);
+
+        $this->assertDatabaseCount('academic_exam_marks', 1);
+        $this->assertDatabaseHas('academic_exam_marks', [
+            'student_profile_id' => $profile->id,
+            'subject_id' => $this->subject->id,
+            'academic_exam_term_id' => $this->term->id,
+            'academic_year_id' => $this->year->id,
+            'section_id' => $this->section->id,
+            'class_id' => $this->class->id,
+            'shift_id' => $this->section->shift_id,
+            'cq_marks_obtained' => 60,
+            'mcq_marks_obtained' => 28,
+        ]);
+    }
+
+    public function test_record_reports_no_conflicts_for_an_ordinary_same_section_save(): void
+    {
+        $classTeacher = $this->teacherActorWithPermissions(['academic_exam_marks.view', 'academic_exam_marks.update'], $this->school->id, $this->school->district_id);
+        $this->section->update(['class_teacher_id' => $classTeacher->id]);
+
+        $student = $this->studentInSection();
+
+        $this->actingAs($classTeacher, 'sanctum')->postJson('/api/v1/academic-exam-marks/record', $this->recordPayload($student->profile->id))
+            ->assertOk()
+            ->assertJsonPath('conflicted_student_ids', []);
     }
 
     public function test_section_students_lists_the_whole_roster_for_the_class_teacher(): void

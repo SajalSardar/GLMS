@@ -162,6 +162,76 @@ class AcademicExamMarkMineControllerTest extends TestCase
             ->assertJsonPath('data', null);
     }
 
+    /**
+     * Simulates a promotion/transfer by mutating the student's own
+     * profile row straight onto a brand-new class/section — exactly what
+     * StudentPromotionController does in place, minus the endpoint. The
+     * new class deliberately gets NO academic_subject_mark_configures
+     * row, so anything resolving against the student's CURRENT class
+     * would come back empty rather than quietly wrong.
+     */
+    private function promoteProfileToANewSection(): Section
+    {
+        $nextClass = SchoolClass::create(['name' => 'Class 7']);
+        $version = ClassVersion::create(['class_id' => $nextClass->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'General']);
+        $shift = Shift::create(['class_version_id' => $version->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Day Shift', 'start_time' => '08:00', 'end_time' => '13:00', 'days_of_week' => ['sunday']]);
+        $nextSection = Section::create(['shift_id' => $shift->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Seven-A']);
+
+        $this->profile->update([
+            'class_id' => $nextClass->id,
+            'section_id' => $nextSection->id,
+            'shift_id' => $nextSection->shift_id,
+            'class_version_id' => $version->id,
+        ]);
+
+        return $nextSection;
+    }
+
+    public function test_mine_terms_still_lists_a_published_term_after_the_student_is_promoted_away(): void
+    {
+        $this->promoteProfileToANewSection();
+
+        $response = $this->actingAs($this->student, 'sanctum')
+            ->getJson('/api/v1/academic-exam-marks/mine/terms')
+            ->assertOk()
+            ->assertJsonCount(1, 'data');
+
+        $this->assertSame($this->publishedTerm->id, $response->json('data.0.academic_exam_term_id'));
+    }
+
+    public function test_mine_terms_still_lists_a_published_term_for_a_student_with_no_current_section(): void
+    {
+        $this->profile->update(['section_id' => null, 'shift_id' => null, 'class_version_id' => null, 'class_id' => null]);
+
+        $this->actingAs($this->student, 'sanctum')
+            ->getJson('/api/v1/academic-exam-marks/mine/terms')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.academic_exam_term_id', $this->publishedTerm->id);
+    }
+
+    public function test_mine_still_returns_the_marksheet_after_the_student_is_promoted_away(): void
+    {
+        $this->promoteProfileToANewSection();
+
+        $this->actingAs($this->student, 'sanctum')
+            ->getJson("/api/v1/academic-exam-marks/mine?academic_exam_term_id={$this->publishedTerm->id}&academic_year_id={$this->year->id}")
+            ->assertOk()
+            ->assertJsonPath('data.subjects.0.cq', 90)
+            ->assertJsonPath('data.result', 'pass')
+            ->assertJsonPath('data.section_position', 1)
+            ->assertJsonPath('data.section_total_students', 1);
+    }
+
+    public function test_mine_still_404s_for_an_unpublished_term_after_the_student_is_promoted_away(): void
+    {
+        $this->promoteProfileToANewSection();
+
+        $this->actingAs($this->student, 'sanctum')
+            ->getJson("/api/v1/academic-exam-marks/mine?academic_exam_term_id={$this->unpublishedTerm->id}&academic_year_id={$this->year->id}")
+            ->assertNotFound();
+    }
+
     public function test_mine_is_forbidden_for_a_non_student_actor(): void
     {
         $teacher = $this->teacherActorWithPermissions([], $this->school->id, $this->school->district_id);

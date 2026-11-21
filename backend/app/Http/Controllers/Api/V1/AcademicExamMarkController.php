@@ -99,6 +99,11 @@ class AcademicExamMarkController extends Controller
      * year) — one row per student. Re-saving simply updates the existing
      * row (matched on the table's own unique index), never duplicates —
      * same approach as AttendanceController::record().
+     *
+     * A student whose existing row for this (subject, term, year) belongs
+     * to a DIFFERENT section is skipped rather than overwritten, and
+     * reported back under `conflicted_student_ids` — see the guard in the
+     * loop for why.
      */
     public function record(RecordAcademicExamMarkRequest $request): JsonResponse
     {
@@ -110,6 +115,7 @@ class AcademicExamMarkController extends Controller
         $shift = $section->shift;
         $validStudentIds = StudentProfile::where('section_id', $section->id)->pluck('id');
         $actor = $request->user();
+        $conflictedStudentIds = [];
 
         foreach ($request->array('records') as $record) {
             $studentProfileId = (int) ($record['student_profile_id'] ?? 0);
@@ -136,6 +142,20 @@ class AcademicExamMarkController extends Controller
                 ->where('academic_exam_term_id', $termId)
                 ->where('academic_year_id', $yearId)
                 ->first();
+
+            if ($existing !== null && $existing->section_id !== $section->id) {
+                // This student already has a mark recorded for this exact
+                // (subject, term, year) under a DIFFERENT section — likely a
+                // transfer/promotion happened between entries. Overwriting it
+                // would silently cross-wire the mark onto the wrong section/
+                // class and can destroy components the new class doesn't
+                // configure (e.g. an MCQ score, if the new class has no MCQ
+                // component). Skip it; surface it so the teacher/admin can
+                // investigate rather than silently losing data.
+                $conflictedStudentIds[] = $studentProfileId;
+
+                continue;
+            }
 
             $isAllNull = $attributes['cq_marks_obtained'] === null
                 && $attributes['mcq_marks_obtained'] === null
@@ -165,6 +185,7 @@ class AcademicExamMarkController extends Controller
 
         return response()->json([
             'data' => $this->rosterPayload($request, $section, $subjectId, canRecord: true),
+            'conflicted_student_ids' => $conflictedStudentIds,
         ]);
     }
 
@@ -174,17 +195,30 @@ class AcademicExamMarkController extends Controller
      * subject assignment in that section (for ANY subject, not just
      * their own — see AcademicExamMarkPolicy::viewMarksheet()), or staff
      * with academic_exam_marks.view.
+     *
+     * "That section" is the section the exam was actually sat in
+     * (MarksheetBuilder::examClassAndSection()), not the student's
+     * current one — otherwise a promotion/transfer would hand the
+     * marksheet to the NEW section's teacher (who never taught the
+     * student) while locking out the teacher who actually graded it.
+     * Falls back to the current section only when the student has no
+     * marks for this (term, year) at all, and to a plain 404 when
+     * neither exists.
      */
     public function marksheet(Request $request): JsonResponse
     {
         $profile = StudentProfile::findOrFail($request->integer('student_profile_id'));
-        $section = Section::findOrFail($profile->section_id);
         $term = AcademicExamTerm::findOrFail($request->integer('academic_exam_term_id'));
+        $academicYearId = $request->integer('academic_year_id');
+
+        [, $examSectionId] = $this->marksheetBuilder->examClassAndSection($profile, $term->id, $academicYearId);
+
+        $section = Section::findOrFail($examSectionId ?? $profile->section_id ?? 0);
 
         $this->authorize('viewMarksheet', [AcademicExamMark::class, $section]);
 
         return response()->json([
-            'data' => $this->marksheetBuilder->build($profile, $term, $request->integer('academic_year_id')),
+            'data' => $this->marksheetBuilder->build($profile, $term, $academicYearId),
         ]);
     }
 
@@ -216,9 +250,18 @@ class AcademicExamMarkController extends Controller
     }
 
     /**
-     * Every exam term already published for this student's own section,
-     * in the current academic year — the source data behind the student
-     * portal's Results page list ("which terms can I see a result for").
+     * Every exam term already published for the section this student
+     * actually sat each exam in, in the current academic year — the
+     * source data behind the student portal's Results page list ("which
+     * terms can I see a result for").
+     *
+     * Publish state is resolved per term against the HISTORICAL exam
+     * section (MarksheetBuilder::examClassAndSection()), never the
+     * student's current section_id: promotion/transfer mutates
+     * student_profiles in place, and an already-published term must stay
+     * visible to the student afterwards. That also means a student with
+     * no current section at all still sees their historical published
+     * terms, so there is deliberately no blanket section_id guard here.
      */
     public function mineTerms(Request $request): JsonResponse
     {
@@ -227,7 +270,7 @@ class AcademicExamMarkController extends Controller
 
         $profile = $student->profile;
 
-        if ($profile === null || $profile->section_id === null) {
+        if ($profile === null) {
             return response()->json(['data' => []]);
         }
 
@@ -239,9 +282,11 @@ class AcademicExamMarkController extends Controller
 
         $terms = AcademicExamTerm::where('is_active', true)->orderBy('sort_order')->get();
 
-        $published = $terms->filter(
-            fn (AcademicExamTerm $term) => AcademicExamPublication::isPublished($profile->section_id, $term->id, $academicYearId)
-        );
+        $published = $terms->filter(function (AcademicExamTerm $term) use ($profile, $academicYearId) {
+            [, $examSectionId] = $this->marksheetBuilder->examClassAndSection($profile, $term->id, $academicYearId);
+
+            return $examSectionId !== null && AcademicExamPublication::isPublished($examSectionId, $term->id, $academicYearId);
+        });
 
         return response()->json([
             'data' => $published->map(fn (AcademicExamTerm $term) => [
@@ -255,7 +300,9 @@ class AcademicExamMarkController extends Controller
     /**
      * This student's own marksheet for one exam term/academic year —
      * 404s outright unless that (section, term, year) has actually been
-     * published, same gate mineTerms() already filters its list by.
+     * published, same gate mineTerms() already filters its list by, and
+     * resolved against the same historical exam section rather than the
+     * student's current one.
      */
     public function mine(Request $request): JsonResponse
     {
@@ -271,8 +318,10 @@ class AcademicExamMarkController extends Controller
         $term = AcademicExamTerm::findOrFail($request->integer('academic_exam_term_id'));
         $academicYearId = $request->integer('academic_year_id');
 
+        [, $examSectionId] = $this->marksheetBuilder->examClassAndSection($profile, $term->id, $academicYearId);
+
         abort_unless(
-            $profile->section_id !== null && AcademicExamPublication::isPublished($profile->section_id, $term->id, $academicYearId),
+            $examSectionId !== null && AcademicExamPublication::isPublished($examSectionId, $term->id, $academicYearId),
             404
         );
 
