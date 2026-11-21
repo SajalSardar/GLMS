@@ -3,15 +3,16 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\V1\PreviewStudentPromotionRequest;
 use App\Http\Requests\Api\V1\StoreStudentPromotionRequest;
 use App\Models\AcademicExamTerm;
 use App\Models\SchoolClass;
+use App\Models\Scopes\TenantScope;
 use App\Models\Section;
 use App\Models\StudentClassPromotion;
 use App\Models\StudentProfile;
 use App\Support\MarksheetBuilder;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -25,10 +26,9 @@ class StudentPromotionController extends Controller
      * promote/retain default, and the next numeric-level class as a
      * starting suggestion for the target class picker.
      */
-    public function preview(Request $request): JsonResponse
+    public function preview(PreviewStudentPromotionRequest $request): JsonResponse
     {
         $section = Section::with('shift.classVersion')->findOrFail($request->integer('section_id'));
-        $this->authorize('create', StudentClassPromotion::class);
 
         $term = AcademicExamTerm::where('is_annual', true)->first();
         if ($term === null) {
@@ -109,6 +109,12 @@ class StudentPromotionController extends Controller
         $toClassId = $toShift?->classVersion?->class_id;
         $fromClassId = $section->shift?->classVersion?->class_id;
 
+        if ($toClassId === null) {
+            throw ValidationException::withMessages([
+                'to_section_id' => ['The selected section is not attached to a class version; promotion cannot resolve a target class.'],
+            ]);
+        }
+
         $actor = $request->user();
         $now = now();
         $records = $request->array('records');
@@ -121,7 +127,19 @@ class StudentPromotionController extends Controller
             ]);
         }
 
-        $promotingCount = count(array_filter($records, fn (array $record) => (bool) ($record['promote'] ?? false)));
+        // Count only records that actually resolve to a real StudentProfile
+        // within $section — a request with duplicate or bogus
+        // student_profile_ids should not inflate this count (the
+        // distinct rule in StoreStudentPromotionRequest narrows but
+        // doesn't fully close this gap, since it can't verify section
+        // membership).
+        $promotedIdsInRequest = array_values(array_filter(
+            array_map(fn (array $record) => (bool) ($record['promote'] ?? false) ? ($record['student_profile_id'] ?? null) : null, $records)
+        ));
+
+        $promotingCount = $promotedIdsInRequest === [] ? 0 : StudentProfile::where('section_id', $section->id)
+            ->whereIn('id', $promotedIdsInRequest)
+            ->count();
 
         if (! $overrideRequested && $toSection->capacity !== null && ($toSection->enrolledCount() + $promotingCount) > $toSection->capacity) {
             throw ValidationException::withMessages([
@@ -200,7 +218,19 @@ class StudentPromotionController extends Controller
             ->filter()
             ->all();
 
-        $occupiedRollNumbers = StudentProfile::where('class_id', $toClassId)
+        // withTrashed(): the unique(['class_id', 'roll_number']) index does
+        // NOT exclude soft-deleted rows, so a trashed student in the target
+        // class still blocks it — this pre-check must see it too, or the
+        // real collision only surfaces as an unhandled 500 mid-transaction.
+        // withoutGlobalScope(TenantScope): student_profiles.class_id
+        // references school_classes, a NATIONAL table, so the unique index
+        // is effectively global across schools, not per-school — a
+        // school_admin's query must not be narrowed to their own school
+        // here or it misses cross-school collisions a national_admin would
+        // catch, giving the same request different behavior by actor.
+        $occupiedRollNumbers = StudentProfile::withTrashed()
+            ->withoutGlobalScope(TenantScope::class)
+            ->where('class_id', $toClassId)
             ->whereNotIn('id', $promotedProfileIds)
             ->pluck('roll_number')
             ->filter()

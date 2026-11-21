@@ -24,7 +24,7 @@ class StoreStudentPromotionRequest extends FormRequest
             'to_section_id' => ['required', 'integer', 'exists:sections,id'],
             'override_capacity' => ['sometimes', 'boolean'],
             'records' => ['required', 'array', 'min:1'],
-            'records.*.student_profile_id' => ['required', 'integer'],
+            'records.*.student_profile_id' => ['required', 'integer', 'distinct'],
             'records.*.promote' => ['required', 'boolean'],
         ];
     }

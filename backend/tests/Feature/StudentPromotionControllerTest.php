@@ -395,4 +395,114 @@ class StudentPromotionControllerTest extends TestCase
         $unrelated->refresh();
         $this->assertSame($this->class7->id, $unrelated->class_id);
     }
+
+    public function test_preview_rejects_a_nonexistent_academic_year_id(): void
+    {
+        $admin = $this->actorWithPermissions(['student_promotions.create'], $this->school->id, $this->school->district_id);
+
+        $this->actingAs($admin, 'sanctum')
+            ->getJson("/api/v1/student-promotions/preview?section_id={$this->section->id}&academic_year_id=999999")
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('academic_year_id');
+    }
+
+    public function test_store_rejects_promotion_when_the_target_sections_class_version_has_been_soft_deleted(): void
+    {
+        // Section stays live, but its shift's class_version is trashed —
+        // reachable via a bare soft-delete in ClassVersionController::
+        // destroy() with no guard against child Shift/Section rows — so
+        // $toShift?->classVersion?->class_id resolves to null.
+        $brokenVersion = ClassVersion::create(['class_id' => $this->class7->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Broken']);
+        $brokenShift = Shift::create(['class_version_id' => $brokenVersion->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Day Shift', 'start_time' => '08:00', 'end_time' => '13:00', 'days_of_week' => ['sunday']]);
+        $brokenSection = Section::create(['shift_id' => $brokenShift->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Broken']);
+        $brokenVersion->delete();
+
+        $pass = $this->studentInSection('1', 85);
+        $admin = $this->actorWithPermissions(['student_promotions.create'], $this->school->id, $this->school->district_id);
+
+        $this->actingAs($admin, 'sanctum')->postJson('/api/v1/student-promotions', [
+            'section_id' => $this->section->id,
+            'academic_year_id' => $this->year->id,
+            'to_section_id' => $brokenSection->id,
+            'records' => [['student_profile_id' => $pass->id, 'promote' => true]],
+        ])->assertUnprocessable()->assertJsonValidationErrors('to_section_id');
+
+        $pass->refresh();
+        $this->assertSame($this->class6->id, $pass->class_id);
+        $this->assertNotNull($pass->class_id);
+    }
+
+    public function test_store_rejects_the_whole_batch_when_a_promoted_students_roll_number_collides_with_a_soft_deleted_target_class_student(): void
+    {
+        $trashedTargetStudentUser = $this->studentActorWithPermissions([], $this->school->id, $this->school->district_id);
+        $trashed = StudentProfile::create([
+            'user_id' => $trashedTargetStudentUser->id,
+            'school_id' => $this->school->id, 'district_id' => $this->school->district_id,
+            'class_id' => $this->class7->id, 'section_id' => $this->toSection->id,
+            'shift_id' => $this->toSection->shift_id, 'class_version_id' => $this->toSection->shift->class_version_id,
+            'roll_number' => '5',
+        ]);
+        $trashed->delete();
+
+        $pass = $this->studentInSection('5', 85);
+        $admin = $this->actorWithPermissions(['student_promotions.create'], $this->school->id, $this->school->district_id);
+
+        $response = $this->actingAs($admin, 'sanctum')->postJson('/api/v1/student-promotions', [
+            'section_id' => $this->section->id,
+            'academic_year_id' => $this->year->id,
+            'to_section_id' => $this->toSection->id,
+            'records' => [['student_profile_id' => $pass->id, 'promote' => true]],
+        ])->assertUnprocessable()->assertJsonValidationErrors('records');
+
+        $this->assertStringContainsString('5', $response->json('errors.records.0'));
+        $this->assertDatabaseCount('student_class_promotions', 0);
+        $pass->refresh();
+        $this->assertSame($this->class6->id, $pass->class_id);
+        $this->assertSame($this->section->id, $pass->section_id);
+    }
+
+    public function test_store_rejects_the_whole_batch_when_a_promoted_students_roll_number_collides_with_a_different_schools_student(): void
+    {
+        $otherDivision = Division::create(['name' => 'Other Division 2', 'bn_name' => 'অন্য বিভাগ ২']);
+        $otherDistrict = District::create(['division_id' => $otherDivision->id, 'name' => 'Other District 2', 'bn_name' => 'অন্য জেলা ২']);
+        $otherUpazila = Upazila::create(['district_id' => $otherDistrict->id, 'name' => 'Other Upazila 2', 'bn_name' => 'অন্য উপজেলা ২']);
+        $otherSchool = School::create(['division_id' => $otherDivision->id, 'district_id' => $otherDistrict->id, 'upazila_id' => $otherUpazila->id, 'name' => 'Other School 2']);
+
+        // school_classes is a national table, so this reuses $this->class7
+        // — the same target class the acting school's toSection resolves
+        // to — proving the unique index is effectively global.
+        $otherVersion = ClassVersion::create(['class_id' => $this->class7->id, 'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id, 'name' => 'General']);
+        $otherShift = Shift::create(['class_version_id' => $otherVersion->id, 'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id, 'name' => 'Day Shift', 'start_time' => '08:00', 'end_time' => '13:00', 'days_of_week' => ['sunday']]);
+        $otherSection = Section::create(['shift_id' => $otherShift->id, 'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id, 'name' => 'Main']);
+
+        $otherSchoolStudentUser = $this->studentActorWithPermissions([], $otherSchool->id, $otherSchool->district_id);
+        StudentProfile::create([
+            'user_id' => $otherSchoolStudentUser->id,
+            'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id,
+            'class_id' => $this->class7->id, 'section_id' => $otherSection->id,
+            'shift_id' => $otherShift->id, 'class_version_id' => $otherVersion->id,
+            'roll_number' => '3',
+        ]);
+
+        $pass = $this->studentInSection('3', 85);
+        // A genuinely tenant-scoped actor — a school_admin with a
+        // school_id, unlike test_store_rejects_a_target_section_from_a_
+        // different_school above, which deliberately uses an unscoped
+        // national_admin-shaped actor. This is what proves the
+        // withoutGlobalScope(TenantScope::class) fix, not just withTrashed().
+        $admin = $this->actorWithPermissions(['student_promotions.create'], $this->school->id, $this->school->district_id);
+
+        $response = $this->actingAs($admin, 'sanctum')->postJson('/api/v1/student-promotions', [
+            'section_id' => $this->section->id,
+            'academic_year_id' => $this->year->id,
+            'to_section_id' => $this->toSection->id,
+            'records' => [['student_profile_id' => $pass->id, 'promote' => true]],
+        ])->assertUnprocessable()->assertJsonValidationErrors('records');
+
+        $this->assertStringContainsString('3', $response->json('errors.records.0'));
+        $this->assertDatabaseCount('student_class_promotions', 0);
+        $pass->refresh();
+        $this->assertSame($this->class6->id, $pass->class_id);
+        $this->assertSame($this->section->id, $pass->section_id);
+    }
 }
