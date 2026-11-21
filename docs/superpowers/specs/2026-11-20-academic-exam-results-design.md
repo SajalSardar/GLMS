@@ -378,9 +378,17 @@ Internals:
   `total_full` = sum of non-null full-marks components; `percent =
   total_obtained / total_full * 100`; grade via
   `AcademicGradeConfigure::forPercent()`; `passed` = every non-null
-  component's `obtained >= full * 0.33` (rounded the same way
-  `StoreAcademicExamMarkRequest`'s own validation rounds, to avoid a
-  display/validation mismatch).
+  component's `obtained >= full * 0.33`, compared as a raw float with
+  no rounding of the 0.33 threshold itself (e.g. 70 full marks requires
+  `obtained >= 23.1`, so 23 fails and 24 passes). A not-yet-entered-but-
+  configured component's obtained value defaults to 0 for this check.
+  There is no entry-time validation to stay consistent with here —
+  Phase 2 never implemented a 33%-threshold check anywhere else (an
+  earlier spec draft note suggested one existed on the entry-time
+  `RecordAcademicExamMarkRequest`; it doesn't — that FormRequest only
+  validates config-existence and per-component max-value limits), so
+  this threshold is purely a `MarksheetBuilder`-level decision with
+  nothing upstream to match against.
 - `gpa` = average of every subject's `grade_point` (0.00 if `grade_point`
   is null for a subject, e.g. a percent outside every configured range —
   treated as a data problem to flag, not silently excluded from the
@@ -462,8 +470,15 @@ New permissions (`PermissionSeeder`), following the existing
   granularity precedent: `sections.override_capacity`).
 
 Marksheet viewing: student via `mine()` (self, requires
-`AcademicExamPublication::isPublished()`); teacher via the same
-`viewSection()` policy as entry; staff via `academic_exam_marks.view`,
+`AcademicExamPublication::isPublished()`); teacher via a new, broader
+`AcademicExamMarkPolicy::viewMarksheet()` method — not the per-subject
+`viewSection()` from entry. `viewMarksheet()` grants whole-section
+visibility: any relationship to the section at all (class teacher, or
+a `SubjectTeacherAssignment` for any single subject) grants access to
+every subject's marks in that student's full marksheet, since a report
+card spans every subject and per-subject gating doesn't make sense for
+it — a teacher assigned only to English, say, can still see the Math
+row on the same student's marksheet; staff via `academic_exam_marks.view`,
 TenantScope-limited, no publish-state requirement (so admins can audit
 before publishing).
 
