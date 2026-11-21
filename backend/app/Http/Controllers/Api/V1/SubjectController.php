@@ -50,11 +50,18 @@ class SubjectController extends Controller
         $data = $request->validated();
 
         $subject = Subject::onlyTrashed()
-            ->where('name', $data['name'])
-            ->when($data['code'] ?? null, fn ($query, $code) => $query->orWhere('code', $code))
+            ->where(function ($query) use ($data) {
+                $query->where('name', $data['name']);
+
+                if (($data['code'] ?? null) !== null) {
+                    $query->orWhere('code', $data['code']);
+                }
+            })
             ->first();
 
         if ($subject) {
+            $this->guardAgainstConflictingRestore($subject, $data);
+
             $subject->restore();
             $subject->update($data);
         } else {
@@ -64,6 +71,35 @@ class SubjectController extends Controller
         return (new SubjectResource($subject))
             ->response()
             ->setStatusCode(Response::HTTP_CREATED);
+    }
+
+    /**
+     * The name/code match above can land on a trashed subject that only
+     * partially matches the incoming data (e.g. matched on name while a
+     * *different* trashed or live subject already holds the incoming
+     * code). Restoring and updating in that case would either collide
+     * with the still-present unique index (an unhandled 500) or silently
+     * overwrite the wrong record. Reject it the same way the create path
+     * would via validation.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function guardAgainstConflictingRestore(Subject $subject, array $data): void
+    {
+        $errors = [];
+
+        if (Subject::withTrashed()->where('id', '!=', $subject->id)->where('name', $data['name'])->exists()) {
+            $errors['name'] = ['The name has already been taken.'];
+        }
+
+        if (($data['code'] ?? null) !== null
+            && Subject::withTrashed()->where('id', '!=', $subject->id)->where('code', $data['code'])->exists()) {
+            $errors['code'] = ['The code has already been taken.'];
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
     }
 
     /**
