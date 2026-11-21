@@ -204,6 +204,16 @@ class PermissionSeeder extends Seeder
             ['name' => 'academic_subject_mark_configures.create', 'label' => 'Create subject mark configuration'],
             ['name' => 'academic_subject_mark_configures.update', 'label' => 'Update subject mark configuration'],
             ['name' => 'academic_subject_mark_configures.delete', 'label' => 'Delete subject mark configuration'],
+
+            // Unlike attendances.*, these are deliberately NOT granted broadly in
+            // RolePermissionSeeder — .view gates raw, possibly-unpublished marks
+            // (a staff audit capability per the design spec), not a universally
+            // viewable record like attendance. Only school_admin/teacher get
+            // .view/.update; only school_admin gets .publish (national_admin gets
+            // everything automatically).
+            ['name' => 'academic_exam_marks.view', 'label' => 'View exam marks'],
+            ['name' => 'academic_exam_marks.update', 'label' => 'Record or update exam marks'],
+            ['name' => 'academic_exam_marks.publish', 'label' => 'Publish exam results to students'],
         ];
 
         foreach ($permissions as $permission) {

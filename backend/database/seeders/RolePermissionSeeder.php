@@ -59,6 +59,7 @@ class RolePermissionSeeder extends Seeder
                 'student_profiles.view', 'student_profiles.create', 'student_profiles.update', 'student_profiles.delete',
                 'student_leave_applications.view', 'student_leave_applications.update',
                 'attendances.view', 'attendances.update',
+                'academic_exam_marks.view', 'academic_exam_marks.update', 'academic_exam_marks.publish',
                 'guardians.view', 'guardians.create', 'guardians.update', 'guardians.delete',
             ],
 
@@ -84,6 +85,7 @@ class RolePermissionSeeder extends Seeder
                 // actor reach the endpoints, not record for every section
                 // in the school.
                 'attendances.view', 'attendances.update',
+                'academic_exam_marks.view', 'academic_exam_marks.update',
             ],
 
             'student' => [
