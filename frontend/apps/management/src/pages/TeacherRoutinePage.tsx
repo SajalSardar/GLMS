@@ -69,7 +69,7 @@ function buildColumns(routines: ClassRoutine[]): { columns: Column[]; periodTime
 // public/unscoped (see TenantScope's own doc comment) and doesn't
 // restrict this on its own.
 export default function TeacherRoutinePage() {
-  const { role, schoolId: ownSchoolId } = useAuth()
+  const { token, role, schoolId: ownSchoolId } = useAuth()
 
   const [schools, setSchools] = useState<School[]>([])
   const [schoolId, setSchoolId] = useState<number | null>(null)
@@ -103,14 +103,14 @@ export default function TeacherRoutinePage() {
   }, [role, ownSchoolId])
 
   useEffect(() => {
-    if (!schoolId) {
+    if (!schoolId || !token) {
       setTeachers([])
       return
     }
 
     let active = true
 
-    listTeacherUsers({ schoolId, perPage: 200 })
+    listTeacherUsers({ schoolId, perPage: 200 }, token)
       .then((result) => {
         if (!active) return
         setTeachers(result.data)
@@ -123,7 +123,7 @@ export default function TeacherRoutinePage() {
     return () => {
       active = false
     }
-  }, [schoolId])
+  }, [schoolId, token])
 
   useEffect(() => {
     if (!schoolId) {
