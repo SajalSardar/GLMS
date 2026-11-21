@@ -81,6 +81,38 @@ class MarksheetBuilderTest extends TestCase
         ]);
     }
 
+    /**
+     * A second class in the same school, with its own version/shift/section —
+     * a promotion target. No academic_subject_mark_configures rows are created
+     * for it unless the individual test adds them.
+     *
+     * @return array{0: SchoolClass, 1: Section}
+     */
+    private function otherClassAndSection(string $className): array
+    {
+        $class = SchoolClass::create(['name' => $className]);
+        $version = ClassVersion::create(['class_id' => $class->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'General']);
+        $shift = Shift::create(['class_version_id' => $version->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Day Shift', 'start_time' => '08:00', 'end_time' => '13:00', 'days_of_week' => ['sunday']]);
+        $section = Section::create(['shift_id' => $shift->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Main']);
+
+        return [$class, $section];
+    }
+
+    /**
+     * Exactly what StudentPromotionController::store() does to a promoted
+     * student — the EXISTING student_profiles row is mutated in place; no new
+     * profile row is created and the academic_exam_marks rows are untouched.
+     */
+    private function promote(StudentProfile $profile, SchoolClass $class, Section $section): void
+    {
+        $profile->update([
+            'class_id' => $class->id,
+            'section_id' => $section->id,
+            'shift_id' => $section->shift_id,
+            'class_version_id' => $section->shift->class_version_id,
+        ]);
+    }
+
     private function mark(StudentProfile $profile, Subject $subject, array $marks): void
     {
         AcademicExamMark::create([
@@ -350,5 +382,131 @@ class MarksheetBuilderTest extends TestCase
         // Sanity check that positions WOULD have been non-null with the
         // default — proving this test fixture actually exercises ranking.
         $this->assertSame(1, $withPositions['section_position']);
+    }
+
+    public function test_a_published_marksheet_is_unchanged_after_the_student_is_promoted_to_a_class_with_no_subject_configures(): void
+    {
+        $math = Subject::create(['name' => 'Mathematics']);
+        $english = Subject::create(['name' => 'English']);
+        $science = Subject::create(['name' => 'Science']);
+
+        foreach ([$math, $english, $science] as $subject) {
+            AcademicSubjectMarkConfigure::create(['class_id' => $this->class->id, 'subject_id' => $subject->id, 'cq_full_marks' => 70, 'mcq_full_marks' => 30]);
+        }
+
+        $profile = $this->studentInSection('1');
+        $this->mark($profile, $math, ['cq_marks_obtained' => 60, 'mcq_marks_obtained' => 25]); // 85% -> A+ 5.00
+        $this->mark($profile, $english, ['cq_marks_obtained' => 56, 'mcq_marks_obtained' => 24]); // 80% -> A+ 5.00
+        $this->mark($profile, $science, ['cq_marks_obtained' => 50, 'mcq_marks_obtained' => 22]); // 72% -> A 4.00
+
+        $classmate = $this->studentInSection('2');
+        $this->mark($classmate, $math, ['cq_marks_obtained' => 30, 'mcq_marks_obtained' => 12]);
+        $this->mark($classmate, $english, ['cq_marks_obtained' => 28, 'mcq_marks_obtained' => 11]);
+        $this->mark($classmate, $science, ['cq_marks_obtained' => 27, 'mcq_marks_obtained' => 10]);
+
+        AcademicExamPublication::create([
+            'section_id' => $this->section->id, 'academic_exam_term_id' => $this->term->id, 'academic_year_id' => $this->year->id,
+            'school_id' => $this->school->id, 'district_id' => $this->school->district_id,
+        ]);
+
+        $before = $this->builder->build($profile, $this->term, $this->year->id);
+
+        // The fixture has to produce a real, non-trivial marksheet for the
+        // regression assertion below to mean anything.
+        $this->assertCount(3, $before['subjects']);
+        $this->assertSame(4.67, $before['gpa']);
+        $this->assertSame('pass', $before['result']);
+        $this->assertSame(1, $before['section_position']);
+        $this->assertSame(2, $before['section_total_students']);
+        $this->assertSame(1, $before['class_position']);
+        $this->assertSame(2, $before['class_total_students']);
+
+        // Class 7 deliberately has NO academic_subject_mark_configures rows,
+        // so resolving against the student's CURRENT class would empty the
+        // whole marksheet out.
+        [$newClass, $newSection] = $this->otherClassAndSection('Class 7');
+        $this->promote($profile, $newClass, $newSection);
+
+        $after = $this->builder->build($profile->fresh(), $this->term, $this->year->id);
+
+        $this->assertSame($before, $after);
+    }
+
+    public function test_a_published_marksheet_keeps_the_original_classs_full_marks_after_promotion(): void
+    {
+        $math = Subject::create(['name' => 'Mathematics']);
+        AcademicSubjectMarkConfigure::create(['class_id' => $this->class->id, 'subject_id' => $math->id, 'cq_full_marks' => 70, 'mcq_full_marks' => 30]);
+
+        $profile = $this->studentInSection('1');
+        $this->mark($profile, $math, ['cq_marks_obtained' => 56, 'mcq_marks_obtained' => 24]); // 80/100 -> 80% -> A+ 5.00
+
+        AcademicExamPublication::create([
+            'section_id' => $this->section->id, 'academic_exam_term_id' => $this->term->id, 'academic_year_id' => $this->year->id,
+            'school_id' => $this->school->id, 'district_id' => $this->school->district_id,
+        ]);
+
+        $before = $this->builder->build($profile, $this->term, $this->year->id);
+
+        $this->assertSame(80.0, $before['subjects'][0]['percent']);
+        $this->assertSame('A+', $before['subjects'][0]['grade_name']);
+        $this->assertSame(5.0, $before['gpa']);
+
+        // Class 7 configures the SAME subject with different full marks — the
+        // same 56/24 against 100+50 would be 53.33%, which matches no grade
+        // range in this fixture (grade_point null -> GPA 0.0). Asserting the
+        // marksheet is unchanged proves the config is resolved from the
+        // exam's own class, not merely that nothing crashed.
+        [$newClass, $newSection] = $this->otherClassAndSection('Class 7');
+        AcademicSubjectMarkConfigure::create(['class_id' => $newClass->id, 'subject_id' => $math->id, 'cq_full_marks' => 100, 'mcq_full_marks' => 50]);
+
+        $this->promote($profile, $newClass, $newSection);
+
+        $after = $this->builder->build($profile->fresh(), $this->term, $this->year->id);
+
+        $this->assertSame($before, $after);
+        $this->assertSame(70, $after['subjects'][0]['cq_full']);
+        $this->assertSame(30, $after['subjects'][0]['mcq_full']);
+        $this->assertSame(80.0, $after['subjects'][0]['percent']);
+    }
+
+    public function test_section_position_still_ranks_against_the_original_sectionmates_after_promotion(): void
+    {
+        $subject = Subject::create(['name' => 'Mathematics']);
+        AcademicSubjectMarkConfigure::create(['class_id' => $this->class->id, 'subject_id' => $subject->id, 'cq_full_marks' => 100]);
+
+        $top = $this->studentInSection('1');
+        $this->mark($top, $subject, ['cq_marks_obtained' => 90]);
+
+        $second = $this->studentInSection('2');
+        $this->mark($second, $subject, ['cq_marks_obtained' => 75]);
+
+        AcademicExamPublication::create([
+            'section_id' => $this->section->id, 'academic_exam_term_id' => $this->term->id, 'academic_year_id' => $this->year->id,
+            'school_id' => $this->school->id, 'district_id' => $this->school->district_id,
+        ]);
+
+        $topBefore = $this->builder->build($top, $this->term, $this->year->id);
+        $secondBefore = $this->builder->build($second, $this->term, $this->year->id);
+
+        $this->assertSame(2, $secondBefore['section_position']);
+        $this->assertSame(2, $secondBefore['section_total_students']);
+
+        // Only ONE of the two is promoted, into an otherwise empty section of
+        // a new class that IS configured for this subject — so the subject
+        // results are unaffected and this test isolates ranking alone.
+        [$newClass, $newSection] = $this->otherClassAndSection('Class 7');
+        AcademicSubjectMarkConfigure::create(['class_id' => $newClass->id, 'subject_id' => $subject->id, 'cq_full_marks' => 100]);
+
+        $this->promote($second, $newClass, $newSection);
+
+        $topAfter = $this->builder->build($top->fresh(), $this->term, $this->year->id);
+        $secondAfter = $this->builder->build($second->fresh(), $this->term, $this->year->id);
+
+        $this->assertSame(2, $secondAfter['section_position']);
+        $this->assertSame(2, $secondAfter['section_total_students']);
+        $this->assertSame($secondBefore, $secondAfter);
+
+        // The student who stayed put must not be affected either.
+        $this->assertSame($topBefore, $topAfter);
     }
 }

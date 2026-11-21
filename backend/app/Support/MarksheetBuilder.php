@@ -17,6 +17,11 @@ use Illuminate\Support\Collection;
  * section-wise/class-wise position. Nothing here is cached or stored;
  * every call recomputes from current data, same convention as
  * Exam::totalMarks()'s own live computation.
+ *
+ * Subject configuration and ranking are resolved against the class/section
+ * the exam was actually sat in — denormalized onto every academic_exam_marks
+ * row at entry time — never the student's CURRENT class/section, so a past
+ * marksheet stays stable after a promotion moves the student on.
  */
 class MarksheetBuilder
 {
@@ -37,7 +42,8 @@ class MarksheetBuilder
      * }
      *
      * `section_position`/`class_position`/`section_total_students`/`class_total_students`
-     * are `null`/`0` when `$withPositions` is false.
+     * are `null`/`0` when `$withPositions` is false, and are computed against
+     * the historical exam section/class rather than `$profile`'s current one.
      */
     public function build(StudentProfile $profile, AcademicExamTerm $term, int $academicYearId, bool $withPositions = true): array
     {
@@ -87,7 +93,20 @@ class MarksheetBuilder
             ->with('subject')
             ->get();
 
-        $configuresBySubject = AcademicSubjectMarkConfigure::where('class_id', $profile->class_id)
+        if ($marks->isEmpty()) {
+            return collect();
+        }
+
+        // Subject full-marks configuration is looked up by the class this
+        // exam was actually sat in — denormalized onto every mark row at
+        // entry time — never by the student's CURRENT class_id. Promotion
+        // (Phase 4) mutates student_profiles.class_id/section_id in place,
+        // so a promoted student's already-published marksheet must keep
+        // resolving against the class/section it was graded in, not
+        // whatever class they've since moved to.
+        $examClassId = $marks->first()->class_id;
+
+        $configuresBySubject = AcademicSubjectMarkConfigure::where('class_id', $examClassId)
             ->get()
             ->keyBy('subject_id');
 
@@ -155,13 +174,15 @@ class MarksheetBuilder
      */
     private function rank(StudentProfile $profile, int $termId, int $academicYearId, bool $acrossClass): array
     {
-        if ($profile->section_id === null || ! AcademicExamPublication::isPublished($profile->section_id, $termId, $academicYearId)) {
+        [$examClassId, $examSectionId] = $this->examClassAndSection($profile, $termId, $academicYearId);
+
+        if ($examSectionId === null || ! AcademicExamPublication::isPublished($examSectionId, $termId, $academicYearId)) {
             return [null, 0];
         }
 
         $studentIds = $acrossClass
-            ? $this->publishedClassmateIds($profile, $termId, $academicYearId)
-            : StudentProfile::where('section_id', $profile->section_id)->pluck('id');
+            ? $this->publishedClassmateIds($profile, $examClassId, $termId, $academicYearId)
+            : $this->examRosterIds($profile, [$examSectionId], $termId, $academicYearId);
 
         $ranked = $studentIds
             ->map(function (int $id) use ($termId, $academicYearId) {
@@ -192,12 +213,71 @@ class MarksheetBuilder
     }
 
     /**
-     * Every student in a section belonging to the same class as $profile,
+     * The (class_id, section_id) an exam was actually sat under — taken from
+     * this student's own denormalized academic_exam_marks rows for this
+     * (term, year), never from the student's CURRENT profile. Returns
+     * [null, null] when the student has no marks for this (term, year) at
+     * all, in which case every caller already degrades to its existing
+     * "nothing to rank" behavior ([null, 0]).
+     *
+     * @return array{0: ?int, 1: ?int}
+     */
+    private function examClassAndSection(StudentProfile $profile, int $termId, int $academicYearId): array
+    {
+        $mark = AcademicExamMark::where('student_profile_id', $profile->id)
+            ->where('academic_exam_term_id', $termId)
+            ->where('academic_year_id', $academicYearId)
+            ->first();
+
+        return [$mark?->class_id, $mark?->section_id];
+    }
+
+    /**
+     * Everyone who actually SAT this exam in one of $sectionIds, read from
+     * academic_exam_marks' own denormalized section_id — the same reason that
+     * denormalization exists, so a roster query never has to join through
+     * student_profiles. Reading the roster from student_profiles.section_id
+     * instead would reintroduce the very bug this class guards against from
+     * the other direction: a promoted student disappears from the section
+     * they were ranked in, silently renumbering their classmates' positions
+     * and their own already-published position along with them.
+     *
+     * A student who is currently in the section but has no marks for this
+     * (term, year) is therefore not counted — they did not sit this exam.
+     *
+     * Explicitly scoped to $profile's own school_id rather than leaning on
+     * the ambient TenantScope, for the same reason as publishedClassmateIds().
+     *
+     * @param  list<int>  $sectionIds
+     * @return Collection<int, int>
+     */
+    private function examRosterIds(StudentProfile $profile, array $sectionIds, int $termId, int $academicYearId): Collection
+    {
+        if ($sectionIds === []) {
+            return collect();
+        }
+
+        return AcademicExamMark::whereIn('section_id', $sectionIds)
+            ->where('academic_exam_term_id', $termId)
+            ->where('academic_year_id', $academicYearId)
+            ->where('school_id', $profile->school_id)
+            ->pluck('student_profile_id')
+            ->unique()
+            ->values();
+    }
+
+    /**
+     * Everyone who sat this exam in a section belonging to $examClassId,
      * restricted to sections that are themselves published for this exact
      * (term, year) — an unpublished sibling section is excluded entirely,
      * not silently counted with stale/missing data.
      *
-     * Both queries are explicitly scoped to $profile's own school_id
+     * $examClassId is the class the EXAM was sat in (resolved by the
+     * caller via examClassAndSection()), not necessarily $profile's current
+     * class_id — see the class-level doc comment on subjectResults()/rank()
+     * for why these must never diverge after a promotion.
+     *
+     * The section query is explicitly scoped to $profile's own school_id
      * rather than relying on the ambient TenantScope global scope:
      * school_classes (the class_id filtered on here) is a NATIONAL
      * table, so an unscoped query would span every school that happens
@@ -206,21 +286,26 @@ class MarksheetBuilder
      * national_admin (no school_id) gets no restriction at all, and a
      * district-scoped staff actor gets restricted only to the district.
      * This computation must be correct regardless of who's viewing it,
-     * so it never leans on the ambient scope here.
+     * so it never leans on the ambient scope here. $profile->school_id is
+     * safe to use even for a promoted student: promotion's own cross-school
+     * guard (StudentPromotionController) never allows a promotion across
+     * schools, so a student's school_id is invariant across any promotion.
      *
      * @return Collection<int, int>
      */
-    private function publishedClassmateIds(StudentProfile $profile, int $termId, int $academicYearId): Collection
+    private function publishedClassmateIds(StudentProfile $profile, ?int $examClassId, int $termId, int $academicYearId): Collection
     {
+        if ($examClassId === null) {
+            return collect();
+        }
+
         $publishedSectionIds = Section::query()
             ->where('school_id', $profile->school_id)
-            ->whereHas('shift.classVersion', fn ($query) => $query->where('class_id', $profile->class_id))
+            ->whereHas('shift.classVersion', fn ($query) => $query->where('class_id', $examClassId))
             ->get()
             ->filter(fn (Section $section) => AcademicExamPublication::isPublished($section->id, $termId, $academicYearId))
             ->pluck('id');
 
-        return StudentProfile::whereIn('section_id', $publishedSectionIds)
-            ->where('school_id', $profile->school_id)
-            ->pluck('id');
+        return $this->examRosterIds($profile, $publishedSectionIds->all(), $termId, $academicYearId);
     }
 }
