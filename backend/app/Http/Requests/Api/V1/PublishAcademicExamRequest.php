@@ -59,11 +59,12 @@ class PublishAcademicExamRequest extends FormRequest
             $classId = $section?->shift?->classVersion?->class_id;
             $termId = $this->integer('academic_exam_term_id');
             $yearId = $this->integer('academic_year_id');
-            $rosterSize = StudentProfile::where('section_id', $section->id)->count();
+            $rosterIds = StudentProfile::where('section_id', $section->id)->pluck('id');
 
             $incompleteSubjectNames = AcademicSubjectMarkConfigure::where('class_id', $classId)->with('subject')->get()
-                ->filter(function (AcademicSubjectMarkConfigure $configure) use ($section, $termId, $yearId, $rosterSize) {
+                ->filter(function (AcademicSubjectMarkConfigure $configure) use ($section, $termId, $yearId, $rosterIds) {
                     $enteredCount = AcademicExamMark::where('section_id', $section->id)
+                        ->whereIn('student_profile_id', $rosterIds)
                         ->where('subject_id', $configure->subject_id)
                         ->where('academic_exam_term_id', $termId)
                         ->where('academic_year_id', $yearId)
@@ -72,7 +73,7 @@ class PublishAcademicExamRequest extends FormRequest
                             ->orWhereNotNull('practical_marks_obtained'))
                         ->count();
 
-                    return $enteredCount < $rosterSize;
+                    return $enteredCount < $rosterIds->count();
                 })
                 ->map(fn (AcademicSubjectMarkConfigure $configure) => $configure->subject?->bn_name ?? $configure->subject?->name)
                 ->filter()

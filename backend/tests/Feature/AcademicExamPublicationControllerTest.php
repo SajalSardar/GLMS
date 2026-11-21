@@ -281,6 +281,46 @@ class AcademicExamPublicationControllerTest extends TestCase
         $this->assertDatabaseCount('academic_exam_publications', 0);
     }
 
+    public function test_publishing_rejects_an_incomplete_roster_even_when_a_promoted_out_student_has_marks_for_this_section(): void
+    {
+        $studentA = $this->studentInSection('1');
+        $studentB = $this->studentInSection('2');
+        $studentC = $this->studentInSection('3');
+
+        $otherSection = Section::create(['shift_id' => $this->section->shift_id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Other']);
+
+        foreach ([$studentA, $studentC] as $student) {
+            AcademicExamMark::create([
+                'student_profile_id' => $student->profile->id,
+                'subject_id' => $this->subject->id,
+                'academic_exam_term_id' => $this->term->id,
+                'academic_year_id' => $this->year->id,
+                'school_id' => $this->school->id,
+                'district_id' => $this->school->district_id,
+                'class_id' => $this->class->id,
+                'section_id' => $this->section->id,
+                'shift_id' => $this->section->shift_id,
+                'class_version_id' => $this->section->shift->class_version_id,
+                'cq_marks_obtained' => 60,
+            ]);
+        }
+
+        // Student C was promoted out of this section after being graded here.
+        $studentC->profile->update(['section_id' => $otherSection->id]);
+
+        // Student B is still enrolled in this section but was never graded.
+        $admin = $this->actorWithPermissions(['academic_exam_marks.publish'], $this->school->id, $this->school->district_id);
+
+        $response = $this->actingAs($admin, 'sanctum')->postJson('/api/v1/academic-exam-publications', [
+            'section_id' => $this->section->id,
+            'academic_exam_term_id' => $this->term->id,
+            'academic_year_id' => $this->year->id,
+        ])->assertUnprocessable()->assertJsonValidationErrors('section_id');
+
+        $this->assertStringContainsString('Mathematics', $response->json('errors.section_id.0'));
+        $this->assertDatabaseCount('academic_exam_publications', 0);
+    }
+
     public function test_publishing_restores_a_soft_deleted_publication_for_the_same_triple(): void
     {
         $admin = $this->actorWithPermissions(['academic_exam_marks.publish'], $this->school->id, $this->school->district_id);
