@@ -227,4 +227,107 @@ class AcademicExamPublicationControllerTest extends TestCase
 
         $this->assertTrue(AcademicExamPublication::isPublished($this->section->id, $this->term->id, $this->year->id));
     }
+
+    public function test_publishing_rejects_an_academic_year_id_that_does_not_match_the_sections_own_academic_year(): void
+    {
+        $this->section->shift->update(['academic_year_id' => $this->year->id]);
+        $otherYear = AcademicYear::create(['name' => '2027', 'start_date' => '2027-01-01', 'end_date' => '2027-12-31', 'is_current' => false]);
+
+        $admin = $this->actorWithPermissions(['academic_exam_marks.publish'], $this->school->id, $this->school->district_id);
+
+        $this->actingAs($admin, 'sanctum')->postJson('/api/v1/academic-exam-publications', [
+            'section_id' => $this->section->id,
+            'academic_exam_term_id' => $this->term->id,
+            'academic_year_id' => $otherYear->id,
+        ])->assertUnprocessable()->assertJsonValidationErrors('academic_year_id');
+
+        $this->assertDatabaseCount('academic_exam_publications', 0);
+    }
+
+    public function test_publishing_rejects_an_incomplete_roster_naming_the_unentered_subject(): void
+    {
+        $english = Subject::create(['name' => 'English']);
+        AcademicSubjectMarkConfigure::create(['class_id' => $this->class->id, 'subject_id' => $english->id, 'cq_full_marks' => 70, 'mcq_full_marks' => 30]);
+
+        $studentA = $this->studentInSection('1');
+        $studentB = $this->studentInSection('2');
+
+        foreach ([$studentA, $studentB] as $student) {
+            AcademicExamMark::create([
+                'student_profile_id' => $student->profile->id,
+                'subject_id' => $this->subject->id,
+                'academic_exam_term_id' => $this->term->id,
+                'academic_year_id' => $this->year->id,
+                'school_id' => $this->school->id,
+                'district_id' => $this->school->district_id,
+                'class_id' => $this->class->id,
+                'section_id' => $this->section->id,
+                'shift_id' => $this->section->shift_id,
+                'class_version_id' => $this->section->shift->class_version_id,
+                'cq_marks_obtained' => 60,
+            ]);
+        }
+
+        // English has no marks entered for either student.
+        $admin = $this->actorWithPermissions(['academic_exam_marks.publish'], $this->school->id, $this->school->district_id);
+
+        $response = $this->actingAs($admin, 'sanctum')->postJson('/api/v1/academic-exam-publications', [
+            'section_id' => $this->section->id,
+            'academic_exam_term_id' => $this->term->id,
+            'academic_year_id' => $this->year->id,
+        ])->assertUnprocessable()->assertJsonValidationErrors('section_id');
+
+        $this->assertStringContainsString('English', $response->json('errors.section_id.0'));
+        $this->assertDatabaseCount('academic_exam_publications', 0);
+    }
+
+    public function test_publishing_restores_a_soft_deleted_publication_for_the_same_triple(): void
+    {
+        $admin = $this->actorWithPermissions(['academic_exam_marks.publish'], $this->school->id, $this->school->district_id);
+        $payload = ['section_id' => $this->section->id, 'academic_exam_term_id' => $this->term->id, 'academic_year_id' => $this->year->id];
+
+        $this->actingAs($admin, 'sanctum')->postJson('/api/v1/academic-exam-publications', $payload)->assertCreated();
+
+        AcademicExamPublication::where('section_id', $this->section->id)
+            ->where('academic_exam_term_id', $this->term->id)
+            ->where('academic_year_id', $this->year->id)
+            ->first()->delete();
+
+        $this->actingAs($admin, 'sanctum')->postJson('/api/v1/academic-exam-publications', $payload)
+            ->assertCreated()->assertJsonPath('data.is_published', true);
+
+        $this->assertSame(1, AcademicExamPublication::withTrashed()
+            ->where('section_id', $this->section->id)
+            ->where('academic_exam_term_id', $this->term->id)
+            ->where('academic_year_id', $this->year->id)
+            ->count());
+        $this->assertTrue(AcademicExamPublication::isPublished($this->section->id, $this->term->id, $this->year->id));
+    }
+
+    public function test_unpublishing_soft_deletes_the_publication_row(): void
+    {
+        $admin = $this->actorWithPermissions(['academic_exam_marks.publish'], $this->school->id, $this->school->district_id);
+        $payload = ['section_id' => $this->section->id, 'academic_exam_term_id' => $this->term->id, 'academic_year_id' => $this->year->id];
+
+        $this->actingAs($admin, 'sanctum')->postJson('/api/v1/academic-exam-publications', $payload)->assertCreated();
+
+        $this->actingAs($admin, 'sanctum')->deleteJson('/api/v1/academic-exam-publications', $payload)
+            ->assertOk()->assertJsonPath('data.is_published', false);
+
+        $this->assertFalse(AcademicExamPublication::isPublished($this->section->id, $this->term->id, $this->year->id));
+        $this->assertSoftDeleted('academic_exam_publications', [
+            'section_id' => $this->section->id,
+            'academic_exam_term_id' => $this->term->id,
+            'academic_year_id' => $this->year->id,
+        ]);
+    }
+
+    public function test_unpublishing_requires_the_publish_permission(): void
+    {
+        $viewer = $this->actorWithPermissions(['academic_exam_marks.view'], $this->school->id, $this->school->district_id);
+        $payload = ['section_id' => $this->section->id, 'academic_exam_term_id' => $this->term->id, 'academic_year_id' => $this->year->id];
+
+        $this->actingAs($viewer, 'sanctum')->deleteJson('/api/v1/academic-exam-publications', $payload)
+            ->assertForbidden();
+    }
 }

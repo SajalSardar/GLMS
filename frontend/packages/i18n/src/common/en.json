@@ -665,6 +665,10 @@
   "management.publishResults.publishing": "Publishing…",
   "management.publishResults.publishSuccess": "Results published.",
   "management.publishResults.publishError": "Could not publish results. Please try again.",
+  "management.publishResults.unpublish": "Unpublish",
+  "management.publishResults.unpublishConfirm": "Unpublish this term's results? Students will no longer be able to see them until you publish again.",
+  "management.publishResults.unpublishSuccess": "Results unpublished.",
+  "management.publishResults.unpublishError": "Could not unpublish results. Please try again.",
 
   "management.promoteStudents.title": "Promote Students",
   "management.promoteStudents.selectSection": "Select section",

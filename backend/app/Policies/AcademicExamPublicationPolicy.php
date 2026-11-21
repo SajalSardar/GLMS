@@ -24,4 +24,13 @@ class AcademicExamPublicationPolicy
     {
         return $user->hasPermission('academic_exam_marks.publish');
     }
+
+    /**
+     * Unpublishing uses the same permission as publishing — no separate
+     * grant; whoever can publish a result can also retract it.
+     */
+    public function delete(Authenticatable $user): bool
+    {
+        return $user->hasPermission('academic_exam_marks.publish');
+    }
 }

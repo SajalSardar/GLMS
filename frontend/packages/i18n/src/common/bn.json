@@ -665,6 +665,10 @@
   "management.publishResults.publishing": "প্রকাশ হচ্ছে…",
   "management.publishResults.publishSuccess": "ফলাফল প্রকাশ করা হয়েছে।",
   "management.publishResults.publishError": "ফলাফল প্রকাশ করা যায়নি। আবার চেষ্টা করুন।",
+  "management.publishResults.unpublish": "প্রকাশ বাতিল করুন",
+  "management.publishResults.unpublishConfirm": "এই টার্মের ফলাফল প্রকাশ বাতিল করবেন? আপনি পুনরায় প্রকাশ না করা পর্যন্ত শিক্ষার্থীরা এটি দেখতে পারবে না।",
+  "management.publishResults.unpublishSuccess": "ফলাফলের প্রকাশ বাতিল করা হয়েছে।",
+  "management.publishResults.unpublishError": "ফলাফলের প্রকাশ বাতিল করা যায়নি। আবার চেষ্টা করুন।",
 
   "management.promoteStudents.title": "শিক্ষার্থী উত্তরণ",
   "management.promoteStudents.selectSection": "শাখা নির্বাচন করুন",

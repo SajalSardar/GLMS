@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\PublishAcademicExamRequest;
+use App\Http\Requests\Api\V1\UnpublishAcademicExamRequest;
 use App\Models\AcademicExamMark;
 use App\Models\AcademicExamPublication;
 use App\Models\AcademicSubjectMarkConfigure;
@@ -72,26 +73,38 @@ class AcademicExamPublicationController extends Controller
      */
     public function store(PublishAcademicExamRequest $request): JsonResponse
     {
+        $this->authorize('create', AcademicExamPublication::class);
+
         $section = Section::findOrFail($request->integer('section_id'));
         $termId = $request->integer('academic_exam_term_id');
         $yearId = $request->integer('academic_year_id');
 
         if (! AcademicExamPublication::isPublished($section->id, $termId, $yearId)) {
-            try {
-                AcademicExamPublication::create([
-                    'section_id' => $section->id,
-                    'academic_exam_term_id' => $termId,
-                    'academic_year_id' => $yearId,
-                    'school_id' => $section->school_id,
-                    'district_id' => $section->district_id,
-                ]);
-            } catch (QueryException $exception) {
-                // Lost the race to a concurrent publish for the exact same
-                // (section, term, year) — the unique index already prevented
-                // a duplicate row; treat this exactly like the
-                // already-published branch above, not an error.
-                if ($exception->getCode() !== '23000') {
-                    throw $exception;
+            $trashed = AcademicExamPublication::onlyTrashed()
+                ->where('section_id', $section->id)
+                ->where('academic_exam_term_id', $termId)
+                ->where('academic_year_id', $yearId)
+                ->first();
+
+            if ($trashed !== null) {
+                $trashed->restore();
+            } else {
+                try {
+                    AcademicExamPublication::create([
+                        'section_id' => $section->id,
+                        'academic_exam_term_id' => $termId,
+                        'academic_year_id' => $yearId,
+                        'school_id' => $section->school_id,
+                        'district_id' => $section->district_id,
+                    ]);
+                } catch (QueryException $exception) {
+                    // Lost the race to a concurrent publish for the exact same
+                    // (section, term, year) — the unique index already prevented
+                    // a duplicate row; treat this exactly like the
+                    // already-published branch above, not an error.
+                    if ($exception->getCode() !== '23000') {
+                        throw $exception;
+                    }
                 }
             }
         }
@@ -104,5 +117,34 @@ class AcademicExamPublicationController extends Controller
                 'is_published' => true,
             ],
         ], Response::HTTP_CREATED);
+    }
+
+    /**
+     * Unpublish a (section, term, year) — soft-deletes the publication row
+     * so marksheets/ranking immediately stop being visible to students
+     * (AcademicExamPublication::isPublished() is SoftDeletes-aware).
+     * Already-unpublished (or never-published) is a no-op, not an error.
+     */
+    public function destroy(UnpublishAcademicExamRequest $request): JsonResponse
+    {
+        $this->authorize('delete', AcademicExamPublication::class);
+
+        $section = Section::findOrFail($request->integer('section_id'));
+        $termId = $request->integer('academic_exam_term_id');
+        $yearId = $request->integer('academic_year_id');
+
+        AcademicExamPublication::where('section_id', $section->id)
+            ->where('academic_exam_term_id', $termId)
+            ->where('academic_year_id', $yearId)
+            ->delete();
+
+        return response()->json([
+            'data' => [
+                'section_id' => $section->id,
+                'academic_exam_term_id' => $termId,
+                'academic_year_id' => $yearId,
+                'is_published' => false,
+            ],
+        ]);
     }
 }

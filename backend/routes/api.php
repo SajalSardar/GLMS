@@ -211,6 +211,7 @@ Route::prefix('v1')->group(function (): void {
 
         Route::get('/academic-exam-publications/status', [AcademicExamPublicationController::class, 'status']);
         Route::post('/academic-exam-publications', [AcademicExamPublicationController::class, 'store']);
+        Route::delete('/academic-exam-publications', [AcademicExamPublicationController::class, 'destroy']);
 
         Route::get('/student-promotions/preview', [StudentPromotionController::class, 'preview']);
         Route::post('/student-promotions', [StudentPromotionController::class, 'store']);

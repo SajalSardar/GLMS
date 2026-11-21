@@ -2250,6 +2250,19 @@ export function publishAcademicExamResults(
   })
 }
 
+// Unpublishing an already-unpublished (or never-published) (section,
+// term, year) is a no-op on the backend, not an error.
+export function unpublishAcademicExamResults(
+  payload: { section_id: number; academic_exam_term_id: number; academic_year_id: number },
+  token: string,
+): Promise<{ data: AcademicExamPublicationResult }> {
+  return apiFetch<{ data: AcademicExamPublicationResult }>('/academic-exam-publications', {
+    method: 'DELETE',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  })
+}
+
 // ---------- Academic exam marksheets (teacher/staff lookup) ----------
 
 export interface AcademicExamMarksheetSubject {

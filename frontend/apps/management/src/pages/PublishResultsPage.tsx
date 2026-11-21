@@ -7,6 +7,7 @@ import {
   listSchools,
   listSections,
   publishAcademicExamResults,
+  unpublishAcademicExamResults,
   type AcademicExamPublicationStatus,
   type AcademicExamTerm,
   type AcademicYear,
@@ -16,7 +17,7 @@ import {
 import { useAuth } from '@ttla/auth'
 import { getCommonStrings } from '@ttla/i18n'
 import SearchableSelect from '../components/SearchableSelect'
-import { buttonPrimary, inputClass } from '../components/styles'
+import { buttonNeutral, buttonPrimary, inputClass } from '../components/styles'
 import { useToast, ToastViewport } from '../components/Toast'
 
 const t = getCommonStrings('en')
@@ -135,6 +136,23 @@ export default function PublishResultsPage() {
     }
   }
 
+  async function handleUnpublish() {
+    if (!token || sectionId === null || academicExamTermId === null || academicYearId === null) return
+    if (!window.confirm(t['management.publishResults.unpublishConfirm'])) return
+
+    setPublishing(true)
+
+    try {
+      await unpublishAcademicExamResults({ section_id: sectionId, academic_exam_term_id: academicExamTermId, academic_year_id: academicYearId }, token)
+      showToast({ type: 'success', message: t['management.publishResults.unpublishSuccess'] })
+      setStatus((previous) => (previous ? { ...previous, is_published: false } : previous))
+    } catch (caught) {
+      showToast({ type: 'error', message: caught instanceof ApiError ? caught.message : t['management.publishResults.unpublishError'] })
+    } finally {
+      setPublishing(false)
+    }
+  }
+
   return (
     <section>
       <h1 className="text-2xl font-bold text-gray-900">{t['management.publishResults.title']}</h1>
@@ -229,9 +247,14 @@ export default function PublishResultsPage() {
 
           <div className="mt-4">
             {status.is_published ? (
-              <span className="rounded-full bg-success-50 px-3 py-1.5 text-sm font-medium text-success-600">
-                {t['management.publishResults.alreadyPublished']}
-              </span>
+              <div className="flex items-center gap-3">
+                <span className="rounded-full bg-success-50 px-3 py-1.5 text-sm font-medium text-success-600">
+                  {t['management.publishResults.alreadyPublished']}
+                </span>
+                <button type="button" onClick={handleUnpublish} disabled={publishing} className={buttonNeutral}>
+                  {t['management.publishResults.unpublish']}
+                </button>
+              </div>
             ) : (
               <button type="button" onClick={handlePublish} disabled={publishing} className={buttonPrimary}>
                 {publishing ? t['management.publishResults.publishing'] : t['management.publishResults.publish']}
