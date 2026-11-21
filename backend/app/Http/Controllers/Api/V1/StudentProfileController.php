@@ -214,13 +214,16 @@ class StudentProfileController extends Controller
             'transferred_at' => now(),
         ]);
 
-        // shift_id/class_version_id are denormalized from section_id — this
-        // is the only place section_id ever changes, so it's the only
-        // place that needs to keep them in sync.
+        // shift_id/class_version_id/class_id are all denormalized from
+        // section_id — this is the only place section_id ever changes, so
+        // it's the only place that needs to keep them in sync. class_id is
+        // resolved from the target section's own relations, the same way
+        // StudentPromotionController::store() resolves it for a batch move.
         $student_profile->update([
             'section_id' => $toSection->id,
             'shift_id' => $toSection->shift_id,
             'class_version_id' => $toSection->shift?->class_version_id,
+            'class_id' => $toSection->shift?->classVersion?->class_id,
         ]);
 
         return new StudentSectionTransferResource($transfer->load(['fromSection', 'toSection']));

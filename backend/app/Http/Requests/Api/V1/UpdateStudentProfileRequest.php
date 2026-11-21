@@ -31,7 +31,18 @@ class UpdateStudentProfileRequest extends FormRequest
         return [
             'class_id' => ['nullable', 'integer', Rule::exists('school_classes', 'id')->withoutTrashed()],
             'student_id' => ['nullable', 'string', 'max:50', Rule::unique('student_profiles', 'student_id')->ignore($profile)],
-            'roll_number' => ['nullable', 'string', 'max:20'],
+            // Scoped to the effective class_id (submitted, or falling back
+            // to the existing row's class_id when this PATCH doesn't touch
+            // it — the same effective-value pattern used in
+            // UpdateAcademicSubjectMarkConfigureRequest), and deliberately
+            // WITHOUT ->withoutTrashed() — a trashed collision is rejected
+            // here too, as a clean 422, rather than left to hit the DB.
+            'roll_number' => [
+                'sometimes', 'nullable', 'string', 'max:20',
+                Rule::unique('student_profiles')
+                    ->where(fn ($query) => $query->where('class_id', $this->input('class_id', $profile?->class_id)))
+                    ->ignore($profile),
+            ],
             'admission_date' => ['nullable', 'date'],
             'date_of_birth' => ['nullable', 'date', 'before:today'],
             'gender' => ['nullable', 'string', Rule::in(['male', 'female', 'other'])],

@@ -41,7 +41,15 @@ class StoreStudentProfileRequest extends FormRequest
             // admin's request, so a client-supplied value is rejected
             // outright rather than silently ignored.
             'student_id' => ['prohibited'],
-            'roll_number' => ['nullable', 'string', 'max:20'],
+            // Scoped to class_id, and deliberately WITHOUT ->withoutTrashed()
+            // — unlike user_id above, there's no sensible "restore and
+            // reuse" story for a roll-number clash between two different
+            // students, so a trashed collision is rejected here too, as a
+            // clean 422, rather than left to hit the DB's unique index.
+            'roll_number' => [
+                'nullable', 'string', 'max:20',
+                Rule::unique('student_profiles')->where(fn ($query) => $query->where('class_id', $this->input('class_id'))),
+            ],
             'admission_date' => ['nullable', 'date'],
             'date_of_birth' => ['nullable', 'date', 'before:today'],
             'gender' => ['nullable', 'string', Rule::in(['male', 'female', 'other'])],
