@@ -97,49 +97,112 @@ function buildHierarchyRows(
   return rows
 }
 
-function DetailRow({ label, value }: { label: string; value: ReactNode }) {
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return '?'
+  return parts
+    .slice(0, 2)
+    .map((part) => part[0]!.toUpperCase())
+    .join('')
+}
+
+function MetaItem({ icon, children }: { icon: string; children: ReactNode }) {
   return (
-    <div className="flex items-start justify-between gap-4 border-b border-gray-100 py-2 last:border-0">
-      <span className="text-sm text-gray-500">{label}</span>
-      <span className="text-right text-sm font-medium text-gray-800">{value}</span>
+    <span className="inline-flex items-center justify-center gap-1.5 sm:justify-start">
+      <span className="material-symbols-outlined !text-[16px] text-gray-400">{icon}</span>
+      {children}
+    </span>
+  )
+}
+
+function Badge({ tone, children }: { tone: 'primary' | 'success' | 'warning'; children: ReactNode }) {
+  const toneClasses =
+    tone === 'success'
+      ? 'bg-success-50 text-success-600'
+      : tone === 'warning'
+        ? 'bg-warning-50 text-amber-700'
+        : 'bg-primary-50 text-primary-600'
+
+  return (
+    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap ${toneClasses}`}>
+      {children}
+    </span>
+  )
+}
+
+function typeBadgeTone(type: School['type']): 'primary' | 'success' | 'warning' {
+  if (type === 'government') return 'primary'
+  if (type === 'non_government') return 'success'
+  return 'warning'
+}
+
+// Shared shell for the cards below the header: an icon'd heading over a
+// two-column field grid — mirrors TeacherDetailPage/StudentDetailPage's
+// SectionCard so every detail page in this app reads the same way.
+function SectionCard({ icon, title, children }: { icon: string; title: string; children: ReactNode }) {
+  return (
+    <div className="rounded-md bg-white p-5 shadow-sm">
+      <div className="mb-4 flex items-center gap-2">
+        <span className="material-symbols-outlined !text-[20px] text-primary-500">{icon}</span>
+        <h3 className="text-base font-semibold text-gray-800">{title}</h3>
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">{children}</div>
     </div>
   )
 }
 
-function SchoolInfo({ school }: { school: School }) {
+function Field({ label, value, className }: { label: string; value: ReactNode; className?: string }) {
+  return (
+    <div className={`flex flex-col gap-1${className ? ` ${className}` : ''}`}>
+      <span className="text-xs text-gray-500">{label}</span>
+      <span className="text-sm font-medium text-gray-800">{value}</span>
+    </div>
+  )
+}
+
+function SchoolHeaderCard({ school }: { school: School }) {
   const typeLabel = SCHOOL_TYPES.find((option) => option.value === school.type)?.label ?? school.type
   const levelLabel = SCHOOL_LEVELS.find((option) => option.value === school.level)?.label ?? school.level
 
   return (
-    <div className="flex flex-col gap-4 rounded-md bg-white p-5 shadow-sm sm:flex-row sm:gap-6">
-      <div className="flex justify-center sm:justify-start">
-        {school.logo_url ? (
-          <img src={school.logo_url} alt="" className="h-24 w-24 rounded-full object-cover" />
-        ) : (
-          <span className="flex h-24 w-24 items-center justify-center rounded-full bg-gray-100 text-gray-400">
-            <span className="material-symbols-outlined !text-4xl">school</span>
-          </span>
-        )}
-      </div>
+    <div className="flex flex-col items-center gap-4 rounded-md bg-white p-5 shadow-sm sm:flex-row sm:gap-6">
+      {school.logo_url ? (
+        <img src={school.logo_url} alt="" className="h-20 w-20 rounded-full object-cover" />
+      ) : (
+        <span className="flex h-20 w-20 items-center justify-center rounded-full bg-primary-50 text-xl font-semibold text-primary-600">
+          {initials(school.name)}
+        </span>
+      )}
 
-      <div className="flex-1">
-        <h2 className="text-lg font-semibold text-gray-800">{school.name}</h2>
+      <div className="flex-1 text-center sm:text-left">
+        <div className="flex flex-col items-center gap-2 sm:flex-row sm:items-center">
+          <h2 className="text-lg font-semibold text-gray-800">{school.name}</h2>
+          <div className="flex items-center gap-2">
+            <Badge tone={typeBadgeTone(school.type)}>{typeLabel}</Badge>
+            <Badge tone="primary">{levelLabel}</Badge>
+          </div>
+        </div>
         {school.bn_name && <p className="text-sm text-gray-500">{school.bn_name}</p>}
 
-        <div className="mt-3 flex flex-col gap-1">
-          <DetailRow label={t['management.fields.eiin']} value={school.eiin ?? '—'} />
-          <DetailRow label={t['management.fields.type']} value={typeLabel} />
-          <DetailRow label={t['management.fields.level']} value={levelLabel} />
-          <DetailRow label={t['management.fields.division']} value={school.division?.name ?? school.division_id} />
-          <DetailRow label={t['management.fields.district']} value={school.district?.name ?? school.district_id} />
-          <DetailRow label={t['management.fields.upazila']} value={school.upazila?.name ?? school.upazila_id} />
-          <DetailRow label={t['management.fields.address']} value={school.address ?? '—'} />
-          <DetailRow label={t['management.fields.phone']} value={school.phone ?? '—'} />
-          <DetailRow label={t['management.fields.email']} value={school.email ?? '—'} />
-          <DetailRow label={t['management.fields.establishedYear']} value={school.established_year ?? '—'} />
+        <div className="mt-3 flex flex-col items-center gap-1.5 text-sm text-gray-600 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
+          <MetaItem icon="badge">{school.eiin ?? '—'}</MetaItem>
+          {school.phone && <MetaItem icon="call">{school.phone}</MetaItem>}
+          {school.email && <MetaItem icon="mail">{school.email}</MetaItem>}
+          {school.established_year && <MetaItem icon="calendar_month">{school.established_year}</MetaItem>}
         </div>
       </div>
     </div>
+  )
+}
+
+function SchoolLocationCard({ school }: { school: School }) {
+  return (
+    <SectionCard icon="location_on" title={t['management.schoolDetail.location']}>
+      <Field label={t['management.fields.division']} value={school.division?.name ?? school.division_id} />
+      <Field label={t['management.fields.district']} value={school.district?.name ?? school.district_id} />
+      <Field label={t['management.fields.upazila']} value={school.upazila?.name ?? school.upazila_id} />
+      <Field label={t['management.fields.address']} value={school.address ?? '—'} className="sm:col-span-2" />
+    </SectionCard>
   )
 }
 
@@ -262,7 +325,10 @@ function AdoptedClassesPanel({
 
   return (
     <div className="space-y-3">
-      <h3 className="text-base font-semibold text-gray-800">{t['management.schoolDetail.adoptedClasses']}</h3>
+      <div className="flex items-center gap-2">
+        <span className="material-symbols-outlined !text-[20px] text-primary-500">class</span>
+        <h3 className="text-base font-semibold text-gray-800">{t['management.schoolDetail.adoptedClasses']}</h3>
+      </div>
 
       <div className="rounded-md bg-white p-5 shadow-sm">
         {classSchools.length === 0 ? (
@@ -448,10 +514,21 @@ export default function SchoolDetailPage() {
 
       {school && (
         <>
-          <SchoolInfo school={school} />
+          <SchoolHeaderCard school={school} />
+
+          <SchoolLocationCard school={school} />
+
+          <AdoptedClassesPanel
+            schoolId={school.id}
+            classSchools={classSchools}
+            onChanged={() => loadSchool(school.id)}
+          />
 
           <div className="space-y-3">
-            <h3 className="text-base font-semibold text-gray-800">{t['management.schoolDetail.hierarchy']}</h3>
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined !text-[20px] text-primary-500">layers</span>
+              <h3 className="text-base font-semibold text-gray-800">{t['management.schoolDetail.hierarchy']}</h3>
+            </div>
 
             <div className="overflow-x-auto rounded-md bg-white shadow-sm">
               <table className="w-full text-sm">
@@ -486,12 +563,6 @@ export default function SchoolDetailPage() {
               </table>
             </div>
           </div>
-
-          <AdoptedClassesPanel
-            schoolId={school.id}
-            classSchools={classSchools}
-            onChanged={() => loadSchool(school.id)}
-          />
         </>
       )}
     </section>

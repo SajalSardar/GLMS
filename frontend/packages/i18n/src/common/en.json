@@ -587,6 +587,7 @@
 
   "management.schoolDetail.back": "Back to schools",
   "management.schoolDetail.hierarchy": "Classes, versions, shifts & sections",
+  "management.schoolDetail.location": "Location",
   "management.schoolDetail.empty": "No classes configured yet.",
   "management.schoolDetail.notFound": "School not found.",
   "management.schoolDetail.loading": "Loading school...",
