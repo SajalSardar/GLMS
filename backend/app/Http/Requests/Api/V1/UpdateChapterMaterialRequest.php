@@ -35,7 +35,12 @@ class UpdateChapterMaterialRequest extends FormRequest
 
     /**
      * Reject re-activating a 'primary' material if the chapter already has
-     * a different active primary material.
+     * a different active primary material — scoped by the material's OWN
+     * section_id (section_id can't be changed on update), matching
+     * StoreChapterMaterialRequest's section-scoped clash check: a
+     * per-section primary only clashes with another active primary in
+     * that SAME section, while a null section_id (unscoped/staff upload)
+     * still clashes chapter-wide.
      */
     public function withValidator(Validator $validator): void
     {
@@ -49,6 +54,7 @@ class UpdateChapterMaterialRequest extends FormRequest
             $clash = ChapterMaterial::where('chapter_id', $material->chapter_id)
                 ->where('type', 'primary')
                 ->where('status', 'active')
+                ->where('section_id', $material->section_id ?: null)
                 ->whereKeyNot($material->getKey())
                 ->exists();
 

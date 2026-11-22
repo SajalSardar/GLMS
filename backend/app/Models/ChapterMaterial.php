@@ -43,11 +43,14 @@ class ChapterMaterial extends Model
 
     /**
      * These five, plus section() below, are set only when the uploading
-     * actor is the class_teacher of a section matching the chapter's own
-     * class_version (see ChapterMaterialController::store()) — null for
-     * every material uploaded before this existed, and for one uploaded
-     * by a non-class-teacher actor (school_admin/national_admin), which
-     * means "visible to the whole chapter" rather than one section.
+     * actor is a TeacherUser who supplied an authorized section_id —
+     * verified against a matching SubjectTeacherAssignment for that
+     * section/subject/teacher (see
+     * ChapterMaterialController::resolveUploaderScope() and
+     * ChapterMaterialPolicy::create()) — null for every material
+     * uploaded before this existed, and for one uploaded by a staff
+     * actor (school_admin/national_admin), which means "visible to the
+     * whole chapter" rather than one section.
      */
     public function school(): BelongsTo
     {

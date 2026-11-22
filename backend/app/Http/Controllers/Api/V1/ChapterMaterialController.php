@@ -30,13 +30,13 @@ class ChapterMaterialController extends Controller
      * A logged-in student sees ONLY materials that exactly match their
      * own school/district/shift/section/class/class_version — a material
      * with a null section_id (predating per-section scoping, or uploaded
-     * by a non-class-teacher actor) is NOT shown as a "visible to
-     * everyone" fallback for a student, since it was never actually
-     * verified to belong to their class. A guest, or any non-student
-     * actor (teacher/admin browsing the public listing), has no profile
-     * to match against, so they see only the unscoped ones instead. This
-     * route sits outside auth:sanctum (guests browse it too), so the
-     * actor is resolved explicitly from the sanctum guard.
+     * by a staff actor) is NOT shown as a "visible to everyone" fallback
+     * for a student, since it was never actually verified to belong to
+     * their class. A guest, or any non-student actor (teacher/admin
+     * browsing the public listing), has no profile to match against, so
+     * they see only the unscoped ones instead. This route sits outside
+     * auth:sanctum (guests browse it too), so the actor is resolved
+     * explicitly from the sanctum guard.
      */
     public function index(Request $request): AnonymousResourceCollection
     {
@@ -141,14 +141,20 @@ class ChapterMaterialController extends Controller
      * Every material this teacher has personally uploaded, across every
      * chapter/section — feeds the "my uploads" list on the materials
      * page (edit/delete gated the same way the backend already gates
-     * them, via ChapterMaterialPolicy::update()/delete()).
+     * them, via ChapterMaterialPolicy::update()/delete()). Filtered by
+     * the Auditable-stamped (created_by_type, created_by_id) pair, not
+     * the bare uploaded_by_id column, since actors come from several
+     * independent tables (users, teacher_users, ...) each with their own
+     * auto-increment id sequence, so a bare id match could match a
+     * different actor's row entirely.
      */
     public function myUploads(Request $request): AnonymousResourceCollection
     {
         $teacher = $request->user();
         abort_unless($teacher instanceof TeacherUser, 403);
 
-        $materials = ChapterMaterial::where('uploaded_by_id', $teacher->id)
+        $materials = ChapterMaterial::where('created_by_type', $teacher::class)
+            ->where('created_by_id', $teacher->id)
             ->with('chapter.book.subject')
             ->orderByDesc('created_at')
             ->get();
@@ -231,9 +237,9 @@ class ChapterMaterialController extends Controller
         return [
             'school_id' => $section->school_id,
             'district_id' => $section->district_id,
-            'shift_id' => $shift->id,
-            'class_version_id' => $shift->class_version_id,
-            'class_id' => $shift->classVersion->class_id,
+            'shift_id' => $shift?->id,
+            'class_version_id' => $shift?->class_version_id,
+            'class_id' => $shift?->classVersion?->class_id,
             'section_id' => $section->id,
         ];
     }

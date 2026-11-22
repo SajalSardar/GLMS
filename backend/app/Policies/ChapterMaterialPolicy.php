@@ -80,7 +80,7 @@ class ChapterMaterialPolicy
         $section = Section::with('shift')->find($sectionId);
 
         return $section !== null
-            && $section->shift->class_version_id === $chapter->book->class_version_id
+            && $section->shift?->class_version_id === $chapter->book->class_version_id
             && SubjectTeacherAssignment::where('section_id', $sectionId)
                 ->where('subject_id', $chapter->book->subject_id)
                 ->where('teacher_id', $user->id)
@@ -89,7 +89,12 @@ class ChapterMaterialPolicy
 
     /**
      * Staff with the flat permission retain full override. A TeacherUser
-     * may only touch material they themselves uploaded.
+     * may only touch material they themselves uploaded — identified by
+     * the Auditable-stamped (created_by_type, created_by_id) pair, not
+     * the bare uploaded_by_id column, since actors come from several
+     * independent tables (users, teacher_users, ...) each with their own
+     * auto-increment id sequence, so a bare id match could match a
+     * different actor's row entirely.
      */
     public function update(Authenticatable $user, ChapterMaterial $chapterMaterial): bool
     {
@@ -97,7 +102,8 @@ class ChapterMaterialPolicy
             return false;
         }
 
-        return ! $user instanceof TeacherUser || $chapterMaterial->uploaded_by_id === $user->id;
+        return ! $user instanceof TeacherUser
+            || ($chapterMaterial->created_by_type === $user::class && $chapterMaterial->created_by_id === $user->id);
     }
 
     public function delete(Authenticatable $user, ChapterMaterial $chapterMaterial): bool
@@ -106,6 +112,7 @@ class ChapterMaterialPolicy
             return false;
         }
 
-        return ! $user instanceof TeacherUser || $chapterMaterial->uploaded_by_id === $user->id;
+        return ! $user instanceof TeacherUser
+            || ($chapterMaterial->created_by_type === $user::class && $chapterMaterial->created_by_id === $user->id);
     }
 }

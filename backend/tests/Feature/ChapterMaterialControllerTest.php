@@ -17,6 +17,7 @@ use App\Models\StudentProfile;
 use App\Models\Subject;
 use App\Models\SubjectTeacherAssignment;
 use App\Models\Upazila;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -129,6 +130,30 @@ class ChapterMaterialControllerTest extends TestCase
         $this->actingAs($allowed, 'sanctum')
             ->patchJson("/api/v1/chapter-materials/{$firstId}", ['status' => 'active'])
             ->assertUnprocessable();
+    }
+
+    public function test_two_sections_can_each_have_their_own_active_primary_material_for_the_same_chapter(): void
+    {
+        $classVersionId = $this->chapterA->book->class_version_id;
+        $subjectId = $this->chapterA->book->subject_id;
+        $shift = Shift::create(['class_version_id' => $classVersionId, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'name' => 'Shift', 'start_time' => '08:00', 'end_time' => '13:00', 'days_of_week' => ['saturday']]);
+        $teacherOne = $this->teacherActorWithPermissions(['chapter_materials.create'], $this->schoolA->id, $this->schoolA->district_id);
+        $teacherTwo = $this->teacherActorWithPermissions(['chapter_materials.create'], $this->schoolA->id, $this->schoolA->district_id);
+        $sectionOne = Section::create(['shift_id' => $shift->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'name' => 'Section A']);
+        $sectionTwo = Section::create(['shift_id' => $shift->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'name' => 'Section B']);
+        SubjectTeacherAssignment::create(['section_id' => $sectionOne->id, 'subject_id' => $subjectId, 'teacher_id' => $teacherOne->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id]);
+        SubjectTeacherAssignment::create(['section_id' => $sectionTwo->id, 'subject_id' => $subjectId, 'teacher_id' => $teacherTwo->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id]);
+
+        $fileOne = UploadedFile::fake()->create('chapter1-a.pdf', 100, 'application/pdf');
+        $fileTwo = UploadedFile::fake()->create('chapter1-b.pdf', 100, 'application/pdf');
+
+        $this->actingAs($teacherOne, 'sanctum')
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'section_id' => $sectionOne->id, 'type' => 'primary', 'pdf' => $fileOne])
+            ->assertCreated();
+
+        $this->actingAs($teacherTwo, 'sanctum')
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'section_id' => $sectionTwo->id, 'type' => 'primary', 'pdf' => $fileTwo])
+            ->assertCreated();
     }
 
     public function test_multiple_supplementary_materials_are_allowed(): void
@@ -328,6 +353,25 @@ class ChapterMaterialControllerTest extends TestCase
         $section = Section::create(['shift_id' => $shift->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'name' => 'Section A']);
         $otherSubject = Subject::create(['name' => 'English']);
         SubjectTeacherAssignment::create(['section_id' => $section->id, 'subject_id' => $otherSubject->id, 'teacher_id' => $teacher->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id]);
+        $file = UploadedFile::fake()->create('chapter1.pdf', 100, 'application/pdf');
+
+        $this->actingAs($teacher, 'sanctum')
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'section_id' => $section->id, 'type' => 'primary', 'pdf' => $file])
+            ->assertForbidden();
+    }
+
+    public function test_store_is_forbidden_when_the_section_and_chapter_are_different_class_versions(): void
+    {
+        $subjectId = $this->chapterA->book->subject_id;
+        // chapterB's book belongs to a different class_version (and school)
+        // than chapterA — build the section's shift on THAT class_version,
+        // so the section/chapter class_version mismatch branch triggers
+        // even though a real, matching SubjectTeacherAssignment exists.
+        $otherClassVersionId = $this->chapterB->book->class_version_id;
+        $shift = Shift::create(['class_version_id' => $otherClassVersionId, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'name' => 'Shift', 'start_time' => '08:00', 'end_time' => '13:00', 'days_of_week' => ['saturday']]);
+        $teacher = $this->teacherActorWithPermissions(['chapter_materials.create'], $this->schoolA->id, $this->schoolA->district_id);
+        $section = Section::create(['shift_id' => $shift->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'name' => 'Section A']);
+        SubjectTeacherAssignment::create(['section_id' => $section->id, 'subject_id' => $subjectId, 'teacher_id' => $teacher->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id]);
         $file = UploadedFile::fake()->create('chapter1.pdf', 100, 'application/pdf');
 
         $this->actingAs($teacher, 'sanctum')
@@ -553,6 +597,61 @@ class ChapterMaterialControllerTest extends TestCase
             'uploaded_by_id' => $otherTeacher->id,
         ]);
         $teacher = $this->teacherActorWithPermissions(['chapter_materials.delete'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $this->actingAs($teacher, 'sanctum')
+            ->deleteJson("/api/v1/chapter-materials/{$material->id}")
+            ->assertForbidden();
+    }
+
+    /**
+     * Regression test: `uploaded_by_id` is a bare integer with no type
+     * discrimination, and actors come from independent tables (users,
+     * teacher_users, ...) each with their own auto-increment id sequence
+     * — so a staff `User` and a `TeacherUser` can land on the SAME id.
+     * Both tables are freshly empty at the start of this test, so the
+     * first row created in each gets id 1 — a deliberate id collision.
+     * Ownership checks (ChapterMaterialPolicy::update()/delete() and
+     * ChapterMaterialController::myUploads()) must key off the
+     * Auditable-stamped (created_by_type, created_by_id) pair, not the
+     * bare uploaded_by_id column, or the teacher would be able to
+     * touch/claim material actually uploaded by the colliding staff actor.
+     */
+    public function test_teacher_cannot_touch_material_whose_uploaded_by_id_collides_with_a_different_actor_table(): void
+    {
+        // First row in `users` — id 1 in this fresh test transaction.
+        $staffActor = $this->actorWithPermissions([], $this->schoolA->id, $this->schoolA->district_id);
+        // First row in `teacher_users` — also id 1. This is the colliding actor.
+        $teacher = $this->teacherActorWithPermissions(['chapter_materials.update', 'chapter_materials.delete'], $this->schoolA->id, $this->schoolA->district_id);
+        $this->assertSame($staffActor->id, $teacher->id);
+
+        // Create the material while acting as the staff actor, so the
+        // Auditable trait stamps created_by_type/created_by_id to the
+        // staff User — and set uploaded_by_id to that same colliding
+        // integer, to simulate the exact bug scenario.
+        $this->actingAs($staffActor, 'sanctum');
+        $material = ChapterMaterial::create([
+            'chapter_id' => $this->chapterA->id,
+            'type' => 'primary',
+            'title' => 'Staff Material',
+            'original_filename' => 'notes.pdf',
+            'stored_path' => 'demo/notes.pdf',
+            'disk' => 'local',
+            'mime_type' => 'application/pdf',
+            'size_bytes' => 1000,
+            'order_index' => 1,
+            'uploaded_by_id' => $staffActor->id,
+        ]);
+        $this->assertSame(User::class, $material->created_by_type);
+        $this->assertSame($staffActor->id, $material->created_by_id);
+
+        $this->actingAs($teacher, 'sanctum')
+            ->getJson('/api/v1/chapter-materials/my-uploads')
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+
+        $this->actingAs($teacher, 'sanctum')
+            ->patchJson("/api/v1/chapter-materials/{$material->id}", ['title' => 'Hijacked'])
+            ->assertForbidden();
 
         $this->actingAs($teacher, 'sanctum')
             ->deleteJson("/api/v1/chapter-materials/{$material->id}")

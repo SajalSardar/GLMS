@@ -28,7 +28,7 @@ class StoreChapterMaterialRequest extends FormRequest
             'chapter_id' => ['required', 'integer', Rule::exists('chapters', 'id')->withoutTrashed()],
             'section_id' => [
                 Rule::requiredIf(fn () => $this->user() instanceof TeacherUser),
-                'nullable', 'integer', Rule::exists('sections', 'id'),
+                'nullable', 'integer', Rule::exists('sections', 'id')->withoutTrashed(),
             ],
             'type' => ['required', 'string', Rule::in(['primary', 'supplementary'])],
             'title' => ['required_if:type,supplementary', 'nullable', 'string', 'max:255'],
@@ -38,7 +38,12 @@ class StoreChapterMaterialRequest extends FormRequest
     }
 
     /**
-     * Reject a second active 'primary' material for the same chapter.
+     * Reject a second active 'primary' material for the same chapter —
+     * scoped by section_id, since materials are now scoped per-section:
+     * a per-section primary (teacher upload) only clashes with another
+     * active primary in that SAME section, while a null section_id
+     * (unscoped/staff upload) still clashes chapter-wide, same as
+     * before this scoping existed.
      */
     public function withValidator(Validator $validator): void
     {
@@ -49,7 +54,11 @@ class StoreChapterMaterialRequest extends FormRequest
 
             $chapter = Chapter::find($this->input('chapter_id'));
 
-            if ($chapter && $chapter->materials()->where('type', 'primary')->where('status', 'active')->exists()) {
+            if ($chapter && $chapter->materials()
+                ->where('type', 'primary')
+                ->where('status', 'active')
+                ->where('section_id', $this->input('section_id') ?: null)
+                ->exists()) {
                 $validator->errors()->add('type', 'This chapter already has an active primary material — update or archive it instead of creating a new one.');
             }
         });
