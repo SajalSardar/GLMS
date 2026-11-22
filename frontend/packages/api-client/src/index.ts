@@ -756,6 +756,36 @@ export function getBook(id: number): Promise<{ data: Book }> {
   return apiFetch<{ data: Book }>(`/books/${id}`)
 }
 
+export interface BookPayload {
+  class_version_id: number
+  subject_id: number
+  academic_year_id: number
+  name: string
+  bn_name?: string | null
+  order_index?: number | null
+  description?: string | null
+  is_active?: boolean
+}
+
+// class_version_id/subject_id/academic_year_id are immutable after
+// creation (UpdateBookRequest doesn't accept them), so the update payload
+// deliberately excludes them.
+export type BookUpdatePayload = Partial<
+  Omit<BookPayload, 'class_version_id' | 'subject_id' | 'academic_year_id'>
+>
+
+export function createBook(payload: BookPayload, token: string): Promise<{ data: Book }> {
+  return createGeo<Book, BookPayload>('books', payload, token)
+}
+
+export function updateBook(id: number, payload: BookUpdatePayload, token: string): Promise<{ data: Book }> {
+  return updateGeo<Book, BookUpdatePayload>('books', id, payload, token)
+}
+
+export function deleteBook(id: number, token: string): Promise<void> {
+  return deleteGeo('books', id, token)
+}
+
 export interface BookPdfLinks {
   download_url: string
   preview_url: string
@@ -788,6 +818,36 @@ export function listChapters(params: { bookId?: number } = {}): Promise<{ data: 
   return apiFetch<{ data: Chapter[] }>(`/chapters${buildQuery(query)}`)
 }
 
+export interface ChapterPayload {
+  book_id: number
+  name: string
+  bn_name?: string | null
+  order_index?: number | null
+  chapter_number?: string | null
+  bn_chapter_number?: string | null
+  description?: string | null
+}
+
+// book_id is immutable after creation (UpdateChapterRequest doesn't accept
+// it), so the update payload deliberately excludes it.
+export type ChapterUpdatePayload = Partial<Omit<ChapterPayload, 'book_id'>>
+
+export function createChapter(payload: ChapterPayload, token: string): Promise<{ data: Chapter }> {
+  return createGeo<Chapter, ChapterPayload>('chapters', payload, token)
+}
+
+export function updateChapter(
+  id: number,
+  payload: ChapterUpdatePayload,
+  token: string,
+): Promise<{ data: Chapter }> {
+  return updateGeo<Chapter, ChapterUpdatePayload>('chapters', id, payload, token)
+}
+
+export function deleteChapter(id: number, token: string): Promise<void> {
+  return deleteGeo('chapters', id, token)
+}
+
 // ---------- Chapter videos ----------
 
 export interface ChapterVideo {
@@ -813,6 +873,44 @@ export function listChapterVideos(
   const query: Record<string, string | number | undefined> = { chapter_id: params.chapterId }
 
   return apiFetch<{ data: ChapterVideo[] }>(`/chapter-videos${buildQuery(query)}`)
+}
+
+export interface ChapterVideoPayload {
+  chapter_id: number
+  // A full YouTube URL — the backend extracts and stores the video ID.
+  youtube_url: string
+  title: string
+  bn_title?: string | null
+  description?: string | null
+  instructor_name?: string | null
+  duration_seconds?: number | null
+  learning_objectives?: string | null
+  completion_threshold_percent?: number | null
+  order_index?: number
+  is_enabled?: boolean
+}
+
+// chapter_id is immutable after creation (UpdateChapterVideoRequest
+// doesn't accept it), so the update payload deliberately excludes it.
+export type ChapterVideoUpdatePayload = Partial<Omit<ChapterVideoPayload, 'chapter_id'>>
+
+export function createChapterVideo(
+  payload: ChapterVideoPayload,
+  token: string,
+): Promise<{ data: ChapterVideo }> {
+  return createGeo<ChapterVideo, ChapterVideoPayload>('chapter-videos', payload, token)
+}
+
+export function updateChapterVideo(
+  id: number,
+  payload: ChapterVideoUpdatePayload,
+  token: string,
+): Promise<{ data: ChapterVideo }> {
+  return updateGeo<ChapterVideo, ChapterVideoUpdatePayload>('chapter-videos', id, payload, token)
+}
+
+export function deleteChapterVideo(id: number, token: string): Promise<void> {
+  return deleteGeo('chapter-videos', id, token)
 }
 
 // ---------- Chapter materials ----------

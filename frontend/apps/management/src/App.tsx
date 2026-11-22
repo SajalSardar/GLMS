@@ -8,8 +8,11 @@ import AcademicGradeConfiguresPage from './pages/AcademicGradeConfiguresPage'
 import AcademicSubjectMarkConfiguresPage from './pages/AcademicSubjectMarkConfiguresPage'
 import AcademicYearsPage from './pages/AcademicYearsPage'
 import AttendanceReportPage from './pages/AttendanceReportPage'
+import BooksPage from './pages/BooksPage'
+import ChaptersPage from './pages/ChaptersPage'
 import ClassesPage from './pages/ClassesPage'
 import ClassVersionsPage from './pages/ClassVersionsPage'
+import ClassVideosPage from './pages/ClassVideosPage'
 import DashboardPlaceholder from './pages/DashboardPlaceholder'
 import DistrictsPage from './pages/DistrictsPage'
 import DivisionsPage from './pages/DivisionsPage'
@@ -116,6 +119,8 @@ const systemSetupItem: SidebarItem = {
     { to: '/dashboard/system-setup/upazilas', label: t['management.systemSetup.upazilas'], icon: 'location_on' },
     { to: '/dashboard/system-setup/schools', label: t['management.systemSetup.schools'], icon: 'school' },
     { to: '/dashboard/system-setup/subjects', label: t['management.systemSetup.subjects'], icon: 'book' },
+    { to: '/dashboard/system-setup/books', label: t['management.systemSetup.books'], icon: 'menu_book' },
+    { to: '/dashboard/system-setup/class-videos', label: t['management.systemSetup.classVideos'], icon: 'smart_display' },
     { to: '/dashboard/system-setup/academic-exam-terms', label: t['management.systemSetup.academicExamTerms'], icon: 'event_note' },
     { to: '/dashboard/system-setup/academic-grade-configures', label: t['management.systemSetup.academicGradeConfigures'], icon: 'grade' },
     { to: '/dashboard/system-setup/academic-subject-mark-configures', label: t['management.systemSetup.academicSubjectMarkConfigures'], icon: 'checklist' },
@@ -242,6 +247,9 @@ function App() {
                 <Route path="schools" element={<SchoolsPage />} />
                 <Route path="schools/:id" element={<SchoolDetailPage />} />
                 <Route path="subjects" element={<SubjectsPage />} />
+                <Route path="books" element={<BooksPage />} />
+                <Route path="books/:bookId/chapters" element={<ChaptersPage />} />
+                <Route path="class-videos" element={<ClassVideosPage />} />
                 <Route path="academic-exam-terms" element={<AcademicExamTermsPage />} />
                 <Route path="academic-grade-configures" element={<AcademicGradeConfiguresPage />} />
                 <Route path="academic-subject-mark-configures" element={<AcademicSubjectMarkConfiguresPage />} />

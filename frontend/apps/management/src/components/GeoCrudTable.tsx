@@ -27,6 +27,17 @@ export interface GeoParentFilter {
   options: Array<{ id: number; label: string }>
 }
 
+// Adapts an endpoint that returns a flat, unpaginated array (Books,
+// Chapters, Chapter Videos — all scoped by a parent filter already, so
+// the full result set is small) into the single-page shape GeoCrudTable's
+// `fetchPage` expects.
+export function toSinglePage<T>(items: T[]): PaginatedResponse<T> {
+  return {
+    data: items,
+    meta: { current_page: 1, last_page: 1, per_page: items.length || 1, total: items.length },
+  }
+}
+
 export function GeoField({
   label,
   required,
