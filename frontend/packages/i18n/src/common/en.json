@@ -430,7 +430,7 @@
   "management.nav.classVersions": "Class Versions",
   "management.nav.shifts": "Shifts",
   "management.nav.sections": "Sections",
-  "management.nav.subjectTeacherAssignments": "Subject Teacher Assign",
+  "management.nav.subjectTeacherAssignments": "Assign Teacher",
   "management.nav.teachers": "Teachers",
   "management.nav.students": "Students",
 
@@ -445,7 +445,7 @@
   "management.classVersions.title": "Class Versions",
   "management.shifts.title": "Shifts",
   "management.sections.title": "Sections",
-  "management.subjectTeacherAssignments.title": "Subject Teacher Assign",
+  "management.subjectTeacherAssignments.title": "Assign Teacher",
   "management.teachers.title": "Teachers",
   "management.students.title": "Students",
 

@@ -92,14 +92,14 @@ const holidaysNavItem: SidebarItem = { to: '/dashboard/holidays', label: t['mana
 // below); a national_admin sees the same items nested under the
 // "School Setup" group, alongside Schools itself.
 const schoolOperationsNavItems: SidebarItem[] = [
-  { to: '/dashboard/class-versions', label: t['management.nav.classVersions'], icon: 'layers' },
-  { to: '/dashboard/shifts', label: t['management.nav.shifts'], icon: 'schedule' },
-  { to: '/dashboard/sections', label: t['management.nav.sections'], icon: 'groups' },
   {
     to: '/dashboard/subject-teacher-assignments',
     label: t['management.nav.subjectTeacherAssignments'],
     icon: 'assignment_ind',
   },
+  { to: '/dashboard/class-versions', label: t['management.nav.classVersions'], icon: 'layers' },
+  { to: '/dashboard/shifts', label: t['management.nav.shifts'], icon: 'schedule' },
+  { to: '/dashboard/sections', label: t['management.nav.sections'], icon: 'groups' },
 ]
 
 // School management is national_admin only (see SchoolPolicy) — a

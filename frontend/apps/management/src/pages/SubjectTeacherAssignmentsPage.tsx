@@ -26,12 +26,13 @@ import { inputClass } from '../components/styles'
 const t = getCommonStrings('en')
 
 const initialValues = {
+  school_id: '',
   section_id: '',
   subject_id: '',
   teacher_id: '',
 }
 
-const requiredFields = ['section_id', 'subject_id', 'teacher_id']
+const requiredFields = ['school_id', 'section_id', 'subject_id', 'teacher_id']
 
 function sectionLabel(section: Section): string {
   const className = section.shift?.class_version?.class?.name
@@ -47,6 +48,11 @@ function sectionLabel(section: Section): string {
 
 function schoolClassLabel(schoolClass: SchoolClass): string {
   return schoolClass.name
+}
+
+function schoolNameFor(schools: School[], schoolId: number): string {
+  const school = schools.find((candidate) => candidate.id === schoolId)
+  return school ? schoolLabel(school) : String(schoolId)
 }
 
 function toPayload(values: Record<string, string>) {
@@ -66,9 +72,16 @@ function DetailRow({ label, value }: { label: string; value: ReactNode }) {
   )
 }
 
-function AssignmentDetails({ assignment }: { assignment: SubjectTeacherAssignment }) {
+function AssignmentDetails({
+  assignment,
+  schools,
+}: {
+  assignment: SubjectTeacherAssignment
+  schools: School[]
+}) {
   return (
     <div className="flex flex-col gap-1">
+      <DetailRow label={t['management.fields.school']} value={schoolNameFor(schools, assignment.school_id)} />
       <DetailRow
         label={t['management.fields.section']}
         value={assignment.section ? sectionLabel(assignment.section) : assignment.section_id}
@@ -111,9 +124,12 @@ export default function SubjectTeacherAssignmentsPage() {
     }
   }, [token])
 
-  const sectionOptions = sections.map((section) => ({ value: String(section.id), label: sectionLabel(section) }))
-
   const columns: GeoColumn<SubjectTeacherAssignment>[] = [
+    {
+      key: 'school',
+      label: t['management.fields.school'],
+      render: (row) => schoolNameFor(schools, row.school_id),
+    },
     {
       key: 'section',
       label: t['management.fields.section'],
@@ -138,6 +154,7 @@ export default function SubjectTeacherAssignmentsPage() {
       initialValues={initialValues}
       requiredFields={requiredFields}
       valuesFromRow={(row) => ({
+        school_id: String(row.school_id),
         section_id: String(row.section_id),
         subject_id: String(row.subject_id),
         teacher_id: String(row.teacher_id),
@@ -148,24 +165,54 @@ export default function SubjectTeacherAssignmentsPage() {
           ? classVersions.find((version) => version.id === selectedSection.shift?.class_version_id)
           : undefined
 
+        const sectionOptionsForSchool = sections
+          .filter((section) => String(section.school_id) === values.school_id)
+          .map((section) => ({ value: String(section.id), label: sectionLabel(section) }))
+
         const subjectOptions = (selectedClassVersion?.subjects ?? []).map((subject) => ({
           value: String(subject.id),
           label: subject.name,
         }))
 
+        // Scoped by the chosen School directly (not the chosen Section) —
+        // a teacher belongs to exactly one school regardless of which of
+        // that school's sections ends up selected, so this stays correct
+        // the moment School is picked, before Section is touched at all.
         const teacherOptions = teachers
-          .filter((teacher) => !selectedSection || teacher.school?.id === selectedSection.school_id)
+          .filter((teacher) => !values.school_id || teacher.school?.id === Number(values.school_id))
           .map((teacher) => ({ value: String(teacher.id), label: teacher.name }))
 
-        // section_id/subject_id are immutable after creation (the backend's
-        // UpdateSubjectTeacherAssignmentRequest only accepts teacher_id) —
-        // shown as plain text rather than an editable picker during edit,
-        // so the form never implies a change that would silently be
-        // dropped.
+        // school_id/section_id/subject_id are immutable after creation (the
+        // backend's UpdateSubjectTeacherAssignmentRequest only accepts
+        // teacher_id) — shown as plain text rather than an editable picker
+        // during edit, so the form never implies a change that would
+        // silently be dropped.
         const isEditing = editingId !== null
 
         return (
           <>
+            <GeoField label={t['management.fields.school']} required error={fieldErrors.school_id}>
+              {isEditing ? (
+                <p className="rounded-md border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                  {schoolNameFor(schools, Number(values.school_id))}
+                </p>
+              ) : (
+                <SearchableSelect
+                  value={values.school_id}
+                  onChange={(next) => {
+                    onChange('school_id', next)
+                    onChange('section_id', '')
+                    onChange('subject_id', '')
+                    onChange('teacher_id', '')
+                  }}
+                  placeholder={t['management.fields.school']}
+                  searchPlaceholder={t['management.table.search']}
+                  noMatchesLabel={t['management.table.noMatches']}
+                  options={schools.map((school) => ({ value: String(school.id), label: schoolLabel(school) }))}
+                />
+              )}
+            </GeoField>
+
             <GeoField label={t['management.fields.section']} required error={fieldErrors.section_id}>
               {isEditing ? (
                 <p className="rounded-md border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-700">
@@ -182,7 +229,8 @@ export default function SubjectTeacherAssignmentsPage() {
                   placeholder={t['management.fields.section']}
                   searchPlaceholder={t['management.table.search']}
                   noMatchesLabel={t['management.table.noMatches']}
-                  options={sectionOptions}
+                  options={sectionOptionsForSchool}
+                  className={!values.school_id ? `${inputClass} cursor-not-allowed opacity-60` : undefined}
                 />
               )}
             </GeoField>
@@ -214,7 +262,7 @@ export default function SubjectTeacherAssignmentsPage() {
                 searchPlaceholder={t['management.table.search']}
                 noMatchesLabel={t['management.table.noMatches']}
                 options={teacherOptions}
-                className={!isEditing && !selectedSection ? `${inputClass} cursor-not-allowed opacity-60` : undefined}
+                className={!isEditing && !values.school_id ? `${inputClass} cursor-not-allowed opacity-60` : undefined}
               />
             </GeoField>
           </>
@@ -231,7 +279,7 @@ export default function SubjectTeacherAssignmentsPage() {
       createRow={(values, token) => createSubjectTeacherAssignment(toPayload(values), token)}
       updateRow={(id, values, token) => updateSubjectTeacherAssignment(id, { teacher_id: Number(values.teacher_id) }, token)}
       deleteRow={(id, token) => deleteSubjectTeacherAssignment(id, token)}
-      renderDetails={(row) => <AssignmentDetails assignment={row} />}
+      renderDetails={(row) => <AssignmentDetails assignment={row} schools={schools} />}
       parentFilter={{
         label: t['management.fields.school'],
         allLabel: t['management.fields.allSchools'],
