@@ -43,10 +43,7 @@ class AcademicExamMarkController extends Controller
             ->where('class_teacher_id', $teacher->id)
             ->get();
 
-        $assignmentRows = SubjectTeacherAssignment::query()
-            ->with(['section.shift.classVersion.schoolClass', 'section.shift.academicYear', 'subject'])
-            ->where('teacher_id', $teacher->id)
-            ->get();
+        $assignmentRows = SubjectTeacherAssignment::forTeacher($teacher->id);
 
         $rows = [];
 
