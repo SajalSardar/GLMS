@@ -430,7 +430,7 @@ export default function SchoolDetailPage() {
       <button
         type="button"
         className={`${buttonNeutral} inline-flex items-center gap-1.5`}
-        onClick={() => navigate('/dashboard/system-setup/schools')}
+        onClick={() => navigate('/dashboard/schools')}
       >
         <span className="material-symbols-outlined !text-[18px] leading-none">arrow_back</span>
         {t['management.schoolDetail.back']}

@@ -343,7 +343,7 @@ export default function SchoolsPage() {
       createRow={(values, token) => createSchool(buildFormData(values, logoFileRef.current), token)}
       updateRow={(id, values, token) => updateSchool(id, buildFormData(values, logoFileRef.current), token)}
       deleteRow={(id, token) => deleteSchool(id, token)}
-      onView={(row) => navigate(`/dashboard/system-setup/schools/${row.id}`)}
+      onView={(row) => navigate(`/dashboard/schools/${row.id}`)}
       parentFilter={{
         label: t['management.fields.division'],
         allLabel: t['management.fields.allDivisions'],

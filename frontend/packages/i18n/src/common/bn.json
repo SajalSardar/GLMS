@@ -404,7 +404,6 @@
   "management.systemSetup.divisions": "বিভাগ সমূহ",
   "management.systemSetup.districts": "জেলা সমূহ",
   "management.systemSetup.upazilas": "উপজেলা সমূহ",
-  "management.systemSetup.schools": "স্কুল সমূহ",
   "management.systemSetup.subjects": "বিষয় সমূহ",
   "management.systemSetup.books": "বই সমূহ",
   "management.systemSetup.classVideos": "ক্লাস ভিডিও",
@@ -414,6 +413,7 @@
 
   "management.nav.classes": "ক্লাস সমূহ",
   "management.nav.holidays": "ছুটির ক্যালেন্ডার",
+  "management.nav.schoolSetup": "স্কুল সেটআপ",
   "management.nav.attendance": "উপস্থিতি প্রতিবেদন",
   "management.nav.publishResults": "ফলাফল প্রকাশ",
   "management.nav.promoteStudents": "শিক্ষার্থী উত্তরণ",

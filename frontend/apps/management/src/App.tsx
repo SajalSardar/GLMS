@@ -86,13 +86,18 @@ const routineNavItem: SidebarItem = {
 // their own portals instead of through this management UI.
 const holidaysNavItem: SidebarItem = { to: '/dashboard/holidays', label: t['management.nav.holidays'], icon: 'event_busy' }
 
+// School management is national_admin only (see SchoolPolicy) — a flat
+// top-level item placed right after Holiday Calendar, rather than nested
+// under System Setup.
+const schoolSetupNavItem: SidebarItem = { to: '/dashboard/schools', label: t['management.nav.schoolSetup'], icon: 'school' }
+
 // Classes and academic years are configured per-school, not only by a
 // national admin — the backend grants school_admin create/update/delete
 // on both (see RolePermissionSeeder), unlike the divisions/districts/
-// upazilas/schools reference data below. A national admin sees them
-// nested under "System Setup" (last two items, after Schools); a school
-// admin — who has no access to the rest of that national-admin-only
-// group — sees these same two as flat top-level items instead.
+// upazilas reference data below. A national admin sees them nested under
+// "System Setup" (last two items in that list); a school admin — who has
+// no access to the rest of that national-admin-only group — sees these
+// same two as flat top-level items instead.
 const schoolManagedNavItems: SidebarItem[] = [
   { to: '/dashboard/classes', label: t['management.nav.classes'], icon: 'class' },
   { to: '/dashboard/academic-years', label: t['management.nav.academicYears'], icon: 'event' },
@@ -117,7 +122,6 @@ const systemSetupItem: SidebarItem = {
       icon: 'location_city',
     },
     { to: '/dashboard/system-setup/upazilas', label: t['management.systemSetup.upazilas'], icon: 'location_on' },
-    { to: '/dashboard/system-setup/schools', label: t['management.systemSetup.schools'], icon: 'school' },
     { to: '/dashboard/system-setup/subjects', label: t['management.systemSetup.subjects'], icon: 'book' },
     { to: '/dashboard/system-setup/books', label: t['management.systemSetup.books'], icon: 'menu_book' },
     { to: '/dashboard/system-setup/class-videos', label: t['management.systemSetup.classVideos'], icon: 'smart_display' },
@@ -193,7 +197,7 @@ function DashboardLayout() {
     ...(role === 'national_admin' || role === 'school_admin'
       ? [teachersNavItem, studentsNavItem, attendanceNavItem, publishResultsNavItem, promoteStudentsNavItem, routineNavItem]
       : []),
-    ...(role === 'national_admin' ? [holidaysNavItem] : []),
+    ...(role === 'national_admin' ? [holidaysNavItem, schoolSetupNavItem] : []),
     ...(role === 'national_admin' ? [systemSetupItem] : role === 'school_admin' ? schoolManagedNavItems : []),
   ]
 
@@ -240,12 +244,14 @@ function App() {
               <Route path="holidays" element={<RequireNationalAdmin />}>
                 <Route index element={<HolidaysPage />} />
               </Route>
+              <Route path="schools" element={<RequireNationalAdmin />}>
+                <Route index element={<SchoolsPage />} />
+                <Route path=":id" element={<SchoolDetailPage />} />
+              </Route>
               <Route path="system-setup" element={<RequireNationalAdmin />}>
                 <Route path="divisions" element={<DivisionsPage />} />
                 <Route path="districts" element={<DistrictsPage />} />
                 <Route path="upazilas" element={<UpazilasPage />} />
-                <Route path="schools" element={<SchoolsPage />} />
-                <Route path="schools/:id" element={<SchoolDetailPage />} />
                 <Route path="subjects" element={<SubjectsPage />} />
                 <Route path="books" element={<BooksPage />} />
                 <Route path="books/:bookId/chapters" element={<ChaptersPage />} />
