@@ -921,5 +921,8 @@
   "teacher.classMaterials.searchPlaceholder": "অধ্যায়, বিষয়, শাখা বা ফাইলের নাম দিয়ে খুঁজুন...",
   "teacher.classMaterials.noMatches": "আপনার খোঁজার সাথে কোনো উপকরণ মেলেনি।",
   "teacher.classMaterials.openFile": "নতুন ট্যাবে ফাইলটি খুলুন",
-  "teacher.classMaterials.immutableFieldsNote": "আপলোডের পর শাখা, বিষয়, বই, অধ্যায় এবং ধরন পরিবর্তন করা যাবে না।"
+  "teacher.classMaterials.immutableFieldsNote": "আপলোডের পর শাখা, বিষয়, বই, অধ্যায় এবং ধরন পরিবর্তন করা যাবে না।",
+  "teacher.classMaterials.allClasses": "সকল শ্রেণি",
+  "teacher.classMaterials.allSubjects": "সকল বিষয়",
+  "teacher.classMaterials.allChapters": "সকল অধ্যায়"
 }

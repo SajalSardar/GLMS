@@ -180,6 +180,9 @@ export default function ClassMaterialsPage() {
   const [currentAcademicYearId, setCurrentAcademicYearId] = useState<number | null>(null)
   const [loadingFilters, setLoadingFilters] = useState(true)
   const [search, setSearch] = useState('')
+  const [classFilter, setClassFilter] = useState<number | null>(null)
+  const [subjectFilter, setSubjectFilter] = useState<number | null>(null)
+  const [chapterFilter, setChapterFilter] = useState<number | null>(null)
 
   const [sectionId, setSectionId] = useState<number | null>(null)
   const [subjectId, setSubjectId] = useState<number | null>(null)
@@ -304,11 +307,72 @@ export default function ClassMaterialsPage() {
       .toLowerCase()
   }
 
+  // class_id lives on the material itself (one of the scope columns), but
+  // only the assignments list carries its display name, so resolve it
+  // the same way materialSectionLabel() resolves the section's name.
+  function materialClassName(material: ChapterMaterial): string {
+    const row = assignments.find((assignment) => assignment.class_id === material.class_id)
+    return row?.class_name ?? '—'
+  }
+
+  // Class → Subject → Chapter filters cascade the same way the upload
+  // form's own picker does: narrowing the class hides subjects/chapters
+  // that have no upload under it, and picking a subject narrows chapters
+  // the same way.
+  const classFilterOptions = useMemo(
+    () =>
+      uniqueByKey(
+        myUploads.filter((material) => material.class_id !== null),
+        (material) => material.class_id,
+      ).map((material) => ({ id: material.class_id as number, name: materialClassName(material) })),
+    [myUploads, assignments],
+  )
+
+  const subjectFilterOptions = useMemo(
+    () =>
+      uniqueByKey(
+        myUploads.filter(
+          (material) =>
+            material.chapter?.book?.subject?.id !== undefined &&
+            (classFilter === null || material.class_id === classFilter),
+        ),
+        (material) => material.chapter?.book?.subject?.id ?? null,
+      ).map((material) => ({
+        id: material.chapter!.book!.subject!.id,
+        name: material.chapter!.book!.subject!.bn_name ?? material.chapter!.book!.subject!.name,
+      })),
+    [myUploads, classFilter],
+  )
+
+  const chapterFilterOptions = useMemo(
+    () =>
+      uniqueByKey(
+        myUploads.filter(
+          (material) =>
+            material.chapter !== null &&
+            material.chapter !== undefined &&
+            (classFilter === null || material.class_id === classFilter) &&
+            (subjectFilter === null || material.chapter?.book?.subject?.id === subjectFilter),
+        ),
+        (material) => material.chapter?.id ?? null,
+      ).map((material) => ({
+        id: material.chapter!.id,
+        name: material.chapter!.bn_name ?? material.chapter!.name,
+      })),
+    [myUploads, classFilter, subjectFilter],
+  )
+
   const filteredUploads = useMemo(() => {
     const query = search.trim().toLowerCase()
-    if (!query) return myUploads
-    return myUploads.filter((material) => materialSearchText(material).includes(query))
-  }, [myUploads, search, assignments])
+
+    return myUploads.filter((material) => {
+      if (classFilter !== null && material.class_id !== classFilter) return false
+      if (subjectFilter !== null && material.chapter?.book?.subject?.id !== subjectFilter) return false
+      if (chapterFilter !== null && material.chapter?.id !== chapterFilter) return false
+      if (query && !materialSearchText(material).includes(query)) return false
+      return true
+    })
+  }, [myUploads, search, assignments, classFilter, subjectFilter, chapterFilter])
 
   function openCreateForm() {
     setEditingMaterial(null)
@@ -476,6 +540,52 @@ export default function ClassMaterialsPage() {
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
+
+        <select
+          className="h-11 min-w-[9rem] rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-800 outline-none transition-colors focus:border-primary-500"
+          value={classFilter ?? ''}
+          onChange={(event) => {
+            setClassFilter(event.target.value ? Number(event.target.value) : null)
+            setSubjectFilter(null)
+            setChapterFilter(null)
+          }}
+        >
+          <option value="">{t['teacher.classMaterials.allClasses']}</option>
+          {classFilterOptions.map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.name}
+            </option>
+          ))}
+        </select>
+
+        <select
+          className="h-11 min-w-[9rem] rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-800 outline-none transition-colors focus:border-primary-500"
+          value={subjectFilter ?? ''}
+          onChange={(event) => {
+            setSubjectFilter(event.target.value ? Number(event.target.value) : null)
+            setChapterFilter(null)
+          }}
+        >
+          <option value="">{t['teacher.classMaterials.allSubjects']}</option>
+          {subjectFilterOptions.map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.name}
+            </option>
+          ))}
+        </select>
+
+        <select
+          className="h-11 min-w-[9rem] rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-800 outline-none transition-colors focus:border-primary-500"
+          value={chapterFilter ?? ''}
+          onChange={(event) => setChapterFilter(event.target.value ? Number(event.target.value) : null)}
+        >
+          <option value="">{t['teacher.classMaterials.allChapters']}</option>
+          {chapterFilterOptions.map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.name}
+            </option>
+          ))}
+        </select>
       </div>
 
       {loadingFilters && <p className="text-sm text-gray-500">{t['teacher.classMaterials.loading']}</p>}

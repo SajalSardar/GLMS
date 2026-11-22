@@ -921,5 +921,8 @@
   "teacher.classMaterials.searchPlaceholder": "Search by chapter, subject, section, or file name...",
   "teacher.classMaterials.noMatches": "No materials match your search.",
   "teacher.classMaterials.openFile": "Open file in new tab",
-  "teacher.classMaterials.immutableFieldsNote": "Section, subject, book, chapter, and type can't be changed after upload."
+  "teacher.classMaterials.immutableFieldsNote": "Section, subject, book, chapter, and type can't be changed after upload.",
+  "teacher.classMaterials.allClasses": "All classes",
+  "teacher.classMaterials.allSubjects": "All subjects",
+  "teacher.classMaterials.allChapters": "All chapters"
 }
