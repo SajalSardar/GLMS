@@ -14,6 +14,7 @@ import {
   type Chapter,
   type ChapterMaterial,
   type ChapterMaterialAssignment,
+  type ChapterMaterialLinks,
 } from '@ttla/api-client'
 import { useAuth } from '@ttla/auth'
 import { getCommonStrings } from '@ttla/i18n'
@@ -154,6 +155,15 @@ function StatusBadge({ status, onClick, busy }: { status: string; onClick: () =>
   )
 }
 
+function DetailRow({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="flex items-start justify-between gap-4 border-b border-gray-100 py-2 last:border-0">
+      <span className="text-sm text-gray-500">{label}</span>
+      <span className="text-right text-sm font-medium text-gray-800">{value}</span>
+    </div>
+  )
+}
+
 const selectClass =
   'h-11 w-full rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-800 outline-none transition-colors focus:border-primary-500 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:opacity-60'
 const buttonPrimary =
@@ -191,7 +201,9 @@ export default function ClassMaterialsPage() {
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [viewingId, setViewingId] = useState<number | null>(null)
   const [statusTogglingId, setStatusTogglingId] = useState<number | null>(null)
-  const [imagePreview, setImagePreview] = useState<{ url: string; filename: string | null } | null>(null)
+  const [viewingMaterial, setViewingMaterial] = useState<ChapterMaterial | null>(null)
+  const [viewingLinks, setViewingLinks] = useState<ChapterMaterialLinks | null>(null)
+  const [viewingLinkError, setViewingLinkError] = useState<string | null>(null)
 
   function refreshMyUploads() {
     if (!token) return
@@ -404,27 +416,32 @@ export default function ClassMaterialsPage() {
     }
   }
 
-  // Images open in an in-page popup (users can look right there without
-  // leaving the list); a PDF opens in a new browser tab, using the
-  // browser's own PDF viewer rather than trying to embed one.
+  // Always opens a details popup (title, chapter, subject, section, type,
+  // status, file name) — an image additionally renders inline inside
+  // that same popup; a PDF gets an "Open file" link that opens the
+  // browser's own PDF viewer in a new tab, rather than trying to embed one.
   async function handleView(material: ChapterMaterial) {
     if (!token) return
 
     setViewingId(material.id)
+    setViewingMaterial(material)
+    setViewingLinks(null)
+    setViewingLinkError(null)
 
     try {
       const links = await getChapterMaterialDownloadLink(material.id, token)
-
-      if (fileTypeIcon(material.original_filename) === 'image') {
-        setImagePreview({ url: links.preview_url, filename: material.original_filename })
-      } else {
-        window.open(links.preview_url, '_blank', 'noopener,noreferrer')
-      }
+      setViewingLinks(links)
     } catch (caught) {
-      showToast({ type: 'error', message: caught instanceof ApiError ? caught.message : t['teacher.classMaterials.viewError'] })
+      setViewingLinkError(caught instanceof ApiError ? caught.message : t['teacher.classMaterials.viewError'])
     } finally {
       setViewingId(null)
     }
+  }
+
+  function closeView() {
+    setViewingMaterial(null)
+    setViewingLinks(null)
+    setViewingLinkError(null)
   }
 
   function sectionLabel(row: ChapterMaterialAssignment) {
@@ -511,7 +528,7 @@ export default function ClassMaterialsPage() {
                     <div className="flex items-center gap-3">
                       <button
                         type="button"
-                        disabled={viewingId === material.id || material.status !== 'active'}
+                        disabled={viewingId === material.id}
                         onClick={() => handleView(material)}
                         aria-label={t['teacher.classMaterials.view']}
                         title={t['teacher.classMaterials.view']}
@@ -686,11 +703,11 @@ export default function ClassMaterialsPage() {
                 </div>
               )}
 
-              {isEditing && (
+              {isEditing && editingMaterial && (
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <Field
                     label={t['teacher.classMaterials.titleLabel']}
-                    required={editingMaterial?.type === 'supplementary'}
+                    required={editingMaterial.type === 'supplementary'}
                   >
                     <input
                       type="text"
@@ -698,6 +715,46 @@ export default function ClassMaterialsPage() {
                       className={selectClass}
                       value={title}
                       onChange={(event) => setTitle(event.target.value)}
+                    />
+                  </Field>
+
+                  <Field label={t['teacher.classMaterials.selectSection']}>
+                    <input type="text" disabled className={selectClass} value={materialSectionLabel(editingMaterial)} />
+                  </Field>
+
+                  <Field label={t['teacher.classMaterials.selectSubject']}>
+                    <input
+                      type="text"
+                      disabled
+                      className={selectClass}
+                      value={editingMaterial.chapter?.book?.subject?.bn_name ?? editingMaterial.chapter?.book?.subject?.name ?? '—'}
+                    />
+                  </Field>
+
+                  <Field label={t['teacher.classMaterials.selectBook']}>
+                    <input
+                      type="text"
+                      disabled
+                      className={selectClass}
+                      value={editingMaterial.chapter?.book?.bn_name ?? editingMaterial.chapter?.book?.name ?? '—'}
+                    />
+                  </Field>
+
+                  <Field label={t['teacher.classMaterials.selectChapter']}>
+                    <input
+                      type="text"
+                      disabled
+                      className={selectClass}
+                      value={editingMaterial.chapter?.bn_name ?? editingMaterial.chapter?.name ?? '—'}
+                    />
+                  </Field>
+
+                  <Field label={t['teacher.classMaterials.materialType']}>
+                    <input
+                      type="text"
+                      disabled
+                      className={selectClass}
+                      value={editingMaterial.type === 'primary' ? t['teacher.classMaterials.typePrimary'] : t['teacher.classMaterials.typeSupplementary']}
                     />
                   </Field>
 
@@ -720,6 +777,8 @@ export default function ClassMaterialsPage() {
                   </Field>
                 </div>
               )}
+
+              {isEditing && <p className="text-xs text-gray-400">{t['teacher.classMaterials.immutableFieldsNote']}</p>}
 
               <Field label={t['teacher.classMaterials.fileLabel']} required={!isEditing}>
                 <FileDropZone
@@ -748,25 +807,72 @@ export default function ClassMaterialsPage() {
         </div>
       )}
 
-      {imagePreview && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-5"
-          onClick={() => setImagePreview(null)}
-        >
-          <div className="relative max-h-[calc(100vh-2.5rem)] max-w-3xl" onClick={(event) => event.stopPropagation()}>
-            <button
-              type="button"
-              onClick={() => setImagePreview(null)}
-              aria-label={t['teacher.classMaterials.cancel']}
-              className="absolute -top-10 right-0 cursor-pointer text-2xl leading-none text-white transition-colors hover:text-gray-300"
-            >
-              ×
-            </button>
-            <img
-              src={imagePreview.url}
-              alt={imagePreview.filename ?? ''}
-              className="max-h-[calc(100vh-5rem)] max-w-full rounded-md object-contain shadow-2xl"
-            />
+      {viewingMaterial && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-5" onClick={closeView}>
+          <div
+            className="flex max-h-[calc(100vh-2.5rem)] w-full max-w-xl flex-col overflow-hidden rounded-md bg-white shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-label={t['teacher.classMaterials.view']}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+              <h3 className="text-base font-semibold text-gray-800">{t['teacher.classMaterials.view']}</h3>
+              <button
+                type="button"
+                className="cursor-pointer text-xl leading-none text-gray-400 transition-colors hover:text-gray-600"
+                onClick={closeView}
+                aria-label={t['teacher.classMaterials.cancel']}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-1 overflow-y-auto p-5">
+              <DetailRow label={t['teacher.classMaterials.titleLabel']} value={viewingMaterial.title ?? '—'} />
+              <DetailRow label={t['teacher.classMaterials.colChapter']} value={viewingMaterial.chapter?.name ?? '—'} />
+              <DetailRow label={t['teacher.classMaterials.colSubject']} value={viewingMaterial.chapter?.book?.subject?.name ?? '—'} />
+              <DetailRow label={t['teacher.classMaterials.colSection']} value={materialSectionLabel(viewingMaterial)} />
+              <DetailRow
+                label={t['teacher.classMaterials.colType']}
+                value={viewingMaterial.type === 'primary' ? t['teacher.classMaterials.typePrimary'] : t['teacher.classMaterials.typeSupplementary']}
+              />
+              <DetailRow
+                label={t['teacher.classMaterials.colStatus']}
+                value={viewingMaterial.status === 'active' ? t['teacher.classMaterials.statusActive'] : t['teacher.classMaterials.statusArchived']}
+              />
+              <DetailRow label={t['teacher.classMaterials.colFile']} value={viewingMaterial.original_filename ?? '—'} />
+
+              {!viewingLinks && !viewingLinkError && <p className="mt-3 text-sm text-gray-500">{t['teacher.classMaterials.loading']}</p>}
+
+              {viewingLinkError && <p className="mt-3 text-sm text-danger-500">{viewingLinkError}</p>}
+
+              {viewingLinks && fileTypeIcon(viewingMaterial.original_filename) === 'image' && (
+                <img
+                  src={viewingLinks.preview_url}
+                  alt={viewingMaterial.original_filename ?? ''}
+                  className="mt-3 max-h-80 w-full rounded-md border border-gray-100 object-contain"
+                />
+              )}
+
+              {viewingLinks && fileTypeIcon(viewingMaterial.original_filename) !== 'image' && (
+                <a
+                  href={viewingLinks.preview_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`${buttonPrimary} mt-3 justify-center`}
+                >
+                  <span className="material-symbols-outlined !text-[18px]">open_in_new</span>
+                  {t['teacher.classMaterials.openFile']}
+                </a>
+              )}
+            </div>
+
+            <div className="flex justify-end border-t border-gray-100 px-5 py-4">
+              <button type="button" className={buttonNeutral} onClick={closeView}>
+                {t['teacher.classMaterials.cancel']}
+              </button>
+            </div>
           </div>
         </div>
       )}
