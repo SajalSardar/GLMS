@@ -17,10 +17,15 @@ class AcademicYearController extends Controller
 {
     /**
      * Display a listing of the resource.
+     *
+     * Years beyond the current one are pre-seeded so they already exist
+     * once their turn comes, but they stay hidden from every listing until
+     * then — the list only ever shows up to the current year.
      */
     public function index(Request $request): AnonymousResourceCollection
     {
         $academicYears = AcademicYear::query()
+            ->whereYear('start_date', '<=', now()->year)
             ->when($request->boolean('current_only'), fn ($query) => $query->where('is_current', true))
             ->when($request->string('search')->toString(), fn ($query, $search) => $query->where('name', 'like', "%{$search}%"))
             ->orderByDesc('id')

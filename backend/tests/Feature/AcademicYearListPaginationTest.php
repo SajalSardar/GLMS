@@ -15,11 +15,14 @@ class AcademicYearListPaginationTest extends TestCase
 
     public function test_academic_year_index_is_paginated(): void
     {
-        for ($i = 1; $i <= 18; $i++) {
+        $currentYear = (int) now()->format('Y');
+
+        for ($i = 0; $i < 18; $i++) {
+            $year = $currentYear - $i;
             AcademicYear::create([
-                'name' => "Year {$i}",
-                'start_date' => "202{$i}-01-01",
-                'end_date' => "202{$i}-12-31",
+                'name' => "Year {$year}",
+                'start_date' => "{$year}-01-01",
+                'end_date' => "{$year}-12-31",
             ]);
         }
 
@@ -28,6 +31,28 @@ class AcademicYearListPaginationTest extends TestCase
         $response->assertOk();
         $response->assertJsonCount(15, 'data');
         $response->assertJsonPath('meta.total', 18);
+    }
+
+    public function test_academic_year_index_excludes_years_after_the_current_year(): void
+    {
+        $currentYear = (int) now()->format('Y');
+
+        $thisYear = AcademicYear::create([
+            'name' => (string) $currentYear,
+            'start_date' => "{$currentYear}-01-01",
+            'end_date' => "{$currentYear}-12-31",
+        ]);
+        AcademicYear::create([
+            'name' => (string) ($currentYear + 1),
+            'start_date' => ($currentYear + 1).'-01-01',
+            'end_date' => ($currentYear + 1).'-12-31',
+        ]);
+
+        $response = $this->getJson('/api/v1/academic-years');
+
+        $response->assertOk();
+        $response->assertJsonCount(1, 'data');
+        $response->assertJsonPath('data.0.id', $thisYear->id);
     }
 
     public function test_academic_year_index_filters_by_search(): void

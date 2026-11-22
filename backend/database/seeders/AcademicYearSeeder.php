@@ -12,14 +12,17 @@ class AcademicYearSeeder extends Seeder
      *
      * Bangladesh schools run a calendar-year academic session (Jan–Dec).
      * academic_years is now national calendar data — the same years apply
-     * to every school in Bangladesh. Seeds the previous, current, and next
-     * year nationally, marking the year containing today's date as current.
+     * to every school in Bangladesh. Seeds 2026 through 2050 nationally so
+     * future years already exist by the time they're needed, marking the
+     * year containing today's date as current. The API only lists years up
+     * to the current one, so the not-yet-reached years stay hidden until
+     * their turn comes.
      */
     public function run(): void
     {
         $currentYear = (int) now()->format('Y');
 
-        foreach ([$currentYear - 1, $currentYear, $currentYear + 1] as $year) {
+        foreach (range(2026, 2050) as $year) {
             AcademicYear::updateOrCreate(
                 ['name' => (string) $year],
                 [
