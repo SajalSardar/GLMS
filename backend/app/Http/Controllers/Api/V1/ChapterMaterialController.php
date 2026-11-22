@@ -207,6 +207,7 @@ class ChapterMaterialController extends Controller
             'size_bytes' => $file->getSize(),
             'uploaded_by_id' => $request->user()->id,
             'order_index' => $request->input('order_index'),
+            'status' => $request->input('status', 'active'),
         ]);
 
         return (new ChapterMaterialResource($material->load('chapter')))

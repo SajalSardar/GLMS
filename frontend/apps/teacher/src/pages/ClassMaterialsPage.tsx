@@ -181,6 +181,8 @@ export default function ClassMaterialsPage() {
   const [type, setType] = useState<MaterialType>('primary')
   const [title, setTitle] = useState('')
   const [orderIndex, setOrderIndex] = useState('')
+  const [status, setStatus] = useState('active')
+  const [editStatus, setEditStatus] = useState('active')
   const [file, setFile] = useState<File | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -189,6 +191,7 @@ export default function ClassMaterialsPage() {
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [viewingId, setViewingId] = useState<number | null>(null)
   const [statusTogglingId, setStatusTogglingId] = useState<number | null>(null)
+  const [imagePreview, setImagePreview] = useState<{ url: string; filename: string | null } | null>(null)
 
   function refreshMyUploads() {
     if (!token) return
@@ -304,6 +307,7 @@ export default function ClassMaterialsPage() {
     setType('primary')
     setTitle('')
     setOrderIndex('')
+    setStatus('active')
     setFile(null)
     setFormOpen(true)
   }
@@ -312,6 +316,7 @@ export default function ClassMaterialsPage() {
     setEditingMaterial(material)
     setTitle(material.title ?? '')
     setOrderIndex(material.order_index === null ? '' : String(material.order_index))
+    setEditStatus(material.status)
     setFile(null)
     setFormOpen(true)
   }
@@ -333,6 +338,7 @@ export default function ClassMaterialsPage() {
         const formData = new FormData()
         formData.append('title', title)
         if (orderIndex.trim() !== '') formData.append('order_index', orderIndex)
+        formData.append('status', editStatus)
         if (file) formData.append('file', file)
 
         await updateChapterMaterial(editingMaterial.id, formData, token)
@@ -344,8 +350,9 @@ export default function ClassMaterialsPage() {
         formData.append('chapter_id', String(chapterId))
         formData.append('section_id', String(sectionId))
         formData.append('type', type)
-        if (type === 'supplementary') formData.append('title', title)
+        formData.append('title', title)
         if (orderIndex.trim() !== '') formData.append('order_index', orderIndex)
+        formData.append('status', status)
         formData.append('file', file)
 
         await createChapterMaterial(formData, token)
@@ -397,14 +404,22 @@ export default function ClassMaterialsPage() {
     }
   }
 
-  async function handleView(materialId: number) {
+  // Images open in an in-page popup (users can look right there without
+  // leaving the list); a PDF opens in a new browser tab, using the
+  // browser's own PDF viewer rather than trying to embed one.
+  async function handleView(material: ChapterMaterial) {
     if (!token) return
 
-    setViewingId(materialId)
+    setViewingId(material.id)
 
     try {
-      const links = await getChapterMaterialDownloadLink(materialId, token)
-      window.open(links.preview_url, '_blank', 'noopener,noreferrer')
+      const links = await getChapterMaterialDownloadLink(material.id, token)
+
+      if (fileTypeIcon(material.original_filename) === 'image') {
+        setImagePreview({ url: links.preview_url, filename: material.original_filename })
+      } else {
+        window.open(links.preview_url, '_blank', 'noopener,noreferrer')
+      }
     } catch (caught) {
       showToast({ type: 'error', message: caught instanceof ApiError ? caught.message : t['teacher.classMaterials.viewError'] })
     } finally {
@@ -497,7 +512,7 @@ export default function ClassMaterialsPage() {
                       <button
                         type="button"
                         disabled={viewingId === material.id || material.status !== 'active'}
-                        onClick={() => handleView(material.id)}
+                        onClick={() => handleView(material)}
                         aria-label={t['teacher.classMaterials.view']}
                         title={t['teacher.classMaterials.view']}
                         className="cursor-pointer text-gray-500 transition-colors hover:text-primary-500 disabled:cursor-not-allowed disabled:opacity-40"
@@ -651,32 +666,59 @@ export default function ClassMaterialsPage() {
                       onChange={(event) => setOrderIndex(event.target.value)}
                     />
                   </Field>
+
+                  <Field label={t['teacher.classMaterials.titleLabel']} required={type === 'supplementary'}>
+                    <input
+                      type="text"
+                      placeholder={t['teacher.classMaterials.titlePlaceholder']}
+                      className={selectClass}
+                      value={title}
+                      onChange={(event) => setTitle(event.target.value)}
+                    />
+                  </Field>
+
+                  <Field label={t['teacher.classMaterials.colStatus']} required>
+                    <select className={selectClass} value={status} onChange={(event) => setStatus(event.target.value)}>
+                      <option value="active">{t['teacher.classMaterials.statusActive']}</option>
+                      <option value="archived">{t['teacher.classMaterials.statusArchived']}</option>
+                    </select>
+                  </Field>
                 </div>
               )}
 
               {isEditing && (
-                <Field label={t['teacher.classMaterials.orderIndex']}>
-                  <input
-                    type="number"
-                    min={0}
-                    max={255}
-                    className={selectClass}
-                    value={orderIndex}
-                    onChange={(event) => setOrderIndex(event.target.value)}
-                  />
-                </Field>
-              )}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field label={t['teacher.classMaterials.orderIndex']}>
+                    <input
+                      type="number"
+                      min={0}
+                      max={255}
+                      className={selectClass}
+                      value={orderIndex}
+                      onChange={(event) => setOrderIndex(event.target.value)}
+                    />
+                  </Field>
 
-              {(type === 'supplementary' || (isEditing && editingMaterial?.type === 'supplementary')) && (
-                <Field label={t['teacher.classMaterials.titleLabel']} required={!isEditing}>
-                  <input
-                    type="text"
-                    placeholder={t['teacher.classMaterials.titlePlaceholder']}
-                    className={selectClass}
-                    value={title}
-                    onChange={(event) => setTitle(event.target.value)}
-                  />
-                </Field>
+                  <Field label={t['teacher.classMaterials.colStatus']} required>
+                    <select className={selectClass} value={editStatus} onChange={(event) => setEditStatus(event.target.value)}>
+                      <option value="active">{t['teacher.classMaterials.statusActive']}</option>
+                      <option value="archived">{t['teacher.classMaterials.statusArchived']}</option>
+                    </select>
+                  </Field>
+
+                  <Field
+                    label={t['teacher.classMaterials.titleLabel']}
+                    required={editingMaterial?.type === 'supplementary'}
+                  >
+                    <input
+                      type="text"
+                      placeholder={t['teacher.classMaterials.titlePlaceholder']}
+                      className={selectClass}
+                      value={title}
+                      onChange={(event) => setTitle(event.target.value)}
+                    />
+                  </Field>
+                </div>
               )}
 
               <Field label={t['teacher.classMaterials.fileLabel']} required={!isEditing}>
@@ -702,6 +744,29 @@ export default function ClassMaterialsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {imagePreview && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-5"
+          onClick={() => setImagePreview(null)}
+        >
+          <div className="relative max-h-[calc(100vh-2.5rem)] max-w-3xl" onClick={(event) => event.stopPropagation()}>
+            <button
+              type="button"
+              onClick={() => setImagePreview(null)}
+              aria-label={t['teacher.classMaterials.cancel']}
+              className="absolute -top-10 right-0 cursor-pointer text-2xl leading-none text-white transition-colors hover:text-gray-300"
+            >
+              ×
+            </button>
+            <img
+              src={imagePreview.url}
+              alt={imagePreview.filename ?? ''}
+              className="max-h-[calc(100vh-5rem)] max-w-full rounded-md object-contain shadow-2xl"
+            />
           </div>
         </div>
       )}

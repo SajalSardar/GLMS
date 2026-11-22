@@ -33,6 +33,7 @@ class StoreChapterMaterialRequest extends FormRequest
             'type' => ['required', 'string', Rule::in(['primary', 'supplementary'])],
             'title' => ['required_if:type,supplementary', 'nullable', 'string', 'max:255'],
             'order_index' => ['nullable', 'integer', 'min:0', 'max:255'],
+            'status' => ['sometimes', 'string', Rule::in(['active', 'archived'])],
             'file' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:'.config('content.max_pdf_size_kb')],
         ];
     }
@@ -43,12 +44,19 @@ class StoreChapterMaterialRequest extends FormRequest
      * a per-section primary (teacher upload) only clashes with another
      * active primary in that SAME section, while a null section_id
      * (unscoped/staff upload) still clashes chapter-wide, same as
-     * before this scoping existed.
+     * before this scoping existed. A material explicitly created as
+     * 'archived' never clashes — the "one active primary" rule is about
+     * active rows only, and new uploads default to active when status
+     * is omitted.
      */
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator) {
             if ($this->input('type') !== 'primary' || ! $this->input('chapter_id')) {
+                return;
+            }
+
+            if ($this->input('status', 'active') !== 'active') {
                 return;
             }
 

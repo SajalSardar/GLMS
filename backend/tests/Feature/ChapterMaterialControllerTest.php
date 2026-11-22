@@ -104,6 +104,50 @@ class ChapterMaterialControllerTest extends TestCase
             ->assertUnprocessable();
     }
 
+    public function test_store_defaults_to_active_status_when_omitted(): void
+    {
+        $allowed = $this->actorWithPermissions(['chapter_materials.create'], $this->schoolA->id, $this->schoolA->district_id);
+        $file = UploadedFile::fake()->create('chapter1.pdf', 100, 'application/pdf');
+
+        $this->actingAs($allowed, 'sanctum')
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'primary', 'file' => $file])
+            ->assertCreated()
+            ->assertJsonPath('data.status', 'active');
+    }
+
+    public function test_store_accepts_an_explicit_status(): void
+    {
+        $allowed = $this->actorWithPermissions(['chapter_materials.create'], $this->schoolA->id, $this->schoolA->district_id);
+        $file = UploadedFile::fake()->create('chapter1.pdf', 100, 'application/pdf');
+
+        $this->actingAs($allowed, 'sanctum')
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'supplementary', 'title' => 'Extra', 'status' => 'archived', 'file' => $file])
+            ->assertCreated()
+            ->assertJsonPath('data.status', 'archived');
+    }
+
+    /**
+     * The "one active primary per chapter" clash check only applies to
+     * rows that will actually be active — a material explicitly created
+     * as 'archived' can coexist with an existing active primary, since
+     * there's no real conflict (exactly one ACTIVE primary still holds).
+     */
+    public function test_store_allows_a_second_primary_material_when_the_new_one_is_created_archived(): void
+    {
+        $allowed = $this->actorWithPermissions(['chapter_materials.create'], $this->schoolA->id, $this->schoolA->district_id);
+        $firstFile = UploadedFile::fake()->create('chapter1.pdf', 100, 'application/pdf');
+
+        $this->actingAs($allowed, 'sanctum')
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'primary', 'file' => $firstFile])
+            ->assertCreated();
+
+        $secondFile = UploadedFile::fake()->create('chapter1-v2.pdf', 100, 'application/pdf');
+        $this->actingAs($allowed, 'sanctum')
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'primary', 'status' => 'archived', 'file' => $secondFile])
+            ->assertCreated()
+            ->assertJsonPath('data.status', 'archived');
+    }
+
     public function test_reactivating_a_material_is_rejected_if_another_active_primary_exists(): void
     {
         $allowed = $this->actorWithPermissions(['chapter_materials.create', 'chapter_materials.update'], $this->schoolA->id, $this->schoolA->district_id);
