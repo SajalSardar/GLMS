@@ -49,11 +49,8 @@ const dayLabels: Record<DayOfWeek, string> = {
 
 interface HierarchyRow {
   key: string
-  classId: number
   className: string
-  classVersionId: number | null
   versionName: string
-  shiftId: number | null
   shiftName: string
   sectionName: string
 }
@@ -77,11 +74,8 @@ function buildHierarchyRows(
     if (classVersions.length === 0) {
       rows.push({
         key: `c${classSchool.id}`,
-        classId: classSchool.class_id,
         className,
-        classVersionId: null,
         versionName: '—',
-        shiftId: null,
         shiftName: '—',
         sectionName: '—',
       })
@@ -94,11 +88,8 @@ function buildHierarchyRows(
       if (versionShifts.length === 0) {
         rows.push({
           key: `v${version.id}`,
-          classId: classSchool.class_id,
           className,
-          classVersionId: version.id,
           versionName: version.name,
-          shiftId: null,
           shiftName: '—',
           sectionName: '—',
         })
@@ -112,11 +103,8 @@ function buildHierarchyRows(
 
         rows.push({
           key: `sh${shift.id}`,
-          classId: classSchool.class_id,
           className,
-          classVersionId: version.id,
           versionName: version.name,
-          shiftId: shift.id,
           shiftName: shift.name,
           sectionName: shiftSections.length > 0 ? shiftSections.map((section) => section.name).join(', ') : '—',
         })
@@ -465,25 +453,26 @@ type AddKind = 'version' | 'shift' | 'section'
 
 interface AddContext {
   kind: AddKind
-  classId: number
-  className: string
-  classVersionId: number | null
-  versionName: string
-  shiftId: number | null
-  shiftName: string
 }
 
-// One modal shape for all three "+" shortcuts below the hierarchy table —
-// each only shows the context (School/Class/Version/Shift) and fields
-// relevant to what it's adding; the context fields are always read-only
-// since they come from the row the "+" was clicked on, not from the form.
+// One modal shape for all three "Add new" shortcuts above the hierarchy
+// table — School is always fixed (read-only) to this page's school; Class/
+// Class Version/Shift are cascading pickers scoped to this school's own
+// adopted classes, versions, and shifts (not every school's), since there's
+// no row context to derive them from anymore.
 function AddHierarchyModal({
   school,
+  classSchools,
+  classVersions,
+  shifts,
   context,
   onClose,
   onCreated,
 }: {
   school: School
+  classSchools: ClassSchool[]
+  classVersions: ClassVersion[]
+  shifts: Shift[]
   context: AddContext
   onClose: () => void
   onCreated: () => void
@@ -491,6 +480,10 @@ function AddHierarchyModal({
   const { token } = useAuth()
   const { toast, showToast } = useToast()
   const { kind } = context
+
+  const [selectedClassId, setSelectedClassId] = useState('')
+  const [selectedVersionId, setSelectedVersionId] = useState('')
+  const [selectedShiftId, setSelectedShiftId] = useState('')
 
   const [name, setName] = useState('')
   const [bnName, setBnName] = useState('')
@@ -506,6 +499,19 @@ function AddHierarchyModal({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [formError, setFormError] = useState<string | null>(null)
 
+  const classOptions = classSchools.map((classSchool) => ({
+    value: String(classSchool.class_id),
+    label: classSchool.class?.name ?? String(classSchool.class_id),
+  }))
+
+  const versionOptions = classVersions
+    .filter((version) => String(version.class_id) === selectedClassId)
+    .map((version) => ({ value: String(version.id), label: version.name }))
+
+  const shiftOptions = shifts
+    .filter((shift) => String(shift.class_version_id) === selectedVersionId)
+    .map((shift) => ({ value: String(shift.id), label: shift.name }))
+
   function toggleDay(day: DayOfWeek) {
     setDays((prev) => (prev.includes(day) ? prev.filter((entry) => entry !== day) : [...prev, day]))
   }
@@ -514,6 +520,9 @@ function AddHierarchyModal({
     if (!token) return
 
     const missing: Record<string, string> = {}
+    if (!selectedClassId) missing.class_id = REQUIRED_MESSAGE
+    if ((kind === 'shift' || kind === 'section') && !selectedVersionId) missing.class_version_id = REQUIRED_MESSAGE
+    if (kind === 'section' && !selectedShiftId) missing.shift_id = REQUIRED_MESSAGE
     if (!name.trim()) missing.name = REQUIRED_MESSAGE
     if (kind === 'shift') {
       if (!startTime) missing.start_time = REQUIRED_MESSAGE
@@ -534,14 +543,14 @@ function AddHierarchyModal({
     try {
       if (kind === 'version') {
         await createClassVersion(
-          { class_id: context.classId, school_id: school.id, name, bn_name: bnName || null, is_active: isActive },
+          { class_id: Number(selectedClassId), school_id: school.id, name, bn_name: bnName || null, is_active: isActive },
           token,
         )
         showToast({ type: 'success', message: t['management.schoolDetail.versionAdded'] })
       } else if (kind === 'shift') {
         await createShift(
           {
-            class_version_id: context.classVersionId!,
+            class_version_id: Number(selectedVersionId),
             name,
             bn_name: bnName || null,
             start_time: startTime,
@@ -556,7 +565,7 @@ function AddHierarchyModal({
       } else {
         await createSection(
           {
-            shift_id: context.shiftId!,
+            shift_id: Number(selectedShiftId),
             name,
             bn_name: bnName || null,
             code: code || null,
@@ -619,23 +628,49 @@ function AddHierarchyModal({
             <input className={`${inputClass} cursor-not-allowed opacity-60`} value={school.name} disabled />
           </GeoField>
 
-          <GeoField label={t['management.fields.class']}>
-            <input className={`${inputClass} cursor-not-allowed opacity-60`} value={context.className} disabled />
+          <GeoField label={t['management.fields.class']} required error={fieldErrors.class_id}>
+            <SearchableSelect
+              value={selectedClassId}
+              onChange={(next) => {
+                setSelectedClassId(next)
+                setSelectedVersionId('')
+                setSelectedShiftId('')
+              }}
+              placeholder={t['management.fields.class']}
+              searchPlaceholder={t['management.table.search']}
+              noMatchesLabel={t['management.table.noMatches']}
+              options={classOptions}
+            />
           </GeoField>
 
           {(kind === 'shift' || kind === 'section') && (
-            <GeoField label={t['management.fields.classVersion']}>
-              <input
-                className={`${inputClass} cursor-not-allowed opacity-60`}
-                value={context.versionName}
-                disabled
+            <GeoField label={t['management.fields.classVersion']} required error={fieldErrors.class_version_id}>
+              <SearchableSelect
+                value={selectedVersionId}
+                onChange={(next) => {
+                  setSelectedVersionId(next)
+                  setSelectedShiftId('')
+                }}
+                placeholder={t['management.fields.classVersion']}
+                searchPlaceholder={t['management.table.search']}
+                noMatchesLabel={t['management.table.noMatches']}
+                options={versionOptions}
+                className={!selectedClassId ? `${inputClass} cursor-not-allowed opacity-60` : undefined}
               />
             </GeoField>
           )}
 
           {kind === 'section' && (
-            <GeoField label={t['management.fields.shift']}>
-              <input className={`${inputClass} cursor-not-allowed opacity-60`} value={context.shiftName} disabled />
+            <GeoField label={t['management.fields.shift']} required error={fieldErrors.shift_id}>
+              <SearchableSelect
+                value={selectedShiftId}
+                onChange={setSelectedShiftId}
+                placeholder={t['management.fields.shift']}
+                searchPlaceholder={t['management.table.search']}
+                noMatchesLabel={t['management.table.noMatches']}
+                options={shiftOptions}
+                className={!selectedVersionId ? `${inputClass} cursor-not-allowed opacity-60` : undefined}
+              />
             </GeoField>
           )}
 
@@ -741,6 +776,8 @@ export default function SchoolDetailPage() {
 
   const [school, setSchool] = useState<School | null>(null)
   const [classSchools, setClassSchools] = useState<ClassSchool[]>([])
+  const [classVersions, setClassVersions] = useState<ClassVersion[]>([])
+  const [shifts, setShifts] = useState<Shift[]>([])
   const [rows, setRows] = useState<HierarchyRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -770,6 +807,8 @@ export default function SchoolDetailPage() {
 
         setSchool(schoolResult.data)
         setClassSchools(classSchoolsResult.data)
+        setClassVersions(versionsResult.data)
+        setShifts(shiftsResult.data)
         setRows(
           buildHierarchyRows(classSchoolsResult.data, versionsResult.data, shiftsResult.data, sectionsResult.data),
         )
@@ -841,9 +880,45 @@ export default function SchoolDetailPage() {
                   <tr>
                     <th className="px-5 py-3 text-left whitespace-nowrap">{t['management.table.serial']}</th>
                     <th className="px-5 py-3 text-left whitespace-nowrap">{t['management.fields.class']}</th>
-                    <th className="px-5 py-3 text-left whitespace-nowrap">{t['management.fields.version']}</th>
-                    <th className="px-5 py-3 text-left whitespace-nowrap">{t['management.fields.shift']}</th>
-                    <th className="px-5 py-3 text-left whitespace-nowrap">{t['management.fields.section']}</th>
+                    <th className="px-5 py-3 text-left whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <span>{t['management.fields.version']}</span>
+                        <button
+                          type="button"
+                          className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-primary-200 bg-white px-2 py-1 text-[11px] font-medium text-primary-600 normal-case transition-colors duration-150 hover:bg-primary-50"
+                          onClick={() => setAddContext({ kind: 'version' })}
+                        >
+                          <span className="material-symbols-outlined !text-[14px] leading-none">add</span>
+                          {t['management.table.addNew']}
+                        </button>
+                      </div>
+                    </th>
+                    <th className="px-5 py-3 text-left whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <span>{t['management.fields.shift']}</span>
+                        <button
+                          type="button"
+                          className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-primary-200 bg-white px-2 py-1 text-[11px] font-medium text-primary-600 normal-case transition-colors duration-150 hover:bg-primary-50"
+                          onClick={() => setAddContext({ kind: 'shift' })}
+                        >
+                          <span className="material-symbols-outlined !text-[14px] leading-none">add</span>
+                          {t['management.table.addNew']}
+                        </button>
+                      </div>
+                    </th>
+                    <th className="px-5 py-3 text-left whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <span>{t['management.fields.section']}</span>
+                        <button
+                          type="button"
+                          className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-primary-200 bg-white px-2 py-1 text-[11px] font-medium text-primary-600 normal-case transition-colors duration-150 hover:bg-primary-50"
+                          onClick={() => setAddContext({ kind: 'section' })}
+                        >
+                          <span className="material-symbols-outlined !text-[14px] leading-none">add</span>
+                          {t['management.table.addNew']}
+                        </button>
+                      </div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -858,79 +933,9 @@ export default function SchoolDetailPage() {
                       <tr key={row.key} className="border-t border-gray-100">
                         <td className="px-5 py-3.5 whitespace-nowrap text-gray-500">{index + 1}</td>
                         <td className="px-5 py-3.5 whitespace-nowrap text-gray-700">{row.className}</td>
-                        <td className="px-5 py-3.5 whitespace-nowrap text-gray-700">
-                          <div className="flex items-center gap-2">
-                            <span>{row.versionName}</span>
-                            <button
-                              type="button"
-                              className="cursor-pointer leading-none text-primary-500 transition-colors duration-150 hover:text-primary-600"
-                              aria-label={t['management.schoolDetail.addVersion']}
-                              onClick={() =>
-                                setAddContext({
-                                  kind: 'version',
-                                  classId: row.classId,
-                                  className: row.className,
-                                  classVersionId: row.classVersionId,
-                                  versionName: row.versionName,
-                                  shiftId: row.shiftId,
-                                  shiftName: row.shiftName,
-                                })
-                              }
-                            >
-                              <span className="material-symbols-outlined !text-[18px]">add_circle</span>
-                            </button>
-                          </div>
-                        </td>
-                        <td className="px-5 py-3.5 whitespace-nowrap text-gray-700">
-                          <div className="flex items-center gap-2">
-                            <span>{row.shiftName}</span>
-                            {row.classVersionId !== null && (
-                              <button
-                                type="button"
-                                className="cursor-pointer leading-none text-primary-500 transition-colors duration-150 hover:text-primary-600"
-                                aria-label={t['management.schoolDetail.addShift']}
-                                onClick={() =>
-                                  setAddContext({
-                                    kind: 'shift',
-                                    classId: row.classId,
-                                    className: row.className,
-                                    classVersionId: row.classVersionId,
-                                    versionName: row.versionName,
-                                    shiftId: row.shiftId,
-                                    shiftName: row.shiftName,
-                                  })
-                                }
-                              >
-                                <span className="material-symbols-outlined !text-[18px]">add_circle</span>
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-5 py-3.5 whitespace-nowrap text-gray-700">
-                          <div className="flex items-center gap-2">
-                            <span>{row.sectionName}</span>
-                            {row.shiftId !== null && (
-                              <button
-                                type="button"
-                                className="cursor-pointer leading-none text-primary-500 transition-colors duration-150 hover:text-primary-600"
-                                aria-label={t['management.schoolDetail.addSection']}
-                                onClick={() =>
-                                  setAddContext({
-                                    kind: 'section',
-                                    classId: row.classId,
-                                    className: row.className,
-                                    classVersionId: row.classVersionId,
-                                    versionName: row.versionName,
-                                    shiftId: row.shiftId,
-                                    shiftName: row.shiftName,
-                                  })
-                                }
-                              >
-                                <span className="material-symbols-outlined !text-[18px]">add_circle</span>
-                              </button>
-                            )}
-                          </div>
-                        </td>
+                        <td className="px-5 py-3.5 whitespace-nowrap text-gray-700">{row.versionName}</td>
+                        <td className="px-5 py-3.5 whitespace-nowrap text-gray-700">{row.shiftName}</td>
+                        <td className="px-5 py-3.5 whitespace-nowrap text-gray-700">{row.sectionName}</td>
                       </tr>
                     ))
                   )}
@@ -942,6 +947,9 @@ export default function SchoolDetailPage() {
           {addContext && (
             <AddHierarchyModal
               school={school}
+              classSchools={classSchools}
+              classVersions={classVersions}
+              shifts={shifts}
               context={addContext}
               onClose={() => setAddContext(null)}
               onCreated={() => loadSchool(school.id)}
