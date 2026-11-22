@@ -539,16 +539,16 @@ describe('academic years', () => {
     vi.unstubAllGlobals()
   })
 
-  it('lists academic years filtered by school_id', async () => {
+  it('lists academic years filtered by search', async () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ data: [], meta: { current_page: 1, last_page: 1, per_page: 15, total: 0 } }),
     })
     vi.stubGlobal('fetch', mockFetch)
 
-    await listAcademicYears({ schoolId: 5 })
+    await listAcademicYears({ search: '2026' })
 
-    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/academic-years?school_id=5`)
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/academic-years?search=2026`)
   })
 
   it('lists academic years filtered by current_only', async () => {
@@ -571,7 +571,7 @@ describe('academic years', () => {
     })
     vi.stubGlobal('fetch', mockFetch)
 
-    const payload = { school_id: 5, name: '2026', start_date: '2026-01-01', end_date: '2026-12-31' }
+    const payload = { name: '2026', start_date: '2026-01-01', end_date: '2026-12-31' }
     await createAcademicYear(payload, 'secret-token')
 
     expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/academic-years`)

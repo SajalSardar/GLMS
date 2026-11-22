@@ -1,23 +1,18 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import {
   createAcademicYear,
   deleteAcademicYear,
   listAcademicYears,
-  listSchools,
   updateAcademicYear,
   type AcademicYear,
-  type School,
 } from '@ttla/api-client'
 import { getCommonStrings } from '@ttla/i18n'
 import GeoCrudTable, { GeoField, type GeoColumn } from '../components/GeoCrudTable'
-import SearchableSelect from '../components/SearchableSelect'
-import { schoolLabel } from '../components/schoolOptions'
 import { inputClass } from '../components/styles'
 
 const t = getCommonStrings('en')
 
 const initialValues = {
-  school_id: '',
   name: '',
   start_date: '',
   end_date: '',
@@ -25,11 +20,10 @@ const initialValues = {
   description: '',
 }
 
-const requiredFields = ['school_id', 'name', 'start_date', 'end_date']
+const requiredFields = ['name', 'start_date', 'end_date']
 
 function toPayload(values: Record<string, string>) {
   return {
-    school_id: Number(values.school_id),
     name: values.name,
     start_date: values.start_date,
     end_date: values.end_date,
@@ -66,21 +60,12 @@ function AcademicYearDetails({ year }: { year: AcademicYear }) {
       <DetailRow label={t['management.fields.startDate']} value={year.start_date} />
       <DetailRow label={t['management.fields.endDate']} value={year.end_date} />
       <DetailRow label={t['management.fields.current']} value={<CurrentBadge isCurrent={year.is_current} />} />
-      <DetailRow label={t['management.fields.school']} value={year.school?.name ?? year.school_id} />
       <DetailRow label={t['management.fields.description']} value={year.description ?? '—'} />
     </div>
   )
 }
 
 export default function AcademicYearsPage() {
-  const [schools, setSchools] = useState<School[]>([])
-
-  useEffect(() => {
-    listSchools({ perPage: 200 })
-      .then((result) => setSchools(result.data))
-      .catch(() => setSchools([]))
-  }, [])
-
   const columns: GeoColumn<AcademicYear>[] = [
     { key: 'name', label: t['management.fields.name'], render: (row) => row.name },
     { key: 'start_date', label: t['management.fields.startDate'], render: (row) => row.start_date },
@@ -89,11 +74,6 @@ export default function AcademicYearsPage() {
       key: 'is_current',
       label: t['management.fields.current'],
       render: (row) => <CurrentBadge isCurrent={row.is_current} />,
-    },
-    {
-      key: 'school',
-      label: t['management.fields.school'],
-      render: (row) => row.school?.name ?? row.school_id,
     },
   ]
 
@@ -104,7 +84,6 @@ export default function AcademicYearsPage() {
       initialValues={initialValues}
       requiredFields={requiredFields}
       valuesFromRow={(row) => ({
-        school_id: String(row.school_id),
         name: row.name,
         start_date: row.start_date,
         end_date: row.end_date,
@@ -113,17 +92,6 @@ export default function AcademicYearsPage() {
       })}
       renderFields={(values, onChange, fieldErrors) => (
         <>
-          <GeoField label={t['management.fields.school']} required error={fieldErrors.school_id}>
-            <SearchableSelect
-              value={values.school_id}
-              onChange={(next) => onChange('school_id', next)}
-              placeholder={t['management.fields.school']}
-              searchPlaceholder={t['management.table.search']}
-              noMatchesLabel={t['management.table.noMatches']}
-              options={schools.map((school) => ({ value: String(school.id), label: schoolLabel(school) }))}
-            />
-          </GeoField>
-
           <GeoField label={t['management.fields.name']} required error={fieldErrors.name}>
             <input
               className={inputClass}
@@ -169,16 +137,11 @@ export default function AcademicYearsPage() {
           </GeoField>
         </>
       )}
-      fetchPage={(page, filters) => listAcademicYears({ page, search: filters.search, schoolId: filters.parentId })}
+      fetchPage={(page, filters) => listAcademicYears({ page, search: filters.search })}
       createRow={(values, token) => createAcademicYear(toPayload(values), token)}
       updateRow={(id, values, token) => updateAcademicYear(id, toPayload(values), token)}
       deleteRow={(id, token) => deleteAcademicYear(id, token)}
       renderDetails={(row) => <AcademicYearDetails year={row} />}
-      parentFilter={{
-        label: t['management.fields.school'],
-        allLabel: t['management.fields.allSchools'],
-        options: schools.map((school) => ({ id: school.id, label: schoolLabel(school) })),
-      }}
     />
   )
 }

@@ -539,18 +539,14 @@ export function updateClassSchoolSubjects(
 
 export interface AcademicYear {
   id: number
-  school_id: number
-  district_id: number
   name: string
   start_date: string
   end_date: string
   is_current: boolean
   description: string | null
-  school?: School | null
 }
 
 export interface AcademicYearPayload {
-  school_id: number
   name: string
   start_date: string
   end_date: string
@@ -563,8 +559,6 @@ export function listAcademicYears(
     page?: number
     perPage?: number
     search?: string
-    schoolId?: number
-    districtId?: number
     currentOnly?: boolean
   } = {},
 ): Promise<PaginatedResponse<AcademicYear>> {
@@ -572,8 +566,6 @@ export function listAcademicYears(
     page: params.page,
     per_page: params.perPage,
     search: params.search || undefined,
-    school_id: params.schoolId,
-    district_id: params.districtId,
     current_only: params.currentOnly ? 'true' : undefined,
   }
 
