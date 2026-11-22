@@ -574,6 +574,16 @@ export default function ClassMaterialsPage() {
             <form onSubmit={handleSubmit} className="flex flex-col gap-4 overflow-y-auto p-5">
               {!isEditing && (
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field label={t['teacher.classMaterials.titleLabel']} required={type === 'supplementary'}>
+                    <input
+                      type="text"
+                      placeholder={t['teacher.classMaterials.titlePlaceholder']}
+                      className={selectClass}
+                      value={title}
+                      onChange={(event) => setTitle(event.target.value)}
+                    />
+                  </Field>
+
                   <Field label={t['teacher.classMaterials.selectSection']} required>
                     <select
                       className={selectClass}
@@ -667,16 +677,6 @@ export default function ClassMaterialsPage() {
                     />
                   </Field>
 
-                  <Field label={t['teacher.classMaterials.titleLabel']} required={type === 'supplementary'}>
-                    <input
-                      type="text"
-                      placeholder={t['teacher.classMaterials.titlePlaceholder']}
-                      className={selectClass}
-                      value={title}
-                      onChange={(event) => setTitle(event.target.value)}
-                    />
-                  </Field>
-
                   <Field label={t['teacher.classMaterials.colStatus']} required>
                     <select className={selectClass} value={status} onChange={(event) => setStatus(event.target.value)}>
                       <option value="active">{t['teacher.classMaterials.statusActive']}</option>
@@ -688,6 +688,19 @@ export default function ClassMaterialsPage() {
 
               {isEditing && (
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field
+                    label={t['teacher.classMaterials.titleLabel']}
+                    required={editingMaterial?.type === 'supplementary'}
+                  >
+                    <input
+                      type="text"
+                      placeholder={t['teacher.classMaterials.titlePlaceholder']}
+                      className={selectClass}
+                      value={title}
+                      onChange={(event) => setTitle(event.target.value)}
+                    />
+                  </Field>
+
                   <Field label={t['teacher.classMaterials.orderIndex']}>
                     <input
                       type="number"
@@ -704,19 +717,6 @@ export default function ClassMaterialsPage() {
                       <option value="active">{t['teacher.classMaterials.statusActive']}</option>
                       <option value="archived">{t['teacher.classMaterials.statusArchived']}</option>
                     </select>
-                  </Field>
-
-                  <Field
-                    label={t['teacher.classMaterials.titleLabel']}
-                    required={editingMaterial?.type === 'supplementary'}
-                  >
-                    <input
-                      type="text"
-                      placeholder={t['teacher.classMaterials.titlePlaceholder']}
-                      className={selectClass}
-                      value={title}
-                      onChange={(event) => setTitle(event.target.value)}
-                    />
                   </Field>
                 </div>
               )}
