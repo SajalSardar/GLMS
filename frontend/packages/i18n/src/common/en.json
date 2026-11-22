@@ -601,6 +601,12 @@
   "management.schoolDetail.subjectsSaved": "Subjects updated.",
   "management.schoolDetail.classAdopted": "Class adopted.",
   "management.schoolDetail.classRemoved": "Class removed.",
+  "management.schoolDetail.addVersion": "Add class version",
+  "management.schoolDetail.addShift": "Add shift",
+  "management.schoolDetail.addSection": "Add section",
+  "management.schoolDetail.versionAdded": "Class version added.",
+  "management.schoolDetail.shiftAdded": "Shift added.",
+  "management.schoolDetail.sectionAdded": "Section added.",
 
   "management.days.saturday": "Saturday",
   "management.days.sunday": "Sunday",

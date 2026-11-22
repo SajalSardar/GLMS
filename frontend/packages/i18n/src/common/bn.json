@@ -601,6 +601,12 @@
   "management.schoolDetail.subjectsSaved": "বিষয় আপডেট হয়েছে।",
   "management.schoolDetail.classAdopted": "ক্লাস গ্রহণ করা হয়েছে।",
   "management.schoolDetail.classRemoved": "ক্লাস অপসারণ করা হয়েছে।",
+  "management.schoolDetail.addVersion": "ক্লাস ভার্সন যোগ করুন",
+  "management.schoolDetail.addShift": "শিফট যোগ করুন",
+  "management.schoolDetail.addSection": "শাখা যোগ করুন",
+  "management.schoolDetail.versionAdded": "ক্লাস ভার্সন যোগ করা হয়েছে।",
+  "management.schoolDetail.shiftAdded": "শিফট যোগ করা হয়েছে।",
+  "management.schoolDetail.sectionAdded": "শাখা যোগ করা হয়েছে।",
 
   "management.days.saturday": "শনিবার",
   "management.days.sunday": "রবিবার",
