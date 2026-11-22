@@ -58,6 +58,13 @@ class ControllerAuthorizationConventionTest extends TestCase
      * `TimetableEntryController::update()`/`::destroy()` both delegate to
      * `assertEditable()`, which calls `authorize('update', $entry)` as
      * ITS first statement (see the class's hard-constraint-#10 docblock).
+     * `ChapterMaterialController::store()` must resolve the request's
+     * `chapter_id` into a `Chapter` (with its `book` relation) and read
+     * `section_id` before it can call `authorize('create',
+     * [ChapterMaterial::class, $chapter, $sectionId])` — the Policy's
+     * `create()` signature requires an already-resolved Chapter to check
+     * the uploading teacher's SubjectTeacherAssignment against the
+     * chapter's own subject, so that lookup has to happen first.
      *
      * @return array<int, array{0: class-string, 1: string}>
      */
@@ -66,6 +73,7 @@ class ControllerAuthorizationConventionTest extends TestCase
         return [
             [TimetableEntryController::class, 'update'],
             [TimetableEntryController::class, 'destroy'],
+            [ChapterMaterialController::class, 'store'],
         ];
     }
 

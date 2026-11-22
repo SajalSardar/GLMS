@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\Auditable;
 use App\Models\Concerns\TenantScoped;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -33,5 +34,18 @@ class SubjectTeacherAssignment extends Model
     public function teacher(): BelongsTo
     {
         return $this->belongsTo(TeacherUser::class, 'teacher_id');
+    }
+
+    /**
+     * Every (section, subject) this teacher is explicitly assigned to,
+     * with section/subject/class context eager-loaded for a picker.
+     *
+     * @return Collection<int, self>
+     */
+    public static function forTeacher(int $teacherId): Collection
+    {
+        return static::where('teacher_id', $teacherId)
+            ->with(['section.shift.classVersion.schoolClass', 'section.shift.academicYear', 'subject'])
+            ->get();
     }
 }

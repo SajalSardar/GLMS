@@ -11,6 +11,8 @@ use App\Models\ChapterMaterial;
 use App\Models\ContentAccessLog;
 use App\Models\Section;
 use App\Models\StudentUser;
+use App\Models\Subject;
+use App\Models\SubjectTeacherAssignment;
 use App\Models\TeacherUser;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -28,13 +30,13 @@ class ChapterMaterialController extends Controller
      * A logged-in student sees ONLY materials that exactly match their
      * own school/district/shift/section/class/class_version — a material
      * with a null section_id (predating per-section scoping, or uploaded
-     * by a non-class-teacher actor) is NOT shown as a "visible to
-     * everyone" fallback for a student, since it was never actually
-     * verified to belong to their class. A guest, or any non-student
-     * actor (teacher/admin browsing the public listing), has no profile
-     * to match against, so they see only the unscoped ones instead. This
-     * route sits outside auth:sanctum (guests browse it too), so the
-     * actor is resolved explicitly from the sanctum guard.
+     * by a staff actor) is NOT shown as a "visible to everyone" fallback
+     * for a student, since it was never actually verified to belong to
+     * their class. A guest, or any non-student actor (teacher/admin
+     * browsing the public listing), has no profile to match against, so
+     * they see only the unscoped ones instead. This route sits outside
+     * auth:sanctum (guests browse it too), so the actor is resolved
+     * explicitly from the sanctum guard.
      */
     public function index(Request $request): AnonymousResourceCollection
     {
@@ -113,18 +115,88 @@ class ChapterMaterialController extends Controller
         return ChapterMaterialResource::collection($materials);
     }
 
+    /**
+     * Every (section, subject) this teacher is explicitly assigned to —
+     * the Section→Subject picker's data source for the materials upload
+     * page. Unlike AcademicExamMarkController::myAssignments(), there is
+     * no class-teacher-implied half here: uploading chapter material is
+     * authorized by subject assignment only (see
+     * ChapterMaterialPolicy::create()).
+     */
+    public function myAssignments(Request $request): JsonResponse
+    {
+        $teacher = $request->user();
+        abort_unless($teacher instanceof TeacherUser, 403);
+
+        $rows = SubjectTeacherAssignment::forTeacher($teacher->id)
+            ->filter(fn (SubjectTeacherAssignment $assignment) => $assignment->section !== null && $assignment->subject !== null)
+            ->map(fn (SubjectTeacherAssignment $assignment) => $this->assignmentRow($assignment->section, $assignment->subject))
+            ->unique(fn (array $row) => $row['section_id'].'-'.$row['subject_id'])
+            ->values();
+
+        return response()->json(['data' => $rows]);
+    }
+
+    /**
+     * Every material this teacher has personally uploaded, across every
+     * chapter/section — feeds the "my uploads" list on the materials
+     * page (edit/delete gated the same way the backend already gates
+     * them, via ChapterMaterialPolicy::update()/delete()). Filtered by
+     * the Auditable-stamped (created_by_type, created_by_id) pair, not
+     * the bare uploaded_by_id column, since actors come from several
+     * independent tables (users, teacher_users, ...) each with their own
+     * auto-increment id sequence, so a bare id match could match a
+     * different actor's row entirely.
+     */
+    public function myUploads(Request $request): AnonymousResourceCollection
+    {
+        $teacher = $request->user();
+        abort_unless($teacher instanceof TeacherUser, 403);
+
+        $materials = ChapterMaterial::where('created_by_type', $teacher::class)
+            ->where('created_by_id', $teacher->id)
+            ->with('chapter.book.subject')
+            ->orderByDesc('created_at')
+            ->get();
+
+        return ChapterMaterialResource::collection($materials);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function assignmentRow(Section $section, Subject $subject): array
+    {
+        return [
+            'section_id' => $section->id,
+            'section_name' => $section->bn_name ?? $section->name,
+            'subject_id' => $subject->id,
+            'subject_name' => $subject->bn_name ?? $subject->name,
+            'class_id' => $section->shift?->classVersion?->class_id,
+            'class_name' => $section->shift?->classVersion?->schoolClass?->name,
+            'class_version_id' => $section->shift?->class_version_id,
+            'class_version' => $section->shift?->classVersion?->name,
+            'shift_id' => $section->shift_id,
+            'shift' => $section->shift?->name,
+            'academic_year_id' => $section->shift?->academic_year_id,
+            'academic_year' => $section->shift?->academicYear?->name,
+        ];
+    }
+
     public function store(StoreChapterMaterialRequest $request): JsonResponse
     {
-        $this->authorize('create', ChapterMaterial::class);
-
         $chapter = Chapter::with('book')->findOrFail($request->integer('chapter_id'));
+        $sectionId = $request->integer('section_id') ?: null;
+
+        $this->authorize('create', [ChapterMaterial::class, $chapter, $sectionId]);
+
         $disk = config('content.pdf_disk');
         $file = $request->file('pdf');
         $path = $file->storeAs("chapter-materials/{$chapter->id}", Str::uuid().'.pdf', $disk);
 
         $material = ChapterMaterial::create([
             'chapter_id' => $chapter->id,
-            ...$this->resolveUploaderScope($request->user(), $chapter),
+            ...$this->resolveUploaderScope($request->user(), $chapter, $sectionId),
             'type' => $request->input('type'),
             'title' => $request->input('title'),
             'original_filename' => $file->getClientOriginalName(),
@@ -143,46 +215,31 @@ class ChapterMaterialController extends Controller
 
     /**
      * [school_id, district_id, shift_id, class_version_id, class_id,
-     * section_id] — all null unless the uploader is a TeacherUser who is
-     * the class_teacher of a section whose own shift.class_version_id
-     * matches this chapter's book's class_version_id. A school_admin/
-     * national_admin upload, or a teacher with no matching section
-     * (doesn't teach this exact class, or teaches several sections of
-     * it — ambiguous, so left unscoped rather than guessing), leaves the
-     * material visible to the whole chapter, same as before this scoping
-     * existed.
+     * section_id] — all null unless the uploader is a TeacherUser who
+     * supplied a section_id (already authorized against a matching
+     * SubjectTeacherAssignment in ChapterMaterialPolicy::create() before
+     * this runs). A school_admin/national_admin upload leaves the
+     * material unscoped, same as before this scoping existed.
      *
      * @return array{school_id: ?int, district_id: ?int, shift_id: ?int, class_version_id: ?int, class_id: ?int, section_id: ?int}
      */
-    private function resolveUploaderScope(mixed $actor, Chapter $chapter): array
+    private function resolveUploaderScope(mixed $actor, Chapter $chapter, ?int $sectionId): array
     {
         $empty = ['school_id' => null, 'district_id' => null, 'shift_id' => null, 'class_version_id' => null, 'class_id' => null, 'section_id' => null];
 
-        if (! $actor instanceof TeacherUser) {
+        if (! $actor instanceof TeacherUser || $sectionId === null) {
             return $empty;
         }
 
-        $classVersionId = $chapter->book->class_version_id;
-
-        $sections = Section::query()
-            ->where('class_teacher_id', $actor->id)
-            ->whereHas('shift', fn ($query) => $query->where('class_version_id', $classVersionId))
-            ->with('shift.classVersion')
-            ->get();
-
-        if ($sections->count() !== 1) {
-            return $empty;
-        }
-
-        $section = $sections->first();
+        $section = Section::with('shift.classVersion')->findOrFail($sectionId);
         $shift = $section->shift;
 
         return [
             'school_id' => $section->school_id,
             'district_id' => $section->district_id,
-            'shift_id' => $shift->id,
-            'class_version_id' => $shift->class_version_id,
-            'class_id' => $shift->classVersion->class_id,
+            'shift_id' => $shift?->id,
+            'class_version_id' => $shift?->class_version_id,
+            'class_id' => $shift?->classVersion?->class_id,
             'section_id' => $section->id,
         ];
     }
