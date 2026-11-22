@@ -49,6 +49,20 @@ const teachersNavItem: SidebarItem = { to: '/dashboard/teachers', label: t['mana
 // share the same users.* grants and sit as their own top-level item too.
 const studentsNavItem: SidebarItem = { to: '/dashboard/students', label: t['management.nav.students'], icon: 'face' }
 
+// Books/Chapters/Class Videos CRUD stays national_admin only — school_admin
+// only holds books.view/chapters.view/chapter_videos.view, not
+// create/update/delete (see RolePermissionSeeder) — but as its own
+// top-level group placed right after Students, rather than nested under
+// System Setup, per the explicit request to move it there.
+const classMaterialsNavItem: SidebarItem = {
+  label: t['management.nav.classMaterials'],
+  icon: 'auto_stories',
+  children: [
+    { to: '/dashboard/class-materials/books', label: t['management.systemSetup.books'], icon: 'menu_book' },
+    { to: '/dashboard/class-materials/class-videos', label: t['management.systemSetup.classVideos'], icon: 'smart_display' },
+  ],
+}
+
 // Report-only (see AttendanceReportPage's own comment) — visible to the
 // same school_admin/national_admin pair as teachersNavItem/studentsNavItem
 // above, since recording itself stays in the teacher portal.
@@ -143,8 +157,6 @@ const systemSetupItem: SidebarItem = {
     },
     { to: '/dashboard/system-setup/upazilas', label: t['management.systemSetup.upazilas'], icon: 'location_on' },
     { to: '/dashboard/system-setup/subjects', label: t['management.systemSetup.subjects'], icon: 'book' },
-    { to: '/dashboard/system-setup/books', label: t['management.systemSetup.books'], icon: 'menu_book' },
-    { to: '/dashboard/system-setup/class-videos', label: t['management.systemSetup.classVideos'], icon: 'smart_display' },
     { to: '/dashboard/system-setup/academic-exam-terms', label: t['management.systemSetup.academicExamTerms'], icon: 'event_note' },
     { to: '/dashboard/system-setup/academic-grade-configures', label: t['management.systemSetup.academicGradeConfigures'], icon: 'grade' },
     { to: '/dashboard/system-setup/academic-subject-mark-configures', label: t['management.systemSetup.academicSubjectMarkConfigures'], icon: 'checklist' },
@@ -214,8 +226,10 @@ function DashboardLayout() {
 
   const navItems = [
     ...baseNavItems,
+    ...(role === 'national_admin' || role === 'school_admin' ? [teachersNavItem, studentsNavItem] : []),
+    ...(role === 'national_admin' ? [classMaterialsNavItem] : []),
     ...(role === 'national_admin' || role === 'school_admin'
-      ? [teachersNavItem, studentsNavItem, attendanceNavItem, publishResultsNavItem, promoteStudentsNavItem, routineNavItem]
+      ? [attendanceNavItem, publishResultsNavItem, promoteStudentsNavItem, routineNavItem]
       : []),
     ...(role === 'national_admin' ? [holidaysNavItem, schoolSetupItem] : []),
     ...(role === 'national_admin' ? [systemSetupItem] : role === 'school_admin' ? schoolManagedNavItems : []),
@@ -268,14 +282,16 @@ function App() {
                 <Route index element={<SchoolsPage />} />
                 <Route path=":id" element={<SchoolDetailPage />} />
               </Route>
+              <Route path="class-materials" element={<RequireNationalAdmin />}>
+                <Route path="books" element={<BooksPage />} />
+                <Route path="books/:bookId/chapters" element={<ChaptersPage />} />
+                <Route path="class-videos" element={<ClassVideosPage />} />
+              </Route>
               <Route path="system-setup" element={<RequireNationalAdmin />}>
                 <Route path="divisions" element={<DivisionsPage />} />
                 <Route path="districts" element={<DistrictsPage />} />
                 <Route path="upazilas" element={<UpazilasPage />} />
                 <Route path="subjects" element={<SubjectsPage />} />
-                <Route path="books" element={<BooksPage />} />
-                <Route path="books/:bookId/chapters" element={<ChaptersPage />} />
-                <Route path="class-videos" element={<ClassVideosPage />} />
                 <Route path="academic-exam-terms" element={<AcademicExamTermsPage />} />
                 <Route path="academic-grade-configures" element={<AcademicGradeConfiguresPage />} />
                 <Route path="academic-subject-mark-configures" element={<AcademicSubjectMarkConfiguresPage />} />

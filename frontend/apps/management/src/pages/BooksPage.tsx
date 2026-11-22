@@ -124,7 +124,7 @@ export default function BooksPage() {
         <button
           type="button"
           className="cursor-pointer font-medium text-primary-600 hover:underline"
-          onClick={() => navigate(`/dashboard/system-setup/books/${row.id}/chapters`)}
+          onClick={() => navigate(`/dashboard/class-materials/books/${row.id}/chapters`)}
         >
           {t['management.books.manageChapters']}
         </button>
