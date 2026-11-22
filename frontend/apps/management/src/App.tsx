@@ -86,21 +86,12 @@ const routineNavItem: SidebarItem = {
 // their own portals instead of through this management UI.
 const holidaysNavItem: SidebarItem = { to: '/dashboard/holidays', label: t['management.nav.holidays'], icon: 'event_busy' }
 
-// School management is national_admin only (see SchoolPolicy) — a flat
-// top-level item placed right after Holiday Calendar, rather than nested
-// under System Setup.
-const schoolSetupNavItem: SidebarItem = { to: '/dashboard/schools', label: t['management.nav.schoolSetup'], icon: 'school' }
-
-// Classes and academic years are configured per-school, not only by a
-// national admin — the backend grants school_admin create/update/delete
-// on both (see RolePermissionSeeder), unlike the divisions/districts/
-// upazilas reference data below. A national admin sees them nested under
-// "System Setup" (last two items in that list); a school admin — who has
-// no access to the rest of that national-admin-only group — sees these
-// same two as flat top-level items instead.
-const schoolManagedNavItems: SidebarItem[] = [
-  { to: '/dashboard/classes', label: t['management.nav.classes'], icon: 'class' },
-  { to: '/dashboard/academic-years', label: t['management.nav.academicYears'], icon: 'event' },
+// Class versions, shifts, sections, and subject-teacher assignments are
+// configured per-school by either role (see RolePermissionSeeder) — a
+// school_admin sees them as flat top-level items (schoolManagedNavItems
+// below); a national_admin sees the same items nested under the
+// "School Setup" group, alongside Schools itself.
+const schoolOperationsNavItems: SidebarItem[] = [
   { to: '/dashboard/class-versions', label: t['management.nav.classVersions'], icon: 'layers' },
   { to: '/dashboard/shifts', label: t['management.nav.shifts'], icon: 'schedule' },
   { to: '/dashboard/sections', label: t['management.nav.sections'], icon: 'groups' },
@@ -110,6 +101,35 @@ const schoolManagedNavItems: SidebarItem[] = [
     icon: 'assignment_ind',
   },
 ]
+
+// School management is national_admin only (see SchoolPolicy) — a
+// collapsible group (same shape as systemSetupItem below) placed right
+// after Holiday Calendar, rather than nested under System Setup.
+const schoolSetupItem: SidebarItem = {
+  label: t['management.nav.schoolSetup'],
+  icon: 'school',
+  children: [
+    { to: '/dashboard/schools', label: t['management.schools.title'], icon: 'apartment' },
+    ...schoolOperationsNavItems,
+  ],
+}
+
+// Classes and academic years are configured per-school, not only by a
+// national admin — the backend grants school_admin create/update/delete
+// on both (see RolePermissionSeeder), unlike the divisions/districts/
+// upazilas reference data below. A national admin sees them nested under
+// "System Setup" (last two items in that list); a school admin — who has
+// no access to the rest of that national-admin-only group — sees these
+// same two as flat top-level items instead.
+const classesAndYearsNavItems: SidebarItem[] = [
+  { to: '/dashboard/classes', label: t['management.nav.classes'], icon: 'class' },
+  { to: '/dashboard/academic-years', label: t['management.nav.academicYears'], icon: 'event' },
+]
+
+// school_admin has no System Setup or School Setup group to nest these
+// in, so all six items it manages (unlike national_admin's two separate
+// groups above) sit flat, in one combined list.
+const schoolManagedNavItems: SidebarItem[] = [...classesAndYearsNavItems, ...schoolOperationsNavItems]
 
 const systemSetupItem: SidebarItem = {
   label: t['management.systemSetup.menu'],
@@ -128,7 +148,7 @@ const systemSetupItem: SidebarItem = {
     { to: '/dashboard/system-setup/academic-exam-terms', label: t['management.systemSetup.academicExamTerms'], icon: 'event_note' },
     { to: '/dashboard/system-setup/academic-grade-configures', label: t['management.systemSetup.academicGradeConfigures'], icon: 'grade' },
     { to: '/dashboard/system-setup/academic-subject-mark-configures', label: t['management.systemSetup.academicSubjectMarkConfigures'], icon: 'checklist' },
-    ...schoolManagedNavItems,
+    ...classesAndYearsNavItems,
   ],
 }
 
@@ -197,7 +217,7 @@ function DashboardLayout() {
     ...(role === 'national_admin' || role === 'school_admin'
       ? [teachersNavItem, studentsNavItem, attendanceNavItem, publishResultsNavItem, promoteStudentsNavItem, routineNavItem]
       : []),
-    ...(role === 'national_admin' ? [holidaysNavItem, schoolSetupNavItem] : []),
+    ...(role === 'national_admin' ? [holidaysNavItem, schoolSetupItem] : []),
     ...(role === 'national_admin' ? [systemSetupItem] : role === 'school_admin' ? schoolManagedNavItems : []),
   ]
 
