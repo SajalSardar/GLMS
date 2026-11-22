@@ -33,7 +33,7 @@ class StoreChapterMaterialRequest extends FormRequest
             'type' => ['required', 'string', Rule::in(['primary', 'supplementary'])],
             'title' => ['required_if:type,supplementary', 'nullable', 'string', 'max:255'],
             'order_index' => ['nullable', 'integer', 'min:0', 'max:255'],
-            'pdf' => ['required', 'file', 'mimes:pdf', 'max:'.config('content.max_pdf_size_kb')],
+            'file' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:'.config('content.max_pdf_size_kb')],
         ];
     }
 

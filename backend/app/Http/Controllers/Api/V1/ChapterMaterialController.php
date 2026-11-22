@@ -191,8 +191,8 @@ class ChapterMaterialController extends Controller
         $this->authorize('create', [ChapterMaterial::class, $chapter, $sectionId]);
 
         $disk = config('content.pdf_disk');
-        $file = $request->file('pdf');
-        $path = $file->storeAs("chapter-materials/{$chapter->id}", Str::uuid().'.pdf', $disk);
+        $file = $request->file('file');
+        $path = $file->storeAs("chapter-materials/{$chapter->id}", Str::uuid().'.'.$file->getClientOriginalExtension(), $disk);
 
         $material = ChapterMaterial::create([
             'chapter_id' => $chapter->id,
@@ -250,11 +250,11 @@ class ChapterMaterialController extends Controller
 
         $data = $request->validated();
 
-        if ($request->hasFile('pdf')) {
+        if ($request->hasFile('file')) {
             Storage::disk($chapter_material->disk)->delete($chapter_material->stored_path);
 
-            $file = $request->file('pdf');
-            $path = $file->storeAs("chapter-materials/{$chapter_material->chapter_id}", Str::uuid().'.pdf', $chapter_material->disk);
+            $file = $request->file('file');
+            $path = $file->storeAs("chapter-materials/{$chapter_material->chapter_id}", Str::uuid().'.'.$file->getClientOriginalExtension(), $chapter_material->disk);
 
             $data['original_filename'] = $file->getClientOriginalName();
             $data['stored_path'] = $path;

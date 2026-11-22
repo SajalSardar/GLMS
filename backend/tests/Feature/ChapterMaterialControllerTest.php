@@ -71,13 +71,13 @@ class ChapterMaterialControllerTest extends TestCase
         $denied = $this->actorWithNoPermissions($this->schoolA->id, $this->schoolA->district_id);
 
         $this->actingAs($denied, 'sanctum')
-            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'primary', 'pdf' => $file])
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'primary', 'file' => $file])
             ->assertForbidden();
 
         $allowed = $this->actorWithPermissions(['chapter_materials.create', 'chapter_materials.update'], $this->schoolA->id, $this->schoolA->district_id);
 
         $createResponse = $this->actingAs($allowed, 'sanctum')
-            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'primary', 'pdf' => $file])
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'primary', 'file' => $file])
             ->assertCreated()
             ->assertJsonPath('data.created_by_type', get_class($allowed))
             ->assertJsonPath('data.created_by_id', $allowed->id);
@@ -96,11 +96,11 @@ class ChapterMaterialControllerTest extends TestCase
         $file = UploadedFile::fake()->create('chapter1.pdf', 100, 'application/pdf');
 
         $this->actingAs($allowed, 'sanctum')
-            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'primary', 'pdf' => $file])
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'primary', 'file' => $file])
             ->assertCreated();
 
         $this->actingAs($allowed, 'sanctum')
-            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'primary', 'pdf' => $file])
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'primary', 'file' => $file])
             ->assertUnprocessable();
     }
 
@@ -110,7 +110,7 @@ class ChapterMaterialControllerTest extends TestCase
         $file = UploadedFile::fake()->create('chapter1.pdf', 100, 'application/pdf');
 
         $firstId = $this->actingAs($allowed, 'sanctum')
-            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'primary', 'pdf' => $file])
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'primary', 'file' => $file])
             ->json('data.id');
 
         // Step 1: archive the chapter's only active primary material.
@@ -122,7 +122,7 @@ class ChapterMaterialControllerTest extends TestCase
         // there is no active primary right now.
         $secondFile = UploadedFile::fake()->create('chapter1-v2.pdf', 100, 'application/pdf');
         $this->actingAs($allowed, 'sanctum')
-            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'primary', 'pdf' => $secondFile])
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'primary', 'file' => $secondFile])
             ->assertCreated();
 
         // Step 3: re-activating the first (now-archived) material must be rejected,
@@ -148,11 +148,11 @@ class ChapterMaterialControllerTest extends TestCase
         $fileTwo = UploadedFile::fake()->create('chapter1-b.pdf', 100, 'application/pdf');
 
         $this->actingAs($teacherOne, 'sanctum')
-            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'section_id' => $sectionOne->id, 'type' => 'primary', 'pdf' => $fileOne])
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'section_id' => $sectionOne->id, 'type' => 'primary', 'file' => $fileOne])
             ->assertCreated();
 
         $this->actingAs($teacherTwo, 'sanctum')
-            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'section_id' => $sectionTwo->id, 'type' => 'primary', 'pdf' => $fileTwo])
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'section_id' => $sectionTwo->id, 'type' => 'primary', 'file' => $fileTwo])
             ->assertCreated();
     }
 
@@ -162,14 +162,59 @@ class ChapterMaterialControllerTest extends TestCase
         $file = UploadedFile::fake()->create('extra.pdf', 100, 'application/pdf');
 
         $this->actingAs($allowed, 'sanctum')
-            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'supplementary', 'title' => 'Extra 1', 'pdf' => $file])
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'supplementary', 'title' => 'Extra 1', 'file' => $file])
             ->assertCreated();
 
         $this->actingAs($allowed, 'sanctum')
-            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'supplementary', 'title' => 'Extra 2', 'pdf' => $file])
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'supplementary', 'title' => 'Extra 2', 'file' => $file])
             ->assertCreated();
 
         $this->assertSame(2, ChapterMaterial::where('chapter_id', $this->chapterA->id)->where('type', 'supplementary')->count());
+    }
+
+    public function test_store_accepts_an_image_file_and_stores_it_with_its_real_extension(): void
+    {
+        $allowed = $this->actorWithPermissions(['chapter_materials.create'], $this->schoolA->id, $this->schoolA->district_id);
+        $image = UploadedFile::fake()->create('scan.jpg', 100, 'image/jpeg');
+
+        $response = $this->actingAs($allowed, 'sanctum')
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'primary', 'file' => $image])
+            ->assertCreated()
+            ->assertJsonPath('data.original_filename', 'scan.jpg');
+
+        $material = ChapterMaterial::find($response->json('data.id'));
+        $this->assertStringEndsWith('.jpg', $material->stored_path);
+        Storage::disk('local')->assertExists($material->stored_path);
+    }
+
+    public function test_store_rejects_an_unsupported_file_type(): void
+    {
+        $allowed = $this->actorWithPermissions(['chapter_materials.create'], $this->schoolA->id, $this->schoolA->district_id);
+        $file = UploadedFile::fake()->create('notes.txt', 10, 'text/plain');
+
+        $this->actingAs($allowed, 'sanctum')
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'primary', 'file' => $file])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('file');
+    }
+
+    public function test_update_replaces_the_file_with_a_different_type_and_stores_the_new_extension(): void
+    {
+        $allowed = $this->actorWithPermissions(['chapter_materials.create', 'chapter_materials.update'], $this->schoolA->id, $this->schoolA->district_id);
+        $first = UploadedFile::fake()->create('v1.pdf', 100, 'application/pdf');
+
+        $id = $this->actingAs($allowed, 'sanctum')
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'primary', 'file' => $first])
+            ->json('data.id');
+
+        $image = UploadedFile::fake()->create('v2.png', 100, 'image/png');
+        $this->actingAs($allowed, 'sanctum')
+            ->post("/api/v1/chapter-materials/{$id}", ['_method' => 'PATCH', 'file' => $image])
+            ->assertOk()
+            ->assertJsonPath('data.original_filename', 'v2.png');
+
+        $material = ChapterMaterial::find($id);
+        $this->assertStringEndsWith('.png', $material->stored_path);
     }
 
     public function test_actor_with_permission_can_update_a_material_belonging_to_a_different_schools_chapter(): void
@@ -200,7 +245,7 @@ class ChapterMaterialControllerTest extends TestCase
         $first = UploadedFile::fake()->create('v1.pdf', 100, 'application/pdf');
 
         $id = $this->actingAs($allowed, 'sanctum')
-            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'primary', 'pdf' => $first])
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'primary', 'file' => $first])
             ->json('data.id');
 
         $material = ChapterMaterial::find($id);
@@ -208,7 +253,7 @@ class ChapterMaterialControllerTest extends TestCase
 
         $second = UploadedFile::fake()->create('v2.pdf', 100, 'application/pdf');
         $this->actingAs($allowed, 'sanctum')
-            ->post("/api/v1/chapter-materials/{$id}", ['_method' => 'PATCH', 'pdf' => $second])
+            ->post("/api/v1/chapter-materials/{$id}", ['_method' => 'PATCH', 'file' => $second])
             ->assertOk()
             ->assertJsonPath('data.original_filename', 'v2.pdf');
 
@@ -221,7 +266,7 @@ class ChapterMaterialControllerTest extends TestCase
         $file = UploadedFile::fake()->create('chapter1.pdf', 100, 'application/pdf');
 
         $id = $this->actingAs($allowed, 'sanctum')
-            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'primary', 'pdf' => $file])
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'primary', 'file' => $file])
             ->json('data.id');
 
         $path = ChapterMaterial::find($id)->stored_path;
@@ -239,7 +284,7 @@ class ChapterMaterialControllerTest extends TestCase
         $file = UploadedFile::fake()->create('chapter1.pdf', 100, 'application/pdf');
 
         $id = $this->actingAs($allowed, 'sanctum')
-            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'primary', 'pdf' => $file])
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'primary', 'file' => $file])
             ->json('data.id');
 
         $url = $this->actingAs($allowed, 'sanctum')
@@ -261,7 +306,7 @@ class ChapterMaterialControllerTest extends TestCase
         $file = UploadedFile::fake()->create('chapter1.pdf', 100, 'application/pdf');
 
         $id = $this->actingAs($allowed, 'sanctum')
-            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'primary', 'pdf' => $file])
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'primary', 'file' => $file])
             ->json('data.id');
 
         $response = $this->actingAs($allowed, 'sanctum')
@@ -285,7 +330,7 @@ class ChapterMaterialControllerTest extends TestCase
         $file = UploadedFile::fake()->create('chapter1.pdf', 100, 'application/pdf');
 
         $id = $this->actingAs($allowed, 'sanctum')
-            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'primary', 'pdf' => $file])
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'primary', 'file' => $file])
             ->json('data.id');
 
         $url = $this->actingAs($allowed, 'sanctum')
@@ -312,7 +357,7 @@ class ChapterMaterialControllerTest extends TestCase
         $file = UploadedFile::fake()->create('chapter1.pdf', 100, 'application/pdf');
 
         $this->actingAs($teacher, 'sanctum')
-            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'section_id' => $section->id, 'type' => 'primary', 'pdf' => $file])
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'section_id' => $section->id, 'type' => 'primary', 'file' => $file])
             ->assertCreated()
             ->assertJsonPath('data.section_id', $section->id)
             ->assertJsonPath('data.shift_id', $shift->id)
@@ -327,7 +372,7 @@ class ChapterMaterialControllerTest extends TestCase
         $file = UploadedFile::fake()->create('chapter1.pdf', 100, 'application/pdf');
 
         $this->actingAs($teacher, 'sanctum')
-            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'primary', 'pdf' => $file])
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'primary', 'file' => $file])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('section_id');
     }
@@ -341,7 +386,7 @@ class ChapterMaterialControllerTest extends TestCase
         $file = UploadedFile::fake()->create('chapter1.pdf', 100, 'application/pdf');
 
         $this->actingAs($teacher, 'sanctum')
-            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'section_id' => $section->id, 'type' => 'primary', 'pdf' => $file])
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'section_id' => $section->id, 'type' => 'primary', 'file' => $file])
             ->assertForbidden();
     }
 
@@ -356,7 +401,7 @@ class ChapterMaterialControllerTest extends TestCase
         $file = UploadedFile::fake()->create('chapter1.pdf', 100, 'application/pdf');
 
         $this->actingAs($teacher, 'sanctum')
-            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'section_id' => $section->id, 'type' => 'primary', 'pdf' => $file])
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'section_id' => $section->id, 'type' => 'primary', 'file' => $file])
             ->assertForbidden();
     }
 
@@ -375,7 +420,7 @@ class ChapterMaterialControllerTest extends TestCase
         $file = UploadedFile::fake()->create('chapter1.pdf', 100, 'application/pdf');
 
         $this->actingAs($teacher, 'sanctum')
-            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'section_id' => $section->id, 'type' => 'primary', 'pdf' => $file])
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'section_id' => $section->id, 'type' => 'primary', 'file' => $file])
             ->assertForbidden();
     }
 
@@ -392,7 +437,7 @@ class ChapterMaterialControllerTest extends TestCase
 
         $file = UploadedFile::fake()->create('chapter1.pdf', 100, 'application/pdf');
         $materialId = $this->actingAs($teacher, 'sanctum')
-            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'section_id' => $ownSection->id, 'type' => 'primary', 'pdf' => $file])
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'section_id' => $ownSection->id, 'type' => 'primary', 'file' => $file])
             ->json('data.id');
 
         $outsideStudent = $this->studentActorWithPermissions(['chapter_materials.view'], $this->schoolA->id, $this->schoolA->district_id);
@@ -468,7 +513,7 @@ class ChapterMaterialControllerTest extends TestCase
 
         $file = UploadedFile::fake()->create('chapter1.pdf', 100, 'application/pdf');
         $scopedMaterialId = $this->actingAs($teacher, 'sanctum')
-            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'section_id' => $ownSection->id, 'type' => 'primary', 'pdf' => $file])
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'section_id' => $ownSection->id, 'type' => 'primary', 'file' => $file])
             ->json('data.id');
 
         // A legacy/unscoped material (section_id null) must NOT appear via
@@ -551,7 +596,7 @@ class ChapterMaterialControllerTest extends TestCase
         $file = UploadedFile::fake()->create('chapter1.pdf', 100, 'application/pdf');
 
         $id = $this->actingAs($teacher, 'sanctum')
-            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'section_id' => $section->id, 'type' => 'primary', 'pdf' => $file])
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'section_id' => $section->id, 'type' => 'primary', 'file' => $file])
             ->json('data.id');
 
         $this->actingAs($teacher, 'sanctum')
@@ -701,7 +746,7 @@ class ChapterMaterialControllerTest extends TestCase
         $file = UploadedFile::fake()->create('chapter1.pdf', 100, 'application/pdf');
 
         $id = $this->actingAs($teacher, 'sanctum')
-            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'section_id' => $section->id, 'type' => 'primary', 'pdf' => $file])
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'section_id' => $section->id, 'type' => 'primary', 'file' => $file])
             ->json('data.id');
 
         $otherTeacher = $this->teacherActorWithPermissions([], $this->schoolA->id, $this->schoolA->district_id);

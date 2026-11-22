@@ -29,7 +29,7 @@ class UpdateChapterMaterialRequest extends FormRequest
             'title' => ['sometimes', 'nullable', 'string', 'max:255'],
             'order_index' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:255'],
             'status' => ['sometimes', 'string', Rule::in(['active', 'archived'])],
-            'pdf' => ['sometimes', 'file', 'mimes:pdf', 'max:'.config('content.max_pdf_size_kb')],
+            'file' => ['sometimes', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:'.config('content.max_pdf_size_kb')],
         ];
     }
 
