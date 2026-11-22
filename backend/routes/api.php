@@ -82,6 +82,12 @@ Route::prefix('v1')->group(function (): void {
     // Requires auth despite sitting in this "public" section — self-
     // scoped to the logged-in student.
     Route::get('/chapter-materials/mine', [ChapterMaterialController::class, 'mine'])->middleware('auth:sanctum');
+    // Same wildcard-shadowing gotcha as /chapter-materials/mine above —
+    // must be registered before the apiResource's {chapter_material}
+    // show route below, or these would be matched as chapter_material
+    // IDs and routed to show() instead.
+    Route::get('/chapter-materials/my-assignments', [ChapterMaterialController::class, 'myAssignments'])->middleware('auth:sanctum');
+    Route::get('/chapter-materials/my-uploads', [ChapterMaterialController::class, 'myUploads'])->middleware('auth:sanctum');
     Route::apiResource('chapter-materials', ChapterMaterialController::class)->only(['index', 'show']);
     Route::apiResource('chapter-videos', ChapterVideoController::class)->only(['index', 'show']);
     Route::apiResource('academic-years', AcademicYearController::class)->only(['index', 'show']);

@@ -11,6 +11,8 @@ use App\Models\ChapterMaterial;
 use App\Models\ContentAccessLog;
 use App\Models\Section;
 use App\Models\StudentUser;
+use App\Models\Subject;
+use App\Models\SubjectTeacherAssignment;
 use App\Models\TeacherUser;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -111,6 +113,68 @@ class ChapterMaterialController extends Controller
         )->orderByDesc('created_at')->get();
 
         return ChapterMaterialResource::collection($materials);
+    }
+
+    /**
+     * Every (section, subject) this teacher is explicitly assigned to —
+     * the Section→Subject picker's data source for the materials upload
+     * page. Unlike AcademicExamMarkController::myAssignments(), there is
+     * no class-teacher-implied half here: uploading chapter material is
+     * authorized by subject assignment only (see
+     * ChapterMaterialPolicy::create()).
+     */
+    public function myAssignments(Request $request): JsonResponse
+    {
+        $teacher = $request->user();
+        abort_unless($teacher instanceof TeacherUser, 403);
+
+        $rows = SubjectTeacherAssignment::forTeacher($teacher->id)
+            ->filter(fn (SubjectTeacherAssignment $assignment) => $assignment->section !== null && $assignment->subject !== null)
+            ->map(fn (SubjectTeacherAssignment $assignment) => $this->assignmentRow($assignment->section, $assignment->subject))
+            ->unique(fn (array $row) => $row['section_id'].'-'.$row['subject_id'])
+            ->values();
+
+        return response()->json(['data' => $rows]);
+    }
+
+    /**
+     * Every material this teacher has personally uploaded, across every
+     * chapter/section — feeds the "my uploads" list on the materials
+     * page (edit/delete gated the same way the backend already gates
+     * them, via ChapterMaterialPolicy::update()/delete()).
+     */
+    public function myUploads(Request $request): AnonymousResourceCollection
+    {
+        $teacher = $request->user();
+        abort_unless($teacher instanceof TeacherUser, 403);
+
+        $materials = ChapterMaterial::where('uploaded_by_id', $teacher->id)
+            ->with('chapter.book.subject')
+            ->orderByDesc('created_at')
+            ->get();
+
+        return ChapterMaterialResource::collection($materials);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function assignmentRow(Section $section, Subject $subject): array
+    {
+        return [
+            'section_id' => $section->id,
+            'section_name' => $section->bn_name ?? $section->name,
+            'subject_id' => $subject->id,
+            'subject_name' => $subject->bn_name ?? $subject->name,
+            'class_id' => $section->shift?->classVersion?->class_id,
+            'class_name' => $section->shift?->classVersion?->schoolClass?->name,
+            'class_version_id' => $section->shift?->class_version_id,
+            'class_version' => $section->shift?->classVersion?->name,
+            'shift_id' => $section->shift_id,
+            'shift' => $section->shift?->name,
+            'academic_year_id' => $section->shift?->academic_year_id,
+            'academic_year' => $section->shift?->academicYear?->name,
+        ];
     }
 
     public function store(StoreChapterMaterialRequest $request): JsonResponse

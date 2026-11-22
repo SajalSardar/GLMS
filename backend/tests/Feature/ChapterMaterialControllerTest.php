@@ -558,4 +558,73 @@ class ChapterMaterialControllerTest extends TestCase
             ->deleteJson("/api/v1/chapter-materials/{$material->id}")
             ->assertForbidden();
     }
+
+    public function test_my_assignments_returns_only_this_teachers_subject_assignments(): void
+    {
+        $classVersionId = $this->chapterA->book->class_version_id;
+        $subjectId = $this->chapterA->book->subject_id;
+        $shift = Shift::create(['class_version_id' => $classVersionId, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'name' => 'Shift', 'start_time' => '08:00', 'end_time' => '13:00', 'days_of_week' => ['saturday']]);
+        $teacher = $this->teacherActorWithPermissions([], $this->schoolA->id, $this->schoolA->district_id);
+        $otherTeacher = $this->teacherActorWithPermissions([], $this->schoolA->id, $this->schoolA->district_id);
+        $section = Section::create(['shift_id' => $shift->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'name' => 'Section A']);
+        // A different section for the other teacher's assignment, since
+        // (section_id, subject_id) is unique — only one teacher can ever
+        // be assigned to a given section/subject pair.
+        $otherSection = Section::create(['shift_id' => $shift->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'name' => 'Section B']);
+        SubjectTeacherAssignment::create(['section_id' => $section->id, 'subject_id' => $subjectId, 'teacher_id' => $teacher->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id]);
+        SubjectTeacherAssignment::create(['section_id' => $otherSection->id, 'subject_id' => $subjectId, 'teacher_id' => $otherTeacher->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id]);
+
+        $this->actingAs($teacher, 'sanctum')
+            ->getJson('/api/v1/chapter-materials/my-assignments')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.section_id', $section->id)
+            ->assertJsonPath('data.0.subject_id', $subjectId);
+    }
+
+    public function test_my_assignments_is_forbidden_for_a_non_teacher_actor(): void
+    {
+        $staff = $this->actorWithPermissions([], $this->schoolA->id, $this->schoolA->district_id);
+
+        $this->actingAs($staff, 'sanctum')
+            ->getJson('/api/v1/chapter-materials/my-assignments')
+            ->assertForbidden();
+    }
+
+    public function test_my_uploads_returns_only_this_teachers_own_materials(): void
+    {
+        $classVersionId = $this->chapterA->book->class_version_id;
+        $subjectId = $this->chapterA->book->subject_id;
+        $shift = Shift::create(['class_version_id' => $classVersionId, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'name' => 'Shift', 'start_time' => '08:00', 'end_time' => '13:00', 'days_of_week' => ['saturday']]);
+        $teacher = $this->teacherActorWithPermissions(['chapter_materials.create'], $this->schoolA->id, $this->schoolA->district_id);
+        $section = Section::create(['shift_id' => $shift->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'name' => 'Section A']);
+        SubjectTeacherAssignment::create(['section_id' => $section->id, 'subject_id' => $subjectId, 'teacher_id' => $teacher->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id]);
+        $file = UploadedFile::fake()->create('chapter1.pdf', 100, 'application/pdf');
+
+        $id = $this->actingAs($teacher, 'sanctum')
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'section_id' => $section->id, 'type' => 'primary', 'pdf' => $file])
+            ->json('data.id');
+
+        $otherTeacher = $this->teacherActorWithPermissions([], $this->schoolA->id, $this->schoolA->district_id);
+
+        $this->actingAs($otherTeacher, 'sanctum')
+            ->getJson('/api/v1/chapter-materials/my-uploads')
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+
+        $this->actingAs($teacher, 'sanctum')
+            ->getJson('/api/v1/chapter-materials/my-uploads')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $id);
+    }
+
+    public function test_my_uploads_is_forbidden_for_a_non_teacher_actor(): void
+    {
+        $staff = $this->actorWithPermissions([], $this->schoolA->id, $this->schoolA->district_id);
+
+        $this->actingAs($staff, 'sanctum')
+            ->getJson('/api/v1/chapter-materials/my-uploads')
+            ->assertForbidden();
+    }
 }
