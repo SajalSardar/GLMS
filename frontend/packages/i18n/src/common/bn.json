@@ -904,5 +904,17 @@
   "teacher.classMaterials.saving": "সংরক্ষণ হচ্ছে…",
   "teacher.classMaterials.saveSuccess": "উপকরণ আপডেট করা হয়েছে।",
   "teacher.classMaterials.saveError": "পরিবর্তন সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।",
-  "teacher.classMaterials.cancel": "বাতিল"
+  "teacher.classMaterials.cancel": "বাতিল",
+  "teacher.classMaterials.subtitle": "আপনি যে শাখা ও বিষয় পড়ান, তার জন্য উপকরণ আপলোড করুন।",
+  "teacher.classMaterials.sectionWhere": "এটি কোথায় যুক্ত হবে?",
+  "teacher.classMaterials.sectionDetails": "উপকরণের বিবরণ",
+  "teacher.classMaterials.materialType": "উপকরণের ধরন",
+  "teacher.classMaterials.titleLabel": "শিরোনাম",
+  "teacher.classMaterials.fileLabel": "ফাইল",
+  "teacher.classMaterials.fileDropLabel": "আপলোড করতে ক্লিক করুন বা ফাইল টেনে আনুন",
+  "teacher.classMaterials.fileHint": "পিডিএফ, জেপিজি, বা পিএনজি",
+  "teacher.classMaterials.fileChangeHint": "বদলাতে ক্লিক করুন বা নতুন ফাইল টেনে আনুন",
+  "teacher.classMaterials.statusToggleHint": "অবস্থা পরিবর্তন করতে ক্লিক করুন",
+  "teacher.classMaterials.view": "দেখুন",
+  "teacher.classMaterials.viewError": "ফাইলটি খোলা যায়নি। আবার চেষ্টা করুন।"
 }

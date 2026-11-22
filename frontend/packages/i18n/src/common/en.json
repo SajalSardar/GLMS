@@ -904,5 +904,17 @@
   "teacher.classMaterials.saving": "Saving…",
   "teacher.classMaterials.saveSuccess": "Material updated.",
   "teacher.classMaterials.saveError": "Could not save changes. Please try again.",
-  "teacher.classMaterials.cancel": "Cancel"
+  "teacher.classMaterials.cancel": "Cancel",
+  "teacher.classMaterials.subtitle": "Upload materials for the sections and subjects you teach.",
+  "teacher.classMaterials.sectionWhere": "Where does this belong?",
+  "teacher.classMaterials.sectionDetails": "Material details",
+  "teacher.classMaterials.materialType": "Material type",
+  "teacher.classMaterials.titleLabel": "Title",
+  "teacher.classMaterials.fileLabel": "File",
+  "teacher.classMaterials.fileDropLabel": "Click or drag a file here to upload",
+  "teacher.classMaterials.fileHint": "PDF, JPG, or PNG",
+  "teacher.classMaterials.fileChangeHint": "Click or drag a new file to replace it",
+  "teacher.classMaterials.statusToggleHint": "Click to change status",
+  "teacher.classMaterials.view": "View",
+  "teacher.classMaterials.viewError": "Could not open this file. Please try again."
 }
