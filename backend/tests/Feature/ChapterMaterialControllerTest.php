@@ -187,6 +187,32 @@ class ChapterMaterialControllerTest extends TestCase
         Storage::disk('local')->assertExists($material->stored_path);
     }
 
+    /**
+     * Security regression: the stored path's extension must come from the
+     * file's actual (server-reported) content type, never from the
+     * client-supplied filename — which an attacker fully controls
+     * independent of the real file content. (A client filename disguised
+     * with a PHP-executable extension like ".php"/".phtml" is already
+     * rejected one layer up, by Laravel's own `mimes` rule
+     * (shouldBlockPhpUpload) — this test instead proves the extension-
+     * trust bug for a benign mismatch that validation does allow
+     * through, which the old `getClientOriginalExtension()` code would
+     * have stored under the wrong, client-chosen extension.)
+     */
+    public function test_store_derives_the_stored_extension_from_the_files_real_content_type_not_the_client_filename(): void
+    {
+        $allowed = $this->actorWithPermissions(['chapter_materials.create'], $this->schoolA->id, $this->schoolA->district_id);
+        $mismatched = UploadedFile::fake()->create('report.png', 100, 'application/pdf');
+
+        $response = $this->actingAs($allowed, 'sanctum')
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'type' => 'primary', 'file' => $mismatched])
+            ->assertCreated();
+
+        $material = ChapterMaterial::find($response->json('data.id'));
+        $this->assertStringEndsWith('.pdf', $material->stored_path);
+        $this->assertStringEndsNotWith('.png', $material->stored_path);
+    }
+
     public function test_store_rejects_an_unsupported_file_type(): void
     {
         $allowed = $this->actorWithPermissions(['chapter_materials.create'], $this->schoolA->id, $this->schoolA->district_id);

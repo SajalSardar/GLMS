@@ -19,6 +19,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
@@ -192,7 +193,7 @@ class ChapterMaterialController extends Controller
 
         $disk = config('content.pdf_disk');
         $file = $request->file('file');
-        $path = $file->storeAs("chapter-materials/{$chapter->id}", Str::uuid().'.'.$file->getClientOriginalExtension(), $disk);
+        $path = $file->storeAs("chapter-materials/{$chapter->id}", Str::uuid().'.'.$this->resolveSafeExtension($file), $disk);
 
         $material = ChapterMaterial::create([
             'chapter_id' => $chapter->id,
@@ -244,6 +245,25 @@ class ChapterMaterialController extends Controller
         ];
     }
 
+    /**
+     * Never trust the client-supplied filename's extension for the stored
+     * path — it's fully attacker-controlled independent of the file's
+     * real content (e.g. a genuinely valid PNG could be uploaded under
+     * the filename "shell.php"). Derives the extension from the file's
+     * actual content instead. StoreChapterMaterialRequest/
+     * UpdateChapterMaterialRequest's `mimes:` rule already validates
+     * content against this same allowlist before this runs, so the
+     * abort() here is a defensive backstop, not the primary gate.
+     */
+    private function resolveSafeExtension(UploadedFile $file): string
+    {
+        $extension = $file->guessExtension();
+
+        abort_unless(in_array($extension, ['pdf', 'jpg', 'jpeg', 'png'], true), 422, 'Unsupported file type.');
+
+        return $extension;
+    }
+
     public function update(UpdateChapterMaterialRequest $request, ChapterMaterial $chapter_material): ChapterMaterialResource
     {
         $this->authorize('update', $chapter_material);
@@ -254,7 +274,7 @@ class ChapterMaterialController extends Controller
             Storage::disk($chapter_material->disk)->delete($chapter_material->stored_path);
 
             $file = $request->file('file');
-            $path = $file->storeAs("chapter-materials/{$chapter_material->chapter_id}", Str::uuid().'.'.$file->getClientOriginalExtension(), $chapter_material->disk);
+            $path = $file->storeAs("chapter-materials/{$chapter_material->chapter_id}", Str::uuid().'.'.$this->resolveSafeExtension($file), $chapter_material->disk);
 
             $data['original_filename'] = $file->getClientOriginalName();
             $data['stored_path'] = $path;
