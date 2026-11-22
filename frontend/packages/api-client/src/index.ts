@@ -820,9 +820,10 @@ export function listChapterVideos(
 export interface ChapterMaterial {
   id: number
   chapter_id: number
-  // Set only when the uploader was the class_teacher of a section
-  // matching the chapter's own class_version — null means this material
-  // is visible to the whole chapter, not restricted to one section.
+  // Set when the uploader is a teacher assigned (via
+  // SubjectTeacherAssignment) to teach this chapter's subject in this
+  // section — null means this material is visible to the whole class
+  // version, not restricted to one section (e.g. staff-authored).
   school_id: number | null
   district_id: number | null
   shift_id: number | null
@@ -873,6 +874,63 @@ export function getChapterMaterialDownloadLink(materialId: number, token: string
     method: 'POST',
     headers: authHeaders(token),
   })
+}
+
+export interface ChapterMaterialAssignment {
+  section_id: number
+  section_name: string
+  subject_id: number
+  subject_name: string
+  class_id: number | null
+  class_name: string | null
+  class_version_id: number | null
+  class_version: string | null
+  shift_id: number | null
+  shift: string | null
+  academic_year_id: number | null
+  academic_year: string | null
+}
+
+// Every (section, subject) the logged-in teacher is explicitly assigned
+// to teach — the Section→Subject picker's data source on the teacher
+// portal's Class Materials page (see ChapterMaterialController::
+// myAssignments()).
+export function listMyChapterMaterialAssignments(token: string): Promise<{ data: ChapterMaterialAssignment[] }> {
+  return apiFetch<{ data: ChapterMaterialAssignment[] }>('/chapter-materials/my-assignments', {
+    headers: authHeaders(token),
+  })
+}
+
+// Every material the logged-in teacher has personally uploaded, across
+// every chapter/section — feeds the "my uploads" list on the same page.
+export function listMyUploadedChapterMaterials(token: string): Promise<{ data: ChapterMaterial[] }> {
+  return apiFetch<{ data: ChapterMaterial[] }>('/chapter-materials/my-uploads', {
+    headers: authHeaders(token),
+  })
+}
+
+export function createChapterMaterial(formData: FormData, token: string): Promise<{ data: ChapterMaterial }> {
+  return apiFetch('/chapter-materials', {
+    method: 'POST',
+    headers: multipartHeaders(token),
+    body: formData,
+  })
+}
+
+export function updateChapterMaterial(id: number, formData: FormData, token: string): Promise<{ data: ChapterMaterial }> {
+  // Laravel can't parse a PATCH request with a multipart body — same
+  // _method spoof as updateSchool() above.
+  formData.append('_method', 'PATCH')
+
+  return apiFetch(`/chapter-materials/${id}`, {
+    method: 'POST',
+    headers: multipartHeaders(token),
+    body: formData,
+  })
+}
+
+export function deleteChapterMaterial(id: number, token: string): Promise<void> {
+  return deleteGeo('chapter-materials', id, token)
 }
 
 // ---------- Class routines ----------

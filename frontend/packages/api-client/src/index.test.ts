@@ -3,6 +3,7 @@ import {
   ApiError,
   apiFetch,
   createAcademicYear,
+  createChapterMaterial,
   createClass,
   createClassSchool,
   createClassVersion,
@@ -12,6 +13,7 @@ import {
   createSection,
   createShift,
   createSubjectTeacherAssignment,
+  deleteChapterMaterial,
   deleteClassSchool,
   deleteDivision,
   deleteSubjectTeacherAssignment,
@@ -25,6 +27,7 @@ import {
   listAcademicYears,
   listBooks,
   listChapterMaterials,
+  listMyChapterMaterialAssignments,
   listMyChapterMaterials,
   listChapters,
   listChapterVideos,
@@ -35,6 +38,7 @@ import {
   listDivisions,
   listExams,
   listMyExamAttempts,
+  listMyUploadedChapterMaterials,
   listSchools,
   listSections,
   listShifts,
@@ -52,6 +56,7 @@ import {
   studentLogin,
   submitExamAttempt,
   submitGuestExamAttempt,
+  updateChapterMaterial,
   updateClassSchoolSubjects,
   updateDivision,
   updateSchool,
@@ -929,6 +934,92 @@ describe('chapter materials', () => {
     expect(mockFetch.mock.calls[0][1]).toMatchObject({
       method: 'POST',
       headers: { Authorization: 'Bearer tok' },
+    })
+  })
+})
+
+describe('chapter materials upload (teacher)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it("lists the current teacher's own subject assignments with a required token", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ data: [] }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    await listMyChapterMaterialAssignments('tok')
+
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/chapter-materials/my-assignments`)
+    expect(mockFetch.mock.calls[0][1]).toMatchObject({ headers: { Authorization: 'Bearer tok' } })
+  })
+
+  it("lists the current teacher's own uploaded materials with a required token", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ data: [] }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    await listMyUploadedChapterMaterials('tok')
+
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/chapter-materials/my-uploads`)
+    expect(mockFetch.mock.calls[0][1]).toMatchObject({ headers: { Authorization: 'Bearer tok' } })
+  })
+
+  it('creates a chapter material with a multipart body and no Content-Type header', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 201,
+      json: () => Promise.resolve({ data: { id: 1 } }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    const formData = new FormData()
+    formData.append('chapter_id', '1')
+    formData.append('section_id', '2')
+    formData.append('type', 'primary')
+
+    await createChapterMaterial(formData, 'secret-token')
+
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/chapter-materials`)
+    const init = mockFetch.mock.calls[0][1] as RequestInit
+    expect(init.method).toBe('POST')
+    expect(init.body).toBe(formData)
+    expect((init.headers as Record<string, string>)['Content-Type']).toBeUndefined()
+    expect((init.headers as Record<string, string>).Authorization).toBe('Bearer secret-token')
+  })
+
+  it('updates a chapter material by POSTing with a _method=PATCH spoof field', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ data: { id: 1 } }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    const formData = new FormData()
+    formData.append('title', 'Updated title')
+
+    await updateChapterMaterial(1, formData, 'secret-token')
+
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/chapter-materials/1`)
+    const init = mockFetch.mock.calls[0][1] as RequestInit
+    expect(init.method).toBe('POST')
+    expect(formData.get('_method')).toBe('PATCH')
+  })
+
+  it('deletes a chapter material with DELETE and resolves on 204', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 204 })
+    vi.stubGlobal('fetch', mockFetch)
+
+    await expect(deleteChapterMaterial(1, 'secret-token')).resolves.toBeUndefined()
+
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/chapter-materials/1`)
+    expect(mockFetch.mock.calls[0][1]).toMatchObject({
+      method: 'DELETE',
+      headers: expect.objectContaining({ Authorization: 'Bearer secret-token' }),
     })
   })
 })
