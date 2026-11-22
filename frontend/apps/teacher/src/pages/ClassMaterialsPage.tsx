@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type DragEvent, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type DragEvent, type FormEvent, type ReactNode } from 'react'
 import {
   ApiError,
   createChapterMaterial,
@@ -47,6 +47,36 @@ type MaterialType = 'primary' | 'supplementary'
 function fileTypeIcon(filename: string | null | undefined): string {
   const extension = filename?.split('.').pop()?.toLowerCase()
   return extension === 'jpg' || extension === 'jpeg' || extension === 'png' ? 'image' : 'picture_as_pdf'
+}
+
+// Mirrors GeoField in the management portal's GeoCrudTable — same label +
+// required-asterisk + error-message shape, kept local here since that
+// component lives only in the management app, not a shared package.
+function Field({
+  label,
+  required,
+  error,
+  children,
+}: {
+  label: string
+  required?: boolean
+  error?: string
+  children: ReactNode
+}) {
+  return (
+    <label className="flex flex-col gap-1.5 text-sm">
+      <span className="font-medium text-gray-700">
+        {label}
+        {required && <span className="text-danger-500"> *</span>}
+      </span>
+      {children}
+      {error && (
+        <span className="text-xs text-danger-500" role="alert">
+          {error}
+        </span>
+      )}
+    </label>
+  )
 }
 
 function FileDropZone({
@@ -124,6 +154,13 @@ function StatusBadge({ status, onClick, busy }: { status: string; onClick: () =>
   )
 }
 
+const selectClass =
+  'h-11 w-full rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-800 outline-none transition-colors focus:border-primary-500 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:opacity-60'
+const buttonPrimary =
+  'inline-flex h-11 cursor-pointer items-center gap-1.5 rounded-md bg-primary-500 px-4 text-sm font-medium text-white transition-colors hover:bg-primary-400 disabled:cursor-not-allowed disabled:opacity-60'
+const buttonNeutral =
+  'inline-flex h-11 cursor-pointer items-center rounded-md border border-gray-200 px-4 text-sm font-medium text-gray-600 transition-colors hover:border-primary-500'
+
 export default function ClassMaterialsPage() {
   const { token } = useAuth()
   const { toast, showToast } = useToast()
@@ -132,6 +169,7 @@ export default function ClassMaterialsPage() {
   const [myUploads, setMyUploads] = useState<ChapterMaterial[]>([])
   const [currentAcademicYearId, setCurrentAcademicYearId] = useState<number | null>(null)
   const [loadingFilters, setLoadingFilters] = useState(true)
+  const [search, setSearch] = useState('')
 
   const [sectionId, setSectionId] = useState<number | null>(null)
   const [subjectId, setSubjectId] = useState<number | null>(null)
@@ -144,13 +182,10 @@ export default function ClassMaterialsPage() {
   const [title, setTitle] = useState('')
   const [orderIndex, setOrderIndex] = useState('')
   const [file, setFile] = useState<File | null>(null)
-  const [uploading, setUploading] = useState(false)
+  const [saving, setSaving] = useState(false)
 
-  const [editingId, setEditingId] = useState<number | null>(null)
-  const [editTitle, setEditTitle] = useState('')
-  const [editOrderIndex, setEditOrderIndex] = useState('')
-  const [editFile, setEditFile] = useState<File | null>(null)
-  const [savingEdit, setSavingEdit] = useState(false)
+  const [formOpen, setFormOpen] = useState(false)
+  const [editingMaterial, setEditingMaterial] = useState<ChapterMaterial | null>(null)
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [viewingId, setViewingId] = useState<number | null>(null)
   const [statusTogglingId, setStatusTogglingId] = useState<number | null>(null)
@@ -238,70 +273,92 @@ export default function ClassMaterialsPage() {
     }
   }, [bookId])
 
-  function resetUploadForm() {
+  function materialSearchText(material: ChapterMaterial): string {
+    const row = assignments.find((assignment) => assignment.section_id === material.section_id)
+    return [
+      material.chapter?.name,
+      material.chapter?.book?.subject?.name,
+      material.original_filename,
+      material.title,
+      material.type,
+      material.status,
+      row ? [row.class_name, row.class_version, row.shift, row.section_name].filter(Boolean).join(' ') : '',
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
+  }
+
+  const filteredUploads = useMemo(() => {
+    const query = search.trim().toLowerCase()
+    if (!query) return myUploads
+    return myUploads.filter((material) => materialSearchText(material).includes(query))
+  }, [myUploads, search, assignments])
+
+  function openCreateForm() {
+    setEditingMaterial(null)
+    setSectionId(null)
+    setSubjectId(null)
+    setBookId(null)
+    setChapterId(null)
     setType('primary')
     setTitle('')
     setOrderIndex('')
     setFile(null)
+    setFormOpen(true)
   }
 
-  async function handleUpload(event: FormEvent) {
+  function openEditForm(material: ChapterMaterial) {
+    setEditingMaterial(material)
+    setTitle(material.title ?? '')
+    setOrderIndex(material.order_index === null ? '' : String(material.order_index))
+    setFile(null)
+    setFormOpen(true)
+  }
+
+  function closeForm() {
+    setFormOpen(false)
+    setEditingMaterial(null)
+    setFile(null)
+  }
+
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault()
-    if (!token || sectionId === null || chapterId === null || !file) return
-
-    const formData = new FormData()
-    formData.append('chapter_id', String(chapterId))
-    formData.append('section_id', String(sectionId))
-    formData.append('type', type)
-    if (type === 'supplementary') formData.append('title', title)
-    if (orderIndex.trim() !== '') formData.append('order_index', orderIndex)
-    formData.append('file', file)
-
-    setUploading(true)
-
-    try {
-      await createChapterMaterial(formData, token)
-      showToast({ type: 'success', message: t['teacher.classMaterials.uploadSuccess'] })
-      resetUploadForm()
-      refreshMyUploads()
-    } catch (caught) {
-      showToast({ type: 'error', message: caught instanceof ApiError ? caught.message : t['teacher.classMaterials.uploadError'] })
-    } finally {
-      setUploading(false)
-    }
-  }
-
-  function startEdit(material: ChapterMaterial) {
-    setEditingId(material.id)
-    setEditTitle(material.title ?? '')
-    setEditOrderIndex(material.order_index === null ? '' : String(material.order_index))
-    setEditFile(null)
-  }
-
-  function cancelEdit() {
-    setEditingId(null)
-    setEditFile(null)
-  }
-
-  async function handleSaveEdit(materialId: number) {
     if (!token) return
 
-    const formData = new FormData()
-    formData.append('title', editTitle)
-    if (editOrderIndex.trim() !== '') formData.append('order_index', editOrderIndex)
-    if (editFile) formData.append('file', editFile)
-
-    setSavingEdit(true)
+    setSaving(true)
 
     try {
-      await updateChapterMaterial(materialId, formData, token)
-      showToast({ type: 'success', message: t['teacher.classMaterials.saveSuccess'] })
-      setEditingId(null)
+      if (editingMaterial) {
+        const formData = new FormData()
+        formData.append('title', title)
+        if (orderIndex.trim() !== '') formData.append('order_index', orderIndex)
+        if (file) formData.append('file', file)
+
+        await updateChapterMaterial(editingMaterial.id, formData, token)
+        showToast({ type: 'success', message: t['teacher.classMaterials.saveSuccess'] })
+      } else {
+        if (sectionId === null || chapterId === null || !file) return
+
+        const formData = new FormData()
+        formData.append('chapter_id', String(chapterId))
+        formData.append('section_id', String(sectionId))
+        formData.append('type', type)
+        if (type === 'supplementary') formData.append('title', title)
+        if (orderIndex.trim() !== '') formData.append('order_index', orderIndex)
+        formData.append('file', file)
+
+        await createChapterMaterial(formData, token)
+        showToast({ type: 'success', message: t['teacher.classMaterials.uploadSuccess'] })
+      }
+
+      closeForm()
       refreshMyUploads()
     } catch (caught) {
-      showToast({ type: 'error', message: caught instanceof ApiError ? caught.message : t['teacher.classMaterials.saveError'] })
+      const fallback = editingMaterial ? t['teacher.classMaterials.saveError'] : t['teacher.classMaterials.uploadError']
+      showToast({ type: 'error', message: caught instanceof ApiError ? caught.message : fallback })
     } finally {
-      setSavingEdit(false)
+      setSaving(false)
     }
   }
 
@@ -364,128 +421,254 @@ export default function ClassMaterialsPage() {
     return row ? sectionLabel(row) : '—'
   }
 
-  const selectClass =
-    'h-11 w-full rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-800 outline-none transition-colors focus:border-primary-500 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:opacity-60'
-  const labelClass = 'flex flex-col gap-1.5 text-sm'
-  const labelTextClass = 'font-medium text-gray-700'
+  const isEditing = editingMaterial !== null
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-xl font-semibold text-gray-900">{t['teacher.nav.classMaterials']}</h1>
-        <p className="mt-1 text-sm text-gray-500">{t['teacher.classMaterials.subtitle']}</p>
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-gray-900">{t['teacher.nav.classMaterials']}</h1>
+          <p className="mt-1 text-sm text-gray-500">{t['teacher.classMaterials.subtitle']}</p>
+        </div>
+        <button type="button" className={buttonPrimary} onClick={openCreateForm} disabled={loadingFilters}>
+          <span className="material-symbols-outlined !text-[18px] leading-none">add</span>
+          {t['teacher.classMaterials.addNew']}
+        </button>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3 rounded-md bg-white p-4 shadow-sm">
+        <input
+          type="search"
+          placeholder={t['teacher.classMaterials.searchPlaceholder']}
+          className="h-11 min-w-[220px] flex-1 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-800 outline-none transition-colors focus:border-primary-500"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+        />
       </div>
 
       {loadingFilters && <p className="text-sm text-gray-500">{t['teacher.classMaterials.loading']}</p>}
 
-      {!loadingFilters && (
-        <form onSubmit={handleUpload} className="flex flex-col gap-4">
-          <section className="rounded-md bg-white p-5 shadow-sm">
-            <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-gray-800">
-              <span className="material-symbols-outlined !text-[18px] text-primary-500">folder_open</span>
-              {t['teacher.classMaterials.sectionWhere']}
-            </h2>
+      {!loadingFilters && myUploads.length === 0 && (
+        <p className="rounded-md bg-white p-5 text-sm text-gray-500 shadow-sm">{t['teacher.classMaterials.empty']}</p>
+      )}
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <label className={labelClass}>
-                <span className={labelTextClass}>{t['teacher.classMaterials.selectSection']}</span>
-                <select
-                  className={selectClass}
-                  value={sectionId ?? ''}
-                  onChange={(event) => {
-                    setSectionId(event.target.value ? Number(event.target.value) : null)
-                    setSubjectId(null)
-                    setBookId(null)
-                    setChapterId(null)
-                  }}
-                >
-                  <option value="">{t['teacher.classMaterials.selectSection']}</option>
-                  {sections.map((row) => (
-                    <option key={row.section_id} value={row.section_id}>
-                      {sectionLabel(row)}
-                    </option>
-                  ))}
-                </select>
-              </label>
+      {!loadingFilters && myUploads.length > 0 && filteredUploads.length === 0 && (
+        <p className="rounded-md bg-white p-5 text-sm text-gray-500 shadow-sm">{t['teacher.classMaterials.noMatches']}</p>
+      )}
 
-              <label className={labelClass}>
-                <span className={labelTextClass}>{t['teacher.classMaterials.selectSubject']}</span>
-                <select
-                  className={selectClass}
-                  value={subjectId ?? ''}
-                  disabled={sectionId === null}
-                  onChange={(event) => {
-                    setSubjectId(event.target.value ? Number(event.target.value) : null)
-                    setBookId(null)
-                    setChapterId(null)
-                  }}
-                >
-                  <option value="">{t['teacher.classMaterials.selectSubject']}</option>
-                  {subjectsForSection.map((row) => (
-                    <option key={row.subject_id} value={row.subject_id}>
-                      {row.subject_name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+      {!loadingFilters && filteredUploads.length > 0 && (
+        <div className="overflow-x-auto rounded-md bg-white shadow-sm">
+          <table className="w-full min-w-[52rem] text-sm">
+            <thead className="bg-primary-50 text-xs font-medium tracking-wide text-gray-500 uppercase">
+              <tr>
+                <th className="px-5 py-3 text-left whitespace-nowrap">{t['teacher.classMaterials.colFile']}</th>
+                <th className="px-5 py-3 text-left whitespace-nowrap">{t['teacher.classMaterials.colChapter']}</th>
+                <th className="px-5 py-3 text-left whitespace-nowrap">{t['teacher.classMaterials.colSubject']}</th>
+                <th className="px-5 py-3 text-left whitespace-nowrap">{t['teacher.classMaterials.colSection']}</th>
+                <th className="px-5 py-3 text-left whitespace-nowrap">{t['teacher.classMaterials.colType']}</th>
+                <th className="px-5 py-3 text-left whitespace-nowrap">{t['teacher.classMaterials.colStatus']}</th>
+                <th className="px-5 py-3 text-left whitespace-nowrap">{t['teacher.classMaterials.colActions']}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredUploads.map((material) => (
+                <tr key={material.id} className="border-t border-gray-100 align-top">
+                  <td className="px-5 py-3.5 whitespace-nowrap text-gray-700">
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="material-symbols-outlined !text-[18px] text-gray-400">{fileTypeIcon(material.original_filename)}</span>
+                      {material.original_filename ?? '—'}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3.5 whitespace-nowrap text-gray-700">{material.chapter?.name ?? '—'}</td>
+                  <td className="px-5 py-3.5 whitespace-nowrap text-gray-700">{material.chapter?.book?.subject?.name ?? '—'}</td>
+                  <td className="px-5 py-3.5 whitespace-nowrap text-gray-700">{materialSectionLabel(material)}</td>
+                  <td className="px-5 py-3.5 whitespace-nowrap text-gray-700">
+                    {material.type === 'primary' ? t['teacher.classMaterials.typePrimary'] : t['teacher.classMaterials.typeSupplementary']}
+                  </td>
+                  <td className="px-5 py-3.5 whitespace-nowrap">
+                    <StatusBadge
+                      status={material.status}
+                      busy={statusTogglingId === material.id}
+                      onClick={() => handleStatusToggle(material)}
+                    />
+                  </td>
+                  <td className="px-5 py-3.5 whitespace-nowrap">
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        disabled={viewingId === material.id || material.status !== 'active'}
+                        onClick={() => handleView(material.id)}
+                        aria-label={t['teacher.classMaterials.view']}
+                        title={t['teacher.classMaterials.view']}
+                        className="cursor-pointer text-gray-500 transition-colors hover:text-primary-500 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        <span className="material-symbols-outlined !text-[18px]">visibility</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openEditForm(material)}
+                        aria-label={t['teacher.classMaterials.edit']}
+                        title={t['teacher.classMaterials.edit']}
+                        className="cursor-pointer text-gray-500 transition-colors hover:text-primary-500"
+                      >
+                        <span className="material-symbols-outlined !text-[18px]">edit</span>
+                      </button>
+                      <button
+                        type="button"
+                        disabled={deletingId === material.id}
+                        onClick={() => {
+                          if (window.confirm(t['teacher.classMaterials.deleteConfirm'])) handleDelete(material.id)
+                        }}
+                        aria-label={t['teacher.classMaterials.delete']}
+                        title={t['teacher.classMaterials.delete']}
+                        className="cursor-pointer text-danger-500 transition-colors hover:text-danger-600 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        <span className="material-symbols-outlined !text-[18px]">{deletingId === material.id ? 'hourglass_top' : 'delete'}</span>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
-              <label className={labelClass}>
-                <span className={labelTextClass}>{t['teacher.classMaterials.selectBook']}</span>
-                <select
-                  className={selectClass}
-                  value={bookId ?? ''}
-                  disabled={subjectId === null}
-                  onChange={(event) => {
-                    setBookId(event.target.value ? Number(event.target.value) : null)
-                    setChapterId(null)
-                  }}
-                >
-                  <option value="">{t['teacher.classMaterials.selectBook']}</option>
-                  {books.map((book) => (
-                    <option key={book.id} value={book.id}>
-                      {book.bn_name ?? book.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className={labelClass}>
-                <span className={labelTextClass}>{t['teacher.classMaterials.selectChapter']}</span>
-                <select
-                  className={selectClass}
-                  value={chapterId ?? ''}
-                  disabled={bookId === null}
-                  onChange={(event) => setChapterId(event.target.value ? Number(event.target.value) : null)}
-                >
-                  <option value="">{t['teacher.classMaterials.selectChapter']}</option>
-                  {chapters.map((chapter) => (
-                    <option key={chapter.id} value={chapter.id}>
-                      {chapter.bn_name ?? chapter.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+      {formOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-5">
+          <div
+            className="flex max-h-[calc(100vh-2.5rem)] w-full max-w-2xl flex-col overflow-hidden rounded-md bg-white shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-label={isEditing ? t['teacher.classMaterials.edit'] : t['teacher.classMaterials.addNew']}
+          >
+            <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+              <h3 className="text-base font-semibold text-gray-800">
+                {isEditing ? t['teacher.classMaterials.edit'] : t['teacher.classMaterials.addNew']}
+              </h3>
+              <button
+                type="button"
+                className="cursor-pointer text-xl leading-none text-gray-400 transition-colors hover:text-gray-600"
+                onClick={closeForm}
+                aria-label={t['teacher.classMaterials.cancel']}
+              >
+                ×
+              </button>
             </div>
-          </section>
 
-          <section className="rounded-md bg-white p-5 shadow-sm">
-            <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-gray-800">
-              <span className="material-symbols-outlined !text-[18px] text-primary-500">upload_file</span>
-              {t['teacher.classMaterials.sectionDetails']}
-            </h2>
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4 overflow-y-auto p-5">
+              {!isEditing && (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field label={t['teacher.classMaterials.selectSection']} required>
+                    <select
+                      className={selectClass}
+                      value={sectionId ?? ''}
+                      onChange={(event) => {
+                        setSectionId(event.target.value ? Number(event.target.value) : null)
+                        setSubjectId(null)
+                        setBookId(null)
+                        setChapterId(null)
+                      }}
+                    >
+                      <option value="">{t['teacher.classMaterials.selectSection']}</option>
+                      {sections.map((row) => (
+                        <option key={row.section_id} value={row.section_id}>
+                          {sectionLabel(row)}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <label className={labelClass}>
-                <span className={labelTextClass}>{t['teacher.classMaterials.materialType']}</span>
-                <select className={selectClass} value={type} onChange={(event) => setType(event.target.value as MaterialType)}>
-                  <option value="primary">{t['teacher.classMaterials.typePrimary']}</option>
-                  <option value="supplementary">{t['teacher.classMaterials.typeSupplementary']}</option>
-                </select>
-              </label>
+                  <Field label={t['teacher.classMaterials.selectSubject']} required>
+                    <select
+                      className={selectClass}
+                      value={subjectId ?? ''}
+                      disabled={sectionId === null}
+                      onChange={(event) => {
+                        setSubjectId(event.target.value ? Number(event.target.value) : null)
+                        setBookId(null)
+                        setChapterId(null)
+                      }}
+                    >
+                      <option value="">{t['teacher.classMaterials.selectSubject']}</option>
+                      {subjectsForSection.map((row) => (
+                        <option key={row.subject_id} value={row.subject_id}>
+                          {row.subject_name}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
 
-              {type === 'supplementary' && (
-                <label className={labelClass}>
-                  <span className={labelTextClass}>{t['teacher.classMaterials.titleLabel']}</span>
+                  <Field label={t['teacher.classMaterials.selectBook']} required>
+                    <select
+                      className={selectClass}
+                      value={bookId ?? ''}
+                      disabled={subjectId === null}
+                      onChange={(event) => {
+                        setBookId(event.target.value ? Number(event.target.value) : null)
+                        setChapterId(null)
+                      }}
+                    >
+                      <option value="">{t['teacher.classMaterials.selectBook']}</option>
+                      {books.map((book) => (
+                        <option key={book.id} value={book.id}>
+                          {book.bn_name ?? book.name}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+
+                  <Field label={t['teacher.classMaterials.selectChapter']} required>
+                    <select
+                      className={selectClass}
+                      value={chapterId ?? ''}
+                      disabled={bookId === null}
+                      onChange={(event) => setChapterId(event.target.value ? Number(event.target.value) : null)}
+                    >
+                      <option value="">{t['teacher.classMaterials.selectChapter']}</option>
+                      {chapters.map((chapter) => (
+                        <option key={chapter.id} value={chapter.id}>
+                          {chapter.bn_name ?? chapter.name}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+
+                  <Field label={t['teacher.classMaterials.materialType']} required>
+                    <select className={selectClass} value={type} onChange={(event) => setType(event.target.value as MaterialType)}>
+                      <option value="primary">{t['teacher.classMaterials.typePrimary']}</option>
+                      <option value="supplementary">{t['teacher.classMaterials.typeSupplementary']}</option>
+                    </select>
+                  </Field>
+
+                  <Field label={t['teacher.classMaterials.orderIndex']}>
+                    <input
+                      type="number"
+                      min={0}
+                      max={255}
+                      className={selectClass}
+                      value={orderIndex}
+                      onChange={(event) => setOrderIndex(event.target.value)}
+                    />
+                  </Field>
+                </div>
+              )}
+
+              {isEditing && (
+                <Field label={t['teacher.classMaterials.orderIndex']}>
+                  <input
+                    type="number"
+                    min={0}
+                    max={255}
+                    className={selectClass}
+                    value={orderIndex}
+                    onChange={(event) => setOrderIndex(event.target.value)}
+                  />
+                </Field>
+              )}
+
+              {(type === 'supplementary' || (isEditing && editingMaterial?.type === 'supplementary')) && (
+                <Field label={t['teacher.classMaterials.titleLabel']} required={!isEditing}>
                   <input
                     type="text"
                     placeholder={t['teacher.classMaterials.titlePlaceholder']}
@@ -493,178 +676,35 @@ export default function ClassMaterialsPage() {
                     value={title}
                     onChange={(event) => setTitle(event.target.value)}
                   />
-                </label>
+                </Field>
               )}
 
-              <label className={labelClass}>
-                <span className={labelTextClass}>{t['teacher.classMaterials.orderIndex']}</span>
-                <input
-                  type="number"
-                  min={0}
-                  max={255}
-                  className={selectClass}
-                  value={orderIndex}
-                  onChange={(event) => setOrderIndex(event.target.value)}
+              <Field label={t['teacher.classMaterials.fileLabel']} required={!isEditing}>
+                <FileDropZone
+                  file={file}
+                  placeholderName={editingMaterial?.original_filename}
+                  onFileChange={setFile}
+                  label={t['teacher.classMaterials.fileDropLabel']}
                 />
-              </label>
-            </div>
+                {isEditing && <p className="mt-1.5 text-xs text-gray-400">{t['teacher.classMaterials.replaceFileNote']}</p>}
+              </Field>
 
-            <div className="mt-4">
-              <span className={`${labelTextClass} mb-1.5 block`}>{t['teacher.classMaterials.fileLabel']}</span>
-              <FileDropZone file={file} onFileChange={setFile} label={t['teacher.classMaterials.fileDropLabel']} />
-            </div>
-
-            <div className="mt-4 flex justify-end">
-              <button
-                type="submit"
-                disabled={uploading || sectionId === null || chapterId === null || !file}
-                className="inline-flex h-11 items-center gap-2 cursor-pointer rounded-md bg-primary-500 px-5 text-sm font-medium text-white transition-colors hover:bg-primary-400 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <span className="material-symbols-outlined !text-[18px]">cloud_upload</span>
-                {uploading ? t['teacher.classMaterials.uploading'] : t['teacher.classMaterials.upload']}
-              </button>
-            </div>
-          </section>
-        </form>
-      )}
-
-      <section>
-        <h2 className="mb-3 flex items-center gap-2 text-base font-semibold text-gray-800">
-          <span className="material-symbols-outlined !text-[20px] text-primary-500">inventory_2</span>
-          {t['teacher.classMaterials.myUploads']}
-        </h2>
-
-        {myUploads.length === 0 ? (
-          <p className="rounded-md bg-white p-5 text-sm text-gray-500 shadow-sm">{t['teacher.classMaterials.empty']}</p>
-        ) : (
-          <div className="overflow-x-auto rounded-md bg-white shadow-sm">
-            <table className="w-full min-w-[52rem] text-sm">
-              <thead className="bg-primary-50 text-xs font-medium tracking-wide text-gray-500 uppercase">
-                <tr>
-                  <th className="px-5 py-3 text-left whitespace-nowrap">{t['teacher.classMaterials.colFile']}</th>
-                  <th className="px-5 py-3 text-left whitespace-nowrap">{t['teacher.classMaterials.colChapter']}</th>
-                  <th className="px-5 py-3 text-left whitespace-nowrap">{t['teacher.classMaterials.colSubject']}</th>
-                  <th className="px-5 py-3 text-left whitespace-nowrap">{t['teacher.classMaterials.colSection']}</th>
-                  <th className="px-5 py-3 text-left whitespace-nowrap">{t['teacher.classMaterials.colType']}</th>
-                  <th className="px-5 py-3 text-left whitespace-nowrap">{t['teacher.classMaterials.colStatus']}</th>
-                  <th className="px-5 py-3 text-left whitespace-nowrap">{t['teacher.classMaterials.colActions']}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {myUploads.map((material) => (
-                  <tr key={material.id} className="border-t border-gray-100 align-top">
-                    <td className="px-5 py-3.5 whitespace-nowrap text-gray-700">
-                      <span className="inline-flex items-center gap-1.5">
-                        <span className="material-symbols-outlined !text-[18px] text-gray-400">{fileTypeIcon(material.original_filename)}</span>
-                        {material.original_filename ?? '—'}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3.5 whitespace-nowrap text-gray-700">{material.chapter?.name ?? '—'}</td>
-                    <td className="px-5 py-3.5 whitespace-nowrap text-gray-700">{material.chapter?.book?.subject?.name ?? '—'}</td>
-                    <td className="px-5 py-3.5 whitespace-nowrap text-gray-700">{materialSectionLabel(material)}</td>
-                    <td className="px-5 py-3.5 whitespace-nowrap text-gray-700">
-                      {material.type === 'primary' ? t['teacher.classMaterials.typePrimary'] : t['teacher.classMaterials.typeSupplementary']}
-                    </td>
-                    <td className="px-5 py-3.5 whitespace-nowrap">
-                      <StatusBadge
-                        status={material.status}
-                        busy={statusTogglingId === material.id}
-                        onClick={() => handleStatusToggle(material)}
-                      />
-                    </td>
-                    <td className="px-5 py-3.5">
-                      {editingId === material.id ? (
-                        <div className="flex flex-col gap-2">
-                          {material.type === 'supplementary' && (
-                            <input
-                              type="text"
-                              placeholder={t['teacher.classMaterials.titleLabel']}
-                              className="h-9 rounded-md border border-gray-200 px-2 text-sm outline-none focus:border-primary-500"
-                              value={editTitle}
-                              onChange={(event) => setEditTitle(event.target.value)}
-                            />
-                          )}
-                          <input
-                            type="number"
-                            min={0}
-                            max={255}
-                            placeholder={t['teacher.classMaterials.orderIndex']}
-                            className="h-9 w-24 rounded-md border border-gray-200 px-2 text-sm outline-none focus:border-primary-500"
-                            value={editOrderIndex}
-                            onChange={(event) => setEditOrderIndex(event.target.value)}
-                          />
-                          <div className="w-56">
-                            <FileDropZone
-                              file={editFile}
-                              placeholderName={material.original_filename}
-                              onFileChange={setEditFile}
-                              label={t['teacher.classMaterials.fileDropLabel']}
-                            />
-                          </div>
-                          <p className="text-xs text-gray-400">{t['teacher.classMaterials.replaceFileNote']}</p>
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              disabled={savingEdit}
-                              onClick={() => handleSaveEdit(material.id)}
-                              className="cursor-pointer rounded-md bg-primary-500 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-primary-400 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              {savingEdit ? t['teacher.classMaterials.saving'] : t['teacher.classMaterials.save']}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={cancelEdit}
-                              className="cursor-pointer rounded-md border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:border-primary-500"
-                            >
-                              {t['teacher.classMaterials.cancel']}
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-3">
-                          <button
-                            type="button"
-                            disabled={viewingId === material.id || material.status !== 'active'}
-                            onClick={() => handleView(material.id)}
-                            aria-label={t['teacher.classMaterials.view']}
-                            title={t['teacher.classMaterials.view']}
-                            className="cursor-pointer text-gray-500 transition-colors hover:text-primary-500 disabled:cursor-not-allowed disabled:opacity-40"
-                          >
-                            <span className="material-symbols-outlined !text-[18px]">visibility</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => startEdit(material)}
-                            aria-label={t['teacher.classMaterials.edit']}
-                            title={t['teacher.classMaterials.edit']}
-                            className="cursor-pointer text-gray-500 transition-colors hover:text-primary-500"
-                          >
-                            <span className="material-symbols-outlined !text-[18px]">edit</span>
-                          </button>
-                          <button
-                            type="button"
-                            disabled={deletingId === material.id}
-                            onClick={() => {
-                              if (window.confirm(t['teacher.classMaterials.deleteConfirm'])) handleDelete(material.id)
-                            }}
-                            aria-label={t['teacher.classMaterials.delete']}
-                            title={t['teacher.classMaterials.delete']}
-                            className="cursor-pointer text-danger-500 transition-colors hover:text-danger-600 disabled:cursor-not-allowed disabled:opacity-40"
-                          >
-                            <span className="material-symbols-outlined !text-[18px]">
-                              {deletingId === material.id ? 'hourglass_top' : 'delete'}
-                            </span>
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+              <div className="flex justify-end gap-3 border-t border-gray-100 pt-4">
+                <button type="button" className={buttonNeutral} onClick={closeForm} disabled={saving}>
+                  {t['teacher.classMaterials.cancel']}
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving || (!isEditing && (sectionId === null || chapterId === null || !file))}
+                  className={buttonPrimary}
+                >
+                  {saving ? t['teacher.classMaterials.saving'] : t['teacher.classMaterials.save']}
+                </button>
+              </div>
+            </form>
           </div>
-        )}
-      </section>
+        </div>
+      )}
 
       <ToastViewport toast={toast} />
     </div>

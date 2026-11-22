@@ -916,5 +916,8 @@
   "teacher.classMaterials.fileChangeHint": "বদলাতে ক্লিক করুন বা নতুন ফাইল টেনে আনুন",
   "teacher.classMaterials.statusToggleHint": "অবস্থা পরিবর্তন করতে ক্লিক করুন",
   "teacher.classMaterials.view": "দেখুন",
-  "teacher.classMaterials.viewError": "ফাইলটি খোলা যায়নি। আবার চেষ্টা করুন।"
+  "teacher.classMaterials.viewError": "ফাইলটি খোলা যায়নি। আবার চেষ্টা করুন।",
+  "teacher.classMaterials.addNew": "উপকরণ যুক্ত করুন",
+  "teacher.classMaterials.searchPlaceholder": "অধ্যায়, বিষয়, শাখা বা ফাইলের নাম দিয়ে খুঁজুন...",
+  "teacher.classMaterials.noMatches": "আপনার খোঁজার সাথে কোনো উপকরণ মেলেনি।"
 }

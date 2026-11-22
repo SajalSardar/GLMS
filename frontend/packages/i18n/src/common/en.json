@@ -916,5 +916,8 @@
   "teacher.classMaterials.fileChangeHint": "Click or drag a new file to replace it",
   "teacher.classMaterials.statusToggleHint": "Click to change status",
   "teacher.classMaterials.view": "View",
-  "teacher.classMaterials.viewError": "Could not open this file. Please try again."
+  "teacher.classMaterials.viewError": "Could not open this file. Please try again.",
+  "teacher.classMaterials.addNew": "Add Material",
+  "teacher.classMaterials.searchPlaceholder": "Search by chapter, subject, section, or file name...",
+  "teacher.classMaterials.noMatches": "No materials match your search."
 }
