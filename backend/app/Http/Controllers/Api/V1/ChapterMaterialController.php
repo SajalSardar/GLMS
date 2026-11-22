@@ -115,16 +115,18 @@ class ChapterMaterialController extends Controller
 
     public function store(StoreChapterMaterialRequest $request): JsonResponse
     {
-        $this->authorize('create', ChapterMaterial::class);
-
         $chapter = Chapter::with('book')->findOrFail($request->integer('chapter_id'));
+        $sectionId = $request->integer('section_id') ?: null;
+
+        $this->authorize('create', [ChapterMaterial::class, $chapter, $sectionId]);
+
         $disk = config('content.pdf_disk');
         $file = $request->file('pdf');
         $path = $file->storeAs("chapter-materials/{$chapter->id}", Str::uuid().'.pdf', $disk);
 
         $material = ChapterMaterial::create([
             'chapter_id' => $chapter->id,
-            ...$this->resolveUploaderScope($request->user(), $chapter),
+            ...$this->resolveUploaderScope($request->user(), $chapter, $sectionId),
             'type' => $request->input('type'),
             'title' => $request->input('title'),
             'original_filename' => $file->getClientOriginalName(),
@@ -143,38 +145,23 @@ class ChapterMaterialController extends Controller
 
     /**
      * [school_id, district_id, shift_id, class_version_id, class_id,
-     * section_id] — all null unless the uploader is a TeacherUser who is
-     * the class_teacher of a section whose own shift.class_version_id
-     * matches this chapter's book's class_version_id. A school_admin/
-     * national_admin upload, or a teacher with no matching section
-     * (doesn't teach this exact class, or teaches several sections of
-     * it — ambiguous, so left unscoped rather than guessing), leaves the
-     * material visible to the whole chapter, same as before this scoping
-     * existed.
+     * section_id] — all null unless the uploader is a TeacherUser who
+     * supplied a section_id (already authorized against a matching
+     * SubjectTeacherAssignment in ChapterMaterialPolicy::create() before
+     * this runs). A school_admin/national_admin upload leaves the
+     * material unscoped, same as before this scoping existed.
      *
      * @return array{school_id: ?int, district_id: ?int, shift_id: ?int, class_version_id: ?int, class_id: ?int, section_id: ?int}
      */
-    private function resolveUploaderScope(mixed $actor, Chapter $chapter): array
+    private function resolveUploaderScope(mixed $actor, Chapter $chapter, ?int $sectionId): array
     {
         $empty = ['school_id' => null, 'district_id' => null, 'shift_id' => null, 'class_version_id' => null, 'class_id' => null, 'section_id' => null];
 
-        if (! $actor instanceof TeacherUser) {
+        if (! $actor instanceof TeacherUser || $sectionId === null) {
             return $empty;
         }
 
-        $classVersionId = $chapter->book->class_version_id;
-
-        $sections = Section::query()
-            ->where('class_teacher_id', $actor->id)
-            ->whereHas('shift', fn ($query) => $query->where('class_version_id', $classVersionId))
-            ->with('shift.classVersion')
-            ->get();
-
-        if ($sections->count() !== 1) {
-            return $empty;
-        }
-
-        $section = $sections->first();
+        $section = Section::with('shift.classVersion')->findOrFail($sectionId);
         $shift = $section->shift;
 
         return [

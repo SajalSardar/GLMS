@@ -3,7 +3,7 @@
 namespace App\Http\Requests\Api\V1;
 
 use App\Models\Chapter;
-use App\Models\ChapterMaterial;
+use App\Models\TeacherUser;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -16,7 +16,7 @@ class StoreChapterMaterialRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()?->can('create', ChapterMaterial::class) ?? false;
+        return $this->user()?->hasPermission('chapter_materials.create') ?? false;
     }
 
     /**
@@ -26,6 +26,10 @@ class StoreChapterMaterialRequest extends FormRequest
     {
         return [
             'chapter_id' => ['required', 'integer', Rule::exists('chapters', 'id')->withoutTrashed()],
+            'section_id' => [
+                Rule::requiredIf(fn () => $this->user() instanceof TeacherUser),
+                'nullable', 'integer', Rule::exists('sections', 'id'),
+            ],
             'type' => ['required', 'string', Rule::in(['primary', 'supplementary'])],
             'title' => ['required_if:type,supplementary', 'nullable', 'string', 'max:255'],
             'order_index' => ['nullable', 'integer', 'min:0', 'max:255'],

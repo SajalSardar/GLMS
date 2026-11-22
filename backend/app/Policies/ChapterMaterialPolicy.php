@@ -2,8 +2,12 @@
 
 namespace App\Policies;
 
+use App\Models\Chapter;
 use App\Models\ChapterMaterial;
+use App\Models\Section;
 use App\Models\StudentUser;
+use App\Models\SubjectTeacherAssignment;
+use App\Models\TeacherUser;
 use Illuminate\Contracts\Auth\Authenticatable;
 
 class ChapterMaterialPolicy
@@ -50,18 +54,58 @@ class ChapterMaterialPolicy
             && $chapterMaterial->class_version_id === $profile->class_version_id;
     }
 
-    public function create(Authenticatable $user): bool
+    /**
+     * Staff (any non-TeacherUser actor) with the flat permission is
+     * unrestricted, same as before. A TeacherUser additionally needs a
+     * SubjectTeacherAssignment row for (sectionId, chapter's own subject,
+     * this teacher) — the section's homeroom class_teacher_id grants no
+     * extra authority here; this is specifically about subject content,
+     * not homeroom-level data. Always called with a resolved Chapter —
+     * see ChapterMaterialController::store(), which is the only caller.
+     */
+    public function create(Authenticatable $user, Chapter $chapter, ?int $sectionId = null): bool
     {
-        return $user->hasPermission('chapter_materials.create');
+        if (! $user->hasPermission('chapter_materials.create')) {
+            return false;
+        }
+
+        if (! $user instanceof TeacherUser) {
+            return true;
+        }
+
+        if (! $sectionId) {
+            return false;
+        }
+
+        $section = Section::with('shift')->find($sectionId);
+
+        return $section !== null
+            && $section->shift->class_version_id === $chapter->book->class_version_id
+            && SubjectTeacherAssignment::where('section_id', $sectionId)
+                ->where('subject_id', $chapter->book->subject_id)
+                ->where('teacher_id', $user->id)
+                ->exists();
     }
 
+    /**
+     * Staff with the flat permission retain full override. A TeacherUser
+     * may only touch material they themselves uploaded.
+     */
     public function update(Authenticatable $user, ChapterMaterial $chapterMaterial): bool
     {
-        return $user->hasPermission('chapter_materials.update');
+        if (! $user->hasPermission('chapter_materials.update')) {
+            return false;
+        }
+
+        return ! $user instanceof TeacherUser || $chapterMaterial->uploaded_by_id === $user->id;
     }
 
     public function delete(Authenticatable $user, ChapterMaterial $chapterMaterial): bool
     {
-        return $user->hasPermission('chapter_materials.delete');
+        if (! $user->hasPermission('chapter_materials.delete')) {
+            return false;
+        }
+
+        return ! $user instanceof TeacherUser || $chapterMaterial->uploaded_by_id === $user->id;
     }
 }
