@@ -63,6 +63,21 @@ const classMaterialsNavItem: SidebarItem = {
   ],
 }
 
+// Exam terms/grade configuration/subject mark configuration CRUD stays
+// national_admin only — school_admin only holds the .view permission on
+// each (see RolePermissionSeeder), not create/update/delete — but as its
+// own top-level group placed right after Class Materials, rather than
+// nested under System Setup, per the explicit request to move it there.
+const examControlNavItem: SidebarItem = {
+  label: t['management.nav.examControl'],
+  icon: 'rule',
+  children: [
+    { to: '/dashboard/exam-control/academic-exam-terms', label: t['management.systemSetup.academicExamTerms'], icon: 'event_note' },
+    { to: '/dashboard/exam-control/academic-grade-configures', label: t['management.systemSetup.academicGradeConfigures'], icon: 'grade' },
+    { to: '/dashboard/exam-control/academic-subject-mark-configures', label: t['management.systemSetup.academicSubjectMarkConfigures'], icon: 'checklist' },
+  ],
+}
+
 // Report-only (see AttendanceReportPage's own comment) — visible to the
 // same school_admin/national_admin pair as teachersNavItem/studentsNavItem
 // above, since recording itself stays in the teacher portal.
@@ -157,9 +172,6 @@ const systemSetupItem: SidebarItem = {
     },
     { to: '/dashboard/system-setup/upazilas', label: t['management.systemSetup.upazilas'], icon: 'location_on' },
     { to: '/dashboard/system-setup/subjects', label: t['management.systemSetup.subjects'], icon: 'book' },
-    { to: '/dashboard/system-setup/academic-exam-terms', label: t['management.systemSetup.academicExamTerms'], icon: 'event_note' },
-    { to: '/dashboard/system-setup/academic-grade-configures', label: t['management.systemSetup.academicGradeConfigures'], icon: 'grade' },
-    { to: '/dashboard/system-setup/academic-subject-mark-configures', label: t['management.systemSetup.academicSubjectMarkConfigures'], icon: 'checklist' },
     ...classesAndYearsNavItems,
   ],
 }
@@ -227,7 +239,7 @@ function DashboardLayout() {
   const navItems = [
     ...baseNavItems,
     ...(role === 'national_admin' || role === 'school_admin' ? [teachersNavItem, studentsNavItem] : []),
-    ...(role === 'national_admin' ? [classMaterialsNavItem] : []),
+    ...(role === 'national_admin' ? [classMaterialsNavItem, examControlNavItem] : []),
     ...(role === 'national_admin' || role === 'school_admin'
       ? [attendanceNavItem, publishResultsNavItem, promoteStudentsNavItem, routineNavItem]
       : []),
@@ -287,14 +299,16 @@ function App() {
                 <Route path="books/:bookId/chapters" element={<ChaptersPage />} />
                 <Route path="class-videos" element={<ClassVideosPage />} />
               </Route>
+              <Route path="exam-control" element={<RequireNationalAdmin />}>
+                <Route path="academic-exam-terms" element={<AcademicExamTermsPage />} />
+                <Route path="academic-grade-configures" element={<AcademicGradeConfiguresPage />} />
+                <Route path="academic-subject-mark-configures" element={<AcademicSubjectMarkConfiguresPage />} />
+              </Route>
               <Route path="system-setup" element={<RequireNationalAdmin />}>
                 <Route path="divisions" element={<DivisionsPage />} />
                 <Route path="districts" element={<DistrictsPage />} />
                 <Route path="upazilas" element={<UpazilasPage />} />
                 <Route path="subjects" element={<SubjectsPage />} />
-                <Route path="academic-exam-terms" element={<AcademicExamTermsPage />} />
-                <Route path="academic-grade-configures" element={<AcademicGradeConfiguresPage />} />
-                <Route path="academic-subject-mark-configures" element={<AcademicSubjectMarkConfiguresPage />} />
               </Route>
             </Route>
           </Route>
