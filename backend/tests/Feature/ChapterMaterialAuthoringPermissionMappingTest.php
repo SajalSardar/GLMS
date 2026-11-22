@@ -11,13 +11,21 @@ class ChapterMaterialAuthoringPermissionMappingTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_chapter_materials_create_is_mapped_to_exactly_national_admin(): void
+    /**
+     * chapter_materials.create is now also granted to `teacher`, since
+     * teachers upload their own class's materials — scoped at the
+     * Policy layer (SubjectTeacherAssignment match), not by withholding
+     * the permission. national_admin keeps it via $allPermissions.
+     * Granting it to any OTHER role here would be a real authorization
+     * regression, not just redundancy.
+     */
+    public function test_chapter_materials_create_is_mapped_to_national_admin_and_teacher(): void
     {
         $this->seed(DatabaseSeeder::class);
 
         $roles = Role::whereHas('permissions', fn ($q) => $q->where('name', 'chapter_materials.create'))
             ->pluck('name')->sort()->values()->all();
 
-        $this->assertSame(['national_admin'], $roles);
+        $this->assertSame(['national_admin', 'teacher'], $roles);
     }
 }

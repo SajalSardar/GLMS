@@ -66,7 +66,7 @@ class RolePermissionSeeder extends Seeder
 
             'teacher' => [
                 'divisions.view', 'districts.view', 'upazilas.view', 'schools.view',
-                'classes.view', 'subjects.view', 'chapter_videos.view', 'chapter_materials.view', 'books.view', 'chapters.view', 'academic_years.view',
+                'classes.view', 'subjects.view', 'chapter_videos.view', 'chapter_materials.view', 'chapter_materials.create', 'chapter_materials.update', 'chapter_materials.delete', 'books.view', 'chapters.view', 'academic_years.view',
                 'classrooms.view', 'class_routines.view', 'holidays.view',
                 'academic_exam_terms.view', 'academic_grade_configures.view', 'academic_subject_mark_configures.view',
                 'class_versions.view', 'shifts.view', 'sections.view', 'subject_teacher_assignments.view',
