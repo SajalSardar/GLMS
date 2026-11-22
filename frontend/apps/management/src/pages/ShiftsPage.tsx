@@ -73,6 +73,11 @@ function classVersionLabel(version: ClassVersion): string {
   return version.name
 }
 
+function schoolNameFor(schools: School[], schoolId: number): string {
+  const school = schools.find((candidate) => candidate.id === schoolId)
+  return school ? schoolLabel(school) : String(schoolId)
+}
+
 function daysLabel(days: DayOfWeek[]): string {
   return days.map((day) => dayLabels[day]).join(', ')
 }
@@ -90,11 +95,12 @@ function DetailRow({ label, value }: { label: string; value: ReactNode }) {
   )
 }
 
-function ShiftDetails({ shift }: { shift: Shift }) {
+function ShiftDetails({ shift, schools }: { shift: Shift; schools: School[] }) {
   return (
     <div className="flex flex-col gap-1">
       <DetailRow label={t['management.fields.name']} value={shift.name} />
       <DetailRow label={t['management.fields.bnName']} value={shift.bn_name ?? '—'} />
+      <DetailRow label={t['management.fields.school']} value={schoolNameFor(schools, shift.school_id)} />
       <DetailRow
         label={t['management.fields.classVersion']}
         value={shift.class_version ? classVersionLabel(shift.class_version) : shift.class_version_id}
@@ -143,6 +149,11 @@ export default function ShiftsPage() {
   const columns: GeoColumn<Shift>[] = [
     { key: 'name', label: t['management.fields.name'], render: (row) => row.name },
     {
+      key: 'school',
+      label: t['management.fields.school'],
+      render: (row) => schoolNameFor(schools, row.school_id),
+    },
+    {
       key: 'class_version',
       label: t['management.fields.classVersion'],
       render: (row) => (row.class_version ? classVersionLabel(row.class_version) : row.class_version_id),
@@ -171,6 +182,7 @@ export default function ShiftsPage() {
       })}
       renderFields={(values, onChange, fieldErrors) => {
         const selectedDays = toDaysArray(values.days_of_week)
+        const selectedVersion = classVersions.find((version) => String(version.id) === values.class_version_id)
 
         function toggleDay(day: DayOfWeek) {
           const next = selectedDays.includes(day)
@@ -189,6 +201,14 @@ export default function ShiftsPage() {
                 searchPlaceholder={t['management.table.search']}
                 noMatchesLabel={t['management.table.noMatches']}
                 options={classVersionOptions}
+              />
+            </GeoField>
+
+            <GeoField label={t['management.fields.school']}>
+              <input
+                className={`${inputClass} cursor-not-allowed opacity-60`}
+                value={selectedVersion ? schoolNameFor(schools, selectedVersion.school_id) : '—'}
+                disabled
               />
             </GeoField>
 
@@ -294,7 +314,7 @@ export default function ShiftsPage() {
       createRow={(values, token) => createShift(toPayload(values), token)}
       updateRow={(id, values, token) => updateShift(id, toPayload(values), token)}
       deleteRow={(id, token) => deleteShift(id, token)}
-      renderDetails={(row) => <ShiftDetails shift={row} />}
+      renderDetails={(row) => <ShiftDetails shift={row} schools={schools} />}
       parentFilter={{
         label: t['management.fields.school'],
         allLabel: t['management.fields.allSchools'],
