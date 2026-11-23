@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\ClassSchool;
+use App\Models\ClassVersion;
 use App\Models\District;
 use App\Models\Division;
 use App\Models\School;
@@ -62,6 +63,48 @@ class ClassVersionControllerTest extends TestCase
         $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/class-versions', [
             'class_id' => $class->id,
             'school_id' => $this->school->id,
+            'version_id' => $inactive->id,
+        ])->assertStatus(422);
+    }
+
+    public function test_update_rejects_an_unknown_version_id(): void
+    {
+        $class = SchoolClass::create(['name' => 'Class Six']);
+        ClassSchool::create(['class_id' => $class->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
+        $bangla = Version::where('name', 'Bangla')->first();
+        $classVersion = ClassVersion::create([
+            'class_id' => $class->id,
+            'school_id' => $this->school->id,
+            'district_id' => $this->school->district_id,
+            'version_id' => $bangla->id,
+            'is_active' => true,
+        ]);
+
+        $allowed = $this->actorWithPermissions(['class_versions.update'], $this->school->id, $this->school->district_id);
+
+        $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/class-versions/{$classVersion->id}", [
+            'version_id' => 999999,
+        ])->assertStatus(422);
+    }
+
+    public function test_update_rejects_an_inactive_version_id(): void
+    {
+        $class = SchoolClass::create(['name' => 'Class Six']);
+        ClassSchool::create(['class_id' => $class->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
+        $bangla = Version::where('name', 'Bangla')->first();
+        $classVersion = ClassVersion::create([
+            'class_id' => $class->id,
+            'school_id' => $this->school->id,
+            'district_id' => $this->school->district_id,
+            'version_id' => $bangla->id,
+            'is_active' => true,
+        ]);
+        $inactive = Version::where('name', 'English')->first();
+        $inactive->update(['is_active' => false]);
+
+        $allowed = $this->actorWithPermissions(['class_versions.update'], $this->school->id, $this->school->district_id);
+
+        $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/class-versions/{$classVersion->id}", [
             'version_id' => $inactive->id,
         ])->assertStatus(422);
     }
