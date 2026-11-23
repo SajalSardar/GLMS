@@ -11,6 +11,7 @@ use App\Models\Shift;
 use App\Models\StudentProfile;
 use App\Models\SubjectTeacherAssignment;
 use App\Models\TimetableEntry;
+use App\Models\Version;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -49,7 +50,9 @@ class SectionBackfillSeeder extends Seeder
         // rows for every assignment. See ClassSchoolController::updateSubjects()
         // for the same pitfall documented in this same branch. class_subjects
         // is queried directly below instead, exactly like ClassSubjectSeeder.
-        ClassSchool::with('schoolClass')->get()->each(function (ClassSchool $assignment) {
+        $bangladVersionId = Version::where('name', 'Bangla')->value('id');
+
+        ClassSchool::with('schoolClass')->get()->each(function (ClassSchool $assignment) use ($bangladVersionId) {
             $class = $assignment->schoolClass;
 
             if (! $class) {
@@ -65,7 +68,7 @@ class SectionBackfillSeeder extends Seeder
             $academicYearId = AcademicYear::where('is_current', true)->value('id');
 
             $version = ClassVersion::firstOrCreate(
-                ['class_id' => $class->id, 'school_id' => $schoolId, 'name' => 'General'],
+                ['class_id' => $class->id, 'school_id' => $schoolId, 'version_id' => $bangladVersionId],
                 ['district_id' => $districtId, 'is_active' => true],
             );
 
