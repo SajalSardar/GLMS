@@ -36,7 +36,7 @@ function EyeIcon({ open }: { open: boolean }) {
 }
 
 function LoginForm() {
-  const { setToken, setRole, setSchoolId } = useAuth()
+  const { setToken, setRole, setSchoolId, setPermissions } = useAuth()
   const navigate = useNavigate()
   const loginFieldId = useId()
   const passwordFieldId = useId()
@@ -57,6 +57,7 @@ function LoginForm() {
       setToken(result.token)
       setRole(result.data.role?.name ?? null)
       setSchoolId(result.data.school?.id ?? null)
+      setPermissions(result.data.role?.permissions ?? [])
       navigate('/dashboard', { replace: true })
     } catch {
       setError(t['management.errorGeneric'])
