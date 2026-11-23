@@ -14,6 +14,7 @@ import {
   listShifts,
   listSections,
   listSubjects,
+  listVersions,
   updateClassSchoolSubjects,
   DAYS_OF_WEEK,
   type ClassSchool,
@@ -24,6 +25,7 @@ import {
   type Section,
   type Shift,
   type Subject,
+  type Version,
 } from '@ttla/api-client'
 import { useAuth } from '@ttla/auth'
 import { getCommonStrings } from '@ttla/i18n'
@@ -464,6 +466,7 @@ function AddHierarchyModal({
   school,
   classSchools,
   classVersions,
+  catalogVersions,
   shifts,
   context,
   onClose,
@@ -472,6 +475,11 @@ function AddHierarchyModal({
   school: School
   classSchools: ClassSchool[]
   classVersions: ClassVersion[]
+  // The fixed national Bangla/English catalog — the "Version" picker for a
+  // brand-new ClassVersion (kind === 'version') below selects one of these
+  // two, unlike `classVersions` above which is this school's already-created
+  // ClassVersion rows (used to scope the Shift/Section cascading pickers).
+  catalogVersions: Version[]
   shifts: Shift[]
   context: AddContext
   onClose: () => void
@@ -484,6 +492,7 @@ function AddHierarchyModal({
   const [selectedClassId, setSelectedClassId] = useState('')
   const [selectedVersionId, setSelectedVersionId] = useState('')
   const [selectedShiftId, setSelectedShiftId] = useState('')
+  const [selectedCatalogVersionId, setSelectedCatalogVersionId] = useState('')
 
   const [name, setName] = useState('')
   const [bnName, setBnName] = useState('')
@@ -523,7 +532,11 @@ function AddHierarchyModal({
     if (!selectedClassId) missing.class_id = REQUIRED_MESSAGE
     if ((kind === 'shift' || kind === 'section') && !selectedVersionId) missing.class_version_id = REQUIRED_MESSAGE
     if (kind === 'section' && !selectedShiftId) missing.shift_id = REQUIRED_MESSAGE
-    if (!name.trim()) missing.name = REQUIRED_MESSAGE
+    if (kind === 'version') {
+      if (!selectedCatalogVersionId) missing.version_id = REQUIRED_MESSAGE
+    } else if (!name.trim()) {
+      missing.name = REQUIRED_MESSAGE
+    }
     if (kind === 'shift') {
       if (!startTime) missing.start_time = REQUIRED_MESSAGE
       if (!endTime) missing.end_time = REQUIRED_MESSAGE
@@ -543,7 +556,12 @@ function AddHierarchyModal({
     try {
       if (kind === 'version') {
         await createClassVersion(
-          { class_id: Number(selectedClassId), school_id: school.id, name, bn_name: bnName || null, is_active: isActive },
+          {
+            class_id: Number(selectedClassId),
+            school_id: school.id,
+            version_id: Number(selectedCatalogVersionId),
+            is_active: isActive,
+          },
           token,
         )
         showToast({ type: 'success', message: t['management.schoolDetail.versionAdded'] })
@@ -674,13 +692,28 @@ function AddHierarchyModal({
             </GeoField>
           )}
 
-          <GeoField label={t['management.fields.name']} required error={fieldErrors.name}>
-            <input className={inputClass} value={name} onChange={(event) => setName(event.target.value)} />
-          </GeoField>
+          {kind === 'version' ? (
+            <GeoField label={t['management.fields.version']} required error={fieldErrors.version_id}>
+              <SearchableSelect
+                value={selectedCatalogVersionId}
+                onChange={setSelectedCatalogVersionId}
+                placeholder={t['management.fields.version']}
+                searchPlaceholder={t['management.table.search']}
+                noMatchesLabel={t['management.table.noMatches']}
+                options={catalogVersions.map((version) => ({ value: String(version.id), label: version.name }))}
+              />
+            </GeoField>
+          ) : (
+            <>
+              <GeoField label={t['management.fields.name']} required error={fieldErrors.name}>
+                <input className={inputClass} value={name} onChange={(event) => setName(event.target.value)} />
+              </GeoField>
 
-          <GeoField label={t['management.fields.bnName']} error={fieldErrors.bn_name}>
-            <input className={inputClass} value={bnName} onChange={(event) => setBnName(event.target.value)} />
-          </GeoField>
+              <GeoField label={t['management.fields.bnName']} error={fieldErrors.bn_name}>
+                <input className={inputClass} value={bnName} onChange={(event) => setBnName(event.target.value)} />
+              </GeoField>
+            </>
+          )}
 
           {kind === 'shift' && (
             <>
@@ -777,11 +810,20 @@ export default function SchoolDetailPage() {
   const [school, setSchool] = useState<School | null>(null)
   const [classSchools, setClassSchools] = useState<ClassSchool[]>([])
   const [classVersions, setClassVersions] = useState<ClassVersion[]>([])
+  const [catalogVersions, setCatalogVersions] = useState<Version[]>([])
   const [shifts, setShifts] = useState<Shift[]>([])
   const [rows, setRows] = useState<HierarchyRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [addContext, setAddContext] = useState<AddContext | null>(null)
+
+  // The fixed national Bangla/English catalog — independent of :id, so
+  // fetched once on mount rather than inside loadSchool() below.
+  useEffect(() => {
+    listVersions({ perPage: 10 })
+      .then((result) => setCatalogVersions(result.data))
+      .catch(() => setCatalogVersions([]))
+  }, [])
 
   // Tracks the most recently requested id so a slower, superseded response
   // (e.g. school 1's request resolving after school 2's, once the user has
@@ -949,6 +991,7 @@ export default function SchoolDetailPage() {
               school={school}
               classSchools={classSchools}
               classVersions={classVersions}
+              catalogVersions={catalogVersions}
               shifts={shifts}
               context={addContext}
               onClose={() => setAddContext(null)}

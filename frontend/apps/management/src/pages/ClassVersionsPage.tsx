@@ -6,11 +6,13 @@ import {
   listClassSchools,
   listClassVersions,
   listSchools,
+  listVersions,
   updateClassVersion,
   type ClassSchool,
   type ClassVersion,
   type School,
   type SchoolClass,
+  type Version,
 } from '@ttla/api-client'
 import { getCommonStrings } from '@ttla/i18n'
 import GeoCrudTable, { GeoField, type GeoColumn } from '../components/GeoCrudTable'
@@ -23,19 +25,17 @@ const t = getCommonStrings('en')
 const initialValues = {
   school_id: '',
   class_id: '',
-  name: '',
-  bn_name: '',
+  version_id: '',
   is_active: 'true',
 }
 
-const requiredFields = ['school_id', 'class_id', 'name']
+const requiredFields = ['school_id', 'class_id', 'version_id']
 
 function toPayload(values: Record<string, string>) {
   return {
     class_id: Number(values.class_id),
     school_id: Number(values.school_id),
-    name: values.name,
-    bn_name: values.bn_name || null,
+    version_id: Number(values.version_id),
     is_active: values.is_active === 'true',
   }
 }
@@ -82,6 +82,7 @@ export default function ClassVersionsPage() {
   // don't need the adoption gate.
   const [allClasses, setAllClasses] = useState<SchoolClass[]>([])
   const [schools, setSchools] = useState<School[]>([])
+  const [versions, setVersions] = useState<Version[]>([])
   // The create/edit form's Class dropdown, re-fetched whenever the
   // form's School field changes. Scoped to that school's actual
   // adoptions so it's structurally impossible to submit a
@@ -97,6 +98,10 @@ export default function ClassVersionsPage() {
     listSchools({ perPage: 200 })
       .then((result) => setSchools(result.data))
       .catch(() => setSchools([]))
+
+    listVersions({ perPage: 10 })
+      .then((result) => setVersions(result.data))
+      .catch(() => setVersions([]))
   }, [])
 
   useEffect(() => {
@@ -175,8 +180,7 @@ export default function ClassVersionsPage() {
         return {
           school_id: String(row.school_id),
           class_id: String(row.class_id),
-          name: row.name,
-          bn_name: row.bn_name ?? '',
+          version_id: String(row.version_id),
           is_active: String(row.is_active),
         }
       }}
@@ -225,19 +229,14 @@ export default function ClassVersionsPage() {
               />
             </GeoField>
 
-            <GeoField label={t['management.fields.name']} required error={fieldErrors.name}>
-              <input
-                className={inputClass}
-                value={values.name}
-                onChange={(event) => onChange('name', event.target.value)}
-              />
-            </GeoField>
-
-            <GeoField label={t['management.fields.bnName']} error={fieldErrors.bn_name}>
-              <input
-                className={inputClass}
-                value={values.bn_name}
-                onChange={(event) => onChange('bn_name', event.target.value)}
+            <GeoField label={t['management.fields.version']} required error={fieldErrors.version_id}>
+              <SearchableSelect
+                value={values.version_id}
+                onChange={(next) => onChange('version_id', next)}
+                placeholder={t['management.fields.version']}
+                searchPlaceholder={t['management.table.search']}
+                noMatchesLabel={t['management.table.noMatches']}
+                options={versions.map((version) => ({ value: String(version.id), label: version.name }))}
               />
             </GeoField>
 

@@ -661,6 +661,37 @@ export function deleteHoliday(id: number, token: string): Promise<void> {
   return deleteGeo('holidays', id, token)
 }
 
+// ---------- Versions ----------
+
+export interface Version {
+  id: number
+  name: string
+  bn_name: string | null
+  is_active: boolean
+}
+
+export interface VersionPayload {
+  name?: string
+  bn_name?: string | null
+  is_active?: boolean
+}
+
+export function listVersions(
+  params: { page?: number; perPage?: number; search?: string } = {},
+): Promise<PaginatedResponse<Version>> {
+  const query: Record<string, string | number | undefined> = {
+    page: params.page,
+    per_page: params.perPage,
+    search: params.search || undefined,
+  }
+
+  return apiFetch<PaginatedResponse<Version>>(`/versions${buildQuery(query)}`)
+}
+
+export function updateVersion(id: number, payload: VersionPayload, token: string): Promise<{ data: Version }> {
+  return updateGeo<Version, VersionPayload>('versions', id, payload, token)
+}
+
 // ---------- Class versions ----------
 
 export interface ClassVersion {
@@ -668,6 +699,7 @@ export interface ClassVersion {
   class_id: number
   school_id: number
   district_id: number
+  version_id: number
   name: string
   bn_name: string | null
   is_active: boolean
@@ -678,8 +710,7 @@ export interface ClassVersion {
 export interface ClassVersionPayload {
   class_id: number
   school_id: number
-  name: string
-  bn_name?: string | null
+  version_id: number
   is_active?: boolean
 }
 

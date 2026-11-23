@@ -613,12 +613,12 @@ describe('class versions', () => {
     })
     vi.stubGlobal('fetch', mockFetch)
 
-    await createClassVersion({ class_id: 5, school_id: 3, name: 'English Version' }, 'secret-token')
+    await createClassVersion({ class_id: 5, school_id: 3, version_id: 2 }, 'secret-token')
 
     expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/class-versions`)
     expect(mockFetch.mock.calls[0][1]).toMatchObject({
       method: 'POST',
-      body: JSON.stringify({ class_id: 5, school_id: 3, name: 'English Version' }),
+      body: JSON.stringify({ class_id: 5, school_id: 3, version_id: 2 }),
       headers: expect.objectContaining({ Authorization: 'Bearer secret-token' }),
     })
   })
