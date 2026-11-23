@@ -684,7 +684,7 @@
   "management.classVideos.durationMinutes": "Duration (minutes)",
   "management.classVideos.completionThreshold": "Completion Threshold (%)",
   "management.classVideos.isEnabled": "Enabled",
-  "management.classVideos.selectChapterPrompt": "Select a subject, book and chapter to manage its videos.",
+  "management.classVideos.viewVideo": "View video",
 
   "management.attendance.title": "Attendance Reports",
   "management.attendance.selectSchool": "School",

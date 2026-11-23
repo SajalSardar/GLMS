@@ -684,7 +684,7 @@
   "management.classVideos.durationMinutes": "সময়কাল (মিনিট)",
   "management.classVideos.completionThreshold": "সমাপ্তির শর্ত (%)",
   "management.classVideos.isEnabled": "সক্রিয়",
-  "management.classVideos.selectChapterPrompt": "ভিডিও পরিচালনার জন্য একটি বিষয়, বই ও অধ্যায় নির্বাচন করুন।",
+  "management.classVideos.viewVideo": "ভিডিও দেখুন",
 
   "management.attendance.title": "উপস্থিতি প্রতিবেদন",
   "management.attendance.selectSchool": "স্কুল",

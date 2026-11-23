@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AcademicYear;
 use App\Models\Book;
 use App\Models\Chapter;
 use App\Models\ChapterVideo;
@@ -26,7 +27,19 @@ class ChapterVideoControllerTest extends TestCase
 
     private Chapter $chapterB;
 
+    private Book $bookA;
+
+    private Book $bookB;
+
     private School $schoolA;
+
+    private School $schoolB;
+
+    private ClassVersion $versionA;
+
+    private ClassVersion $versionB;
+
+    private Subject $subject;
 
     protected function setUp(): void
     {
@@ -39,21 +52,21 @@ class ChapterVideoControllerTest extends TestCase
         $upazilaB = Upazila::create(['district_id' => $districtB->id, 'name' => 'Upazila B', 'bn_name' => 'উপজেলা বি']);
 
         $this->schoolA = School::create(['division_id' => $division->id, 'district_id' => $districtA->id, 'upazila_id' => $upazilaA->id, 'name' => 'School A']);
-        $schoolB = School::create(['division_id' => $division->id, 'district_id' => $districtB->id, 'upazila_id' => $upazilaB->id, 'name' => 'School B']);
+        $this->schoolB = School::create(['division_id' => $division->id, 'district_id' => $districtB->id, 'upazila_id' => $upazilaB->id, 'name' => 'School B']);
 
-        $subject = Subject::create(['name' => 'Mathematics']);
+        $this->subject = Subject::create(['name' => 'Mathematics']);
 
         $classA = SchoolClass::create(['name' => 'Class 6']);
         $classB = SchoolClass::create(['name' => 'Class 6 B']);
 
-        $versionA = ClassVersion::create(['class_id' => $classA->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'version_id' => Version::where('name', 'Bangla')->value('id')]);
-        $versionB = ClassVersion::create(['class_id' => $classB->id, 'school_id' => $schoolB->id, 'district_id' => $schoolB->district_id, 'version_id' => Version::where('name', 'Bangla')->value('id')]);
+        $this->versionA = ClassVersion::create(['class_id' => $classA->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'version_id' => Version::where('name', 'Bangla')->value('id')]);
+        $this->versionB = ClassVersion::create(['class_id' => $classB->id, 'school_id' => $this->schoolB->id, 'district_id' => $this->schoolB->district_id, 'version_id' => Version::where('name', 'Bangla')->value('id')]);
 
-        $bookA = Book::create(['class_version_id' => $versionA->id, 'subject_id' => $subject->id, 'name' => 'Mathematics Book']);
-        $bookB = Book::create(['class_version_id' => $versionB->id, 'subject_id' => $subject->id, 'name' => 'Mathematics Book']);
+        $this->bookA = Book::create(['class_version_id' => $this->versionA->id, 'subject_id' => $this->subject->id, 'name' => 'Mathematics Book']);
+        $this->bookB = Book::create(['class_version_id' => $this->versionB->id, 'subject_id' => $this->subject->id, 'name' => 'Mathematics Book']);
 
-        $this->chapterA = Chapter::create(['book_id' => $bookA->id, 'name' => 'Chapter 1']);
-        $this->chapterB = Chapter::create(['book_id' => $bookB->id, 'name' => 'Chapter 1']);
+        $this->chapterA = Chapter::create(['book_id' => $this->bookA->id, 'name' => 'Chapter 1']);
+        $this->chapterB = Chapter::create(['book_id' => $this->bookB->id, 'name' => 'Chapter 1']);
     }
 
     public function test_store_and_update_are_authorized(): void
@@ -153,6 +166,120 @@ class ChapterVideoControllerTest extends TestCase
         $manager = $this->actorWithPermissions(['chapter_videos.update'], $this->schoolA->id, $this->schoolA->district_id);
         $ids = $this->actingAs($manager, 'sanctum')->getJson('/api/v1/chapter-videos')->assertOk()->json('data.*.id');
         $this->assertContains($disabled->id, $ids);
+    }
+
+    public function test_index_filters_by_book_id(): void
+    {
+        $videoA = ChapterVideo::create(['chapter_id' => $this->chapterA->id, 'youtube_video_id' => 'aaaaaaaaaaa', 'title' => 'Video A']);
+        ChapterVideo::create(['chapter_id' => $this->chapterB->id, 'youtube_video_id' => 'bbbbbbbbbbb', 'title' => 'Video B']);
+
+        $actor = $this->actorWithPermissions(['chapter_videos.view'], null, null);
+
+        $response = $this->actingAs($actor, 'sanctum')->getJson("/api/v1/chapter-videos?book_id={$this->bookA->id}");
+
+        $response->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $videoA->id);
+    }
+
+    /**
+     * class_id filters by the class the video's chapter's book's
+     * class_version belongs to (via that relation chain), not a column
+     * ChapterVideo has.
+     */
+    public function test_index_filters_by_class_id(): void
+    {
+        $videoA = ChapterVideo::create(['chapter_id' => $this->chapterA->id, 'youtube_video_id' => 'aaaaaaaaaaa', 'title' => 'Video A']);
+        ChapterVideo::create(['chapter_id' => $this->chapterB->id, 'youtube_video_id' => 'bbbbbbbbbbb', 'title' => 'Video B']);
+
+        $actor = $this->actorWithPermissions(['chapter_videos.view'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $response = $this->actingAs($actor, 'sanctum')
+            ->getJson("/api/v1/chapter-videos?class_id={$this->versionA->class_id}")
+            ->assertOk();
+
+        $response->assertJsonCount(1, 'data');
+        $response->assertJsonPath('data.0.id', $videoA->id);
+    }
+
+    /**
+     * version_id filters by the national versions catalog (Bangla/
+     * English), crossing school/class boundaries the same way the
+     * equivalent Book/Chapter filter does.
+     */
+    public function test_index_filters_by_the_national_version_id(): void
+    {
+        $englishVersion = ClassVersion::create(['class_id' => $this->versionB->class_id, 'school_id' => $this->schoolB->id, 'district_id' => $this->schoolB->district_id, 'version_id' => Version::where('name', 'English')->value('id')]);
+        $englishBook = Book::create(['class_version_id' => $englishVersion->id, 'subject_id' => $this->subject->id, 'name' => 'English Book']);
+        $englishChapter = Chapter::create(['book_id' => $englishBook->id, 'name' => 'Chapter 1']);
+
+        $videoA = ChapterVideo::create(['chapter_id' => $this->chapterA->id, 'youtube_video_id' => 'aaaaaaaaaaa', 'title' => 'Bangla Video (School A)']);
+        $videoB = ChapterVideo::create(['chapter_id' => $this->chapterB->id, 'youtube_video_id' => 'bbbbbbbbbbb', 'title' => 'Bangla Video (School B)']);
+        ChapterVideo::create(['chapter_id' => $englishChapter->id, 'youtube_video_id' => 'ccccccccccc', 'title' => 'English Video']);
+
+        // Unscoped (national_admin-shaped: no school_id/district_id) —
+        // ClassVersion is TenantScoped, so whereHas(..., 'classVersion', ...)
+        // is itself narrowed by the acting user's own school/district.
+        $actor = $this->actorWithPermissions(['chapter_videos.view'], null, null);
+        $banglaId = Version::where('name', 'Bangla')->value('id');
+
+        $response = $this->actingAs($actor, 'sanctum')
+            ->getJson("/api/v1/chapter-videos?version_id={$banglaId}")
+            ->assertOk();
+
+        $response->assertJsonCount(2, 'data');
+        $this->assertSame(
+            [$videoA->id, $videoB->id],
+            collect($response->json('data'))->pluck('id')->sort()->values()->all(),
+        );
+    }
+
+    /**
+     * subject_id filters by the video's chapter's book's subject.
+     */
+    public function test_index_filters_by_subject_id(): void
+    {
+        $scienceSubject = Subject::create(['name' => 'Science']);
+        $scienceBook = Book::create(['class_version_id' => $this->versionA->id, 'subject_id' => $scienceSubject->id, 'name' => 'Science Book']);
+        $scienceChapter = Chapter::create(['book_id' => $scienceBook->id, 'name' => 'Chapter 1']);
+
+        $mathVideo = ChapterVideo::create(['chapter_id' => $this->chapterA->id, 'youtube_video_id' => 'aaaaaaaaaaa', 'title' => 'Math Video']);
+        ChapterVideo::create(['chapter_id' => $scienceChapter->id, 'youtube_video_id' => 'bbbbbbbbbbb', 'title' => 'Science Video']);
+
+        $actor = $this->actorWithPermissions(['chapter_videos.view'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $response = $this->actingAs($actor, 'sanctum')
+            ->getJson("/api/v1/chapter-videos?subject_id={$this->subject->id}")
+            ->assertOk();
+
+        $response->assertJsonCount(1, 'data');
+        $response->assertJsonPath('data.0.id', $mathVideo->id);
+    }
+
+    /**
+     * academic_year_id filters by the video's chapter's book's academic
+     * year.
+     */
+    public function test_index_filters_by_academic_year_id(): void
+    {
+        $academicYear = AcademicYear::create([
+            'name' => '2026',
+            'start_date' => '2026-01-01',
+            'end_date' => '2026-12-31',
+            'is_current' => true,
+        ]);
+        $bookWithYear = Book::create(['class_version_id' => $this->versionA->id, 'subject_id' => $this->subject->id, 'academic_year_id' => $academicYear->id, 'name' => 'Book With Year']);
+        $chapterWithYear = Chapter::create(['book_id' => $bookWithYear->id, 'name' => 'Chapter 1']);
+
+        ChapterVideo::create(['chapter_id' => $this->chapterA->id, 'youtube_video_id' => 'aaaaaaaaaaa', 'title' => 'No Year Video']);
+        $yearVideo = ChapterVideo::create(['chapter_id' => $chapterWithYear->id, 'youtube_video_id' => 'bbbbbbbbbbb', 'title' => 'Year Video']);
+
+        $actor = $this->actorWithPermissions(['chapter_videos.view'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $response = $this->actingAs($actor, 'sanctum')
+            ->getJson("/api/v1/chapter-videos?academic_year_id={$academicYear->id}")
+            ->assertOk();
+
+        $response->assertJsonCount(1, 'data');
+        $response->assertJsonPath('data.0.id', $yearVideo->id);
     }
 
     public function test_show_404s_a_disabled_video_unless_the_caller_can_manage_it(): void

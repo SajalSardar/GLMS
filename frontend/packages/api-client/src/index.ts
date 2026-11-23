@@ -953,9 +953,27 @@ export interface ChapterVideo {
 }
 
 export function listChapterVideos(
-  params: { chapterId?: number } = {},
+  params: {
+    chapterId?: number
+    // bookId/classId/versionId/subjectId/academicYearId each filter
+    // through the video's chapter -> book -> class_version relation
+    // chain — same shape as listChapters' equivalent filters, since
+    // none of these are columns ChapterVideo has directly.
+    bookId?: number
+    classId?: number
+    versionId?: number
+    subjectId?: number
+    academicYearId?: number
+  } = {},
 ): Promise<{ data: ChapterVideo[] }> {
-  const query: Record<string, string | number | undefined> = { chapter_id: params.chapterId }
+  const query: Record<string, string | number | undefined> = {
+    chapter_id: params.chapterId,
+    book_id: params.bookId,
+    class_id: params.classId,
+    version_id: params.versionId,
+    subject_id: params.subjectId,
+    academic_year_id: params.academicYearId,
+  }
 
   return apiFetch<{ data: ChapterVideo[] }>(`/chapter-videos${buildQuery(query)}`)
 }

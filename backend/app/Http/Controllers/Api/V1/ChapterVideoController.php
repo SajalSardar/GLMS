@@ -26,8 +26,13 @@ class ChapterVideoController extends Controller
         $actor = $request->user('sanctum');
 
         $videos = ChapterVideo::query()
-            ->with('chapter')
+            ->with(['chapter.book.classVersion.schoolClass', 'chapter.book.subject', 'chapter.book.academicYear'])
             ->when($request->integer('chapter_id'), fn ($query, $id) => $query->where('chapter_id', $id))
+            ->when($request->integer('book_id'), fn ($query, $id) => $query->whereHas('chapter', fn ($q) => $q->where('book_id', $id)))
+            ->when($request->integer('class_id'), fn ($query, $id) => $query->whereHas('chapter.book.classVersion', fn ($q) => $q->where('class_id', $id)))
+            ->when($request->integer('version_id'), fn ($query, $id) => $query->whereHas('chapter.book.classVersion', fn ($q) => $q->where('version_id', $id)))
+            ->when($request->integer('subject_id'), fn ($query, $id) => $query->whereHas('chapter.book', fn ($q) => $q->where('subject_id', $id)))
+            ->when($request->integer('academic_year_id'), fn ($query, $id) => $query->whereHas('chapter.book', fn ($q) => $q->where('academic_year_id', $id)))
             ->when(
                 ! $actor?->hasPermission('chapter_videos.update'),
                 fn ($query) => $query->where('is_enabled', true)
@@ -47,7 +52,7 @@ class ChapterVideoController extends Controller
             abort(404);
         }
 
-        return new ChapterVideoResource($chapter_video->load('chapter'));
+        return new ChapterVideoResource($chapter_video->load(['chapter.book.classVersion.schoolClass', 'chapter.book.subject', 'chapter.book.academicYear']));
     }
 
     public function store(StoreChapterVideoRequest $request): JsonResponse
@@ -61,7 +66,7 @@ class ChapterVideoController extends Controller
 
         $video = ChapterVideo::create($data);
 
-        return (new ChapterVideoResource($video->load('chapter')))
+        return (new ChapterVideoResource($video->load(['chapter.book.classVersion.schoolClass', 'chapter.book.subject', 'chapter.book.academicYear'])))
             ->response()
             ->setStatusCode(Response::HTTP_CREATED);
     }
@@ -79,7 +84,7 @@ class ChapterVideoController extends Controller
 
         $chapter_video->update($data);
 
-        return new ChapterVideoResource($chapter_video->load('chapter'));
+        return new ChapterVideoResource($chapter_video->load(['chapter.book.classVersion.schoolClass', 'chapter.book.subject', 'chapter.book.academicYear']));
     }
 
     public function destroy(ChapterVideo $chapter_video): Response
