@@ -27,6 +27,7 @@ use App\Http\Resources\Api\V1\TeacherProfileResource;
 use App\Http\Resources\Api\V1\TimetableEntryResource;
 use App\Http\Resources\Api\V1\UpazilaResource;
 use App\Http\Resources\Api\V1\UserResource;
+use App\Http\Resources\Api\V1\VersionResource;
 use App\Models\AcademicYear;
 use App\Models\Book;
 use App\Models\Chapter;
@@ -53,6 +54,7 @@ use App\Models\TeacherProfile;
 use App\Models\TimetableEntry;
 use App\Models\Upazila;
 use App\Models\User;
+use App\Models\Version;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
@@ -97,6 +99,7 @@ class AuditableTraitCoverageTest extends TestCase
             [Exam::class, ExamResource::class],
             [Role::class, RoleResource::class],
             [User::class, UserResource::class],
+            [Version::class, VersionResource::class],
             [TeacherProfile::class, TeacherProfileResource::class],
             [StudentProfile::class, StudentProfileResource::class],
             [Guardian::class, GuardianResource::class],
