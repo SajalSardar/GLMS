@@ -130,6 +130,9 @@ export default function AcademicGradeConfiguresPage() {
       createRow={(values, token) => createAcademicGradeConfigure(toPayload(values), token)}
       updateRow={(id, values, token) => updateAcademicGradeConfigure(id, toPayload(values), token)}
       deleteRow={(id, token) => deleteAcademicGradeConfigure(id, token)}
+      createPermission="academic_grade_configures.create"
+      updatePermission="academic_grade_configures.update"
+      deletePermission="academic_grade_configures.delete"
     />
   )
 }

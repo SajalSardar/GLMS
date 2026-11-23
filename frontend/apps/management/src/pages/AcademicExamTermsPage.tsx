@@ -116,6 +116,9 @@ export default function AcademicExamTermsPage() {
       createRow={(values, token) => createAcademicExamTerm(toPayload(values), token)}
       updateRow={(id, values, token) => updateAcademicExamTerm(id, toPayload(values), token)}
       deleteRow={(id, token) => deleteAcademicExamTerm(id, token)}
+      createPermission="academic_exam_terms.create"
+      updatePermission="academic_exam_terms.update"
+      deletePermission="academic_exam_terms.delete"
     />
   )
 }

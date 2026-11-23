@@ -224,6 +224,9 @@ export default function HolidaysPage() {
       createRow={(values, token) => createHoliday(toPayload(values), token)}
       updateRow={(id, values, token) => updateHoliday(id, toPayload(values), token)}
       deleteRow={(id, token) => deleteHoliday(id, token)}
+      createPermission="holidays.create"
+      updatePermission="holidays.update"
+      deletePermission="holidays.delete"
       parentFilter={{
         label: t['management.fields.academicYear'],
         allLabel: t['management.fields.allAcademicYears'],

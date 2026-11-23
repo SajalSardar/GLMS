@@ -489,6 +489,9 @@ export default function BooksPage() {
         createRow={(values, token) => createBook(toCreatePayload(values), token)}
         updateRow={(id, values, token) => updateBook(id, toUpdatePayload(values), token)}
         deleteRow={(id, token) => deleteBook(id, token)}
+        createPermission="books.create"
+        updatePermission="books.update"
+        deletePermission="books.delete"
         rowActions={(row) => (
           <button
             type="button"

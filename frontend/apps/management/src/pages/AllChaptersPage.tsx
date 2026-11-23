@@ -406,6 +406,9 @@ export default function AllChaptersPage() {
         )
       }
       deleteRow={(id, token) => deleteChapter(id, token)}
+      createPermission="chapters.create"
+      updatePermission="chapters.update"
+      deletePermission="chapters.delete"
       parentFilter={{
         label: t['management.fields.class'],
         allLabel: t['management.fields.allClasses'],

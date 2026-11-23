@@ -569,6 +569,9 @@ export default function ClassVideosPage() {
         )
       }
       deleteRow={(id, token) => deleteChapterVideo(id, token)}
+      createPermission="chapter_videos.create"
+      updatePermission="chapter_videos.update"
+      deletePermission="chapter_videos.delete"
       rowActions={(row) => (
         <button
           type="button"

@@ -127,6 +127,9 @@ export default function AcademicSubjectMarkConfiguresPage() {
       createRow={(values, token) => createAcademicSubjectMarkConfigure(toPayload(values), token)}
       updateRow={(id, values, token) => updateAcademicSubjectMarkConfigure(id, toPayload(values), token)}
       deleteRow={(id, token) => deleteAcademicSubjectMarkConfigure(id, token)}
+      createPermission="academic_subject_mark_configures.create"
+      updatePermission="academic_subject_mark_configures.update"
+      deletePermission="academic_subject_mark_configures.delete"
     />
   )
 }
