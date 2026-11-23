@@ -50,11 +50,13 @@ const teachersNavItem: SidebarItem = { to: '/dashboard/teachers', label: t['mana
 // share the same users.* grants and sit as their own top-level item too.
 const studentsNavItem: SidebarItem = { to: '/dashboard/students', label: t['management.nav.students'], icon: 'face' }
 
-// Books/Chapters/Class Videos CRUD stays national_admin only — school_admin
-// only holds books.view/chapters.view/chapter_videos.view, not
-// create/update/delete (see RolePermissionSeeder) — but as its own
-// top-level group placed right after Students, rather than nested under
-// System Setup, per the explicit request to move it there.
+// Visible to both school_admin and national_admin — school_admin holds
+// books.view/chapters.view/chapter_videos.view but not create/update/
+// delete (see RolePermissionSeeder), so GeoCrudTable's permission-gated
+// Add/Edit/Delete (see BooksPage.tsx/AllChaptersPage.tsx/
+// ClassVideosPage.tsx) renders this read-only for them, not role-gated
+// like the route itself. Placed right after Students, per the explicit
+// request to move it there.
 const classMaterialsNavItem: SidebarItem = {
   label: t['management.nav.classMaterials'],
   icon: 'auto_stories',
@@ -65,11 +67,11 @@ const classMaterialsNavItem: SidebarItem = {
   ],
 }
 
-// Exam terms/grade configuration/subject mark configuration CRUD stays
-// national_admin only — school_admin only holds the .view permission on
-// each (see RolePermissionSeeder), not create/update/delete — but as its
-// own top-level group placed right after Class Materials, rather than
-// nested under System Setup, per the explicit request to move it there.
+// Visible to both school_admin and national_admin — school_admin only
+// holds the .view permission on each of these (see RolePermissionSeeder),
+// not create/update/delete, so each page's own GeoCrudTable permission
+// props render it read-only for them. Placed right after Class
+// Materials, per the explicit request to move it there.
 const examControlNavItem: SidebarItem = {
   label: t['management.nav.examControl'],
   icon: 'rule',
@@ -110,11 +112,12 @@ const routineNavItem: SidebarItem = {
   ],
 }
 
-// The academic holiday calendar is national, not per-school — only a
-// national_admin may create/update/delete it (see HolidayPolicy), so
-// unlike teachersNavItem/studentsNavItem above this is national_admin
-// only, not also school_admin. Teachers/students view it read-only from
-// their own portals instead of through this management UI.
+// The academic holiday calendar is national, not per-school — no
+// TenantScope/school filtering applies to it. Visible to both
+// school_admin and national_admin now (school_admin holds holidays.view
+// but not create/update/delete, per RolePermissionSeeder — gated via
+// GeoCrudTable's permission props on HolidaysPage.tsx, not via this nav
+// item's role check).
 const holidaysNavItem: SidebarItem = { to: '/dashboard/holidays', label: t['management.nav.holidays'], icon: 'event_busy' }
 
 // Class versions, shifts, sections, and subject-teacher assignments are
@@ -133,9 +136,12 @@ const schoolOperationsNavItems: SidebarItem[] = [
   { to: '/dashboard/sections', label: t['management.nav.sections'], icon: 'groups' },
 ]
 
-// School management is national_admin only (see SchoolPolicy) — a
-// collapsible group (same shape as systemSetupItem below) placed right
-// after Holiday Calendar, rather than nested under System Setup.
+// This full nested group (Schools + class-versions/shifts/sections/
+// subject-teacher-assignments) stays national_admin only — a
+// national_admin manages every school's operations data from one place.
+// school_admin reaches Schools via the separate flat schoolsOnlyNavItem
+// below instead, and already has the four nested items here as their
+// own flat schoolManagedNavItems.
 const schoolSetupItem: SidebarItem = {
   label: t['management.nav.schoolSetup'],
   icon: 'school',
@@ -144,6 +150,16 @@ const schoolSetupItem: SidebarItem = {
     ...schoolOperationsNavItems,
   ],
 }
+
+// school_admin becomes able to reach School Setup too (scoped to their
+// own single school by the backend's TenantScope fix — see
+// TenantScope.php), but unlike national_admin, who sees Schools nested
+// alongside class-versions/shifts/sections/subject-teacher-assignments
+// in one "School Setup" group, school_admin already sees those four as
+// flat top-level items (schoolManagedNavItems below) — bundling them
+// again here would duplicate every one of those four entries. So
+// school_admin gets a single flat "Schools" item of its own instead.
+const schoolsOnlyNavItem: SidebarItem = { to: '/dashboard/schools', label: t['management.schools.title'], icon: 'apartment' }
 
 // Classes and academic years are configured per-school, not only by a
 // national admin — the backend grants school_admin create/update/delete
@@ -241,11 +257,12 @@ function DashboardLayout() {
   const navItems = [
     ...baseNavItems,
     ...(role === 'national_admin' || role === 'school_admin' ? [teachersNavItem, studentsNavItem] : []),
-    ...(role === 'national_admin' ? [classMaterialsNavItem, examControlNavItem] : []),
+    ...(role === 'national_admin' || role === 'school_admin' ? [classMaterialsNavItem, examControlNavItem] : []),
     ...(role === 'national_admin' || role === 'school_admin'
       ? [attendanceNavItem, publishResultsNavItem, promoteStudentsNavItem, routineNavItem]
       : []),
     ...(role === 'national_admin' ? [holidaysNavItem, schoolSetupItem] : []),
+    ...(role === 'school_admin' ? [holidaysNavItem, schoolsOnlyNavItem] : []),
     ...(role === 'national_admin' ? [systemSetupItem] : role === 'school_admin' ? schoolManagedNavItems : []),
   ]
 
@@ -289,20 +306,20 @@ function App() {
                 <Route path="routine/teacher" element={<TeacherRoutinePage />} />
                 <Route path="routine/class" element={<ManagementClassRoutinePage />} />
               </Route>
-              <Route path="holidays" element={<RequireNationalAdmin />}>
+              <Route path="holidays" element={<RequireSchoolManager />}>
                 <Route index element={<HolidaysPage />} />
               </Route>
-              <Route path="schools" element={<RequireNationalAdmin />}>
+              <Route path="schools" element={<RequireSchoolManager />}>
                 <Route index element={<SchoolsPage />} />
                 <Route path=":id" element={<SchoolDetailPage />} />
               </Route>
-              <Route path="class-materials" element={<RequireNationalAdmin />}>
+              <Route path="class-materials" element={<RequireSchoolManager />}>
                 <Route path="books" element={<BooksPage />} />
                 <Route path="books/:bookId/chapters" element={<ChaptersPage />} />
                 <Route path="chapters" element={<AllChaptersPage />} />
                 <Route path="class-videos" element={<ClassVideosPage />} />
               </Route>
-              <Route path="exam-control" element={<RequireNationalAdmin />}>
+              <Route path="exam-control" element={<RequireSchoolManager />}>
                 <Route path="academic-exam-terms" element={<AcademicExamTermsPage />} />
                 <Route path="academic-grade-configures" element={<AcademicGradeConfiguresPage />} />
                 <Route path="academic-subject-mark-configures" element={<AcademicSubjectMarkConfiguresPage />} />
