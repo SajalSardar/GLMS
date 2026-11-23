@@ -397,6 +397,7 @@ export function listSchools(
     type?: SchoolType
     level?: SchoolLevel
   } = {},
+  token?: string,
 ): Promise<PaginatedResponse<School>> {
   const query: Record<string, string | number | undefined> = {
     page: params.page,
@@ -409,7 +410,9 @@ export function listSchools(
     level: params.level,
   }
 
-  return apiFetch<PaginatedResponse<School>>(`/schools${buildQuery(query)}`)
+  return apiFetch<PaginatedResponse<School>>(`/schools${buildQuery(query)}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  })
 }
 
 export function getSchool(id: number): Promise<{ data: School }> {
@@ -716,6 +719,7 @@ export interface ClassVersionPayload {
 
 export function listClassVersions(
   params: { page?: number; perPage?: number; search?: string; classId?: number; schoolId?: number } = {},
+  token?: string,
 ): Promise<PaginatedResponse<ClassVersion>> {
   const query: Record<string, string | number | undefined> = {
     page: params.page,
@@ -725,7 +729,9 @@ export function listClassVersions(
     school_id: params.schoolId,
   }
 
-  return apiFetch<PaginatedResponse<ClassVersion>>(`/class-versions${buildQuery(query)}`)
+  return apiFetch<PaginatedResponse<ClassVersion>>(`/class-versions${buildQuery(query)}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  })
 }
 
 export function createClassVersion(
@@ -785,6 +791,7 @@ export function listBooks(
     subjectId?: number
     academicYearId?: number
   } = {},
+  token?: string,
 ): Promise<{ data: Book[] }> {
   const query: Record<string, string | number | undefined> = {
     class_version_id: params.classVersionId,
@@ -794,7 +801,9 @@ export function listBooks(
     academic_year_id: params.academicYearId,
   }
 
-  return apiFetch<{ data: Book[] }>(`/books${buildQuery(query)}`)
+  return apiFetch<{ data: Book[] }>(`/books${buildQuery(query)}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  })
 }
 
 export function getBook(id: number): Promise<{ data: Book }> {
@@ -891,6 +900,7 @@ export function listChapters(
     subjectId?: number
     academicYearId?: number
   } = {},
+  token?: string,
 ): Promise<{ data: Chapter[] }> {
   const query: Record<string, string | number | undefined> = {
     book_id: params.bookId,
@@ -900,7 +910,9 @@ export function listChapters(
     academic_year_id: params.academicYearId,
   }
 
-  return apiFetch<{ data: Chapter[] }>(`/chapters${buildQuery(query)}`)
+  return apiFetch<{ data: Chapter[] }>(`/chapters${buildQuery(query)}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  })
 }
 
 export interface ChapterPayload {
@@ -965,6 +977,7 @@ export function listChapterVideos(
     subjectId?: number
     academicYearId?: number
   } = {},
+  token?: string,
 ): Promise<{ data: ChapterVideo[] }> {
   const query: Record<string, string | number | undefined> = {
     chapter_id: params.chapterId,
@@ -975,7 +988,9 @@ export function listChapterVideos(
     academic_year_id: params.academicYearId,
   }
 
-  return apiFetch<{ data: ChapterVideo[] }>(`/chapter-videos${buildQuery(query)}`)
+  return apiFetch<{ data: ChapterVideo[] }>(`/chapter-videos${buildQuery(query)}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  })
 }
 
 export interface ChapterVideoPayload {
@@ -1181,17 +1196,20 @@ export function listMyClassRoutines(token: string): Promise<{ data: ClassRoutine
 // the Management Portal's Teacher/Class Routine pages to look up any
 // teacher's or any section's routine, unlike listMyClassRoutines() above
 // which is always the CALLER's own.
-export function listClassRoutines(params: {
-  schoolId?: number
-  districtId?: number
-  classId?: number
-  classVersionId?: number
-  shiftId?: number
-  sectionId?: number
-  teacherId?: number
-  academicYearId?: number
-  dayOfWeek?: string
-}): Promise<{ data: ClassRoutine[] }> {
+export function listClassRoutines(
+  params: {
+    schoolId?: number
+    districtId?: number
+    classId?: number
+    classVersionId?: number
+    shiftId?: number
+    sectionId?: number
+    teacherId?: number
+    academicYearId?: number
+    dayOfWeek?: string
+  },
+  token?: string,
+): Promise<{ data: ClassRoutine[] }> {
   const query = buildQuery({
     school_id: params.schoolId,
     district_id: params.districtId,
@@ -1204,7 +1222,9 @@ export function listClassRoutines(params: {
     day_of_week: params.dayOfWeek,
   })
 
-  return apiFetch<{ data: ClassRoutine[] }>(`/class-routines${query}`)
+  return apiFetch<{ data: ClassRoutine[] }>(`/class-routines${query}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  })
 }
 
 // ---------- Exams (public browsing + attempts) ----------
@@ -1448,6 +1468,7 @@ export function listShifts(
     schoolId?: number
     classId?: number
   } = {},
+  token?: string,
 ): Promise<PaginatedResponse<Shift>> {
   const query: Record<string, string | number | undefined> = {
     page: params.page,
@@ -1458,7 +1479,9 @@ export function listShifts(
     class_id: params.classId,
   }
 
-  return apiFetch<PaginatedResponse<Shift>>(`/shifts${buildQuery(query)}`)
+  return apiFetch<PaginatedResponse<Shift>>(`/shifts${buildQuery(query)}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  })
 }
 
 export function createShift(payload: ShiftPayload, token: string): Promise<{ data: Shift }> {
@@ -1512,6 +1535,7 @@ export function listSections(
     schoolId?: number
     classId?: number
   } = {},
+  token?: string,
 ): Promise<PaginatedResponse<Section>> {
   const query: Record<string, string | number | undefined> = {
     page: params.page,
@@ -1522,7 +1546,9 @@ export function listSections(
     class_id: params.classId,
   }
 
-  return apiFetch<PaginatedResponse<Section>>(`/sections${buildQuery(query)}`)
+  return apiFetch<PaginatedResponse<Section>>(`/sections${buildQuery(query)}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  })
 }
 
 export function createSection(payload: SectionPayload, token: string): Promise<{ data: Section }> {
@@ -1699,6 +1725,7 @@ export function listSubjectTeacherAssignments(
     schoolId?: number
     classId?: number
   } = {},
+  token?: string,
 ): Promise<PaginatedResponse<SubjectTeacherAssignment>> {
   const query: Record<string, string | number | undefined> = {
     page: params.page,
@@ -1710,7 +1737,9 @@ export function listSubjectTeacherAssignments(
     class_id: params.classId,
   }
 
-  return apiFetch<PaginatedResponse<SubjectTeacherAssignment>>(`/subject-teacher-assignments${buildQuery(query)}`)
+  return apiFetch<PaginatedResponse<SubjectTeacherAssignment>>(`/subject-teacher-assignments${buildQuery(query)}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  })
 }
 
 export function createSubjectTeacherAssignment(
