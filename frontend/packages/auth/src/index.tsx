@@ -12,6 +12,7 @@ const ROLE_STORAGE_KEY = 'ttla.authRole'
 const NAME_STORAGE_KEY = 'ttla.authName'
 const USER_ID_STORAGE_KEY = 'ttla.authUserId'
 const SCHOOL_ID_STORAGE_KEY = 'ttla.authSchoolId'
+const PERMISSIONS_STORAGE_KEY = 'ttla.authPermissions'
 
 export function getStoredToken(): string | null {
   return localStorage.getItem(TOKEN_STORAGE_KEY)
@@ -75,6 +76,25 @@ export function clearStoredSchoolId(): void {
   localStorage.removeItem(SCHOOL_ID_STORAGE_KEY)
 }
 
+export function getStoredPermissions(): string[] {
+  const raw = localStorage.getItem(PERMISSIONS_STORAGE_KEY)
+  if (raw === null) return []
+  try {
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+export function storePermissions(permissions: string[]): void {
+  localStorage.setItem(PERMISSIONS_STORAGE_KEY, JSON.stringify(permissions))
+}
+
+export function clearStoredPermissions(): void {
+  localStorage.removeItem(PERMISSIONS_STORAGE_KEY)
+}
+
 export interface AuthContextValue {
   token: string | null
   role: string | null
@@ -101,11 +121,28 @@ export interface AuthContextValue {
    * doc comment) and returns every school regardless of who's asking.
    */
   schoolId: number | null
+  /**
+   * The signed-in user's own role.permissions list, as returned by the
+   * login response — empty for a guest or a session stored before this
+   * field existed. Drives GeoCrudTable's optional createPermission/
+   * updatePermission/deletePermission props so a page can hide an action
+   * a role genuinely can't perform, rather than letting the user hit a
+   * 403 after filling out a form. This is a UX improvement only — every
+   * write endpoint already enforces permissions server-side via policies
+   * regardless of what this array says.
+   */
+  permissions: string[]
   setToken: (token: string) => void
   setRole: (role: string | null) => void
   setName: (name: string | null) => void
   setUserId: (userId: number | null) => void
   setSchoolId: (schoolId: number | null) => void
+  setPermissions: (permissions: string[]) => void
+  /**
+   * True when the signed-in user's permissions include this exact
+   * permission string. Always false for a guest (empty permissions array).
+   */
+  can: (permission: string) => boolean
   clearToken: () => void
 }
 
@@ -117,6 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [name, setNameState] = useState<string | null>(() => getStoredName())
   const [userId, setUserIdState] = useState<number | null>(() => getStoredUserId())
   const [schoolId, setSchoolIdState] = useState<number | null>(() => getStoredSchoolId())
+  const [permissions, setPermissionsState] = useState<string[]>(() => getStoredPermissions())
 
   const setToken = useCallback((next: string) => {
     storeToken(next)
@@ -159,22 +197,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSchoolIdState(next)
   }, [])
 
+  const setPermissions = useCallback((next: string[]) => {
+    storePermissions(next)
+    setPermissionsState(next)
+  }, [])
+
+  const can = useCallback((permission: string) => permissions.includes(permission), [permissions])
+
   const clearToken = useCallback(() => {
     clearStoredToken()
     clearStoredRole()
     clearStoredName()
     clearStoredUserId()
     clearStoredSchoolId()
+    clearStoredPermissions()
     setTokenState(null)
     setRoleState(null)
     setNameState(null)
     setUserIdState(null)
     setSchoolIdState(null)
+    setPermissionsState([])
   }, [])
 
   const value = useMemo<AuthContextValue>(
-    () => ({ token, role, name, userId, schoolId, setToken, setRole, setName, setUserId, setSchoolId, clearToken }),
-    [token, role, name, userId, schoolId, setToken, setRole, setName, setUserId, setSchoolId, clearToken],
+    () => ({ token, role, name, userId, schoolId, permissions, setToken, setRole, setName, setUserId, setSchoolId, setPermissions, can, clearToken }),
+    [token, role, name, userId, schoolId, permissions, setToken, setRole, setName, setUserId, setSchoolId, setPermissions, can, clearToken],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
