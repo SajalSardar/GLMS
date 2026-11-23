@@ -236,7 +236,7 @@ export default function ClassVersionsPage() {
                 placeholder={t['management.fields.version']}
                 searchPlaceholder={t['management.table.search']}
                 noMatchesLabel={t['management.table.noMatches']}
-                options={versions.map((version) => ({ value: String(version.id), label: version.name }))}
+                options={versions.filter((version) => version.is_active).map((version) => ({ value: String(version.id), label: version.name }))}
               />
             </GeoField>
 

@@ -700,7 +700,7 @@ function AddHierarchyModal({
                 placeholder={t['management.fields.version']}
                 searchPlaceholder={t['management.table.search']}
                 noMatchesLabel={t['management.table.noMatches']}
-                options={catalogVersions.map((version) => ({ value: String(version.id), label: version.name }))}
+                options={catalogVersions.filter((version) => version.is_active).map((version) => ({ value: String(version.id), label: version.name }))}
               />
             </GeoField>
           ) : (
