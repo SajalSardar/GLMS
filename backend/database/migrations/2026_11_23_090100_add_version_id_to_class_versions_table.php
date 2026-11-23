@@ -61,6 +61,17 @@ return new class extends Migration
      * restoring the original NOT NULL `name` — same doctrine/dbal
      * limitation as above. This path is a development convenience, not
      * something exercised in production.
+     *
+     * `name` is backfilled from each row's own linked `versions` row
+     * rather than a hardcoded literal. The normal post-feature state has
+     * a school offering BOTH Bangla and English for the same class — two
+     * class_versions rows sharing (class_id, school_id), differing only
+     * by version_id. Setting every row's `name` to the same literal
+     * (e.g. "General") before re-adding the unique(class_id, school_id,
+     * name) constraint below would collide for exactly that normal case;
+     * backfilling from the linked version's current name (which also
+     * tracks a national_admin rename of "Bangla"/"English") keeps the
+     * two rows' `name` distinct so the unique index can be rebuilt.
      */
     public function down(): void
     {
@@ -73,7 +84,9 @@ return new class extends Migration
             $table->string('bn_name')->nullable();
         });
 
-        DB::table('class_versions')->update(['name' => 'General']);
+        DB::table('class_versions')->update([
+            'name' => DB::raw('(select versions.name from versions where versions.id = class_versions.version_id)'),
+        ]);
 
         Schema::table('class_versions', function (Blueprint $table) {
             $table->dropConstrainedForeignId('version_id');

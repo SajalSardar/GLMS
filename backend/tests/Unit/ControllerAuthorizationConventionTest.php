@@ -36,13 +36,14 @@ use App\Http\Controllers\Api\V1\TeacherUserController;
 use App\Http\Controllers\Api\V1\TimetableEntryController;
 use App\Http\Controllers\Api\V1\UpazilaController;
 use App\Http\Controllers\Api\V1\UserController;
+use App\Http\Controllers\Api\V1\VersionController;
 use PHPUnit\Framework\Attributes\DataProvider;
 use ReflectionMethod;
 use Tests\TestCase;
 
 /**
  * Structural regression test for this plan's actual deliverable: every
- * mutating action on the 23 Api\V1 controllers must call
+ * mutating action on the 35 Api\V1 controllers must call
  * `$this->authorize(...)` as the literal first statement of its method
  * body. The HTTP-level feature tests added alongside each controller's
  * authorize() call cannot detect a revert of that call, because every
@@ -238,6 +239,8 @@ class ControllerAuthorizationConventionTest extends TestCase
             [UserController::class, 'update'],
             [UserController::class, 'destroy'],
             [UserController::class, 'assignRole'],
+
+            [VersionController::class, 'update'],
         ];
 
         $named = [];
