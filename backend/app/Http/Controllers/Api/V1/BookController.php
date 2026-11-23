@@ -32,9 +32,18 @@ class BookController extends Controller
      * version_id narrows to one entry in the national Bangla/English
      * catalog (across however many classes/schools link to it) — neither
      * is a column on books itself, both reach through classVersion.
+     * A school-scoped actor's list is narrowed to their own school's books.
      */
     public function index(Request $request): AnonymousResourceCollection
     {
+        // This route sits outside the auth:sanctum group (it must also
+        // serve anonymous and cross-school public-catalog callers), so the
+        // user is resolved explicitly from the sanctum guard — same
+        // pattern as ChapterVideoController::index()'s existing $actor
+        // resolution, now also needed here so a school_admin's own list
+        // is narrowed to their own school's books.
+        $actor = $request->user('sanctum');
+
         $books = Book::query()
             ->with(['classVersion.schoolClass', 'subject', 'academicYear'])
             ->when($request->integer('class_version_id'), fn ($query, $id) => $query->where('class_version_id', $id))
@@ -42,6 +51,7 @@ class BookController extends Controller
             ->when($request->integer('version_id'), fn ($query, $id) => $query->whereHas('classVersion', fn ($q) => $q->where('version_id', $id)))
             ->when($request->integer('subject_id'), fn ($query, $id) => $query->where('subject_id', $id))
             ->when($request->integer('academic_year_id'), fn ($query, $id) => $query->where('academic_year_id', $id))
+            ->when($actor?->school_id, fn ($query, $schoolId) => $query->whereHas('classVersion', fn ($q) => $q->where('school_id', $schoolId)))
             ->orderBy('class_version_id')
             ->orderBy('subject_id')
             ->orderBy('order_index')
@@ -54,8 +64,11 @@ class BookController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Book $book): BookResource
+    public function show(Request $request, Book $book): BookResource
     {
+        $actor = $request->user('sanctum');
+        abort_if($actor?->school_id && $book->classVersion?->school_id !== $actor->school_id, 404);
+
         return new BookResource($book->load(['classVersion.schoolClass', 'subject', 'academicYear']));
     }
 

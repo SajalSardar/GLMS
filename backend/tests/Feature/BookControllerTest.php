@@ -205,6 +205,60 @@ class BookControllerTest extends TestCase
         );
     }
 
+    public function test_index_restricts_a_school_scoped_actor_to_their_own_school(): void
+    {
+        $bookA = Book::create(['class_version_id' => $this->versionA->id, 'subject_id' => $this->subject->id, 'name' => 'Book A']);
+        Book::create(['class_version_id' => $this->versionB->id, 'subject_id' => $this->subject->id, 'name' => 'Book B']);
+
+        $actor = $this->actorWithPermissions(['books.view'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $response = $this->actingAs($actor, 'sanctum')
+            ->getJson('/api/v1/books')
+            ->assertOk();
+
+        $response->assertJsonCount(1, 'data');
+        $response->assertJsonPath('data.0.id', $bookA->id);
+    }
+
+    public function test_show_404s_a_school_scoped_actor_for_another_schools_book(): void
+    {
+        $bookB = Book::create(['class_version_id' => $this->versionB->id, 'subject_id' => $this->subject->id, 'name' => 'Book B']);
+
+        $actor = $this->actorWithPermissions(['books.view'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $this->actingAs($actor, 'sanctum')
+            ->getJson("/api/v1/books/{$bookB->id}")
+            ->assertNotFound();
+    }
+
+    public function test_store_rejects_a_school_scoped_actor_targeting_another_schools_class_version(): void
+    {
+        $actor = $this->actorWithPermissions(['books.create'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $this->actingAs($actor, 'sanctum')
+            ->postJson('/api/v1/books', [
+                'class_version_id' => $this->versionB->id,
+                'subject_id' => $this->subject->id,
+                'academic_year_id' => $this->academicYear->id,
+                'name' => 'Cross School Book',
+            ])
+            ->assertNotFound();
+    }
+
+    public function test_national_admin_still_sees_every_schools_books(): void
+    {
+        $bookA = Book::create(['class_version_id' => $this->versionA->id, 'subject_id' => $this->subject->id, 'name' => 'Book A']);
+        $bookB = Book::create(['class_version_id' => $this->versionB->id, 'subject_id' => $this->subject->id, 'name' => 'Book B']);
+
+        $actor = $this->actorWithPermissions(['books.view']);
+
+        $response = $this->actingAs($actor, 'sanctum')
+            ->getJson('/api/v1/books')
+            ->assertOk();
+
+        $response->assertJsonCount(2, 'data');
+    }
+
     public function test_destroy_is_blocked_while_the_book_still_has_chapters(): void
     {
         $book = Book::create([
