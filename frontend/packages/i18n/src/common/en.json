@@ -453,7 +453,6 @@
 
   "management.fields.name": "Name (English)",
   "management.fields.bnName": "Name (Bangla)",
-  "management.fields.version": "Version",
   "management.fields.url": "URL",
   "management.fields.division": "Division",
   "management.fields.allDivisions": "All divisions",

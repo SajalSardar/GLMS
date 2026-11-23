@@ -453,7 +453,6 @@
 
   "management.fields.name": "নাম (ইংরেজি)",
   "management.fields.bnName": "নাম (বাংলা)",
-  "management.fields.version": "ভার্সন",
   "management.fields.url": "URL",
   "management.fields.division": "বিভাগ",
   "management.fields.allDivisions": "সকল বিভাগ",
