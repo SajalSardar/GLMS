@@ -12,6 +12,7 @@ use App\Models\Section;
 use App\Models\Shift;
 use App\Models\Subject;
 use App\Models\TeacherUser;
+use App\Models\Version;
 use Illuminate\Database\Seeder;
 
 class ClassRoutineSeeder extends Seeder
@@ -49,8 +50,10 @@ class ClassRoutineSeeder extends Seeder
             return;
         }
 
+        $bangladVersionId = Version::where('name', 'Bangla')->value('id');
+
         $version = ClassVersion::firstOrCreate(
-            ['class_id' => $class->id, 'school_id' => $school->id, 'name' => 'General'],
+            ['class_id' => $class->id, 'school_id' => $school->id, 'version_id' => $bangladVersionId],
             ['district_id' => $school->district_id, 'is_active' => true],
         );
 
