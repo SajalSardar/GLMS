@@ -10,6 +10,7 @@ use App\Models\School;
 use App\Models\SchoolClass;
 use App\Models\Subject;
 use App\Models\Upazila;
+use App\Models\Version;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\CreatesAuthorizedActors;
 use Tests\TestCase;
@@ -61,9 +62,11 @@ class ClassAndVersionAuthorizationTest extends TestCase
     {
         $class = SchoolClass::create(['name' => 'Class']);
         ClassSchool::create(['class_id' => $class->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
-        $version = ClassVersion::create(['class_id' => $class->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Existing Version']);
+        $bangla = Version::where('name', 'Bangla')->first();
+        $english = Version::where('name', 'English')->first();
+        $version = ClassVersion::create(['class_id' => $class->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'version_id' => $bangla->id]);
         $subject = Subject::create(['name' => 'Math']);
-        $payload = ['class_id' => $class->id, 'school_id' => $this->school->id, 'name' => 'New Version'];
+        $payload = ['class_id' => $class->id, 'school_id' => $this->school->id, 'version_id' => $english->id];
 
         $denied = $this->actorWithNoPermissions();
         $this->actingAs($denied, 'sanctum')->postJson('/api/v1/class-versions', $payload)->assertForbidden();
@@ -97,10 +100,12 @@ class ClassAndVersionAuthorizationTest extends TestCase
 
         $allowed = $this->actorWithPermissions(['class_versions.create'], $this->school->id, $this->school->district_id);
 
+        $bangla = Version::where('name', 'Bangla')->first();
+
         $this->actingAs($allowed, 'sanctum')->postJson('/api/v1/class-versions', [
             'class_id' => $unadoptedClass->id,
             'school_id' => $this->school->id,
-            'name' => 'New Version',
+            'version_id' => $bangla->id,
         ])->assertStatus(422);
     }
 
