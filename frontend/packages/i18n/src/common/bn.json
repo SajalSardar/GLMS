@@ -667,6 +667,7 @@
   "management.books.manageChapters": "পরিচালনা করুন",
   "management.books.pdf": "পিডিএফ",
   "management.books.viewPdf": "পিডিএফ দেখুন",
+  "management.books.viewPdfFailed": "পিডিএফ খোলা যায়নি। আবার চেষ্টা করুন।",
   "management.books.noPdf": "এখনো কোনো পিডিএফ আপলোড করা হয়নি",
   "management.books.noPdfYet": "এখনো কোনো পিডিএফ আপলোড করা হয়নি।",
   "management.books.uploadPdf": "পিডিএফ আপলোড করুন",
@@ -676,6 +677,7 @@
   "management.chapters.forBook": "যে বইয়ের অধ্যায়",
   "management.chapters.chapterNumber": "অধ্যায় নম্বর",
   "management.chapters.book": "বই",
+  "management.chapters.bookMissing": "এই অধ্যায়ের বই লোড করা যায়নি, ফলে নিচের ক্লাস/ভার্সন/বিষয়/শিক্ষাবর্ষ/বই অনুপলব্ধ এবং সেভ কাজ করবে না। পৃষ্ঠাটি পুনরায় লোড করুন।",
 
   "management.classVideos.title": "ক্লাস ভিডিও",
   "management.classVideos.instructor": "প্রশিক্ষক",

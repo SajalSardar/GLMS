@@ -260,6 +260,13 @@ export default function AllChaptersPage() {
       initialValues={initialValues}
       requiredFields={requiredFields}
       valuesFromRow={(row) => ({
+        // Not expected in normal use (book_id is a required FK and deleting
+        // a book while it still has chapters is blocked server-side), but
+        // if it's ever missing, class_id/class_version_id/subject_id/
+        // academic_year_id below all collapse to '' and GeoCrudTable's
+        // requiredFields check would otherwise block Save with no visible
+        // explanation — this flag drives a visible warning instead.
+        book_missing: row.book ? '' : 'true',
         // Display-only in edit mode — book_id (and everything it implies)
         // is immutable after creation, same as Books' own class/subject/
         // academic-year fields.
@@ -286,6 +293,11 @@ export default function AllChaptersPage() {
       })}
       renderFields={(values, onChange, fieldErrors, editingId) => (
         <>
+          {editingId && values.book_missing === 'true' && (
+            <p className="col-span-1 rounded-md bg-danger-50 px-4 py-3 text-sm text-danger-600 sm:col-span-2">
+              {t['management.chapters.bookMissing']}
+            </p>
+          )}
           {editingId ? (
             <>
               <GeoField label={t['management.fields.class']}>

@@ -667,6 +667,7 @@
   "management.books.manageChapters": "Manage",
   "management.books.pdf": "PDF",
   "management.books.viewPdf": "View PDF",
+  "management.books.viewPdfFailed": "Could not open the PDF. Please try again.",
   "management.books.noPdf": "No PDF uploaded yet",
   "management.books.noPdfYet": "No PDF uploaded yet.",
   "management.books.uploadPdf": "Upload PDF",
@@ -676,6 +677,7 @@
   "management.chapters.forBook": "Chapters for",
   "management.chapters.chapterNumber": "Chapter No.",
   "management.chapters.book": "Book",
+  "management.chapters.bookMissing": "This chapter's book could not be loaded, so Class/Version/Subject/Academic year/Book below are unavailable and Save will not work. Please reload the page.",
 
   "management.classVideos.title": "Class Videos",
   "management.classVideos.instructor": "Instructor",

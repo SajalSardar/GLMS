@@ -26,6 +26,7 @@ import { getCommonStrings } from '@ttla/i18n'
 import GeoCrudTable, { GeoField, toSinglePage, type GeoColumn } from '../components/GeoCrudTable'
 import SearchableSelect from '../components/SearchableSelect'
 import { buttonNeutral, inputClass } from '../components/styles'
+import { useToast, ToastViewport } from '../components/Toast'
 
 const t = getCommonStrings('en')
 
@@ -176,6 +177,12 @@ export default function BooksPage() {
   const [pdfBusy, setPdfBusy] = useState(false)
   const [pdfError, setPdfError] = useState<string | null>(null)
 
+  // Separate from the edit-form's own pdfError above — this one surfaces
+  // failures from the row-level "View PDF" action, which renders outside
+  // GeoCrudTable's modal (and outside its own internal toast), so it needs
+  // its own toast viewport to ever reach the user.
+  const { toast, showToast } = useToast()
+
   useEffect(() => {
     listClasses({ perPage: 500 })
       .then((result) => setClasses(result.data))
@@ -215,8 +222,12 @@ export default function BooksPage() {
       } else {
         window.open(links.preview_url, '_blank')
       }
-    } catch {
+    } catch (error) {
       if (tab) tab.close()
+      showToast({
+        type: 'error',
+        message: error instanceof ApiError ? error.message : t['management.books.viewPdfFailed'],
+      })
     }
   }
 
@@ -260,160 +271,197 @@ export default function BooksPage() {
   ]
 
   return (
-    <GeoCrudTable<Book>
-      title={t['management.books.title']}
-      columns={columns}
-      initialValues={initialValues}
-      requiredFields={requiredFields}
-      valuesFromRow={(row) => ({
-        class_id: row.class_version?.class_id != null ? String(row.class_version.class_id) : '',
-        class_version_id: String(row.class_version_id),
-        // Edit-mode display only (class_id/class_version_id are immutable
-        // after creation, same as subject_id/academic_year_id below) —
-        // read straight off the row rather than re-fetched, since the
-        // cascade's own class-scoped list isn't loaded in edit mode.
-        class_name: row.class_version?.class?.name ?? '',
-        version_name: row.class_version?.name ?? '',
-        subject_id: String(row.subject_id),
-        academic_year_id: row.academic_year_id ? String(row.academic_year_id) : '',
-        name: row.name,
-        bn_name: row.bn_name ?? '',
-        order_index: row.order_index !== null ? String(row.order_index) : '',
-        description: row.description ?? '',
-        is_active: String(row.is_active),
-        pdf_original_filename: row.pdf_original_filename ?? '',
-        has_available_pdf: row.has_available_pdf ? 'true' : '',
-      })}
-      renderFields={(values, onChange, fieldErrors, editingId) => (
-        <>
-          {editingId ? (
-            <>
-              <GeoField label={t['management.fields.class']}>
-                <input className={`${inputClass} cursor-not-allowed opacity-60`} value={values.class_name} disabled />
+    <>
+      <GeoCrudTable<Book>
+        title={t['management.books.title']}
+        columns={columns}
+        initialValues={initialValues}
+        requiredFields={requiredFields}
+        valuesFromRow={(row) => ({
+          class_id: row.class_version?.class_id != null ? String(row.class_version.class_id) : '',
+          class_version_id: String(row.class_version_id),
+          // Edit-mode display only (class_id/class_version_id are immutable
+          // after creation, same as subject_id/academic_year_id below) —
+          // read straight off the row rather than re-fetched, since the
+          // cascade's own class-scoped list isn't loaded in edit mode.
+          class_name: row.class_version?.class?.name ?? '',
+          version_name: row.class_version?.name ?? '',
+          subject_id: String(row.subject_id),
+          academic_year_id: row.academic_year_id ? String(row.academic_year_id) : '',
+          name: row.name,
+          bn_name: row.bn_name ?? '',
+          order_index: row.order_index !== null ? String(row.order_index) : '',
+          description: row.description ?? '',
+          is_active: String(row.is_active),
+          pdf_original_filename: row.pdf_original_filename ?? '',
+          has_available_pdf: row.has_available_pdf ? 'true' : '',
+        })}
+        renderFields={(values, onChange, fieldErrors, editingId) => (
+          <>
+            {editingId ? (
+              <>
+                <GeoField label={t['management.fields.class']}>
+                  <input className={`${inputClass} cursor-not-allowed opacity-60`} value={values.class_name} disabled />
+                </GeoField>
+                <GeoField label={t['management.fields.version']}>
+                  <input className={`${inputClass} cursor-not-allowed opacity-60`} value={values.version_name} disabled />
+                </GeoField>
+              </>
+            ) : (
+              <ClassVersionCascadeFields
+                classId={values.class_id}
+                classVersionId={values.class_version_id}
+                classes={classes}
+                onChange={onChange}
+                fieldErrors={fieldErrors}
+              />
+            )}
+  
+            {editingId ? (
+              <GeoField label={t['management.fields.subject']}>
+                <input
+                  className={`${inputClass} cursor-not-allowed opacity-60`}
+                  value={subjects.find((subject) => String(subject.id) === values.subject_id)?.name ?? values.subject_id}
+                  disabled
+                />
               </GeoField>
-              <GeoField label={t['management.fields.version']}>
-                <input className={`${inputClass} cursor-not-allowed opacity-60`} value={values.version_name} disabled />
+            ) : (
+              <GeoField label={t['management.fields.subject']} required error={fieldErrors.subject_id}>
+                <SearchableSelect
+                  value={values.subject_id}
+                  onChange={(next) => onChange('subject_id', next)}
+                  placeholder={t['management.fields.subject']}
+                  searchPlaceholder={t['management.table.search']}
+                  noMatchesLabel={t['management.table.noMatches']}
+                  options={subjectOptions}
+                />
               </GeoField>
-            </>
-          ) : (
-            <ClassVersionCascadeFields
-              classId={values.class_id}
-              classVersionId={values.class_version_id}
-              classes={classes}
-              onChange={onChange}
-              fieldErrors={fieldErrors}
-            />
-          )}
-
-          {editingId ? (
-            <GeoField label={t['management.fields.subject']}>
+            )}
+  
+            {editingId ? (
+              <GeoField label={t['management.books.academicYear']}>
+                <input
+                  className={`${inputClass} cursor-not-allowed opacity-60`}
+                  value={
+                    academicYears.find((year) => String(year.id) === values.academic_year_id)?.name ??
+                    values.academic_year_id
+                  }
+                  disabled
+                />
+              </GeoField>
+            ) : (
+              <GeoField label={t['management.books.academicYear']} required error={fieldErrors.academic_year_id}>
+                <SearchableSelect
+                  value={values.academic_year_id}
+                  onChange={(next) => onChange('academic_year_id', next)}
+                  placeholder={t['management.books.academicYear']}
+                  searchPlaceholder={t['management.table.search']}
+                  noMatchesLabel={t['management.table.noMatches']}
+                  options={academicYearOptions}
+                />
+              </GeoField>
+            )}
+  
+            <GeoField label={t['management.fields.name']} required error={fieldErrors.name}>
               <input
-                className={`${inputClass} cursor-not-allowed opacity-60`}
-                value={subjects.find((subject) => String(subject.id) === values.subject_id)?.name ?? values.subject_id}
-                disabled
+                className={inputClass}
+                value={values.name}
+                onChange={(event) => onChange('name', event.target.value)}
               />
             </GeoField>
-          ) : (
-            <GeoField label={t['management.fields.subject']} required error={fieldErrors.subject_id}>
-              <SearchableSelect
-                value={values.subject_id}
-                onChange={(next) => onChange('subject_id', next)}
-                placeholder={t['management.fields.subject']}
-                searchPlaceholder={t['management.table.search']}
-                noMatchesLabel={t['management.table.noMatches']}
-                options={subjectOptions}
-              />
-            </GeoField>
-          )}
-
-          {editingId ? (
-            <GeoField label={t['management.books.academicYear']}>
+  
+            <GeoField label={t['management.fields.bnName']} error={fieldErrors.bn_name}>
               <input
-                className={`${inputClass} cursor-not-allowed opacity-60`}
-                value={
-                  academicYears.find((year) => String(year.id) === values.academic_year_id)?.name ??
-                  values.academic_year_id
-                }
-                disabled
+                className={inputClass}
+                value={values.bn_name}
+                onChange={(event) => onChange('bn_name', event.target.value)}
               />
             </GeoField>
-          ) : (
-            <GeoField label={t['management.books.academicYear']} required error={fieldErrors.academic_year_id}>
-              <SearchableSelect
-                value={values.academic_year_id}
-                onChange={(next) => onChange('academic_year_id', next)}
-                placeholder={t['management.books.academicYear']}
-                searchPlaceholder={t['management.table.search']}
-                noMatchesLabel={t['management.table.noMatches']}
-                options={academicYearOptions}
+  
+            <GeoField label={t['management.fields.order']} error={fieldErrors.order_index}>
+              <input
+                type="number"
+                min={0}
+                className={inputClass}
+                value={values.order_index}
+                onChange={(event) => onChange('order_index', event.target.value)}
               />
             </GeoField>
-          )}
-
-          <GeoField label={t['management.fields.name']} required error={fieldErrors.name}>
-            <input
-              className={inputClass}
-              value={values.name}
-              onChange={(event) => onChange('name', event.target.value)}
-            />
-          </GeoField>
-
-          <GeoField label={t['management.fields.bnName']} error={fieldErrors.bn_name}>
-            <input
-              className={inputClass}
-              value={values.bn_name}
-              onChange={(event) => onChange('bn_name', event.target.value)}
-            />
-          </GeoField>
-
-          <GeoField label={t['management.fields.order']} error={fieldErrors.order_index}>
-            <input
-              type="number"
-              min={0}
-              className={inputClass}
-              value={values.order_index}
-              onChange={(event) => onChange('order_index', event.target.value)}
-            />
-          </GeoField>
-
-          <GeoField label={t['management.fields.description']} error={fieldErrors.description}>
-            <textarea
-              className={`${inputClass} h-auto py-2`}
-              rows={3}
-              value={values.description}
-              onChange={(event) => onChange('description', event.target.value)}
-            />
-          </GeoField>
-
-          <label className="flex items-center gap-2 text-sm text-gray-700">
-            <input
-              type="checkbox"
-              checked={values.is_active === 'true'}
-              onChange={(event) => onChange('is_active', String(event.target.checked))}
-            />
-            {t['management.fields.isActive']}
-          </label>
-
-          {/* Uploading requires an existing book row (POST /books/{id}/pdf) — create-only has nothing to attach a PDF to yet. */}
-          {editingId && (
-            <div className="col-span-1 flex flex-col gap-3 rounded-md border border-gray-100 p-4 sm:col-span-2">
-              <span className="text-sm font-medium text-gray-700">{t['management.books.pdf']}</span>
-
-              {values.pdf_original_filename ? (
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm text-gray-600">{values.pdf_original_filename}</span>
+  
+            <GeoField label={t['management.fields.description']} error={fieldErrors.description}>
+              <textarea
+                className={`${inputClass} h-auto py-2`}
+                rows={3}
+                value={values.description}
+                onChange={(event) => onChange('description', event.target.value)}
+              />
+            </GeoField>
+  
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={values.is_active === 'true'}
+                onChange={(event) => onChange('is_active', String(event.target.checked))}
+              />
+              {t['management.fields.isActive']}
+            </label>
+  
+            {/* Uploading requires an existing book row (POST /books/{id}/pdf) — create-only has nothing to attach a PDF to yet. */}
+            {editingId && (
+              <div className="col-span-1 flex flex-col gap-3 rounded-md border border-gray-100 p-4 sm:col-span-2">
+                <span className="text-sm font-medium text-gray-700">{t['management.books.pdf']}</span>
+  
+                {values.pdf_original_filename ? (
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-sm text-gray-600">{values.pdf_original_filename}</span>
+                    <button
+                      type="button"
+                      className={buttonNeutral}
+                      disabled={pdfBusy}
+                      onClick={async () => {
+                        if (!token) return
+                        setPdfBusy(true)
+                        setPdfError(null)
+                        try {
+                          await deleteBookPdf(editingId, token)
+                          onChange('pdf_original_filename', '')
+                          onChange('has_available_pdf', '')
+                        } catch (error) {
+                          setPdfError(error instanceof ApiError ? error.message : String(error))
+                        } finally {
+                          setPdfBusy(false)
+                        }
+                      }}
+                    >
+                      {t['management.books.removePdf']}
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">{t['management.books.noPdfYet']}</p>
+                )}
+  
+                <div className="flex flex-wrap items-center gap-3">
+                  <input
+                    type="file"
+                    accept="application/pdf"
+                    onChange={(event) => setPdfFile(event.target.files?.[0] ?? null)}
+                    className="text-sm text-gray-600"
+                  />
                   <button
                     type="button"
                     className={buttonNeutral}
-                    disabled={pdfBusy}
+                    disabled={!pdfFile || pdfBusy}
                     onClick={async () => {
-                      if (!token) return
+                      if (!token || !pdfFile) return
                       setPdfBusy(true)
                       setPdfError(null)
                       try {
-                        await deleteBookPdf(editingId, token)
-                        onChange('pdf_original_filename', '')
-                        onChange('has_available_pdf', '')
+                        const formData = new FormData()
+                        formData.append('pdf', pdfFile)
+                        const result = await uploadBookPdf(editingId, formData, token)
+                        onChange('pdf_original_filename', result.data.pdf_original_filename ?? '')
+                        onChange('has_available_pdf', result.data.has_available_pdf ? 'true' : '')
+                        setPdfFile(null)
                       } catch (error) {
                         setPdfError(error instanceof ApiError ? error.message : String(error))
                       } finally {
@@ -421,98 +469,64 @@ export default function BooksPage() {
                       }
                     }}
                   >
-                    {t['management.books.removePdf']}
+                    {pdfBusy ? t['management.table.saving'] : t['management.books.uploadPdf']}
                   </button>
                 </div>
-              ) : (
-                <p className="text-sm text-gray-500">{t['management.books.noPdfYet']}</p>
-              )}
-
-              <div className="flex flex-wrap items-center gap-3">
-                <input
-                  type="file"
-                  accept="application/pdf"
-                  onChange={(event) => setPdfFile(event.target.files?.[0] ?? null)}
-                  className="text-sm text-gray-600"
-                />
-                <button
-                  type="button"
-                  className={buttonNeutral}
-                  disabled={!pdfFile || pdfBusy}
-                  onClick={async () => {
-                    if (!token || !pdfFile) return
-                    setPdfBusy(true)
-                    setPdfError(null)
-                    try {
-                      const formData = new FormData()
-                      formData.append('pdf', pdfFile)
-                      const result = await uploadBookPdf(editingId, formData, token)
-                      onChange('pdf_original_filename', result.data.pdf_original_filename ?? '')
-                      onChange('has_available_pdf', result.data.has_available_pdf ? 'true' : '')
-                      setPdfFile(null)
-                    } catch (error) {
-                      setPdfError(error instanceof ApiError ? error.message : String(error))
-                    } finally {
-                      setPdfBusy(false)
-                    }
-                  }}
-                >
-                  {pdfBusy ? t['management.table.saving'] : t['management.books.uploadPdf']}
-                </button>
+  
+                {pdfError && <p className="text-xs text-danger-500">{pdfError}</p>}
               </div>
-
-              {pdfError && <p className="text-xs text-danger-500">{pdfError}</p>}
-            </div>
-          )}
-        </>
-      )}
-      fetchPage={(_page, filters) =>
-        listBooks({
-          classId: filters.parentId,
-          subjectId: filters.secondaryParentId,
-          versionId: filters.tertiaryParentId,
-          academicYearId: filters.quaternaryParentId,
-        }).then((result) => toSinglePage(result.data.filter((book) => matchesSearch(book.name, book.bn_name, filters.search))))
-      }
-      createRow={(values, token) => createBook(toCreatePayload(values), token)}
-      updateRow={(id, values, token) => updateBook(id, toUpdatePayload(values), token)}
-      deleteRow={(id, token) => deleteBook(id, token)}
-      rowActions={(row) => (
-        <button
-          type="button"
-          disabled={!row.has_available_pdf}
-          className={`leading-none transition-colors duration-150 ${
-            row.has_available_pdf
-              ? 'cursor-pointer text-gray-500 hover:text-primary-500'
-              : 'cursor-not-allowed text-gray-300'
-          }`}
-          onClick={() => openBookPdf(row)}
-          aria-label={t['management.books.viewPdf']}
-          title={row.has_available_pdf ? t['management.books.viewPdf'] : t['management.books.noPdf']}
-        >
-          <span className="material-symbols-outlined !text-md">picture_as_pdf</span>
-        </button>
-      )}
-      parentFilter={{
-        label: t['management.fields.class'],
-        allLabel: t['management.fields.allClasses'],
-        options: classes.map((schoolClass) => ({ id: schoolClass.id, label: schoolClass.name })),
-      }}
-      secondaryFilter={{
-        label: t['management.fields.subject'],
-        allLabel: t['management.fields.allSubjects'],
-        options: subjects.map((subject) => ({ id: subject.id, label: subject.name })),
-      }}
-      tertiaryFilter={{
-        label: t['management.fields.version'],
-        allLabel: t['management.fields.allVersions'],
-        options: versions.map((version) => ({ id: version.id, label: version.name })),
-      }}
-      quaternaryFilter={{
-        label: t['management.books.academicYear'],
-        allLabel: t['management.fields.allAcademicYears'],
-        options: academicYears.map((year) => ({ id: year.id, label: year.name })),
-      }}
-    />
+            )}
+          </>
+        )}
+        fetchPage={(_page, filters) =>
+          listBooks({
+            classId: filters.parentId,
+            subjectId: filters.secondaryParentId,
+            versionId: filters.tertiaryParentId,
+            academicYearId: filters.quaternaryParentId,
+          }).then((result) => toSinglePage(result.data.filter((book) => matchesSearch(book.name, book.bn_name, filters.search))))
+        }
+        createRow={(values, token) => createBook(toCreatePayload(values), token)}
+        updateRow={(id, values, token) => updateBook(id, toUpdatePayload(values), token)}
+        deleteRow={(id, token) => deleteBook(id, token)}
+        rowActions={(row) => (
+          <button
+            type="button"
+            disabled={!row.has_available_pdf}
+            className={`leading-none transition-colors duration-150 ${
+              row.has_available_pdf
+                ? 'cursor-pointer text-gray-500 hover:text-primary-500'
+                : 'cursor-not-allowed text-gray-300'
+            }`}
+            onClick={() => openBookPdf(row)}
+            aria-label={t['management.books.viewPdf']}
+            title={row.has_available_pdf ? t['management.books.viewPdf'] : t['management.books.noPdf']}
+          >
+            <span className="material-symbols-outlined !text-md">picture_as_pdf</span>
+          </button>
+        )}
+        parentFilter={{
+          label: t['management.fields.class'],
+          allLabel: t['management.fields.allClasses'],
+          options: classes.map((schoolClass) => ({ id: schoolClass.id, label: schoolClass.name })),
+        }}
+        secondaryFilter={{
+          label: t['management.fields.subject'],
+          allLabel: t['management.fields.allSubjects'],
+          options: subjects.map((subject) => ({ id: subject.id, label: subject.name })),
+        }}
+        tertiaryFilter={{
+          label: t['management.fields.version'],
+          allLabel: t['management.fields.allVersions'],
+          options: versions.map((version) => ({ id: version.id, label: version.name })),
+        }}
+        quaternaryFilter={{
+          label: t['management.books.academicYear'],
+          allLabel: t['management.fields.allAcademicYears'],
+          options: academicYears.map((year) => ({ id: year.id, label: year.name })),
+        }}
+      />
+      <ToastViewport toast={toast} />
+    </>
   )
 }
