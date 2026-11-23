@@ -46,7 +46,29 @@ class TenantScope implements Scope
         self::$resolvingActor = true;
 
         try {
-            $user = Auth::user();
+            // Asking the `sanctum` guard directly (not the default guard)
+            // means this scope activates correctly on every route — not
+            // just ones behind `auth:sanctum` middleware, which is the only
+            // thing that normally switches the default guard. Laravel
+            // Sanctum always registers its own `sanctum` guard at boot
+            // (SanctumServiceProvider::configureGuard()), independent of
+            // any middleware, and that guard already handles both this
+            // app's auth mechanisms transparently: a stateful session
+            // cookie (the student app's SPA login) or a bearer token (the
+            // management/teacher apps) — see Laravel\Sanctum\Guard::
+            // __invoke(). Without this, an authenticated school_admin
+            // hitting one of the many "public" index/show routes (schools,
+            // class-versions, shifts, sections, subject-teacher-
+            // assignments — registered outside auth:sanctum because the
+            // same endpoints also serve genuinely anonymous callers) never
+            // got scoped at all: Auth::user() silently resolved to null,
+            // identically to a real anonymous request, because the
+            // default guard was never switched to sanctum for this
+            // request. Confirmed via tinker: an unauthenticated
+            // ClassVersion::count() returns every school's rows; the same
+            // query run as a logged-in school_admin, with this old line,
+            // returned the same unrestricted count.
+            $user = Auth::guard('sanctum')->user();
         } finally {
             self::$resolvingActor = false;
         }
