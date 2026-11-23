@@ -43,10 +43,10 @@ class ClassVersionController extends Controller
     /**
      * Store a newly created resource in storage.
      *
-     * A soft-deleted version with the same (class_id, school_id, name) is
-     * restored and updated in place, rather than attempting a second
-     * insert that would collide with the still-present unique index on a
-     * trashed row.
+     * A soft-deleted version with the same (class_id, school_id,
+     * version_id) is restored and updated in place, rather than attempting
+     * a second insert that would collide with the still-present unique
+     * index on a trashed row.
      */
     public function store(StoreClassVersionRequest $request): JsonResponse
     {
@@ -55,8 +55,7 @@ class ClassVersionController extends Controller
         $school = School::findOrFail($request->integer('school_id'));
 
         $attributes = [
-            'name' => $request->string('name')->toString(),
-            'bn_name' => $request->input('bn_name'),
+            'version_id' => $request->integer('version_id'),
             'is_active' => $request->boolean('is_active', true),
             'class_id' => $request->integer('class_id'),
             'school_id' => $school->id,
@@ -66,7 +65,7 @@ class ClassVersionController extends Controller
         $version = ClassVersion::onlyTrashed()
             ->where('class_id', $attributes['class_id'])
             ->where('school_id', $attributes['school_id'])
-            ->where('name', $attributes['name'])
+            ->where('version_id', $attributes['version_id'])
             ->first();
 
         if ($version) {

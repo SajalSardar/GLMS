@@ -23,6 +23,7 @@ class ClassVersionResource extends JsonResource
             'class_id' => $this->class_id,
             'school_id' => $this->school_id,
             'district_id' => $this->district_id,
+            'version_id' => $this->version_id,
             'name' => $this->name,
             'bn_name' => $this->bn_name,
             'is_active' => $this->is_active,

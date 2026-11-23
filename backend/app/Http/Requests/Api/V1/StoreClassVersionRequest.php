@@ -32,13 +32,13 @@ class StoreClassVersionRequest extends FormRequest
         return [
             'class_id' => ['required', 'integer', Rule::exists('school_classes', 'id')->withoutTrashed()],
             'school_id' => ['required', 'integer', Rule::exists('schools', 'id')->withoutTrashed()],
-            'name' => [
-                'required', 'string', 'max:255',
-                Rule::unique('class_versions', 'name')->withoutTrashed()
+            'version_id' => [
+                'required', 'integer',
+                Rule::exists('versions', 'id')->where('is_active', true),
+                Rule::unique('class_versions', 'version_id')->withoutTrashed()
                     ->where('class_id', $this->integer('class_id'))
                     ->where('school_id', $this->integer('school_id')),
             ],
-            'bn_name' => ['nullable', 'string', 'max:255'],
             'is_active' => ['boolean'],
         ];
     }

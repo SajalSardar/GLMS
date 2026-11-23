@@ -28,13 +28,13 @@ class UpdateClassVersionRequest extends FormRequest
         $classVersion = $this->route('class_version');
 
         return [
-            'name' => [
-                'sometimes', 'required', 'string', 'max:255',
-                Rule::unique('class_versions', 'name')->ignore($classVersion)
+            'version_id' => [
+                'sometimes', 'required', 'integer',
+                Rule::exists('versions', 'id')->where('is_active', true),
+                Rule::unique('class_versions', 'version_id')->ignore($classVersion)
                     ->where('class_id', $classVersion->class_id)
                     ->where('school_id', $classVersion->school_id),
             ],
-            'bn_name' => ['nullable', 'string', 'max:255'],
             'is_active' => ['boolean'],
         ];
     }
