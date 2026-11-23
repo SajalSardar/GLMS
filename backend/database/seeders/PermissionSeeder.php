@@ -163,6 +163,9 @@ class PermissionSeeder extends Seeder
             ['name' => 'class_versions.update', 'label' => 'Update class versions'],
             ['name' => 'class_versions.delete', 'label' => 'Delete class versions'],
 
+            ['name' => 'versions.view', 'label' => 'View versions'],
+            ['name' => 'versions.update', 'label' => 'Update versions'],
+
             ['name' => 'shifts.view', 'label' => 'View shifts'],
             ['name' => 'shifts.create', 'label' => 'Create shifts'],
             ['name' => 'shifts.update', 'label' => 'Update shifts'],
