@@ -880,8 +880,25 @@ export interface Chapter {
   book?: Book | null
 }
 
-export function listChapters(params: { bookId?: number } = {}): Promise<{ data: Chapter[] }> {
-  const query: Record<string, string | number | undefined> = { book_id: params.bookId }
+export function listChapters(
+  params: {
+    bookId?: number
+    // classId/versionId/subjectId/academicYearId each filter through the
+    // chapter's book relation — same shape as listBooks' equivalent
+    // filters, since none of these are columns Chapter has directly.
+    classId?: number
+    versionId?: number
+    subjectId?: number
+    academicYearId?: number
+  } = {},
+): Promise<{ data: Chapter[] }> {
+  const query: Record<string, string | number | undefined> = {
+    book_id: params.bookId,
+    class_id: params.classId,
+    version_id: params.versionId,
+    subject_id: params.subjectId,
+    academic_year_id: params.academicYearId,
+  }
 
   return apiFetch<{ data: Chapter[] }>(`/chapters${buildQuery(query)}`)
 }

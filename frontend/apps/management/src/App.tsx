@@ -7,6 +7,7 @@ import AcademicExamTermsPage from './pages/AcademicExamTermsPage'
 import AcademicGradeConfiguresPage from './pages/AcademicGradeConfiguresPage'
 import AcademicSubjectMarkConfiguresPage from './pages/AcademicSubjectMarkConfiguresPage'
 import AcademicYearsPage from './pages/AcademicYearsPage'
+import AllChaptersPage from './pages/AllChaptersPage'
 import AttendanceReportPage from './pages/AttendanceReportPage'
 import BooksPage from './pages/BooksPage'
 import ChaptersPage from './pages/ChaptersPage'
@@ -59,6 +60,7 @@ const classMaterialsNavItem: SidebarItem = {
   icon: 'auto_stories',
   children: [
     { to: '/dashboard/class-materials/books', label: t['management.systemSetup.books'], icon: 'menu_book' },
+    { to: '/dashboard/class-materials/chapters', label: t['management.chapters.title'], icon: 'toc' },
     { to: '/dashboard/class-materials/class-videos', label: t['management.systemSetup.classVideos'], icon: 'smart_display' },
   ],
 }
@@ -297,6 +299,7 @@ function App() {
               <Route path="class-materials" element={<RequireNationalAdmin />}>
                 <Route path="books" element={<BooksPage />} />
                 <Route path="books/:bookId/chapters" element={<ChaptersPage />} />
+                <Route path="chapters" element={<AllChaptersPage />} />
                 <Route path="class-videos" element={<ClassVideosPage />} />
               </Route>
               <Route path="exam-control" element={<RequireNationalAdmin />}>

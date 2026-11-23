@@ -22,8 +22,12 @@ class ChapterController extends Controller
     public function index(Request $request): AnonymousResourceCollection
     {
         $chapters = Chapter::query()
-            ->with('book')
+            ->with(['book.classVersion.schoolClass', 'book.subject', 'book.academicYear'])
             ->when($request->integer('book_id'), fn ($query, $bookId) => $query->where('book_id', $bookId))
+            ->when($request->integer('class_id'), fn ($query, $id) => $query->whereHas('book.classVersion', fn ($q) => $q->where('class_id', $id)))
+            ->when($request->integer('version_id'), fn ($query, $id) => $query->whereHas('book.classVersion', fn ($q) => $q->where('version_id', $id)))
+            ->when($request->integer('subject_id'), fn ($query, $id) => $query->whereHas('book', fn ($q) => $q->where('subject_id', $id)))
+            ->when($request->integer('academic_year_id'), fn ($query, $id) => $query->whereHas('book', fn ($q) => $q->where('academic_year_id', $id)))
             ->orderBy('book_id')
             ->orderBy('order_index')
             ->orderBy('name')
@@ -37,7 +41,7 @@ class ChapterController extends Controller
      */
     public function show(Chapter $chapter): ChapterResource
     {
-        return new ChapterResource($chapter->load('book'));
+        return new ChapterResource($chapter->load(['book.classVersion.schoolClass', 'book.subject', 'book.academicYear']));
     }
 
     /**
@@ -66,7 +70,7 @@ class ChapterController extends Controller
             $chapter = Chapter::create($data);
         }
 
-        return (new ChapterResource($chapter->load('book')))
+        return (new ChapterResource($chapter->load(['book.classVersion.schoolClass', 'book.subject', 'book.academicYear'])))
             ->response()
             ->setStatusCode(Response::HTTP_CREATED);
     }
@@ -80,7 +84,7 @@ class ChapterController extends Controller
 
         $chapter->update($this->applyAutoNumbering($request->validated()));
 
-        return new ChapterResource($chapter->load('book'));
+        return new ChapterResource($chapter->load(['book.classVersion.schoolClass', 'book.subject', 'book.academicYear']));
     }
 
     /**
