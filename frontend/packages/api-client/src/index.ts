@@ -772,10 +772,24 @@ export interface Book {
 }
 
 export function listBooks(
-  params: { classVersionId?: number; subjectId?: number; academicYearId?: number } = {},
+  params: {
+    classVersionId?: number
+    // classId/versionId each filter through the book's class_version
+    // relation — classId narrows to one national class (across whichever
+    // schools' class_versions rows offer it), versionId narrows to one
+    // entry in the national Bangla/English catalog. Neither is the same
+    // filter as classVersionId, which narrows to one specific
+    // (class, school, version) row.
+    classId?: number
+    versionId?: number
+    subjectId?: number
+    academicYearId?: number
+  } = {},
 ): Promise<{ data: Book[] }> {
   const query: Record<string, string | number | undefined> = {
     class_version_id: params.classVersionId,
+    class_id: params.classId,
+    version_id: params.versionId,
     subject_id: params.subjectId,
     academic_year_id: params.academicYearId,
   }
@@ -822,10 +836,33 @@ export interface BookPdfLinks {
   preview_url: string
 }
 
-export function getBookPdfLinks(bookId: number): Promise<BookPdfLinks> {
+// The backend route requires auth:sanctum, which accepts either a bearer
+// token or an already-established cookie session. The student app calls
+// this with no token at all, relying on its own cookie session (set at
+// login) — that keeps working unchanged, since `token` is optional. The
+// management app authenticates purely by bearer token with no cookie
+// session, so it must pass one here or every call 401s.
+export function getBookPdfLinks(bookId: number, token?: string): Promise<BookPdfLinks> {
   return apiFetch<BookPdfLinks>(`/books/${bookId}/pdf/download-link`, {
     method: 'POST',
-    headers: { Accept: 'application/json' },
+    headers: token ? authHeaders(token) : { Accept: 'application/json' },
+  })
+}
+
+// formData must contain a single 'pdf' file field — matches
+// UploadBookPdfRequest's validated field name on the backend.
+export function uploadBookPdf(bookId: number, formData: FormData, token: string): Promise<{ data: Book }> {
+  return apiFetch(`/books/${bookId}/pdf`, {
+    method: 'POST',
+    headers: multipartHeaders(token),
+    body: formData,
+  })
+}
+
+export function deleteBookPdf(bookId: number, token: string): Promise<void> {
+  return apiFetch(`/books/${bookId}/pdf`, {
+    method: 'DELETE',
+    headers: authHeaders(token),
   })
 }
 

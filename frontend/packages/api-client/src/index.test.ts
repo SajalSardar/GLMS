@@ -13,6 +13,7 @@ import {
   createSection,
   createShift,
   createSubjectTeacherAssignment,
+  deleteBookPdf,
   deleteChapterMaterial,
   deleteClassSchool,
   deleteDivision,
@@ -61,6 +62,7 @@ import {
   updateDivision,
   updateSchool,
   updateSubjectTeacherAssignment,
+  uploadBookPdf,
 } from './index'
 
 describe('apiFetch', () => {
@@ -852,6 +854,59 @@ describe('books', () => {
 
     expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/books/1/pdf/download-link`)
     expect(mockFetch.mock.calls[0][1]).toMatchObject({ method: 'POST' })
+    expect((mockFetch.mock.calls[0][1]?.headers as Record<string, string>).Authorization).toBeUndefined()
+  })
+
+  it('requests a book\'s pdf download/preview links with a bearer token when one is given', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ download_url: 'https://x/d', preview_url: 'https://x/p' }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    await getBookPdfLinks(1, 'secret-token')
+
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/books/1/pdf/download-link`)
+    expect((mockFetch.mock.calls[0][1]?.headers as Record<string, string>).Authorization).toBe('Bearer secret-token')
+  })
+
+  it('lists books filtered by class_id and version_id', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ data: [] }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    await listBooks({ classId: 6, versionId: 1 })
+
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/books?class_id=6&version_id=1`)
+  })
+
+  it('uploads a pdf for a book as multipart form data', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ data: { id: 1 } }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    const formData = new FormData()
+    formData.append('pdf', new File(['x'], 'book.pdf', { type: 'application/pdf' }))
+
+    await uploadBookPdf(1, formData, 'secret-token')
+
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/books/1/pdf`)
+    expect(mockFetch.mock.calls[0][1]).toMatchObject({ method: 'POST', body: formData })
+    expect((mockFetch.mock.calls[0][1]?.headers as Record<string, string>).Authorization).toBe('Bearer secret-token')
+  })
+
+  it('deletes a book\'s pdf', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 204 })
+    vi.stubGlobal('fetch', mockFetch)
+
+    await deleteBookPdf(1, 'secret-token')
+
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/books/1/pdf`)
+    expect(mockFetch.mock.calls[0][1]).toMatchObject({ method: 'DELETE' })
   })
 })
 

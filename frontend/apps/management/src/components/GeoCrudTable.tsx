@@ -19,6 +19,7 @@ export interface GeoFilters {
   parentId?: number
   secondaryParentId?: number
   tertiaryParentId?: number
+  quaternaryParentId?: number
 }
 
 export interface GeoParentFilter {
@@ -89,12 +90,18 @@ export interface GeoCrudTableProps<T extends { id: number }> {
   parentFilter?: GeoParentFilter
   secondaryFilter?: GeoParentFilter
   tertiaryFilter?: GeoParentFilter
+  quaternaryFilter?: GeoParentFilter
   renderDetails?: (row: T) => ReactNode
   onView?: (row: T) => void
   // Override the "Add new" button / row's edit (pencil) button to navigate
   // elsewhere (e.g. a dedicated page) instead of opening the built-in modal.
   onAdd?: () => void
   onEdit?: (row: T) => void
+  // Extra per-row buttons rendered in the Actions cell, before the
+  // view/edit/delete icons this component always provides — for an action
+  // specific to one page's data (e.g. Books' "open PDF") that doesn't
+  // belong in this shared component as a built-in.
+  rowActions?: (row: T) => ReactNode
 }
 
 const REQUIRED_MESSAGE = 'This field is required.'
@@ -136,10 +143,12 @@ export default function GeoCrudTable<T extends { id: number }>({
   parentFilter,
   secondaryFilter,
   tertiaryFilter,
+  quaternaryFilter,
   renderDetails,
   onView,
   onAdd,
   onEdit,
+  rowActions,
 }: GeoCrudTableProps<T>) {
   const { token } = useAuth()
 
@@ -155,6 +164,7 @@ export default function GeoCrudTable<T extends { id: number }>({
   const [parentId, setParentId] = useState('')
   const [secondaryParentId, setSecondaryParentId] = useState('')
   const [tertiaryParentId, setTertiaryParentId] = useState('')
+  const [quaternaryParentId, setQuaternaryParentId] = useState('')
 
   const [formOpen, setFormOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
@@ -181,6 +191,7 @@ export default function GeoCrudTable<T extends { id: number }>({
         parentId: parentId ? Number(parentId) : undefined,
         secondaryParentId: secondaryParentId ? Number(secondaryParentId) : undefined,
         tertiaryParentId: tertiaryParentId ? Number(tertiaryParentId) : undefined,
+        quaternaryParentId: quaternaryParentId ? Number(quaternaryParentId) : undefined,
       })
         .then((result) => {
           setRows(result.data)
@@ -194,7 +205,7 @@ export default function GeoCrudTable<T extends { id: number }>({
         })
         .finally(() => setLoading(false))
     },
-    [fetchPage, search, parentId, secondaryParentId, tertiaryParentId],
+    [fetchPage, search, parentId, secondaryParentId, tertiaryParentId, quaternaryParentId],
   )
 
   // `load` (and the `fetchPage` prop it wraps) gets a new identity on every
@@ -406,6 +417,21 @@ export default function GeoCrudTable<T extends { id: number }>({
             />
           </div>
         )}
+        {quaternaryFilter && (
+          <div className="w-full sm:w-56">
+            <SearchableSelect
+              value={quaternaryParentId}
+              onChange={setQuaternaryParentId}
+              placeholder={quaternaryFilter.allLabel}
+              searchPlaceholder={t['management.table.search']}
+              noMatchesLabel={t['management.table.noMatches']}
+              options={[
+                { value: '', label: quaternaryFilter.allLabel },
+                ...quaternaryFilter.options.map((option) => ({ value: String(option.id), label: option.label })),
+              ]}
+            />
+          </div>
+        )}
         <button type="submit" className={buttonNeutral}>
           {t['management.table.filter']}
         </button>
@@ -452,6 +478,7 @@ export default function GeoCrudTable<T extends { id: number }>({
                   ))}
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-[9px]">
+                      {rowActions?.(row)}
                       {(onView || renderDetails) && (
                         <button
                           type="button"

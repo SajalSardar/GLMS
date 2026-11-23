@@ -134,6 +134,77 @@ class BookControllerTest extends TestCase
             ->assertJsonPath('data.id', $book->id);
     }
 
+    /**
+     * The management Books page can't show which class a book belongs to
+     * (or filter by it) unless the response actually carries the class —
+     * index()/show() must eager-load classVersion.schoolClass, not just
+     * classVersion.
+     */
+    public function test_index_includes_the_books_class_name(): void
+    {
+        Book::create(['class_version_id' => $this->versionA->id, 'subject_id' => $this->subject->id, 'name' => 'Mathematics']);
+
+        $allowed = $this->actorWithPermissions(['books.view'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $response = $this->actingAs($allowed, 'sanctum')->getJson('/api/v1/books')->assertOk();
+
+        $response->assertJsonPath('data.0.class_version.class.name', 'Class 6');
+    }
+
+    /**
+     * class_id filters by the class the book's class_version belongs to
+     * (via that relation), not a column Book has directly.
+     */
+    public function test_index_filters_by_class_id(): void
+    {
+        Book::create(['class_version_id' => $this->versionA->id, 'subject_id' => $this->subject->id, 'name' => 'Class A Book']);
+        Book::create(['class_version_id' => $this->versionB->id, 'subject_id' => $this->subject->id, 'name' => 'Class B Book']);
+
+        $allowed = $this->actorWithPermissions(['books.view'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $response = $this->actingAs($allowed, 'sanctum')
+            ->getJson("/api/v1/books?class_id={$this->versionA->class_id}")
+            ->assertOk();
+
+        $response->assertJsonCount(1, 'data');
+        $response->assertJsonPath('data.0.name', 'Class A Book');
+    }
+
+    /**
+     * version_id filters by the national versions catalog (Bangla/
+     * English), not by a specific class_versions row — a book whose
+     * class_version links to the same global version as another book
+     * (even across different classes/schools) matches too.
+     */
+    public function test_index_filters_by_the_national_version_id(): void
+    {
+        $englishVersion = ClassVersion::create(['class_id' => $this->versionB->class_id, 'school_id' => $this->schoolB->id, 'district_id' => $this->schoolB->district_id, 'version_id' => Version::where('name', 'English')->value('id')]);
+
+        Book::create(['class_version_id' => $this->versionA->id, 'subject_id' => $this->subject->id, 'name' => 'Bangla Book (School A)']);
+        Book::create(['class_version_id' => $this->versionB->id, 'subject_id' => $this->subject->id, 'name' => 'Bangla Book (School B)']);
+        Book::create(['class_version_id' => $englishVersion->id, 'subject_id' => $this->subject->id, 'name' => 'English Book']);
+
+        // Unscoped (national_admin-shaped: no school_id/district_id) —
+        // ClassVersion is TenantScoped, so whereHas('classVersion', ...)
+        // is itself narrowed by the acting user's own school/district,
+        // the same as any other query against that model. A School-A-
+        // scoped actor would correctly see only School A's Bangla book
+        // here; this test is specifically about version_id crossing
+        // school/class boundaries, so it needs an actor who can see both.
+        $allowed = $this->actorWithPermissions(['books.view']);
+        $banglaId = Version::where('name', 'Bangla')->value('id');
+
+        $response = $this->actingAs($allowed, 'sanctum')
+            ->getJson("/api/v1/books?version_id={$banglaId}")
+            ->assertOk();
+
+        $response->assertJsonCount(2, 'data');
+        $this->assertSame(
+            ['Bangla Book (School A)', 'Bangla Book (School B)'],
+            collect($response->json('data'))->pluck('name')->sort()->values()->all(),
+        );
+    }
+
     public function test_destroy_is_blocked_while_the_book_still_has_chapters(): void
     {
         $book = Book::create([
