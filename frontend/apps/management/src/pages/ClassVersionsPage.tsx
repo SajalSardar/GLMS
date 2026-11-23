@@ -14,6 +14,7 @@ import {
   type SchoolClass,
   type Version,
 } from '@ttla/api-client'
+import { useAuth } from '@ttla/auth'
 import { getCommonStrings } from '@ttla/i18n'
 import GeoCrudTable, { GeoField, type GeoColumn } from '../components/GeoCrudTable'
 import SearchableSelect from '../components/SearchableSelect'
@@ -76,6 +77,7 @@ function ClassVersionDetails({ version, schools }: { version: ClassVersion; scho
 }
 
 export default function ClassVersionsPage() {
+  const { token } = useAuth()
   // The full national class-name list — used only for the page-level
   // filter ("find every version of Class Six across every school") and
   // for the detail/table views, which never create anything and so
@@ -257,7 +259,7 @@ export default function ClassVersionsPage() {
           search: filters.search,
           schoolId: filters.parentId,
           classId: filters.secondaryParentId,
-        })
+        }, token ?? undefined)
       }
       createRow={(values, token) => createClassVersion(toPayload(values), token)}
       updateRow={(id, values, token) => updateClassVersion(id, toPayload(values), token)}

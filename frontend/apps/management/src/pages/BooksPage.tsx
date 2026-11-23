@@ -484,7 +484,7 @@ export default function BooksPage() {
             subjectId: filters.secondaryParentId,
             versionId: filters.tertiaryParentId,
             academicYearId: filters.quaternaryParentId,
-          }).then((result) => toSinglePage(result.data.filter((book) => matchesSearch(book.name, book.bn_name, filters.search))))
+          }, token ?? undefined).then((result) => toSinglePage(result.data.filter((book) => matchesSearch(book.name, book.bn_name, filters.search))))
         }
         createRow={(values, token) => createBook(toCreatePayload(values), token)}
         updateRow={(id, values, token) => updateBook(id, toUpdatePayload(values), token)}

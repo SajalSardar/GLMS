@@ -20,6 +20,7 @@ import {
   type Subject,
   type Version,
 } from '@ttla/api-client'
+import { useAuth } from '@ttla/auth'
 import { getCommonStrings } from '@ttla/i18n'
 import GeoCrudTable, { GeoField, toSinglePage, type GeoColumn } from '../components/GeoCrudTable'
 import SearchableSelect from '../components/SearchableSelect'
@@ -269,6 +270,7 @@ const requiredFields = [
 ]
 
 export default function ClassVideosPage() {
+  const { token } = useAuth()
   const [classes, setClasses] = useState<SchoolClass[]>([])
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [versions, setVersions] = useState<Version[]>([])
@@ -524,7 +526,7 @@ export default function ClassVideosPage() {
           subjectId: filters.secondaryParentId,
           versionId: filters.tertiaryParentId,
           academicYearId: filters.quaternaryParentId,
-        }).then((result) =>
+        }, token ?? undefined).then((result) =>
           toSinglePage(result.data.filter((video) => matchesSearch(video.title, video.bn_title, filters.search))),
         )
       }

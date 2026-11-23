@@ -12,6 +12,7 @@ import {
   type Section,
   type Shift,
 } from '@ttla/api-client'
+import { useAuth } from '@ttla/auth'
 import { getCommonStrings } from '@ttla/i18n'
 import GeoCrudTable, { GeoField, type GeoColumn } from '../components/GeoCrudTable'
 import SearchableSelect from '../components/SearchableSelect'
@@ -107,6 +108,7 @@ function SectionDetails({ section, schools }: { section: Section; schools: Schoo
 }
 
 export default function SectionsPage() {
+  const { token } = useAuth()
   const [shifts, setShifts] = useState<Shift[]>([])
   const [schools, setSchools] = useState<School[]>([])
   const [classes, setClasses] = useState<SchoolClass[]>([])
@@ -256,7 +258,7 @@ export default function SectionsPage() {
           search: filters.search,
           schoolId: filters.parentId,
           classId: filters.secondaryParentId,
-        })
+        }, token ?? undefined)
       }
       createRow={(values, token) => createSection(toPayload(values), token)}
       updateRow={(id, values, token) => updateSection(id, toPayload(values), token)}

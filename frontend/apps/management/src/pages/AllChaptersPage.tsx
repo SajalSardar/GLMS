@@ -18,6 +18,7 @@ import {
   type Subject,
   type Version,
 } from '@ttla/api-client'
+import { useAuth } from '@ttla/auth'
 import { getCommonStrings } from '@ttla/i18n'
 import GeoCrudTable, { GeoField, toSinglePage, type GeoColumn } from '../components/GeoCrudTable'
 import SearchableSelect from '../components/SearchableSelect'
@@ -207,6 +208,7 @@ const initialValues = {
 const requiredFields = ['class_id', 'class_version_id', 'subject_id', 'academic_year_id', 'book_id', 'name']
 
 export default function AllChaptersPage() {
+  const { token } = useAuth()
   const [classes, setClasses] = useState<SchoolClass[]>([])
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [versions, setVersions] = useState<Version[]>([])
@@ -377,7 +379,7 @@ export default function AllChaptersPage() {
           subjectId: filters.secondaryParentId,
           versionId: filters.tertiaryParentId,
           academicYearId: filters.quaternaryParentId,
-        }).then((result) =>
+        }, token ?? undefined).then((result) =>
           toSinglePage(result.data.filter((chapter) => matchesSearch(chapter.name, chapter.bn_name, filters.search))),
         )
       }

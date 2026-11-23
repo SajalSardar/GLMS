@@ -16,6 +16,7 @@ import {
   type SchoolClass,
   type Shift,
 } from '@ttla/api-client'
+import { useAuth } from '@ttla/auth'
 import { getCommonStrings } from '@ttla/i18n'
 import GeoCrudTable, { GeoField, type GeoColumn } from '../components/GeoCrudTable'
 import SearchableSelect from '../components/SearchableSelect'
@@ -118,6 +119,7 @@ function ShiftDetails({ shift, schools }: { shift: Shift; schools: School[] }) {
 }
 
 export default function ShiftsPage() {
+  const { token } = useAuth()
   const [classVersions, setClassVersions] = useState<ClassVersion[]>([])
   const [academicYears, setAcademicYears] = useState<AcademicYear[]>([])
   const [schools, setSchools] = useState<School[]>([])
@@ -309,7 +311,7 @@ export default function ShiftsPage() {
           schoolId: filters.parentId,
           classId: filters.secondaryParentId,
           classVersionId: filters.tertiaryParentId,
-        })
+        }, token ?? undefined)
       }
       createRow={(values, token) => createShift(toPayload(values), token)}
       updateRow={(id, values, token) => updateShift(id, toPayload(values), token)}

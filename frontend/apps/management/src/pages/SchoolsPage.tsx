@@ -13,6 +13,7 @@ import {
   type School,
   type Upazila,
 } from '@ttla/api-client'
+import { useAuth } from '@ttla/auth'
 import { getCommonStrings } from '@ttla/i18n'
 import GeoCrudTable, { GeoField, type GeoColumn } from '../components/GeoCrudTable'
 import SearchableSelect from '../components/SearchableSelect'
@@ -252,6 +253,7 @@ function SchoolFormFields({
 
 export default function SchoolsPage() {
   const navigate = useNavigate()
+  const { token } = useAuth()
   const [divisions, setDivisions] = useState<Division[]>([])
   const [districts, setDistricts] = useState<District[]>([])
   const [upazilas, setUpazilas] = useState<Upazila[]>([])
@@ -339,7 +341,7 @@ export default function SchoolsPage() {
           }}
         />
       )}
-      fetchPage={(page, filters) => listSchools({ page, search: filters.search, divisionId: filters.parentId })}
+      fetchPage={(page, filters) => listSchools({ page, search: filters.search, divisionId: filters.parentId }, token ?? undefined)}
       createRow={(values, token) => createSchool(buildFormData(values, logoFileRef.current), token)}
       updateRow={(id, values, token) => updateSchool(id, buildFormData(values, logoFileRef.current), token)}
       deleteRow={(id, token) => deleteSchool(id, token)}

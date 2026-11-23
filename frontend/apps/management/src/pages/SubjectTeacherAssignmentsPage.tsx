@@ -274,7 +274,7 @@ export default function SubjectTeacherAssignmentsPage() {
           schoolId: filters.parentId,
           classId: filters.secondaryParentId,
           sectionId: filters.tertiaryParentId,
-        })
+        }, token ?? undefined)
       }
       createRow={(values, token) => createSubjectTeacherAssignment(toPayload(values), token)}
       updateRow={(id, values, token) => updateSubjectTeacherAssignment(id, { teacher_id: Number(values.teacher_id) }, token)}
