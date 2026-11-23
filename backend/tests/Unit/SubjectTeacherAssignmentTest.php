@@ -13,6 +13,7 @@ use App\Models\Subject;
 use App\Models\SubjectTeacherAssignment;
 use App\Models\TeacherUser;
 use App\Models\Upazila;
+use App\Models\Version;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -27,7 +28,7 @@ class SubjectTeacherAssignmentTest extends TestCase
         $upazila = Upazila::create(['district_id' => $district->id, 'name' => 'Upazila', 'bn_name' => 'উপজেলা']);
         $school = School::create(['division_id' => $division->id, 'district_id' => $district->id, 'upazila_id' => $upazila->id, 'name' => 'School']);
         $class = SchoolClass::create(['name' => 'Class 6']);
-        $version = ClassVersion::create(['class_id' => $class->id, 'school_id' => $school->id, 'district_id' => $school->district_id, 'name' => 'Bangla Version']);
+        $version = ClassVersion::create(['class_id' => $class->id, 'school_id' => $school->id, 'district_id' => $school->district_id, 'version_id' => Version::where('name', 'Bangla')->value('id')]);
         $shift = Shift::create(['class_version_id' => $version->id, 'school_id' => $school->id, 'district_id' => $school->district_id, 'name' => 'Shift', 'start_time' => '08:00', 'end_time' => '13:00', 'days_of_week' => ['saturday']]);
         $section = Section::create(['shift_id' => $shift->id, 'school_id' => $school->id, 'district_id' => $school->district_id, 'name' => 'Section A']);
         $subject = Subject::create(['name' => 'Mathematics']);

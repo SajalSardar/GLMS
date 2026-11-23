@@ -14,6 +14,7 @@ use App\Models\SubjectTeacherAssignment;
 use App\Models\TeacherUser;
 use App\Models\TimetableEntry;
 use App\Models\Upazila;
+use App\Models\Version;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\CreatesAuthorizedActors;
 use Tests\TestCase;
@@ -47,7 +48,7 @@ class TimetableEntryCreateOrRestoreTest extends TestCase
         ]);
 
         $class = SchoolClass::create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Class']);
-        $classVersion = ClassVersion::create(['class_id' => $class->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Version']);
+        $classVersion = ClassVersion::create(['class_id' => $class->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'version_id' => Version::where('name', 'Bangla')->value('id')]);
         $shift = Shift::create([
             'class_version_id' => $classVersion->id,
             'school_id' => $this->school->id,

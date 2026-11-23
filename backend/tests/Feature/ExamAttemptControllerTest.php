@@ -22,6 +22,7 @@ use App\Models\StudentProfile;
 use App\Models\StudentUser;
 use App\Models\Subject;
 use App\Models\Upazila;
+use App\Models\Version;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\CreatesAuthorizedActors;
 use Tests\TestCase;
@@ -57,7 +58,7 @@ class ExamAttemptControllerTest extends TestCase
         $this->subject = Subject::create(['name' => 'Mathematics']);
 
         $class = SchoolClass::create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Class 6']);
-        $this->version = ClassVersion::create(['class_id' => $class->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Bangla Version']);
+        $this->version = ClassVersion::create(['class_id' => $class->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'version_id' => Version::where('name', 'Bangla')->value('id')]);
         $this->academicYear = AcademicYear::create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => '2026', 'start_date' => '2026-01-01', 'end_date' => '2026-12-31']);
 
         $shift = Shift::create(['class_version_id' => $this->version->id, 'academic_year_id' => $this->academicYear->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Shift', 'start_time' => '08:00', 'end_time' => '13:00', 'days_of_week' => ['saturday']]);
@@ -109,7 +110,7 @@ class ExamAttemptControllerTest extends TestCase
     public function test_start_is_rejected_for_a_student_in_a_different_class_version(): void
     {
         $otherClass = SchoolClass::create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Class 7']);
-        $otherVersion = ClassVersion::create(['class_id' => $otherClass->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Other Version']);
+        $otherVersion = ClassVersion::create(['class_id' => $otherClass->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'version_id' => Version::where('name', 'Bangla')->value('id')]);
         $otherShift = Shift::create(['class_version_id' => $otherVersion->id, 'academic_year_id' => $this->academicYear->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Shift', 'start_time' => '08:00', 'end_time' => '13:00', 'days_of_week' => ['saturday']]);
         $otherSection = Section::create(['shift_id' => $otherShift->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Section B']);
 
@@ -283,7 +284,7 @@ class ExamAttemptControllerTest extends TestCase
     {
         $otherSchool = School::create(['division_id' => $this->school->division_id, 'district_id' => $this->school->district_id, 'upazila_id' => $this->school->upazila_id, 'name' => 'Other School']);
         $otherClass = SchoolClass::create(['name' => 'Class 6 Other']);
-        $otherVersion = ClassVersion::create(['class_id' => $otherClass->id, 'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id, 'name' => 'Other Version']);
+        $otherVersion = ClassVersion::create(['class_id' => $otherClass->id, 'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id, 'version_id' => Version::where('name', 'Bangla')->value('id')]);
         $otherBook = Book::create(['class_version_id' => $otherVersion->id, 'subject_id' => $this->subject->id, 'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id, 'name' => 'Other Book']);
         $otherChapter = Chapter::create(['book_id' => $otherBook->id, 'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id, 'name' => 'Other Chapter']);
         $otherQuestion = Question::create(['chapter_id' => $otherChapter->id, 'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id, 'question_type' => 'mcq_single', 'question_text' => 'Other Q', 'marks' => 1]);
@@ -309,7 +310,7 @@ class ExamAttemptControllerTest extends TestCase
     {
         $otherSchool = School::create(['division_id' => $this->school->division_id, 'district_id' => $this->school->district_id, 'upazila_id' => $this->school->upazila_id, 'name' => 'Other School']);
         $otherClass = SchoolClass::create(['name' => 'Class 6 Other 2']);
-        $otherVersion = ClassVersion::create(['class_id' => $otherClass->id, 'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id, 'name' => 'Other Version 2']);
+        $otherVersion = ClassVersion::create(['class_id' => $otherClass->id, 'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id, 'version_id' => Version::where('name', 'Bangla')->value('id')]);
         $otherBook = Book::create(['class_version_id' => $otherVersion->id, 'subject_id' => $this->subject->id, 'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id, 'name' => 'Other Book 2']);
         $otherChapter = Chapter::create(['book_id' => $otherBook->id, 'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id, 'name' => 'Other Chapter 2']);
         $otherQuestion = Question::create(['chapter_id' => $otherChapter->id, 'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id, 'question_type' => 'mcq_single', 'question_text' => 'Other Q 2', 'marks' => 1]);

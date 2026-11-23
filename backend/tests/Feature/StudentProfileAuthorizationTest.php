@@ -15,6 +15,7 @@ use App\Models\StudentProfile;
 use App\Models\StudentUser;
 use App\Models\Upazila;
 use App\Models\User;
+use App\Models\Version;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\CreatesAuthorizedActors;
 use Tests\TestCase;
@@ -50,7 +51,7 @@ class StudentProfileAuthorizationTest extends TestCase
             'class_id' => $class->id,
             'school_id' => $this->school->id,
             'district_id' => $this->school->district_id,
-            'name' => 'Version',
+            'version_id' => Version::where('name', 'Bangla')->value('id'),
         ]);
 
         $shift = Shift::create([

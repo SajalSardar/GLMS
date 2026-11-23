@@ -12,6 +12,7 @@ use App\Models\Section;
 use App\Models\Shift;
 use App\Models\TeacherUser;
 use App\Models\Upazila;
+use App\Models\Version;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\CreatesAuthorizedActors;
 use Tests\TestCase;
@@ -44,7 +45,7 @@ class ShiftAndSectionAuthorizationTest extends TestCase
             'class_id' => $class->id,
             'school_id' => $school->id,
             'district_id' => $school->district_id,
-            'name' => 'Version A',
+            'version_id' => Version::where('name', 'Bangla')->value('id'),
         ]);
     }
 

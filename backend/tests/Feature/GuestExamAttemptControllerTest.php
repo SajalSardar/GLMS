@@ -16,6 +16,7 @@ use App\Models\SchoolClass;
 use App\Models\StudentUser;
 use App\Models\Subject;
 use App\Models\Upazila;
+use App\Models\Version;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -40,7 +41,7 @@ class GuestExamAttemptControllerTest extends TestCase
 
         $this->subject = Subject::create(['name' => 'Mathematics']);
         $class = SchoolClass::create(['name' => 'Class 6']);
-        $this->version = ClassVersion::create(['class_id' => $class->id, 'school_id' => $school->id, 'district_id' => $school->district_id, 'name' => 'Bangla Version']);
+        $this->version = ClassVersion::create(['class_id' => $class->id, 'school_id' => $school->id, 'district_id' => $school->district_id, 'version_id' => Version::where('name', 'Bangla')->value('id')]);
 
         $book = Book::create(['class_version_id' => $this->version->id, 'subject_id' => $this->subject->id, 'name' => 'Mathematics Book']);
         $this->chapter = Chapter::create(['book_id' => $book->id, 'name' => 'Chapter 1']);

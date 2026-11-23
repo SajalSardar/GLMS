@@ -13,6 +13,7 @@ use App\Models\School;
 use App\Models\SchoolClass;
 use App\Models\Subject;
 use App\Models\Upazila;
+use App\Models\Version;
 use App\Support\ExamGrading;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -41,7 +42,7 @@ class ExamGradingTest extends TestCase
 
         $subject = Subject::create(['name' => 'Math']);
         $class = SchoolClass::create(['name' => 'Class One']);
-        $classVersion = ClassVersion::create(['class_id' => $class->id, 'school_id' => $school->id, 'district_id' => $school->district_id, 'name' => 'V']);
+        $classVersion = ClassVersion::create(['class_id' => $class->id, 'school_id' => $school->id, 'district_id' => $school->district_id, 'version_id' => Version::where('name', 'Bangla')->value('id')]);
         $book = Book::create(['class_version_id' => $classVersion->id, 'subject_id' => $subject->id, 'name' => 'Book']);
 
         return Chapter::create(['book_id' => $book->id, 'name' => 'Chapter 1']);

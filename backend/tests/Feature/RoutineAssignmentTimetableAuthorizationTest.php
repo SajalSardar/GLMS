@@ -16,6 +16,7 @@ use App\Models\Subject;
 use App\Models\SubjectTeacherAssignment;
 use App\Models\TeacherUser;
 use App\Models\Upazila;
+use App\Models\Version;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\Concerns\CreatesAuthorizedActors;
@@ -58,7 +59,7 @@ class RoutineAssignmentTimetableAuthorizationTest extends TestCase
             'class_id' => $this->class->id,
             'school_id' => $this->school->id,
             'district_id' => $this->school->district_id,
-            'name' => 'Version',
+            'version_id' => Version::where('name', 'Bangla')->value('id'),
         ]);
 
         $shift = Shift::create([

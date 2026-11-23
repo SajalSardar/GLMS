@@ -12,6 +12,7 @@ use App\Models\SchoolClass;
 use App\Models\Subject;
 use App\Models\TeacherUser;
 use App\Models\Upazila;
+use App\Models\Version;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\CreatesAuthorizedActors;
 use Tests\TestCase;
@@ -38,7 +39,7 @@ class TeacherCreatedContentAuditTest extends TestCase
 
         $class = SchoolClass::create(['school_id' => $school->id, 'district_id' => $school->district_id, 'name' => 'Class 6']);
 
-        $classVersion = ClassVersion::create(['class_id' => $class->id, 'school_id' => $school->id, 'district_id' => $school->district_id, 'name' => 'Bangla Version']);
+        $classVersion = ClassVersion::create(['class_id' => $class->id, 'school_id' => $school->id, 'district_id' => $school->district_id, 'version_id' => Version::where('name', 'Bangla')->value('id')]);
 
         $book = Book::create(['class_version_id' => $classVersion->id, 'subject_id' => $subject->id, 'school_id' => $classVersion->school_id, 'district_id' => $classVersion->district_id, 'name' => 'Mathematics Book']);
 

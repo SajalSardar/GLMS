@@ -17,6 +17,7 @@ use App\Models\Shift;
 use App\Models\StudentProfile;
 use App\Models\Subject;
 use App\Models\Upazila;
+use App\Models\Version;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\Concerns\CreatesAuthorizedActors;
@@ -55,11 +56,11 @@ class StudentPromotionControllerTest extends TestCase
         $this->class6 = SchoolClass::create(['name' => 'Class 6', 'numeric_level' => 6]);
         $this->class7 = SchoolClass::create(['name' => 'Class 7', 'numeric_level' => 7]);
 
-        $version = ClassVersion::create(['class_id' => $this->class6->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'General']);
+        $version = ClassVersion::create(['class_id' => $this->class6->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'version_id' => Version::where('name', 'Bangla')->value('id')]);
         $shift = Shift::create(['class_version_id' => $version->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Day Shift', 'start_time' => '08:00', 'end_time' => '13:00', 'days_of_week' => ['sunday']]);
         $this->section = Section::create(['shift_id' => $shift->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Main']);
 
-        $toVersion = ClassVersion::create(['class_id' => $this->class7->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'General']);
+        $toVersion = ClassVersion::create(['class_id' => $this->class7->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'version_id' => Version::where('name', 'Bangla')->value('id')]);
         $toShift = Shift::create(['class_version_id' => $toVersion->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Day Shift', 'start_time' => '08:00', 'end_time' => '13:00', 'days_of_week' => ['sunday']]);
         $this->toSection = Section::create(['shift_id' => $toShift->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Main']);
 
@@ -289,7 +290,7 @@ class StudentPromotionControllerTest extends TestCase
         $otherDistrict = District::create(['division_id' => $otherDivision->id, 'name' => 'Other District', 'bn_name' => 'অন্য জেলা']);
         $otherUpazila = Upazila::create(['district_id' => $otherDistrict->id, 'name' => 'Other Upazila', 'bn_name' => 'অন্য উপজেলা']);
         $otherSchool = School::create(['division_id' => $otherDivision->id, 'district_id' => $otherDistrict->id, 'upazila_id' => $otherUpazila->id, 'name' => 'Other School']);
-        $otherVersion = ClassVersion::create(['class_id' => $this->class7->id, 'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id, 'name' => 'General']);
+        $otherVersion = ClassVersion::create(['class_id' => $this->class7->id, 'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id, 'version_id' => Version::where('name', 'Bangla')->value('id')]);
         $otherShift = Shift::create(['class_version_id' => $otherVersion->id, 'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id, 'name' => 'Day Shift', 'start_time' => '08:00', 'end_time' => '13:00', 'days_of_week' => ['sunday']]);
         $otherSchoolSection = Section::create(['shift_id' => $otherShift->id, 'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id, 'name' => 'Main']);
 
@@ -445,7 +446,7 @@ class StudentPromotionControllerTest extends TestCase
         // reachable via a bare soft-delete in ClassVersionController::
         // destroy() with no guard against child Shift/Section rows — so
         // $toShift?->classVersion?->class_id resolves to null.
-        $brokenVersion = ClassVersion::create(['class_id' => $this->class7->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Broken']);
+        $brokenVersion = ClassVersion::create(['class_id' => $this->class7->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'version_id' => Version::where('name', 'English')->value('id')]);
         $brokenShift = Shift::create(['class_version_id' => $brokenVersion->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Day Shift', 'start_time' => '08:00', 'end_time' => '13:00', 'days_of_week' => ['sunday']]);
         $brokenSection = Section::create(['shift_id' => $brokenShift->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Broken']);
         $brokenVersion->delete();
@@ -514,7 +515,7 @@ class StudentPromotionControllerTest extends TestCase
         // must not let $fromClassId resolve to null and silently write
         // a promotion audit row that doesn't know what class the
         // student came from.
-        $brokenVersion = ClassVersion::create(['class_id' => $this->class6->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Broken']);
+        $brokenVersion = ClassVersion::create(['class_id' => $this->class6->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'version_id' => Version::where('name', 'English')->value('id')]);
         $brokenShift = Shift::create(['class_version_id' => $brokenVersion->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Day Shift', 'start_time' => '08:00', 'end_time' => '13:00', 'days_of_week' => ['sunday']]);
         $brokenSection = Section::create(['shift_id' => $brokenShift->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Broken']);
         $brokenVersion->delete();
@@ -585,7 +586,7 @@ class StudentPromotionControllerTest extends TestCase
         // school_classes is a national table, so this reuses $this->class7
         // — the same target class the acting school's toSection resolves
         // to — proving the unique index is effectively global.
-        $otherVersion = ClassVersion::create(['class_id' => $this->class7->id, 'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id, 'name' => 'General']);
+        $otherVersion = ClassVersion::create(['class_id' => $this->class7->id, 'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id, 'version_id' => Version::where('name', 'Bangla')->value('id')]);
         $otherShift = Shift::create(['class_version_id' => $otherVersion->id, 'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id, 'name' => 'Day Shift', 'start_time' => '08:00', 'end_time' => '13:00', 'days_of_week' => ['sunday']]);
         $otherSection = Section::create(['shift_id' => $otherShift->id, 'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id, 'name' => 'Main']);
 

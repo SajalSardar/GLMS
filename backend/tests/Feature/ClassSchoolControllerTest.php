@@ -10,6 +10,7 @@ use App\Models\School;
 use App\Models\SchoolClass;
 use App\Models\Subject;
 use App\Models\Upazila;
+use App\Models\Version;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\Concerns\CreatesAuthorizedActors;
@@ -112,7 +113,7 @@ class ClassSchoolControllerTest extends TestCase
     public function test_destroy_is_blocked_while_a_class_version_exists_for_this_assignment(): void
     {
         $assignment = ClassSchool::create(['class_id' => $this->classSix->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id]);
-        ClassVersion::create(['class_id' => $this->classSix->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'name' => 'Bangla Version']);
+        ClassVersion::create(['class_id' => $this->classSix->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'version_id' => Version::where('name', 'Bangla')->value('id')]);
 
         $allowed = $this->actorWithPermissions(['class_schools.delete'], $this->schoolA->id, $this->schoolA->district_id);
 

@@ -13,6 +13,7 @@ use App\Models\Subject;
 use App\Models\SubjectTeacherAssignment;
 use App\Models\TeacherUser;
 use App\Models\Upazila;
+use App\Models\Version;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\Concerns\CreatesAuthorizedActors;
@@ -42,7 +43,7 @@ class TeacherDomainFkAssignmentTest extends TestCase
             'class_id' => $class->id,
             'school_id' => $school->id,
             'district_id' => $school->district_id,
-            'name' => 'Version',
+            'version_id' => Version::where('name', 'Bangla')->value('id'),
         ]);
 
         $shift = Shift::create([
@@ -105,8 +106,8 @@ class TeacherDomainFkAssignmentTest extends TestCase
         $classA = SchoolClass::create(['school_id' => $school->id, 'district_id' => $school->district_id, 'name' => 'Class A']);
         $classB = SchoolClass::create(['school_id' => $school->id, 'district_id' => $school->district_id, 'name' => 'Class B']);
 
-        $versionA = ClassVersion::create(['class_id' => $classA->id, 'school_id' => $school->id, 'district_id' => $school->district_id, 'name' => 'Version']);
-        $versionB = ClassVersion::create(['class_id' => $classB->id, 'school_id' => $school->id, 'district_id' => $school->district_id, 'name' => 'Version']);
+        $versionA = ClassVersion::create(['class_id' => $classA->id, 'school_id' => $school->id, 'district_id' => $school->district_id, 'version_id' => Version::where('name', 'Bangla')->value('id')]);
+        $versionB = ClassVersion::create(['class_id' => $classB->id, 'school_id' => $school->id, 'district_id' => $school->district_id, 'version_id' => Version::where('name', 'Bangla')->value('id')]);
 
         $shiftA = Shift::create([
             'class_version_id' => $versionA->id, 'school_id' => $school->id, 'district_id' => $school->district_id,

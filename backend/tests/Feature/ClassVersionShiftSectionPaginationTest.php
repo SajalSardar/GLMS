@@ -11,6 +11,7 @@ use App\Models\SchoolClass;
 use App\Models\Section;
 use App\Models\Shift;
 use App\Models\Upazila;
+use App\Models\Version;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -72,11 +73,20 @@ class ClassVersionShiftSectionPaginationTest extends TestCase
 
     public function test_class_version_index_is_paginated_and_includes_its_class(): void
     {
-        $class = $this->makeClass();
+        $banglaId = Version::where('name', 'Bangla')->value('id');
 
-        for ($i = 1; $i <= 18; $i++) {
-            ClassVersion::create(['class_id' => $class->id, 'school_id' => $this->classSchoolFor($class)->school_id, 'district_id' => $this->classSchoolFor($class)->district_id, 'name' => "Version {$i}"]);
+        // Each (class_id, school_id) pair can now only hold at most 2
+        // ClassVersion rows (one per national version), so pagination is
+        // exercised across 18 distinct classes instead of 18 versions of
+        // one class. $class's row is created LAST so it's the newest —
+        // the index orders by id desc, making it data.0.
+        for ($i = 1; $i <= 17; $i++) {
+            $otherClass = $this->makeClass();
+            ClassVersion::create(['class_id' => $otherClass->id, 'school_id' => $this->classSchoolFor($otherClass)->school_id, 'district_id' => $this->classSchoolFor($otherClass)->district_id, 'version_id' => $banglaId]);
         }
+
+        $class = $this->makeClass();
+        ClassVersion::create(['class_id' => $class->id, 'school_id' => $this->classSchoolFor($class)->school_id, 'district_id' => $this->classSchoolFor($class)->district_id, 'version_id' => $banglaId]);
 
         $response = $this->getJson('/api/v1/class-versions');
 
@@ -90,8 +100,8 @@ class ClassVersionShiftSectionPaginationTest extends TestCase
     {
         $class = $this->makeClass();
 
-        ClassVersion::create(['class_id' => $class->id, 'school_id' => $this->classSchoolFor($class)->school_id, 'district_id' => $this->classSchoolFor($class)->district_id, 'name' => 'English']);
-        ClassVersion::create(['class_id' => $class->id, 'school_id' => $this->classSchoolFor($class)->school_id, 'district_id' => $this->classSchoolFor($class)->district_id, 'name' => 'Bangla']);
+        ClassVersion::create(['class_id' => $class->id, 'school_id' => $this->classSchoolFor($class)->school_id, 'district_id' => $this->classSchoolFor($class)->district_id, 'version_id' => Version::where('name', 'English')->value('id')]);
+        ClassVersion::create(['class_id' => $class->id, 'school_id' => $this->classSchoolFor($class)->school_id, 'district_id' => $this->classSchoolFor($class)->district_id, 'version_id' => Version::where('name', 'Bangla')->value('id')]);
 
         $this->getJson("/api/v1/class-versions?class_id={$class->id}&search=eng")
             ->assertOk()
@@ -102,7 +112,7 @@ class ClassVersionShiftSectionPaginationTest extends TestCase
     public function test_shift_index_is_paginated_and_includes_its_class_version(): void
     {
         $class = $this->makeClass();
-        $version = ClassVersion::create(['class_id' => $class->id, 'school_id' => $this->classSchoolFor($class)->school_id, 'district_id' => $this->classSchoolFor($class)->district_id, 'name' => 'English']);
+        $version = ClassVersion::create(['class_id' => $class->id, 'school_id' => $this->classSchoolFor($class)->school_id, 'district_id' => $this->classSchoolFor($class)->district_id, 'version_id' => Version::where('name', 'Bangla')->value('id')]);
 
         for ($i = 1; $i <= 16; $i++) {
             Shift::create([
@@ -127,8 +137,8 @@ class ClassVersionShiftSectionPaginationTest extends TestCase
     public function test_shift_index_filters_by_class_version_id_while_paginated(): void
     {
         $class = $this->makeClass();
-        $versionA = ClassVersion::create(['class_id' => $class->id, 'school_id' => $this->classSchoolFor($class)->school_id, 'district_id' => $this->classSchoolFor($class)->district_id, 'name' => 'English']);
-        $versionB = ClassVersion::create(['class_id' => $class->id, 'school_id' => $this->classSchoolFor($class)->school_id, 'district_id' => $this->classSchoolFor($class)->district_id, 'name' => 'Bangla']);
+        $versionA = ClassVersion::create(['class_id' => $class->id, 'school_id' => $this->classSchoolFor($class)->school_id, 'district_id' => $this->classSchoolFor($class)->district_id, 'version_id' => Version::where('name', 'English')->value('id')]);
+        $versionB = ClassVersion::create(['class_id' => $class->id, 'school_id' => $this->classSchoolFor($class)->school_id, 'district_id' => $this->classSchoolFor($class)->district_id, 'version_id' => Version::where('name', 'Bangla')->value('id')]);
 
         $this->makeShift($versionA);
         Shift::create([
@@ -146,7 +156,7 @@ class ClassVersionShiftSectionPaginationTest extends TestCase
     public function test_section_index_is_paginated_and_includes_its_shift(): void
     {
         $class = $this->makeClass();
-        $version = ClassVersion::create(['class_id' => $class->id, 'school_id' => $this->classSchoolFor($class)->school_id, 'district_id' => $this->classSchoolFor($class)->district_id, 'name' => 'English']);
+        $version = ClassVersion::create(['class_id' => $class->id, 'school_id' => $this->classSchoolFor($class)->school_id, 'district_id' => $this->classSchoolFor($class)->district_id, 'version_id' => Version::where('name', 'Bangla')->value('id')]);
         $shift = $this->makeShift($version);
 
         for ($i = 1; $i <= 17; $i++) {
@@ -164,7 +174,7 @@ class ClassVersionShiftSectionPaginationTest extends TestCase
     public function test_section_index_filters_by_shift_id_and_search_while_paginated(): void
     {
         $class = $this->makeClass();
-        $version = ClassVersion::create(['class_id' => $class->id, 'school_id' => $this->classSchoolFor($class)->school_id, 'district_id' => $this->classSchoolFor($class)->district_id, 'name' => 'English']);
+        $version = ClassVersion::create(['class_id' => $class->id, 'school_id' => $this->classSchoolFor($class)->school_id, 'district_id' => $this->classSchoolFor($class)->district_id, 'version_id' => Version::where('name', 'Bangla')->value('id')]);
         $shiftA = $this->makeShift($version);
         $shiftB = Shift::create([
             'class_version_id' => $version->id, 'school_id' => $version->school_id, 'district_id' => $version->district_id,
@@ -185,8 +195,8 @@ class ClassVersionShiftSectionPaginationTest extends TestCase
     {
         $classA = $this->makeClass();
         $classB = $this->makeClass();
-        $versionA = ClassVersion::create(['class_id' => $classA->id, 'school_id' => $this->classSchoolFor($classA)->school_id, 'district_id' => $this->classSchoolFor($classA)->district_id, 'name' => 'English']);
-        $versionB = ClassVersion::create(['class_id' => $classB->id, 'school_id' => $this->classSchoolFor($classB)->school_id, 'district_id' => $this->classSchoolFor($classB)->district_id, 'name' => 'English']);
+        $versionA = ClassVersion::create(['class_id' => $classA->id, 'school_id' => $this->classSchoolFor($classA)->school_id, 'district_id' => $this->classSchoolFor($classA)->district_id, 'version_id' => Version::where('name', 'Bangla')->value('id')]);
+        $versionB = ClassVersion::create(['class_id' => $classB->id, 'school_id' => $this->classSchoolFor($classB)->school_id, 'district_id' => $this->classSchoolFor($classB)->district_id, 'version_id' => Version::where('name', 'Bangla')->value('id')]);
 
         $this->makeShift($versionA);
         Shift::create([
@@ -205,8 +215,8 @@ class ClassVersionShiftSectionPaginationTest extends TestCase
     {
         $classA = $this->makeClass();
         $classB = $this->makeClass();
-        $versionA = ClassVersion::create(['class_id' => $classA->id, 'school_id' => $this->classSchoolFor($classA)->school_id, 'district_id' => $this->classSchoolFor($classA)->district_id, 'name' => 'English']);
-        $versionB = ClassVersion::create(['class_id' => $classB->id, 'school_id' => $this->classSchoolFor($classB)->school_id, 'district_id' => $this->classSchoolFor($classB)->district_id, 'name' => 'English']);
+        $versionA = ClassVersion::create(['class_id' => $classA->id, 'school_id' => $this->classSchoolFor($classA)->school_id, 'district_id' => $this->classSchoolFor($classA)->district_id, 'version_id' => Version::where('name', 'Bangla')->value('id')]);
+        $versionB = ClassVersion::create(['class_id' => $classB->id, 'school_id' => $this->classSchoolFor($classB)->school_id, 'district_id' => $this->classSchoolFor($classB)->district_id, 'version_id' => Version::where('name', 'Bangla')->value('id')]);
         $shiftA = $this->makeShift($versionA);
         $shiftB = $this->makeShift($versionB);
 

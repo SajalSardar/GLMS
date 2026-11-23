@@ -14,6 +14,7 @@ use App\Models\School;
 use App\Models\SchoolClass;
 use App\Models\Subject;
 use App\Models\Upazila;
+use App\Models\Version;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -29,7 +30,7 @@ class ExamEligibleRandomQuestionIdsTest extends TestCase
         $school = School::create(['division_id' => $division->id, 'district_id' => $district->id, 'upazila_id' => $upazila->id, 'name' => 'School']);
         $subject = Subject::create(['name' => 'Mathematics']);
         $class = SchoolClass::create(['school_id' => $school->id, 'district_id' => $school->district_id, 'name' => 'Class 6']);
-        $version = ClassVersion::create(['class_id' => $class->id, 'school_id' => $school->id, 'district_id' => $school->district_id, 'name' => 'Bangla Version']);
+        $version = ClassVersion::create(['class_id' => $class->id, 'school_id' => $school->id, 'district_id' => $school->district_id, 'version_id' => Version::where('name', 'Bangla')->value('id')]);
         $academicYear = AcademicYear::create(['school_id' => $school->id, 'district_id' => $school->district_id, 'name' => '2026', 'start_date' => '2026-01-01', 'end_date' => '2026-12-31']);
         $book = Book::create(['class_version_id' => $version->id, 'subject_id' => $subject->id, 'school_id' => $school->id, 'district_id' => $school->district_id, 'name' => 'Mathematics Book']);
         $chapterA = Chapter::create(['book_id' => $book->id, 'school_id' => $school->id, 'district_id' => $school->district_id, 'name' => 'Chapter 1']);

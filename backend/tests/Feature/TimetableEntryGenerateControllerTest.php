@@ -14,6 +14,7 @@ use App\Models\SubjectTeacherAssignment;
 use App\Models\TeacherUser;
 use App\Models\TimetableEntry;
 use App\Models\Upazila;
+use App\Models\Version;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\CreatesAuthorizedActors;
 use Tests\TestCase;
@@ -50,7 +51,7 @@ class TimetableEntryGenerateControllerTest extends TestCase
             'class_id' => $class->id,
             'school_id' => $this->school->id,
             'district_id' => $this->school->district_id,
-            'name' => 'Version',
+            'version_id' => Version::where('name', 'Bangla')->value('id'),
         ]);
 
         $this->shift = Shift::create([
