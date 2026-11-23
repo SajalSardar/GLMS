@@ -52,6 +52,10 @@ class ClassRoutineSeeder extends Seeder
 
         $bangladVersionId = Version::where('name', 'Bangla')->value('id');
 
+        if ($bangladVersionId === null) {
+            throw new \RuntimeException("The 'Bangla' version was not found in the versions catalog — has it been renamed?");
+        }
+
         $version = ClassVersion::firstOrCreate(
             ['class_id' => $class->id, 'school_id' => $school->id, 'version_id' => $bangladVersionId],
             ['district_id' => $school->district_id, 'is_active' => true],

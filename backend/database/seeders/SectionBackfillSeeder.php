@@ -52,6 +52,10 @@ class SectionBackfillSeeder extends Seeder
         // is queried directly below instead, exactly like ClassSubjectSeeder.
         $bangladVersionId = Version::where('name', 'Bangla')->value('id');
 
+        if ($bangladVersionId === null) {
+            throw new \RuntimeException("The 'Bangla' version was not found in the versions catalog — has it been renamed?");
+        }
+
         ClassSchool::with('schoolClass')->get()->each(function (ClassSchool $assignment) use ($bangladVersionId) {
             $class = $assignment->schoolClass;
 

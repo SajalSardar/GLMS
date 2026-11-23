@@ -68,6 +68,11 @@ class LmsContentDemoSeeder extends Seeder
         // link this seeder's prerequisite ClassVersion to Bangla, so that's
         // what's matched here instead of the old "General" placeholder.
         $banglaVersionId = Version::where('name', 'Bangla')->value('id');
+
+        if ($banglaVersionId === null) {
+            throw new \RuntimeException("The 'Bangla' version was not found in the versions catalog — has it been renamed?");
+        }
+
         $version = ClassVersion::where('class_id', $class->id)->where('school_id', $studentProfile->school_id)->where('version_id', $banglaVersionId)->first();
 
         if (! $version) {

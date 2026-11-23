@@ -49,6 +49,11 @@ class StudentDemoSeeder extends Seeder
         // prerequisite ClassVersion to Bangla, so that's what's matched
         // here instead of the old "General" placeholder.
         $banglaVersionId = Version::where('name', 'Bangla')->value('id');
+
+        if ($banglaVersionId === null) {
+            throw new \RuntimeException("The 'Bangla' version was not found in the versions catalog — has it been renamed?");
+        }
+
         $version = ClassVersion::where('class_id', $class->id)->where('school_id', $school->id)->where('version_id', $banglaVersionId)->first();
         $shift = $version ? Shift::where('class_version_id', $version->id)->where('name', 'Day Shift')->first() : null;
         $section = $shift ? Section::where('shift_id', $shift->id)->where('name', 'Main')->first() : null;
