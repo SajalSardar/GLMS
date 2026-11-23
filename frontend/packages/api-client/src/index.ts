@@ -1828,6 +1828,14 @@ export interface StudentProfile {
 export interface StudentProfilePayload {
   user_id: number
   class_id?: number | null
+  // Only meaningful on create — a first section assignment, not a move.
+  // The server derives class_id/shift_id/class_version_id from it and
+  // ignores a separately-submitted class_id when this is set. Changing
+  // an existing profile's section is a different action server-side
+  // (POST /student-profiles/{id}/transfer-section, not wrapped here yet)
+  // — sending this on an update is a no-op (UpdateStudentProfileRequest
+  // doesn't accept it).
+  section_id?: number | null
   student_id?: string | null
   roll_number?: string | null
   admission_date?: string | null

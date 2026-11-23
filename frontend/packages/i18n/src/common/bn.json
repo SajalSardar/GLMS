@@ -657,6 +657,9 @@
   "management.table.filter": "ফিল্টার",
   "management.table.search": "খুঁজুন...",
   "management.table.noMatches": "কোনো মিল নেই",
+  "management.table.today": "আজ",
+  "management.table.clear": "মুছুন",
+  "management.fields.selectDate": "তারিখ নির্বাচন করুন",
 
   "management.books.title": "বই সমূহ",
   "management.books.academicYear": "শিক্ষাবর্ষ",

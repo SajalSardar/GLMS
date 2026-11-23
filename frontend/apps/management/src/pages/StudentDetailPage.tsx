@@ -9,20 +9,27 @@ import {
   detachGuardianFromStudent,
   getStudentUser,
   listClassSchools,
+  listClassVersions,
   listSchools,
+  listSections,
+  listShifts,
   listStudentProfiles,
   updateGuardian,
   updateStudentProfile,
   updateStudentUser,
   type ClassSchool,
+  type ClassVersion,
   type Guardian,
   type GuardianRelation,
   type School,
+  type Section,
+  type Shift,
   type StudentProfile,
   type StudentUser,
 } from '@ttla/api-client'
 import { useAuth } from '@ttla/auth'
 import { getCommonStrings } from '@ttla/i18n'
+import DatePickerField from '../components/DatePickerField'
 import { GeoField } from '../components/GeoCrudTable'
 import SearchableSelect from '../components/SearchableSelect'
 import { schoolLabel } from '../components/schoolOptions'
@@ -32,6 +39,12 @@ import { useToast, ToastViewport, type ToastState } from '../components/Toast'
 const t = getCommonStrings('en')
 
 const REQUIRED_MESSAGE = 'This field is required.'
+
+// Computed once at module load, not per render — calling `new Date()`
+// directly inside a component body trips this project's react-purity
+// lint rule, and neither value needs to change mid-session.
+const TODAY_ISO = new Date().toISOString().slice(0, 10)
+const CURRENT_YEAR = new Date().getFullYear()
 
 const relationLabels: Record<GuardianRelation, string> = {
   father: t['management.relation.father'],
@@ -70,6 +83,12 @@ const emptyValues: Record<string, string> = {
   password: '',
   school_id: '',
   class_id: '',
+  // Create-only — a first section assignment, not a move. See
+  // StudentForm's class_version_id/shift_id/section_id GeoFields and
+  // handleSave's profilePayload for why only section_id is ever sent.
+  class_version_id: '',
+  shift_id: '',
+  section_id: '',
   student_id: '',
   roll_number: '',
   admission_date: '',
@@ -251,6 +270,9 @@ function StudentForm({
   isCreate,
   schoolOptions,
   classOptions,
+  classVersions,
+  shifts,
+  sections,
   guardianDrafts,
   onGuardianDraftsChange,
   guardianDraftErrors,
@@ -261,10 +283,29 @@ function StudentForm({
   isCreate: boolean
   schoolOptions: Array<{ value: string; label: string }>
   classOptions: Array<{ value: string; label: string }>
+  // Create-only cascade (Class -> Class Version -> Shift -> Section),
+  // already scoped to the selected school — filtered here by whichever
+  // of class_id/class_version_id/shift_id is currently selected, the
+  // same way SchoolDetailPage's AddHierarchyModal filters its own copy
+  // of this chain.
+  classVersions: ClassVersion[]
+  shifts: Shift[]
+  sections: Section[]
   guardianDrafts?: GuardianDraft[]
   onGuardianDraftsChange?: (drafts: GuardianDraft[]) => void
   guardianDraftErrors?: Record<number, string>
 }) {
+  const versionOptions = classVersions
+    .filter((version) => String(version.class_id) === values.class_id)
+    .map((version) => ({ value: String(version.id), label: version.name }))
+
+  const shiftOptions = shifts
+    .filter((shift) => String(shift.class_version_id) === values.class_version_id)
+    .map((shift) => ({ value: String(shift.id), label: shift.name }))
+
+  const sectionOptions = sections
+    .filter((section) => String(section.shift_id) === values.shift_id)
+    .map((section) => ({ value: String(section.id), label: section.name }))
   return (
     <>
       <SectionCard icon="badge" title={t['management.studentDetail.accountSection']}>
@@ -335,7 +376,12 @@ function StudentForm({
         <GeoField label={t['management.fields.class']} error={fieldErrors.class_id}>
           <SearchableSelect
             value={values.class_id}
-            onChange={(next) => onChange('class_id', next)}
+            onChange={(next) => {
+              onChange('class_id', next)
+              onChange('class_version_id', '')
+              onChange('shift_id', '')
+              onChange('section_id', '')
+            }}
             placeholder={t['management.fields.class']}
             searchPlaceholder={t['management.table.search']}
             noMatchesLabel={t['management.table.noMatches']}
@@ -343,6 +389,53 @@ function StudentForm({
             className={!values.school_id ? `${inputClass} cursor-not-allowed opacity-60` : undefined}
           />
         </GeoField>
+
+        {isCreate && (
+          <>
+            <GeoField label={t['management.fields.classVersion']} error={fieldErrors.class_version_id}>
+              <SearchableSelect
+                value={values.class_version_id}
+                onChange={(next) => {
+                  onChange('class_version_id', next)
+                  onChange('shift_id', '')
+                  onChange('section_id', '')
+                }}
+                placeholder={t['management.fields.classVersion']}
+                searchPlaceholder={t['management.table.search']}
+                noMatchesLabel={t['management.table.noMatches']}
+                options={versionOptions}
+                className={!values.class_id ? `${inputClass} cursor-not-allowed opacity-60` : undefined}
+              />
+            </GeoField>
+
+            <GeoField label={t['management.fields.shift']} error={fieldErrors.shift_id}>
+              <SearchableSelect
+                value={values.shift_id}
+                onChange={(next) => {
+                  onChange('shift_id', next)
+                  onChange('section_id', '')
+                }}
+                placeholder={t['management.fields.shift']}
+                searchPlaceholder={t['management.table.search']}
+                noMatchesLabel={t['management.table.noMatches']}
+                options={shiftOptions}
+                className={!values.class_version_id ? `${inputClass} cursor-not-allowed opacity-60` : undefined}
+              />
+            </GeoField>
+
+            <GeoField label={t['management.fields.section']} error={fieldErrors.section_id}>
+              <SearchableSelect
+                value={values.section_id}
+                onChange={(next) => onChange('section_id', next)}
+                placeholder={t['management.fields.section']}
+                searchPlaceholder={t['management.table.search']}
+                noMatchesLabel={t['management.table.noMatches']}
+                options={sectionOptions}
+                className={!values.shift_id ? `${inputClass} cursor-not-allowed opacity-60` : undefined}
+              />
+            </GeoField>
+          </>
+        )}
 
         <GeoField label={t['management.fields.studentId']} error={fieldErrors.student_id}>
           {isCreate ? (
@@ -367,20 +460,31 @@ function StudentForm({
         </GeoField>
 
         <GeoField label={t['management.fields.admissionDate']} error={fieldErrors.admission_date}>
-          <input
-            type="date"
-            className={inputClass}
+          <DatePickerField
             value={values.admission_date}
-            onChange={(event) => onChange('admission_date', event.target.value)}
+            onChange={(next) => onChange('admission_date', next)}
+            maxDate={TODAY_ISO}
+            minYear={CURRENT_YEAR - 20}
+            maxYear={CURRENT_YEAR + 1}
+            placeholder={t['management.fields.selectDate']}
+            todayLabel={t['management.table.today']}
+            clearLabel={t['management.table.clear']}
           />
         </GeoField>
 
         <GeoField label={t['management.fields.dateOfBirth']} error={fieldErrors.date_of_birth}>
-          <input
-            type="date"
-            className={inputClass}
+          <DatePickerField
             value={values.date_of_birth}
-            onChange={(event) => onChange('date_of_birth', event.target.value)}
+            onChange={(next) => onChange('date_of_birth', next)}
+            // Matches StoreStudentProfileRequest/UpdateStudentProfileRequest's
+            // 'before:today' rule — the picker shouldn't offer a date the
+            // backend will reject anyway.
+            maxDate={TODAY_ISO}
+            minYear={CURRENT_YEAR - 100}
+            maxYear={CURRENT_YEAR}
+            placeholder={t['management.fields.selectDate']}
+            todayLabel={t['management.table.today']}
+            clearLabel={t['management.table.clear']}
           />
         </GeoField>
 
@@ -939,6 +1043,13 @@ export default function StudentDetailPage() {
   const [profile, setProfile] = useState<StudentProfile | null>(null)
   const [schools, setSchools] = useState<School[]>([])
   const [schoolClasses, setSchoolClasses] = useState<ClassSchool[]>([])
+  // Create-only cascade data, scoped to the selected school — fetched
+  // once per school_id change, same as schoolClasses above, then
+  // filtered client-side as the cascade narrows (mirrors
+  // SchoolDetailPage's AddHierarchyModal).
+  const [classVersions, setClassVersions] = useState<ClassVersion[]>([])
+  const [shifts, setShifts] = useState<Shift[]>([])
+  const [sections, setSections] = useState<Section[]>([])
   const [loading, setLoading] = useState(!isCreate)
   const [loadError, setLoadError] = useState<string | null>(null)
 
@@ -1040,6 +1151,40 @@ export default function StudentDetailPage() {
     }
   }, [values.school_id])
 
+  useEffect(() => {
+    // Only needed on the Add Student page — an existing profile's
+    // section is changed via the dedicated transfer flow, not this form.
+    if (!isCreate || !values.school_id) {
+      return
+    }
+
+    let active = true
+    const schoolId = Number(values.school_id)
+
+    Promise.all([
+      listClassVersions({ schoolId, perPage: 500 }),
+      listShifts({ schoolId, perPage: 500 }),
+      listSections({ schoolId, perPage: 500 }),
+    ])
+      .then(([versionsResult, shiftsResult, sectionsResult]) => {
+        if (!active) return
+        setClassVersions(versionsResult.data)
+        setShifts(shiftsResult.data)
+        setSections(sectionsResult.data)
+      })
+      .catch(() => {
+        if (active) {
+          setClassVersions([])
+          setShifts([])
+          setSections([])
+        }
+      })
+
+    return () => {
+      active = false
+    }
+  }, [isCreate, values.school_id])
+
   const schoolOptions = schools.map((school) => ({ value: String(school.id), label: schoolLabel(school) }))
   // Derived rather than reset via the effect above: with no school
   // selected there's nothing to offer, regardless of whatever
@@ -1112,6 +1257,13 @@ export default function StudentDetailPage() {
 
       const profilePayload = {
         class_id: values.class_id ? Number(values.class_id) : null,
+        // Create-only: a first section assignment, not a move — the
+        // server derives class_id/shift_id/class_version_id from it and
+        // ignores the class_id above when this is set (see
+        // StudentProfileController::store()). Sending it on an update is
+        // a no-op (UpdateStudentProfileRequest doesn't accept it), but
+        // kept out explicitly anyway for clarity.
+        ...(isCreate ? { section_id: values.section_id ? Number(values.section_id) : null } : {}),
         // student_id is never sent on create — it's always server-
         // generated (StoreStudentProfileRequest rejects a client-
         // supplied value outright); only an edit of an already-created
@@ -1331,6 +1483,9 @@ export default function StudentDetailPage() {
             isCreate
             schoolOptions={schoolOptions}
             classOptions={classOptions}
+            classVersions={classVersions}
+            shifts={shifts}
+            sections={sections}
             guardianDrafts={guardianDrafts}
             onGuardianDraftsChange={setGuardianDrafts}
             guardianDraftErrors={guardianDraftErrors}
@@ -1364,6 +1519,9 @@ export default function StudentDetailPage() {
                 isCreate={false}
                 schoolOptions={schoolOptions}
                 classOptions={classOptions}
+                classVersions={[]}
+                shifts={[]}
+                sections={[]}
               />
 
               {formError && <p className="rounded-md bg-danger-50 px-4 py-3 text-sm text-danger-600">{formError}</p>}

@@ -657,6 +657,9 @@
   "management.table.filter": "Filter",
   "management.table.search": "Search...",
   "management.table.noMatches": "No matches",
+  "management.table.today": "Today",
+  "management.table.clear": "Clear",
+  "management.fields.selectDate": "Select date",
 
   "management.books.title": "Books",
   "management.books.academicYear": "Academic year",
