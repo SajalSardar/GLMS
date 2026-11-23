@@ -20,6 +20,7 @@ use App\Models\StudentUser;
 use App\Models\Subject;
 use App\Models\TeacherUser;
 use App\Models\User;
+use App\Models\Version;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
@@ -62,7 +63,12 @@ class LmsContentDemoSeeder extends Seeder
         // ClassVersion by the sample student's own school_id rather than
         // a hardcoded school — the student's own profile is the only
         // school context this seeder has left once $class carries none.
-        $version = ClassVersion::where('class_id', $class->id)->where('school_id', $studentProfile->school_id)->where('name', 'General')->first();
+        // class_versions.name/bn_name were dropped in favor of the linked
+        // national Version — SectionBackfillSeeder/ClassRoutineSeeder both
+        // link this seeder's prerequisite ClassVersion to Bangla, so that's
+        // what's matched here instead of the old "General" placeholder.
+        $banglaVersionId = Version::where('name', 'Bangla')->value('id');
+        $version = ClassVersion::where('class_id', $class->id)->where('school_id', $studentProfile->school_id)->where('version_id', $banglaVersionId)->first();
 
         if (! $version) {
             return;

@@ -12,6 +12,7 @@ use App\Models\Shift;
 use App\Models\Subject;
 use App\Models\SubjectTeacherAssignment;
 use App\Models\TeacherUser;
+use App\Models\Version;
 use Illuminate\Database\Seeder;
 
 class TimetableGenerationDemoSeeder extends Seeder
@@ -43,7 +44,12 @@ class TimetableGenerationDemoSeeder extends Seeder
             return;
         }
 
-        $version = ClassVersion::where('class_id', $class->id)->where('school_id', $school->id)->where('name', 'General')->first();
+        // class_versions.name/bn_name were dropped in favor of the linked
+        // national Version — SectionBackfillSeeder links this seeder's
+        // prerequisite ClassVersion to Bangla, so that's what's matched
+        // here instead of the old "General" placeholder.
+        $banglaVersionId = Version::where('name', 'Bangla')->value('id');
+        $version = ClassVersion::where('class_id', $class->id)->where('school_id', $school->id)->where('version_id', $banglaVersionId)->first();
         $shift = $version ? Shift::where('class_version_id', $version->id)->where('name', 'Day Shift')->first() : null;
         $section = $shift ? Section::where('shift_id', $shift->id)->first() : null;
 

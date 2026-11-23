@@ -488,7 +488,11 @@ class TimetableGeneratorTest extends TestCase
 
         $sectionLockQueries = array_filter(
             $queries,
-            fn (array $q): bool => stripos($q['query'], 'from "sections"') !== false
+            // Identifier quoting is grammar-specific (SQLite: "sections",
+            // MySQL: `sections`) — matched without assuming either, so
+            // this doesn't silently stop asserting anything under a
+            // non-SQLite test connection.
+            fn (array $q): bool => preg_match('/from\s+[`"]sections[`"]/i', $q['query']) === 1
                 && in_array($section->id, $q['bindings'], true)
         );
 
