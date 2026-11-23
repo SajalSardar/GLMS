@@ -1,14 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   clearStoredName,
+  clearStoredPermissions,
   clearStoredRole,
   clearStoredToken,
   clearStoredUserId,
   getStoredName,
+  getStoredPermissions,
   getStoredRole,
   getStoredToken,
   getStoredUserId,
   storeName,
+  storePermissions,
   storeRole,
   storeToken,
   storeUserId,
@@ -159,5 +162,44 @@ describe('userId storage', () => {
     clearStoredUserId()
 
     expect(getStoredUserId()).toBeNull()
+  })
+})
+
+describe('permissions storage', () => {
+  beforeEach(() => {
+    vi.stubGlobal('localStorage', new MemoryStorage())
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('returns an empty array when no permissions are stored', () => {
+    expect(getStoredPermissions()).toEqual([])
+  })
+
+  it('stores and retrieves permissions as an array', () => {
+    storePermissions(['read', 'write', 'delete'])
+
+    expect(getStoredPermissions()).toEqual(['read', 'write', 'delete'])
+  })
+
+  it('clears stored permissions', () => {
+    storePermissions(['read', 'write'])
+    clearStoredPermissions()
+
+    expect(getStoredPermissions()).toEqual([])
+  })
+
+  it('returns an empty array when localStorage contains invalid JSON', () => {
+    localStorage.setItem('ttla.authPermissions', 'not valid json')
+
+    expect(getStoredPermissions()).toEqual([])
+  })
+
+  it('returns an empty array when localStorage contains non-array JSON', () => {
+    localStorage.setItem('ttla.authPermissions', '{"key": "value"}')
+
+    expect(getStoredPermissions()).toEqual([])
   })
 })
