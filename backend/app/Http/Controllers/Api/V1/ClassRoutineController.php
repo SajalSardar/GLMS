@@ -29,6 +29,12 @@ class ClassRoutineController extends Controller
      */
     public function index(Request $request): AnonymousResourceCollection
     {
+        // This route sits outside the auth:sanctum group (it must also
+        // serve anonymous/public callers), so the user is resolved
+        // explicitly from the sanctum guard — same pattern as
+        // TimetableEntryController::index(), this controller's sibling.
+        $actor = $request->user('sanctum');
+
         $routines = ClassRoutine::query()
             // section/shift/classVersion/academicYear eager-loaded
             // alongside index()'s original subject/teacher/classroom so
@@ -37,7 +43,11 @@ class ClassRoutineController extends Controller
             // do, without a second request per relation — same reasoning
             // as mine()'s own eager-load list.
             ->with(['schoolClass', 'subject', 'teacher', 'classroom', 'section', 'shift', 'classVersion', 'academicYear'])
-            ->when($request->integer('school_id'), fn ($query, $schoolId) => $query->where('school_id', $schoolId))
+            ->when(
+                $actor?->school_id,
+                fn ($query, $schoolId) => $query->where('school_id', $schoolId),
+                fn ($query) => $query->when($request->integer('school_id'), fn ($q, $schoolId) => $q->where('school_id', $schoolId)),
+            )
             ->when($request->integer('district_id'), fn ($query, $districtId) => $query->where('district_id', $districtId))
             ->when($request->integer('class_id'), fn ($query, $classId) => $query->where('class_id', $classId))
             ->when($request->integer('class_version_id'), fn ($query, $classVersionId) => $query->where('class_version_id', $classVersionId))

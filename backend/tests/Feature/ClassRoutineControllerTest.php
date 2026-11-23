@@ -282,4 +282,39 @@ class ClassRoutineControllerTest extends TestCase
             ->getJson('/api/v1/class-routines/mine')
             ->assertForbidden();
     }
+
+    public function test_index_restricts_a_school_scoped_actor_to_their_own_school_regardless_of_query_param(): void
+    {
+        $divisionB = Division::create(['name' => 'Division B', 'bn_name' => 'বিভাগ বি']);
+        $districtB = District::create(['division_id' => $divisionB->id, 'name' => 'District B', 'bn_name' => 'জেলা বি']);
+        $upazilaB = Upazila::create(['district_id' => $districtB->id, 'name' => 'Upazila B', 'bn_name' => 'উপজেলা বি']);
+        $schoolB = School::create(['division_id' => $divisionB->id, 'district_id' => $districtB->id, 'upazila_id' => $upazilaB->id, 'name' => 'School B']);
+
+        ClassSchool::create(['class_id' => $this->class->id, 'school_id' => $schoolB->id, 'district_id' => $schoolB->district_id]);
+        DB::table('class_subjects')->insert([
+            'class_id' => $this->class->id, 'school_id' => $schoolB->id, 'subject_id' => $this->subject->id,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $teacherA = $this->teacherActorWithPermissions(['class_routines.create'], $this->school->id, $this->school->district_id);
+        $routineAId = $this->actingAs($teacherA, 'sanctum')->postJson('/api/v1/class-routines', [
+            'class_id' => $this->class->id, 'school_id' => $this->school->id,
+            'subject_id' => $this->subject->id, 'day_of_week' => 'sunday', 'period_no' => 1,
+        ])->assertCreated()->json('data.id');
+
+        $teacherB = $this->teacherActorWithPermissions(['class_routines.create'], $schoolB->id, $schoolB->district_id);
+        $this->actingAs($teacherB, 'sanctum')->postJson('/api/v1/class-routines', [
+            'class_id' => $this->class->id, 'school_id' => $schoolB->id,
+            'subject_id' => $this->subject->id, 'day_of_week' => 'sunday', 'period_no' => 1,
+        ])->assertCreated();
+
+        $viewer = $this->actorWithPermissions(['class_routines.view'], $this->school->id, $this->school->district_id);
+
+        $response = $this->actingAs($viewer, 'sanctum')
+            ->getJson("/api/v1/class-routines?school_id={$schoolB->id}")
+            ->assertOk();
+
+        $response->assertJsonCount(1, 'data');
+        $response->assertJsonPath('data.0.id', $routineAId);
+    }
 }
