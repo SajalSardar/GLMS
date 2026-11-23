@@ -232,6 +232,53 @@ class ChapterVideoControllerTest extends TestCase
         );
     }
 
+    public function test_index_restricts_a_school_scoped_actor_to_their_own_school(): void
+    {
+        $videoA = ChapterVideo::create(['chapter_id' => $this->chapterA->id, 'youtube_video_id' => 'aaaaaaaaaaa', 'title' => 'Video A']);
+        ChapterVideo::create(['chapter_id' => $this->chapterB->id, 'youtube_video_id' => 'bbbbbbbbbbb', 'title' => 'Video B']);
+
+        $actor = $this->actorWithPermissions(['chapter_videos.view'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $response = $this->actingAs($actor, 'sanctum')->getJson('/api/v1/chapter-videos')->assertOk();
+
+        $response->assertJsonCount(1, 'data');
+        $response->assertJsonPath('data.0.id', $videoA->id);
+    }
+
+    public function test_show_404s_a_school_scoped_actor_for_another_schools_video(): void
+    {
+        $videoB = ChapterVideo::create(['chapter_id' => $this->chapterB->id, 'youtube_video_id' => 'bbbbbbbbbbb', 'title' => 'Video B']);
+
+        $actor = $this->actorWithPermissions(['chapter_videos.view'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $this->actingAs($actor, 'sanctum')
+            ->getJson("/api/v1/chapter-videos/{$videoB->id}")
+            ->assertNotFound();
+    }
+
+    public function test_store_rejects_a_school_scoped_actor_targeting_another_schools_chapter(): void
+    {
+        $actor = $this->actorWithPermissions(['chapter_videos.create'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $this->actingAs($actor, 'sanctum')
+            ->postJson('/api/v1/chapter-videos', [
+                'chapter_id' => $this->chapterB->id,
+                'youtube_url' => 'https://youtu.be/dQw4w9WgXcQ',
+                'title' => 'Cross School Video',
+            ])
+            ->assertNotFound();
+    }
+
+    public function test_national_admin_still_sees_every_schools_videos(): void
+    {
+        ChapterVideo::create(['chapter_id' => $this->chapterA->id, 'youtube_video_id' => 'aaaaaaaaaaa', 'title' => 'Video A']);
+        ChapterVideo::create(['chapter_id' => $this->chapterB->id, 'youtube_video_id' => 'bbbbbbbbbbb', 'title' => 'Video B']);
+
+        $actor = $this->actorWithPermissions(['chapter_videos.view']);
+
+        $this->actingAs($actor, 'sanctum')->getJson('/api/v1/chapter-videos')->assertOk()->assertJsonCount(2, 'data');
+    }
+
     /**
      * subject_id filters by the video's chapter's book's subject.
      */

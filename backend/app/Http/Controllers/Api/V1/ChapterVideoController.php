@@ -33,6 +33,7 @@ class ChapterVideoController extends Controller
             ->when($request->integer('version_id'), fn ($query, $id) => $query->whereHas('chapter.book.classVersion', fn ($q) => $q->where('version_id', $id)))
             ->when($request->integer('subject_id'), fn ($query, $id) => $query->whereHas('chapter.book', fn ($q) => $q->where('subject_id', $id)))
             ->when($request->integer('academic_year_id'), fn ($query, $id) => $query->whereHas('chapter.book', fn ($q) => $q->where('academic_year_id', $id)))
+            ->when($actor?->school_id, fn ($query, $schoolId) => $query->whereHas('chapter.book.classVersion', fn ($q) => $q->where('school_id', $schoolId)))
             ->when(
                 ! $actor?->hasPermission('chapter_videos.update'),
                 fn ($query) => $query->where('is_enabled', true)
@@ -48,9 +49,14 @@ class ChapterVideoController extends Controller
     {
         // This route sits outside the auth:sanctum group, so the user is
         // resolved explicitly from the sanctum guard.
-        if (! $chapter_video->is_enabled && ! $request->user('sanctum')?->hasPermission('chapter_videos.update')) {
+        $actor = $request->user('sanctum');
+
+        if (! $chapter_video->is_enabled && ! $actor?->hasPermission('chapter_videos.update')) {
             abort(404);
         }
+
+        $chapter_video->loadMissing('chapter.book.classVersion');
+        abort_if($actor?->school_id && $chapter_video->chapter?->book?->classVersion?->school_id !== $actor->school_id, 404);
 
         return new ChapterVideoResource($chapter_video->load(['chapter.book.classVersion.schoolClass', 'chapter.book.subject', 'chapter.book.academicYear']));
     }
@@ -59,7 +65,10 @@ class ChapterVideoController extends Controller
     {
         $this->authorize('create', ChapterVideo::class);
 
-        $chapter = Chapter::findOrFail($request->integer('chapter_id'));
+        $chapter = Chapter::with('book.classVersion')->findOrFail($request->integer('chapter_id'));
+        $actor = $request->user('sanctum');
+        abort_if($actor?->school_id && $chapter->book?->classVersion?->school_id !== $actor->school_id, 404);
+
         $data = $request->validated();
         $data['youtube_video_id'] = YoutubeUrl::extractVideoId($data['youtube_url']);
         unset($data['youtube_url']);
