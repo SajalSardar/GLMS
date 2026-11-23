@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { createChapter, deleteChapter, getBook, listChapters, updateChapter, type Book, type Chapter } from '@ttla/api-client'
+import { useAuth } from '@ttla/auth'
 import { getCommonStrings } from '@ttla/i18n'
 import GeoCrudTable, { GeoField, toSinglePage, type GeoColumn } from '../components/GeoCrudTable'
 import { buttonNeutral, inputClass } from '../components/styles'
@@ -20,6 +21,7 @@ export default function ChaptersPage() {
   const { bookId } = useParams()
   const navigate = useNavigate()
   const id = Number(bookId)
+  const { token } = useAuth()
   const [book, setBook] = useState<Book | null>(null)
 
   useEffect(() => {
@@ -102,7 +104,7 @@ export default function ChaptersPage() {
           </>
         )}
         fetchPage={(_page, filters) =>
-          listChapters({ bookId: id }).then((result) =>
+          listChapters({ bookId: id }, token ?? undefined).then((result) =>
             toSinglePage(result.data.filter((chapter) => matchesSearch(chapter.name, chapter.bn_name, filters.search))),
           )
         }
@@ -131,6 +133,9 @@ export default function ChaptersPage() {
           )
         }
         deleteRow={(chapterId, token) => deleteChapter(chapterId, token)}
+        createPermission="chapters.create"
+        updatePermission="chapters.update"
+        deletePermission="chapters.delete"
       />
     </section>
   )
