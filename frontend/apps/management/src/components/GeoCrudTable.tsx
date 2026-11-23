@@ -87,6 +87,17 @@ export interface GeoCrudTableProps<T extends { id: number }> {
   createRow?: (values: Record<string, string>, token: string) => Promise<unknown>
   updateRow?: (id: number, values: Record<string, string>, token: string) => Promise<unknown>
   deleteRow: (id: number, token: string) => Promise<void>
+  // When provided, the corresponding action is hidden unless
+  // useAuth().can(permission) is true — the Add button for
+  // createPermission, the row's edit (pencil) icon for updatePermission,
+  // the row's delete (trash) icon for deletePermission. Omitted (the
+  // default), the action is always shown, exactly as before this prop
+  // existed — this keeps every existing page's behavior unchanged. This
+  // is a UX improvement only: every write endpoint already enforces
+  // permissions server-side via policies regardless of what this hides.
+  createPermission?: string
+  updatePermission?: string
+  deletePermission?: string
   parentFilter?: GeoParentFilter
   secondaryFilter?: GeoParentFilter
   tertiaryFilter?: GeoParentFilter
@@ -149,8 +160,11 @@ export default function GeoCrudTable<T extends { id: number }>({
   onAdd,
   onEdit,
   rowActions,
+  createPermission,
+  updatePermission,
+  deletePermission,
 }: GeoCrudTableProps<T>) {
-  const { token } = useAuth()
+  const { token, can } = useAuth()
 
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState(15)
@@ -354,14 +368,16 @@ export default function GeoCrudTable<T extends { id: number }>({
     <section className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-semibold text-gray-800">{title}</h2>
-        <button
-          type="button"
-          className={`${buttonPrimary} inline-flex items-center gap-1.5`}
-          onClick={() => (onAdd ? onAdd() : openCreateForm())}
-        >
-          <span className="material-symbols-outlined !text-[18px] leading-none">add</span>
-          {t['management.table.addNew']}
-        </button>
+        {(!createPermission || can(createPermission)) && (
+          <button
+            type="button"
+            className={`${buttonPrimary} inline-flex items-center gap-1.5`}
+            onClick={() => (onAdd ? onAdd() : openCreateForm())}
+          >
+            <span className="material-symbols-outlined !text-[18px] leading-none">add</span>
+            {t['management.table.addNew']}
+          </button>
+        )}
       </div>
 
       <form className="flex flex-wrap items-center gap-3 rounded-md bg-white p-4 shadow-sm" onSubmit={applyFilters}>
@@ -489,22 +505,26 @@ export default function GeoCrudTable<T extends { id: number }>({
                           <span className="material-symbols-outlined !text-md">visibility</span>
                         </button>
                       )}
-                      <button
-                        type="button"
-                        className="cursor-pointer leading-none text-gray-500 transition-colors duration-150 hover:text-primary-500"
-                        onClick={() => (onEdit ? onEdit(row) : openEditForm(row))}
-                        aria-label={t['management.table.edit']}
-                      >
-                        <span className="material-symbols-outlined !text-md">edit</span>
-                      </button>
-                      <button
-                        type="button"
-                        className="cursor-pointer leading-none text-danger-500 transition-colors duration-150 hover:text-danger-600"
-                        onClick={() => openDeleteConfirm(row.id)}
-                        aria-label={t['management.table.delete']}
-                      >
-                        <span className="material-symbols-outlined !text-md">delete</span>
-                      </button>
+                      {(!updatePermission || can(updatePermission)) && (
+                        <button
+                          type="button"
+                          className="cursor-pointer leading-none text-gray-500 transition-colors duration-150 hover:text-primary-500"
+                          onClick={() => (onEdit ? onEdit(row) : openEditForm(row))}
+                          aria-label={t['management.table.edit']}
+                        >
+                          <span className="material-symbols-outlined !text-md">edit</span>
+                        </button>
+                      )}
+                      {(!deletePermission || can(deletePermission)) && (
+                        <button
+                          type="button"
+                          className="cursor-pointer leading-none text-danger-500 transition-colors duration-150 hover:text-danger-600"
+                          onClick={() => openDeleteConfirm(row.id)}
+                          aria-label={t['management.table.delete']}
+                        >
+                          <span className="material-symbols-outlined !text-md">delete</span>
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
