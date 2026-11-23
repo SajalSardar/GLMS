@@ -88,14 +88,32 @@ unless the FK is now passed explicitly: `belongsToMany(Subject::class,
   and `authorize()` lookups keyed on the old name. `StoreClassRoutineRequest`
   and `StoreStudentProfileRequest` only have a comment referencing the old
   name (no code), still worth correcting for a future reader.
-- **Controllers:** `ShiftController`, `BookController`, `ExamController`,
-  `ExamAttemptController`, `ClassRoutineController`,
-  `ChapterMaterialController`, `AttendanceController`,
-  `AcademicExamMarkController`, `StudentLeaveApplicationController`,
+- **Controllers:** `ShiftController`, `SectionController`,
+  `BookController`, `ExamController`, `ExamAttemptController`,
+  `ClassRoutineController`, `ChapterMaterialController`,
+  `AttendanceController`, `AcademicExamMarkController`,
+  `AcademicExamPublicationController`, `StudentLeaveApplicationController`,
   `StudentProfileController`, `PracticeExamController`,
-  `StudentPromotionController` — query filters (`?class_version_id=`),
-  attribute assembly on create/update, and denormalization logic that
-  reads `$shift->class_version_id`/`$section->shift?->class_version_id`.
+  `StudentPromotionController`, `SubjectTeacherAssignmentController` —
+  query filters (`?class_version_id=`), attribute assembly on
+  create/update, denormalization logic that reads
+  `$shift->class_version_id`/`$section->shift?->class_version_id`, and
+  (confirmed by a second, broader grep for `classVersion` alone, not just
+  `class_version_id` — this reaches further than the column name does)
+  every eager-load path segment naming the relation: `->with(['classVersion',
+  ...])`, `'shift.classVersion'`, `'section.shift.classVersion'`,
+  `'book.classVersion'`, and bare `$x->classVersion` chains that read
+  `->schoolClass`/`->class_id` off the loaded relation without the column
+  ever appearing on the same line.
+- **Three `Support` classes** reached only through the relation chain, no
+  `class_version_id` column of their own: `TimetableGenerator`,
+  `TimetableConflictChecker` (both read `$shift->classVersion` directly),
+  `MarksheetBuilder` (`whereHas('shift.classVersion', ...)`).
+- **`SubjectTeacherAssignment` model** — a default eager-load scope
+  (`'section.shift.classVersion.schoolClass'`), not a column.
+- **Two more FormRequests** found the same way:
+  `PublishAcademicExamRequest`, `RecordAcademicExamMarkRequest` — both
+  read `$section?->shift?->classVersion?->class_id`.
 - **Resources:** `ShiftResource`, `BookResource`, `ExamResource`,
   `ClassRoutineResource`, `ChapterMaterialResource`, `StudentProfileResource`,
   `StudentLeaveApplicationResource` — the `class_version_id` JSON key, and
@@ -137,6 +155,45 @@ unless the FK is now passed explicitly: `belongsToMany(Subject::class,
   and `apps/student` that consume any of the above (confirmed by grep
   during brainstorming) — filters, table columns, and display labels built
   from the renamed fields.
+
+## Rename rule (exact, for every implementer)
+
+**Rename these tokens, everywhere they appear in this form:**
+- The string `'class_version_id'` as a request input key, array key,
+  column name in a query/validation rule, or query-string param →
+  `'version_id'`. Same for `'to_class_version_id'` → `'to_version_id'`.
+- The property access `->class_version_id` / `->to_class_version_id` →
+  `->version_id` / `->to_version_id`.
+- The relation method definition and every call site:
+  `classVersion()`/`->classVersion`/`->classVersion()`/`whenLoaded('classVersion')`/
+  `with('classVersion')`/`load('classVersion')`, including as a segment of a
+  dotted eager-load path (`'shift.classVersion'`,
+  `'section.shift.classVersion'`, `'book.classVersion'`,
+  `'classVersion.schoolClass'`) → `version` in every one of those forms.
+  Same for `toClassVersion` → `toVersion`.
+- The camelCase variable name `$classVersionId`/`classVersionId` (holding
+  an id, e.g. a closure parameter) → `$versionId`/`versionId`.
+- The JSON/array key `'class_version'` (a nested Resource object, or a
+  flat display-label string sibling of `class_version_id` built by hand)
+  → `'version'`.
+
+**Never rename these — they are a different thing with the same English
+words in it:**
+- `ClassVersion` the class name (`ClassVersion::class`, `use
+  App\Models\ClassVersion;`, `new ClassVersionResource(...)`,
+  `ClassVersionController`, `ClassVersionPolicy`,
+  `Store`/`UpdateClassVersionRequest`, a type-hint `ClassVersion $x`).
+- A local variable merely *typed as* `ClassVersion`, e.g. `$classVersion =
+  ClassVersion::findOrFail(...)` — the variable name does not need to
+  change; only what's read off it (`$classVersion->class_version_id`
+  becomes `$classVersion->version_id`, but `$classVersion` itself stays
+  `$classVersion`). This is deliberate, not an inconsistency: the
+  variable describes its *type*, which hasn't changed.
+- The `class_versions` table and the `ClassVersion` model/concept itself —
+  unaffected by this rename.
+- `ClassVersion::version()` / `class_versions.version_id` — already
+  correctly named from the national-version-catalog program (points at
+  the separate `versions` catalog); do not touch.
 
 ## Out of scope
 
