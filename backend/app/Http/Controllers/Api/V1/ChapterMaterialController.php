@@ -46,6 +46,7 @@ class ChapterMaterialController extends Controller
         $materials = ChapterMaterial::query()
             ->with('chapter')
             ->when($request->integer('chapter_id'), fn ($query, $id) => $query->where('chapter_id', $id))
+            ->when($actor?->school_id, fn ($query, $schoolId) => $query->whereHas('chapter.book.classVersion', fn ($q) => $q->where('school_id', $schoolId)))
             ->when(
                 $actor instanceof StudentUser,
                 fn ($query) => $this->scopeToStudentsOwnProfile($query, $actor),

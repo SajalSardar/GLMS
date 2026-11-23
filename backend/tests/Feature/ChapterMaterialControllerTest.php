@@ -36,6 +36,8 @@ class ChapterMaterialControllerTest extends TestCase
 
     private School $schoolA;
 
+    private School $schoolB;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -49,7 +51,7 @@ class ChapterMaterialControllerTest extends TestCase
         $upazilaB = Upazila::create(['district_id' => $districtB->id, 'name' => 'Upazila B', 'bn_name' => 'উপজেলা বি']);
 
         $this->schoolA = School::create(['division_id' => $division->id, 'district_id' => $districtA->id, 'upazila_id' => $upazilaA->id, 'name' => 'School A']);
-        $schoolB = School::create(['division_id' => $division->id, 'district_id' => $districtB->id, 'upazila_id' => $upazilaB->id, 'name' => 'School B']);
+        $this->schoolB = School::create(['division_id' => $division->id, 'district_id' => $districtB->id, 'upazila_id' => $upazilaB->id, 'name' => 'School B']);
 
         $subject = Subject::create(['name' => 'Mathematics']);
 
@@ -57,7 +59,7 @@ class ChapterMaterialControllerTest extends TestCase
         $classB = SchoolClass::create(['name' => 'Class 6 B']);
 
         $versionA = ClassVersion::create(['class_id' => $classA->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'version_id' => Version::where('name', 'Bangla')->value('id')]);
-        $versionB = ClassVersion::create(['class_id' => $classB->id, 'school_id' => $schoolB->id, 'district_id' => $schoolB->district_id, 'version_id' => Version::where('name', 'Bangla')->value('id')]);
+        $versionB = ClassVersion::create(['class_id' => $classB->id, 'school_id' => $this->schoolB->id, 'district_id' => $this->schoolB->district_id, 'version_id' => Version::where('name', 'Bangla')->value('id')]);
 
         $bookA = Book::create(['class_version_id' => $versionA->id, 'subject_id' => $subject->id, 'name' => 'Mathematics Book']);
         $bookB = Book::create(['class_version_id' => $versionB->id, 'subject_id' => $subject->id, 'name' => 'Mathematics Book']);
@@ -89,6 +91,40 @@ class ChapterMaterialControllerTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.updated_by_type', get_class($allowed))
             ->assertJsonPath('data.updated_by_id', $allowed->id);
+    }
+
+    public function test_index_restricts_a_school_scoped_actor_to_their_own_school(): void
+    {
+        $creatorA = $this->actorWithPermissions(['chapter_materials.create'], $this->schoolA->id, $this->schoolA->district_id);
+        $materialAId = $this->actingAs($creatorA, 'sanctum')
+            ->post('/api/v1/chapter-materials', [
+                'chapter_id' => $this->chapterA->id,
+                'type' => 'primary',
+                'file' => UploadedFile::fake()->create('a.pdf', 50, 'application/pdf'),
+            ])
+            ->assertCreated()
+            ->json('data.id');
+
+        $creatorB = $this->actorWithPermissions(['chapter_materials.create'], $this->schoolB->id, $this->schoolB->district_id);
+        $this->actingAs($creatorB, 'sanctum')
+            ->post('/api/v1/chapter-materials', [
+                'chapter_id' => $this->chapterB->id,
+                'type' => 'primary',
+                'file' => UploadedFile::fake()->create('b.pdf', 50, 'application/pdf'),
+            ])
+            ->assertCreated();
+
+        // Both materials were uploaded by a non-teacher actor, so
+        // resolveUploaderScope() left section_id/school_id null on both
+        // rows (see ChapterMaterialController's own doc comment) — this
+        // test is deliberately exercising the NEW chapter.book.classVersion
+        // filter, not the material's own (here-unset) school_id column.
+        $viewer = $this->actorWithPermissions(['chapter_materials.view'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $response = $this->actingAs($viewer, 'sanctum')->getJson('/api/v1/chapter-materials')->assertOk();
+
+        $response->assertJsonCount(1, 'data');
+        $response->assertJsonPath('data.0.id', $materialAId);
     }
 
     public function test_only_one_active_primary_material_allowed_per_chapter(): void
