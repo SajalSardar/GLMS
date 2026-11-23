@@ -44,6 +44,7 @@ use App\Http\Controllers\Api\V1\TeacherUserController;
 use App\Http\Controllers\Api\V1\TimetableEntryController;
 use App\Http\Controllers\Api\V1\UpazilaController;
 use App\Http\Controllers\Api\V1\UserController;
+use App\Http\Controllers\Api\V1\VersionController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function (): void {
@@ -104,6 +105,7 @@ Route::prefix('v1')->group(function (): void {
     Route::get('/class-routines/mine', [ClassRoutineController::class, 'mine'])->middleware('auth:sanctum');
     Route::apiResource('class-routines', ClassRoutineController::class)->only(['index', 'show']);
     Route::apiResource('class-versions', ClassVersionController::class)->only(['index', 'show']);
+    Route::apiResource('versions', VersionController::class)->only(['index', 'show']);
     Route::apiResource('shifts', ShiftController::class)->only(['index', 'show']);
     Route::apiResource('sections', SectionController::class)->only(['index', 'show']);
     Route::apiResource('subject-teacher-assignments', SubjectTeacherAssignmentController::class)->only(['index', 'show']);
@@ -179,6 +181,8 @@ Route::prefix('v1')->group(function (): void {
 
         Route::apiResource('class-versions', ClassVersionController::class)->only(['store', 'update', 'destroy']);
         Route::put('/class-versions/{class_version}/subjects', [ClassVersionController::class, 'updateSubjects']);
+
+        Route::apiResource('versions', VersionController::class)->only(['update']);
 
         Route::apiResource('shifts', ShiftController::class)->only(['store', 'update', 'destroy']);
         Route::apiResource('sections', SectionController::class)->only(['store', 'update', 'destroy']);
