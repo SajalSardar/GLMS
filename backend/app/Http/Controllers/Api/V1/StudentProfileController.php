@@ -65,6 +65,13 @@ class StudentProfileController extends Controller
      * school. A soft-deleted profile for the same user is restored and
      * updated in place, rather than attempting a second insert that
      * would collide with the still-present unique index on a trashed row.
+     *
+     * A section_id, when given, is this student's first section
+     * assignment (not a move — see transferSection() for that), so
+     * class_id/shift_id/class_version_id are all derived from the
+     * section's own chain here, exactly like transferSection() derives
+     * them from its target section, rather than trusted from whatever
+     * class_id the client separately submitted.
      */
     public function store(StoreStudentProfileRequest $request): JsonResponse
     {
@@ -79,7 +86,13 @@ class StudentProfileController extends Controller
             ]);
         }
 
-        $classId = $request->integer('class_id') ?: null;
+        $sectionId = $request->integer('section_id') ?: null;
+        $section = $sectionId !== null ? $this->assertSectionBelongsToSchool($sectionId, $targetUser->school_id) : null;
+
+        $classId = $section !== null
+            ? $section->shift?->classVersion?->class_id
+            : ($request->integer('class_id') ?: null);
+
         $this->assertClassBelongsToSchool($classId, $targetUser->school_id);
 
         $attributes = [
@@ -88,11 +101,14 @@ class StudentProfileController extends Controller
             // it from the spread as well means this stays correct even
             // if that rule is ever relaxed — it's always server-
             // generated below, never client-supplied.
-            ...$request->safe()->except(['user_id', 'class_id', 'student_id']),
+            ...$request->safe()->except(['user_id', 'class_id', 'student_id', 'section_id']),
             'user_id' => $targetUser->id,
             'school_id' => $targetUser->school_id,
             'district_id' => $targetUser->district_id,
             'class_id' => $classId,
+            'section_id' => $section?->id,
+            'shift_id' => $section?->shift_id,
+            'class_version_id' => $section?->shift?->class_version_id,
             'student_id' => StudentProfile::nextStudentId(),
         ];
 
@@ -313,5 +329,35 @@ class StudentProfileController extends Controller
                 'class_id' => ['The selected class has not been adopted by the student\'s school.'],
             ]);
         }
+    }
+
+    /**
+     * A section_id, when given at creation time, must belong to the
+     * target student's own school — the same guard
+     * assertClassBelongsToSchool() gives class_id. Returns the loaded
+     * Section (with its shift/classVersion chain) so the caller can
+     * derive class_id/shift_id/class_version_id from it without a
+     * second query.
+     *
+     * withoutGlobalScope(TenantScope::class): Section is TenantScoped, so
+     * a school-scoped actor's query would otherwise auto-narrow to their
+     * own school and make a cross-school section_id resolve as "not
+     * found" (404) instead of "found but rejected" (422) — the same
+     * school-scope pitfall assertNoRollNumberCollision() above already
+     * guards against. The actor's own permissions already gate whether
+     * they can call store() at all; this lookup only needs to see the
+     * row to correctly reject it.
+     */
+    private function assertSectionBelongsToSchool(int $sectionId, ?int $schoolId): Section
+    {
+        $section = Section::withoutGlobalScope(TenantScope::class)->with('shift.classVersion')->findOrFail($sectionId);
+
+        if ($section->school_id !== $schoolId) {
+            throw ValidationException::withMessages([
+                'section_id' => ['The selected section does not belong to the student\'s school.'],
+            ]);
+        }
+
+        return $section;
     }
 }

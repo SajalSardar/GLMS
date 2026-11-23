@@ -35,6 +35,15 @@ class StoreStudentProfileRequest extends FormRequest
                 Rule::unique('student_profiles', 'user_id')->withoutTrashed(),
             ],
             'class_id' => ['nullable', 'integer', Rule::exists('school_classes', 'id')->withoutTrashed()],
+            // A first section assignment, not a move — transferSection()
+            // (with its capacity check and audit log) is the only path
+            // for changing an EXISTING profile's section. class_id/
+            // shift_id/class_version_id are deliberately not accepted
+            // here at all: when section_id is given, the controller
+            // derives all three from the section's own chain, the same
+            // way transferSection() does, rather than trusting
+            // separately-submitted values that could disagree with it.
+            'section_id' => ['nullable', 'integer', Rule::exists('sections', 'id')->withoutTrashed()],
             // student_id is the student's own login credential (see
             // AuthController::studentLogin()) — always server-generated
             // by StudentProfile::nextStudentId(), never accepted from an

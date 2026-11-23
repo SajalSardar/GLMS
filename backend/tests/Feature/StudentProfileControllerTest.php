@@ -352,6 +352,72 @@ class StudentProfileControllerTest extends TestCase
     }
 
     /**
+     * A section_id given at creation time is the only place (besides
+     * transferSection()) that section_id/shift_id/class_version_id/
+     * class_id can be set — this is a first assignment, not a move, so
+     * it bypasses the capacity check and audit log transferSection() does,
+     * by design. class_id is deliberately omitted from the payload here:
+     * the server must derive it from the section's own chain, the same
+     * way transferSection() does, not trust a separately-submitted value.
+     */
+    public function test_store_accepts_a_section_id_and_derives_shift_class_version_and_class(): void
+    {
+        $newStudent = StudentUser::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
+        $allowed = $this->actorWithPermissions(['student_profiles.create'], $this->school->id, $this->school->district_id);
+
+        $response = $this->actingAs($allowed, 'sanctum')
+            ->postJson('/api/v1/student-profiles', [
+                'user_id' => $newStudent->id,
+                'section_id' => $this->section6->id,
+            ])
+            ->assertCreated();
+
+        $response->assertJsonPath('data.section_id', $this->section6->id);
+        $response->assertJsonPath('data.shift_id', $this->section6->shift_id);
+        $response->assertJsonPath('data.class_version_id', $this->section6->shift->class_version_id);
+        $response->assertJsonPath('data.class_id', $this->class6->id);
+
+        $profile = StudentProfile::where('user_id', $newStudent->id)->first();
+        $this->assertSame($this->section6->id, $profile->section_id);
+        $this->assertSame($this->section6->shift_id, $profile->shift_id);
+        $this->assertSame($this->section6->shift->class_version_id, $profile->class_version_id);
+        $this->assertSame($this->class6->id, $profile->class_id);
+    }
+
+    /**
+     * A section belonging to another school must be rejected with a clean
+     * 422, the same guard class_id already gets via
+     * assertClassBelongsToSchool() — a student must never be seated in a
+     * section that isn't their own school's.
+     */
+    public function test_store_rejects_a_section_from_a_different_school(): void
+    {
+        $otherDivision = Division::create(['name' => 'Other Division', 'bn_name' => 'অন্য বিভাগ']);
+        $otherDistrict = District::create(['division_id' => $otherDivision->id, 'name' => 'Other District', 'bn_name' => 'অন্য জেলা']);
+        $otherUpazila = Upazila::create(['district_id' => $otherDistrict->id, 'name' => 'Other Upazila', 'bn_name' => 'অন্য উপজেলা']);
+        $otherSchool = School::create(['division_id' => $otherDivision->id, 'district_id' => $otherDistrict->id, 'upazila_id' => $otherUpazila->id, 'name' => 'Other School']);
+
+        $otherClass = SchoolClass::create(['name' => 'Other Class', 'numeric_level' => 6]);
+        ClassSchool::create(['class_id' => $otherClass->id, 'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id]);
+        $otherVersion = ClassVersion::create(['class_id' => $otherClass->id, 'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id, 'version_id' => Version::where('name', 'Bangla')->value('id')]);
+        $otherShift = Shift::create(['class_version_id' => $otherVersion->id, 'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id, 'name' => 'Day Shift', 'start_time' => '08:00', 'end_time' => '13:00', 'days_of_week' => ['sunday']]);
+        $otherSection = Section::create(['shift_id' => $otherShift->id, 'school_id' => $otherSchool->id, 'district_id' => $otherSchool->district_id, 'name' => 'Section A']);
+
+        $newStudent = StudentUser::factory()->create(['school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
+        $allowed = $this->actorWithPermissions(['student_profiles.create'], $this->school->id, $this->school->district_id);
+
+        $this->actingAs($allowed, 'sanctum')
+            ->postJson('/api/v1/student-profiles', [
+                'user_id' => $newStudent->id,
+                'section_id' => $otherSection->id,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('section_id');
+
+        $this->assertDatabaseMissing('student_profiles', ['user_id' => $newStudent->id]);
+    }
+
+    /**
      * Non-regression: the roll-number pre-check must only fire on a real
      * collision — a student with a roll_number nobody in the target class
      * holds still transfers normally, roll_number carried over unchanged.
