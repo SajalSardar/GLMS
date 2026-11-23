@@ -143,6 +143,49 @@ class ChapterControllerTest extends TestCase
         );
     }
 
+    public function test_index_restricts_a_school_scoped_actor_to_their_own_school(): void
+    {
+        $chapterA = Chapter::create(['book_id' => $this->bookA->id, 'name' => 'Chapter A']);
+        Chapter::create(['book_id' => $this->bookB->id, 'name' => 'Chapter B']);
+
+        $actor = $this->actorWithPermissions(['chapters.view'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $response = $this->actingAs($actor, 'sanctum')->getJson('/api/v1/chapters')->assertOk();
+
+        $response->assertJsonCount(1, 'data');
+        $response->assertJsonPath('data.0.id', $chapterA->id);
+    }
+
+    public function test_show_404s_a_school_scoped_actor_for_another_schools_chapter(): void
+    {
+        $chapterB = Chapter::create(['book_id' => $this->bookB->id, 'name' => 'Chapter B']);
+
+        $actor = $this->actorWithPermissions(['chapters.view'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $this->actingAs($actor, 'sanctum')
+            ->getJson("/api/v1/chapters/{$chapterB->id}")
+            ->assertNotFound();
+    }
+
+    public function test_store_rejects_a_school_scoped_actor_targeting_another_schools_book(): void
+    {
+        $actor = $this->actorWithPermissions(['chapters.create'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $this->actingAs($actor, 'sanctum')
+            ->postJson('/api/v1/chapters', ['book_id' => $this->bookB->id, 'name' => 'Cross School Chapter'])
+            ->assertNotFound();
+    }
+
+    public function test_national_admin_still_sees_every_schools_chapters(): void
+    {
+        Chapter::create(['book_id' => $this->bookA->id, 'name' => 'Chapter A']);
+        Chapter::create(['book_id' => $this->bookB->id, 'name' => 'Chapter B']);
+
+        $actor = $this->actorWithPermissions(['chapters.view']);
+
+        $this->actingAs($actor, 'sanctum')->getJson('/api/v1/chapters')->assertOk()->assertJsonCount(2, 'data');
+    }
+
     /**
      * subject_id filters by the chapter's book's subject.
      */

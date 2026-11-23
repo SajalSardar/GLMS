@@ -21,6 +21,8 @@ class ChapterController extends Controller
      */
     public function index(Request $request): AnonymousResourceCollection
     {
+        $actor = $request->user('sanctum');
+
         $chapters = Chapter::query()
             ->with(['book.classVersion.schoolClass', 'book.subject', 'book.academicYear'])
             ->when($request->integer('book_id'), fn ($query, $bookId) => $query->where('book_id', $bookId))
@@ -28,6 +30,7 @@ class ChapterController extends Controller
             ->when($request->integer('version_id'), fn ($query, $id) => $query->whereHas('book.classVersion', fn ($q) => $q->where('version_id', $id)))
             ->when($request->integer('subject_id'), fn ($query, $id) => $query->whereHas('book', fn ($q) => $q->where('subject_id', $id)))
             ->when($request->integer('academic_year_id'), fn ($query, $id) => $query->whereHas('book', fn ($q) => $q->where('academic_year_id', $id)))
+            ->when($actor?->school_id, fn ($query, $schoolId) => $query->whereHas('book.classVersion', fn ($q) => $q->where('school_id', $schoolId)))
             ->orderBy('book_id')
             ->orderBy('order_index')
             ->orderBy('name')
@@ -39,8 +42,12 @@ class ChapterController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Chapter $chapter): ChapterResource
+    public function show(Request $request, Chapter $chapter): ChapterResource
     {
+        $actor = $request->user('sanctum');
+        $chapter->loadMissing('book.classVersion');
+        abort_if($actor?->school_id && $chapter->book?->classVersion?->school_id !== $actor->school_id, 404);
+
         return new ChapterResource($chapter->load(['book.classVersion.schoolClass', 'book.subject', 'book.academicYear']));
     }
 
@@ -55,7 +62,10 @@ class ChapterController extends Controller
     {
         $this->authorize('create', Chapter::class);
 
-        $book = Book::findOrFail($request->integer('book_id'));
+        $book = Book::with('classVersion')->findOrFail($request->integer('book_id'));
+        $actor = $request->user('sanctum');
+        abort_if($actor?->school_id && $book->classVersion?->school_id !== $actor->school_id, 404);
+
         $data = $this->applyAutoNumbering($request->validated());
 
         $chapter = Chapter::onlyTrashed()
