@@ -1,17 +1,20 @@
 import { DndContext, useDraggable, useDroppable, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import DOMPurify from 'dompurify'
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   ApiError,
   createQuestionPaper,
   getQuestionPaper,
+  listAcademicQuestionChapters,
   listAcademicQuestions,
   listClasses,
   listSubjects,
   updateQuestionPaper,
   type AcademicQuestion,
+  type AcademicQuestionChapter,
   type AcademicQuestionType,
   type SchoolClass,
   type Subject,
@@ -36,6 +39,16 @@ const buttonPrimary =
 const buttonNeutral =
   'inline-flex h-11 cursor-pointer items-center rounded-md border border-gray-200 px-4 text-sm font-medium text-gray-600 transition-colors hover:border-primary-500'
 
+// Question text is authored as rich HTML in the management portal's
+// editor — Tailwind's preflight strips default list styling, so bullet/
+// numbered lists need their own markers restored for display here too.
+const richQuestionTextStyle = `
+  .rich-question-text p { margin: 0 0 0.35em; }
+  .rich-question-text p:last-child { margin-bottom: 0; }
+  .rich-question-text ul { list-style: disc; padding-left: 1.25rem; }
+  .rich-question-text ol { list-style: decimal; padding-left: 1.25rem; }
+`
+
 function BankQuestionCard({ question }: { question: AcademicQuestion }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `bank-${question.id}`,
@@ -52,7 +65,7 @@ function BankQuestionCard({ question }: { question: AcademicQuestion }) {
       {...attributes}
       className={`cursor-grab rounded-md border border-gray-200 bg-white p-3 text-sm shadow-sm active:cursor-grabbing ${isDragging ? 'opacity-50' : ''}`}
     >
-      <p className="whitespace-pre-wrap">{question.question_text}</p>
+      <div className="rich-question-text" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(question.question_text) }} />
       <p className="mt-1 text-xs text-gray-400">
         {question.question_type === 'cq' ? t['teacher.questionBuilder.cqLabel'] : t['teacher.questionBuilder.mcqLabel']} ·{' '}
         {question.marks}
@@ -101,9 +114,11 @@ function CanvasItemCard({ item, index, onRemove }: { item: CanvasItem; index: nu
       className={`flex items-start justify-between gap-3 rounded-md border border-gray-200 bg-white p-3 text-sm ${isDragging ? 'opacity-50' : ''}`}
     >
       <div>
-        <p className="whitespace-pre-wrap">
-          {index + 1}. {item.question?.question_text}
-        </p>
+        <p className="font-medium">{index + 1}.</p>
+        <div
+          className="rich-question-text"
+          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(item.question?.question_text ?? '') }}
+        />
         <p className="mt-1 text-xs text-gray-400">
           {item.question?.marks} {t['teacher.questionBuilder.marksFilter']}
         </p>
@@ -154,7 +169,8 @@ export default function QuestionBuilderPage() {
 
   const [filterClassId, setFilterClassId] = useState('')
   const [filterSubjectId, setFilterSubjectId] = useState('')
-  const [filterChapterNumber, setFilterChapterNumber] = useState('')
+  const [filterChapterId, setFilterChapterId] = useState('')
+  const [filterChapters, setFilterChapters] = useState<AcademicQuestionChapter[]>([])
   const [filterType, setFilterType] = useState('')
   const [filterMarks, setFilterMarks] = useState('')
   const [bankQuestions, setBankQuestions] = useState<AcademicQuestion[]>([])
@@ -175,6 +191,29 @@ export default function QuestionBuilderPage() {
     listClasses({ perPage: 500 }).then((result) => setClasses(result.data)).catch(() => setClasses([]))
     listSubjects({ perPage: 200 }).then((result) => setSubjects(result.data)).catch(() => setSubjects([]))
   }, [])
+
+  // The bank filter's chapter select is scoped by class + subject, same
+  // as the question bank's own Add/Edit form — populate it from the
+  // global chapter list whenever either narrows.
+  useEffect(() => {
+    if (!filterClassId || !filterSubjectId) {
+      setFilterChapters([])
+      return
+    }
+
+    let active = true
+    listAcademicQuestionChapters({ schoolClassId: Number(filterClassId), subjectId: Number(filterSubjectId) }, token ?? undefined)
+      .then((result) => {
+        if (active) setFilterChapters(result.data)
+      })
+      .catch(() => {
+        if (active) setFilterChapters([])
+      })
+
+    return () => {
+      active = false
+    }
+  }, [filterClassId, filterSubjectId, token])
 
   // Edit mode: populate every field (including the canvas) from the
   // existing paper. QuestionPaperItemResource's nested academic_question
@@ -212,7 +251,7 @@ export default function QuestionBuilderPage() {
       {
         schoolClassId: filterClassId ? Number(filterClassId) : undefined,
         subjectId: filterSubjectId ? Number(filterSubjectId) : undefined,
-        chapterNumber: filterChapterNumber ? Number(filterChapterNumber) : undefined,
+        chapterId: filterChapterId ? Number(filterChapterId) : undefined,
         questionType: (filterType || undefined) as AcademicQuestionType | undefined,
         marks: filterMarks ? Number(filterMarks) : undefined,
       },
@@ -303,6 +342,7 @@ export default function QuestionBuilderPage() {
 
   return (
     <section className="flex flex-col gap-4 px-4 py-6 lg:px-6">
+      <style>{richQuestionTextStyle}</style>
       <h1 className="text-2xl font-bold text-primary-700">
         {isEditing ? t['teacher.questionBuilder.editTitle'] : t['teacher.questionBuilder.title']}
       </h1>
@@ -313,7 +353,15 @@ export default function QuestionBuilderPage() {
             <h2 className="text-sm font-semibold text-primary-800">{t['teacher.questionBuilder.bankTitle']}</h2>
 
             <div className="flex flex-wrap gap-2">
-              <select className={selectClass} value={filterClassId} onChange={(event) => setFilterClassId(event.target.value)}>
+              <select
+                className={selectClass}
+                value={filterClassId}
+                onChange={(event) => {
+                  setFilterClassId(event.target.value)
+                  setFilterSubjectId('')
+                  setFilterChapterId('')
+                }}
+              >
                 <option value="">{t['teacher.questionBuilder.selectClass']}</option>
                 {classes.map((schoolClass) => (
                   <option key={schoolClass.id} value={schoolClass.id}>
@@ -321,7 +369,14 @@ export default function QuestionBuilderPage() {
                   </option>
                 ))}
               </select>
-              <select className={selectClass} value={filterSubjectId} onChange={(event) => setFilterSubjectId(event.target.value)}>
+              <select
+                className={selectClass}
+                value={filterSubjectId}
+                onChange={(event) => {
+                  setFilterSubjectId(event.target.value)
+                  setFilterChapterId('')
+                }}
+              >
                 <option value="">{t['teacher.questionBuilder.selectSubject']}</option>
                 {subjects.map((subject) => (
                   <option key={subject.id} value={subject.id}>
@@ -329,14 +384,19 @@ export default function QuestionBuilderPage() {
                   </option>
                 ))}
               </select>
-              <input
-                type="number"
-                min={1}
-                placeholder={t['teacher.questionBuilder.chapterNumber']}
-                className={`${selectClass} w-32`}
-                value={filterChapterNumber}
-                onChange={(event) => setFilterChapterNumber(event.target.value)}
-              />
+              <select
+                className={selectClass}
+                value={filterChapterId}
+                disabled={!filterClassId || !filterSubjectId}
+                onChange={(event) => setFilterChapterId(event.target.value)}
+              >
+                <option value="">{t['teacher.questionBuilder.selectChapter']}</option>
+                {filterChapters.map((chapter) => (
+                  <option key={chapter.id} value={chapter.id}>
+                    {chapter.chapter_number}. {chapter.chapter_name}
+                  </option>
+                ))}
+              </select>
               <select className={selectClass} value={filterType} onChange={(event) => setFilterType(event.target.value)}>
                 <option value="">{t['teacher.questionBuilder.allTypes']}</option>
                 <option value="cq">{t['teacher.questionBuilder.cqLabel']}</option>

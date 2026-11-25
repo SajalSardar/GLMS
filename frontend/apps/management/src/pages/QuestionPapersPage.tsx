@@ -1,9 +1,20 @@
 import { useEffect, useState } from 'react'
+import DOMPurify from 'dompurify'
 import { listQuestionPapers, type QuestionPaper } from '@ttla/api-client'
 import { useAuth } from '@ttla/auth'
 import { getCommonStrings } from '@ttla/i18n'
 
 const t = getCommonStrings('en')
+
+// Question text is authored as rich HTML in this page's own editor —
+// Tailwind's preflight strips default list styling, so bullet/numbered
+// lists need their own markers restored for display here too.
+const richQuestionTextStyle = `
+  .rich-question-text p { margin: 0 0 0.35em; }
+  .rich-question-text p:last-child { margin-bottom: 0; }
+  .rich-question-text ul { list-style: disc; padding-left: 1.25rem; }
+  .rich-question-text ol { list-style: decimal; padding-left: 1.25rem; }
+`
 
 // Deliberately duplicated in the teacher app's MyQuestionPapersPage —
 // see this plan's Global Constraints on per-app duplication of shared
@@ -14,6 +25,7 @@ function PrintableQuestionPaper({ paper }: { paper: QuestionPaper }) {
 
   return (
     <div className="mx-auto max-w-3xl bg-white p-8 text-gray-900 print:p-0">
+      <style>{richQuestionTextStyle}</style>
       <div className="text-center">
         <h1 className="text-lg font-bold">{paper.title}</h1>
         <p className="mt-1 text-sm">
@@ -42,9 +54,11 @@ function PrintableQuestionPaper({ paper }: { paper: QuestionPaper }) {
           return (
             <div key={item.id} className="flex justify-between gap-4">
               <div className="flex-1">
-                <p className="whitespace-pre-wrap">
-                  {questionNumber}. {question?.question_text}
-                </p>
+                <p className="font-medium">{questionNumber}.</p>
+                <div
+                  className="rich-question-text"
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(question?.question_text ?? '') }}
+                />
                 {question?.question_type === 'mcq' && question.options && (
                   <ol className="mt-1 ml-5 list-none">
                     {question.options.map((option, index) => (

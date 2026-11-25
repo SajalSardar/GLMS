@@ -22,6 +22,13 @@ class SubjectController extends Controller
     {
         $subjects = Subject::query()
             ->when($request->string('search')->toString(), fn ($query, $search) => $query->where('name', 'like', "%{$search}%"))
+            // Filters via the global class_subjects pivot (Subject::classes()) —
+            // the national class<->subject association, not the per-school
+            // class_versions/version_subjects pivot used elsewhere.
+            ->when(
+                $request->integer('class_id'),
+                fn ($query, $classId) => $query->whereHas('classes', fn ($q) => $q->where('school_classes.id', $classId)),
+            )
             ->orderBy('name')
             ->paginate($request->integer('per_page', 15));
 

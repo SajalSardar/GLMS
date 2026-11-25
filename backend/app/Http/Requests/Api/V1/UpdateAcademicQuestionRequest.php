@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api\V1;
 
 use App\Models\AcademicQuestion;
+use App\Models\AcademicQuestionChapter;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
@@ -23,8 +24,7 @@ class UpdateAcademicQuestionRequest extends FormRequest
         return [
             'school_class_id' => ['required', 'integer', Rule::exists('school_classes', 'id')],
             'subject_id' => ['required', 'integer', Rule::exists('subjects', 'id')],
-            'chapter_number' => ['required', 'integer', 'min:1'],
-            'chapter_name' => ['required', 'string', 'max:255'],
+            'chapter_id' => ['required', 'integer', Rule::exists('academic_question_chapters', 'id')->withoutTrashed()],
             'question_type' => ['required', Rule::in(AcademicQuestion::TYPES)],
             'question_text' => ['required', 'string'],
             'options' => ['nullable', 'array', 'size:4'],
@@ -34,6 +34,11 @@ class UpdateAcademicQuestionRequest extends FormRequest
         ];
     }
 
+    /**
+     * Guards against a mismatched chapter pick: the declarative
+     * chapter_id rule above only confirms the chapter exists, not that
+     * it actually belongs to the class/subject chosen alongside it.
+     */
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator) {
@@ -46,6 +51,19 @@ class UpdateAcademicQuestionRequest extends FormRequest
 
             if ($type === 'cq' && $hasOptions) {
                 $validator->errors()->add('options', 'Options are only applicable to MCQ questions.');
+            }
+
+            $chapterId = $this->input('chapter_id');
+
+            if ($chapterId !== null && $this->filled('school_class_id') && $this->filled('subject_id')) {
+                $chapter = AcademicQuestionChapter::find($chapterId);
+
+                if ($chapter !== null
+                    && ((int) $chapter->school_class_id !== (int) $this->input('school_class_id')
+                        || (int) $chapter->subject_id !== (int) $this->input('subject_id'))
+                ) {
+                    $validator->errors()->add('chapter_id', 'The selected chapter does not belong to the selected class and subject.');
+                }
             }
         });
     }
