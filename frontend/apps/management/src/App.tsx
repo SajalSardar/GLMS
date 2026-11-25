@@ -7,6 +7,7 @@ import AcademicExamTermsPage from './pages/AcademicExamTermsPage'
 import AcademicGradeConfiguresPage from './pages/AcademicGradeConfiguresPage'
 import AcademicSubjectMarkConfiguresPage from './pages/AcademicSubjectMarkConfiguresPage'
 import AcademicYearsPage from './pages/AcademicYearsPage'
+import AcademicQuestionsPage from './pages/AcademicQuestionsPage'
 import AllChaptersPage from './pages/AllChaptersPage'
 import AttendanceReportPage from './pages/AttendanceReportPage'
 import BooksPage from './pages/BooksPage'
@@ -125,6 +126,16 @@ const routineNavItem: SidebarItem = {
 // GeoCrudTable's permission props on HolidaysPage.tsx, not via this nav
 // item's role check).
 const holidaysNavItem: SidebarItem = { to: '/dashboard/holidays', label: t['management.nav.holidays'], icon: 'event_busy' }
+
+// national_admin only — the national question bank. teacher browses it
+// (academic_questions.view) to build papers in the teacher portal;
+// school_admin never gets access (see questionPapersNavItem instead,
+// which is school_admin's own, print-only, teacher-paper view).
+const questionBankNavItem: SidebarItem = {
+  to: '/dashboard/question-bank',
+  label: t['management.nav.questionBank'],
+  icon: 'quiz',
+}
 
 // Visible to both school_admin and national_admin. school_admin holds full
 // CRUD on Users (its own school's staff accounts, auto-scoped by
@@ -322,7 +333,7 @@ function DashboardLayout() {
       : []),
     ...(role === 'school_admin' ? [teacherLeaveApplicationsNavItem] : []),
     ...(role === 'national_admin' ? [teachersOnLeaveNavItem] : []),
-    ...(role === 'national_admin' ? [holidaysNavItem, schoolSetupItem] : []),
+    ...(role === 'national_admin' ? [holidaysNavItem, questionBankNavItem, schoolSetupItem] : []),
     ...(role === 'school_admin' ? [holidaysNavItem, schoolAdminSchoolSetupItem] : []),
     ...(role === 'national_admin' || role === 'school_admin' ? [usersRolesNavItem] : []),
     ...(role === 'national_admin' ? [systemSetupItem] : []),
@@ -377,6 +388,9 @@ function App() {
               </Route>
               <Route path="teachers-on-leave" element={<RequireNationalAdmin />}>
                 <Route index element={<TeachersOnLeavePage />} />
+              </Route>
+              <Route path="question-bank" element={<RequireNationalAdmin />}>
+                <Route index element={<AcademicQuestionsPage />} />
               </Route>
               <Route path="holidays" element={<RequireSchoolManager />}>
                 <Route index element={<HolidaysPage />} />
