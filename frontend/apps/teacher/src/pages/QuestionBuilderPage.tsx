@@ -75,7 +75,17 @@ function CanvasItemCard({ item, index, onRemove }: { item: CanvasItem; index: nu
         className={`flex items-center justify-between rounded-md bg-gray-100 px-3 py-2 ${isDragging ? 'opacity-50' : ''}`}
       >
         <span className="text-sm font-semibold text-gray-700">{item.headingText}</span>
-        <button type="button" onClick={onRemove} className="cursor-pointer text-danger-500 hover:text-danger-600">
+        {/* The card's own pointerdown is dnd-kit's drag-activation listener
+            (spread via {...listeners} above) — without stopping it here
+            first, every click on this button is captured as a (zero-
+            distance) drag-and-drop instead of reaching onClick, so the
+            button silently never removes anything. */}
+        <button
+          type="button"
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={onRemove}
+          className="cursor-pointer text-danger-500 hover:text-danger-600"
+        >
           <span className="material-symbols-outlined !text-[18px]">close</span>
         </button>
       </div>
@@ -98,7 +108,12 @@ function CanvasItemCard({ item, index, onRemove }: { item: CanvasItem; index: nu
           {item.question?.marks} {t['teacher.questionBuilder.marksFilter']}
         </p>
       </div>
-      <button type="button" onClick={onRemove} className="shrink-0 cursor-pointer text-danger-500 hover:text-danger-600">
+      <button
+        type="button"
+        onPointerDown={(event) => event.stopPropagation()}
+        onClick={onRemove}
+        className="shrink-0 cursor-pointer text-danger-500 hover:text-danger-600"
+      >
         <span className="material-symbols-outlined !text-[18px]">close</span>
       </button>
     </div>
