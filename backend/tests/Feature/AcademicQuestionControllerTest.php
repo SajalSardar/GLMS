@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\AcademicQuestionChapter;
 use App\Models\SchoolClass;
 use App\Models\Subject;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -18,20 +17,12 @@ class AcademicQuestionControllerTest extends TestCase
 
     private Subject $subject;
 
-    private AcademicQuestionChapter $chapter;
-
     protected function setUp(): void
     {
         parent::setUp();
 
         $this->schoolClass = SchoolClass::create(['name' => 'Class 6', 'bn_name' => 'ষষ্ঠ শ্রেণি', 'numeric_level' => 6]);
         $this->subject = Subject::create(['name' => 'Bangla', 'bn_name' => 'বাংলা', 'code' => 'BAN-101']);
-        $this->chapter = AcademicQuestionChapter::create([
-            'school_class_id' => $this->schoolClass->id,
-            'subject_id' => $this->subject->id,
-            'chapter_number' => 1,
-            'chapter_name' => 'Prose',
-        ]);
     }
 
     /**
@@ -42,7 +33,8 @@ class AcademicQuestionControllerTest extends TestCase
         return [
             'school_class_id' => $this->schoolClass->id,
             'subject_id' => $this->subject->id,
-            'chapter_id' => $this->chapter->id,
+            'chapter_number' => 1,
+            'chapter_name' => 'Prose',
             'question_type' => 'cq',
             'question_text' => 'Read the passage and answer the following...',
             'marks' => 10,
@@ -57,7 +49,8 @@ class AcademicQuestionControllerTest extends TestCase
         return [
             'school_class_id' => $this->schoolClass->id,
             'subject_id' => $this->subject->id,
-            'chapter_id' => $this->chapter->id,
+            'chapter_number' => 1,
+            'chapter_name' => 'Prose',
             'question_type' => 'mcq',
             'question_text' => 'Which of the following is correct?',
             'options' => ['Option A', 'Option B', 'Option C', 'Option D'],
@@ -75,7 +68,7 @@ class AcademicQuestionControllerTest extends TestCase
             ->assertJsonPath('data.question_type', 'cq')
             ->assertJsonPath('data.options', null);
 
-        $this->assertDatabaseHas('academic_questions', ['chapter_id' => $this->chapter->id, 'question_type' => 'cq']);
+        $this->assertDatabaseHas('academic_questions', ['chapter_name' => 'Prose', 'question_type' => 'cq']);
     }
 
     public function test_national_admin_can_create_an_mcq_question_with_four_options(): void
@@ -113,26 +106,6 @@ class AcademicQuestionControllerTest extends TestCase
             ->assertJsonValidationErrors('options');
     }
 
-    public function test_store_rejects_a_chapter_that_does_not_belong_to_the_selected_class_and_subject(): void
-    {
-        $nationalAdmin = $this->actorWithPermissions(['academic_questions.create']);
-        $otherClass = SchoolClass::create(['name' => 'Class 7', 'numeric_level' => 7]);
-        $mismatchedChapter = AcademicQuestionChapter::create([
-            'school_class_id' => $otherClass->id,
-            'subject_id' => $this->subject->id,
-            'chapter_number' => 1,
-            'chapter_name' => 'Different Class',
-        ]);
-
-        $payload = $this->cqPayload();
-        $payload['chapter_id'] = $mismatchedChapter->id;
-
-        $this->actingAs($nationalAdmin, 'sanctum')
-            ->postJson('/api/v1/academic-questions', $payload)
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors('chapter_id');
-    }
-
     public function test_store_is_forbidden_without_the_create_permission(): void
     {
         $teacher = $this->teacherActorWithPermissions(['academic_questions.view']);
@@ -150,15 +123,9 @@ class AcademicQuestionControllerTest extends TestCase
         $this->actingAs($nationalAdmin, 'sanctum')->postJson('/api/v1/academic-questions', $this->cqPayload())->assertCreated();
 
         $otherClass = SchoolClass::create(['name' => 'Class 7', 'numeric_level' => 7]);
-        $otherChapter = AcademicQuestionChapter::create([
-            'school_class_id' => $otherClass->id,
-            'subject_id' => $this->subject->id,
-            'chapter_number' => 1,
-            'chapter_name' => 'Other',
-        ]);
         $this->actingAs($nationalAdmin, 'sanctum')->postJson('/api/v1/academic-questions', array_merge(
             $this->cqPayload(),
-            ['school_class_id' => $otherClass->id, 'chapter_id' => $otherChapter->id],
+            ['school_class_id' => $otherClass->id],
         ))->assertCreated();
 
         $response = $this->actingAs($teacher, 'sanctum')
@@ -166,32 +133,6 @@ class AcademicQuestionControllerTest extends TestCase
             ->assertOk();
 
         $this->assertCount(1, $response->json('data'));
-    }
-
-    public function test_teacher_can_filter_the_bank_by_chapter(): void
-    {
-        $teacher = $this->teacherActorWithPermissions(['academic_questions.view']);
-        $nationalAdmin = $this->actorWithPermissions(['academic_questions.create']);
-
-        $this->actingAs($nationalAdmin, 'sanctum')->postJson('/api/v1/academic-questions', $this->cqPayload())->assertCreated();
-
-        $otherChapter = AcademicQuestionChapter::create([
-            'school_class_id' => $this->schoolClass->id,
-            'subject_id' => $this->subject->id,
-            'chapter_number' => 2,
-            'chapter_name' => 'Poetry',
-        ]);
-        $this->actingAs($nationalAdmin, 'sanctum')->postJson('/api/v1/academic-questions', array_merge(
-            $this->cqPayload(),
-            ['chapter_id' => $otherChapter->id],
-        ))->assertCreated();
-
-        $response = $this->actingAs($teacher, 'sanctum')
-            ->getJson("/api/v1/academic-questions?chapter_id={$this->chapter->id}")
-            ->assertOk();
-
-        $this->assertCount(1, $response->json('data'));
-        $this->assertSame($this->chapter->id, $response->json('data.0.chapter_id'));
     }
 
     public function test_index_is_forbidden_without_the_view_permission(): void

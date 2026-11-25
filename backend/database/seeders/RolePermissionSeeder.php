@@ -79,7 +79,7 @@ class RolePermissionSeeder extends Seeder
                 'classrooms.view', 'class_routines.view', 'holidays.view',
                 'academic_exam_terms.view', 'academic_grade_configures.view', 'academic_subject_mark_configures.view',
                 'versions.view', 'class_versions.view', 'shifts.view', 'sections.view', 'subject_teacher_assignments.view',
-                'questions.view', 'academic_questions.view', 'academic_question_chapters.view',
+                'questions.view', 'academic_questions.view',
                 'exams.view', 'exams.create', 'exams.update', 'exam_attempts.view', 'student_progress.view',
                 'teacher_profiles.view', 'student_profiles.view',
                 // Reviewing a leave application is additionally gated to

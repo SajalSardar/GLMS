@@ -8,13 +8,11 @@ import {
   ApiError,
   createQuestionPaper,
   getQuestionPaper,
-  listAcademicQuestionChapters,
   listAcademicQuestions,
   listClasses,
   listSubjects,
   updateQuestionPaper,
   type AcademicQuestion,
-  type AcademicQuestionChapter,
   type AcademicQuestionType,
   type SchoolClass,
   type Subject,
@@ -169,8 +167,7 @@ export default function QuestionBuilderPage() {
 
   const [filterClassId, setFilterClassId] = useState('')
   const [filterSubjectId, setFilterSubjectId] = useState('')
-  const [filterChapterId, setFilterChapterId] = useState('')
-  const [filterChapters, setFilterChapters] = useState<AcademicQuestionChapter[]>([])
+  const [filterChapterNumber, setFilterChapterNumber] = useState('')
   const [filterType, setFilterType] = useState('')
   const [filterMarks, setFilterMarks] = useState('')
   const [bankQuestions, setBankQuestions] = useState<AcademicQuestion[]>([])
@@ -191,29 +188,6 @@ export default function QuestionBuilderPage() {
     listClasses({ perPage: 500 }).then((result) => setClasses(result.data)).catch(() => setClasses([]))
     listSubjects({ perPage: 200 }).then((result) => setSubjects(result.data)).catch(() => setSubjects([]))
   }, [])
-
-  // The bank filter's chapter select is scoped by class + subject, same
-  // as the question bank's own Add/Edit form — populate it from the
-  // global chapter list whenever either narrows.
-  useEffect(() => {
-    if (!filterClassId || !filterSubjectId) {
-      setFilterChapters([])
-      return
-    }
-
-    let active = true
-    listAcademicQuestionChapters({ schoolClassId: Number(filterClassId), subjectId: Number(filterSubjectId) }, token ?? undefined)
-      .then((result) => {
-        if (active) setFilterChapters(result.data)
-      })
-      .catch(() => {
-        if (active) setFilterChapters([])
-      })
-
-    return () => {
-      active = false
-    }
-  }, [filterClassId, filterSubjectId, token])
 
   // Edit mode: populate every field (including the canvas) from the
   // existing paper. QuestionPaperItemResource's nested academic_question
@@ -251,7 +225,7 @@ export default function QuestionBuilderPage() {
       {
         schoolClassId: filterClassId ? Number(filterClassId) : undefined,
         subjectId: filterSubjectId ? Number(filterSubjectId) : undefined,
-        chapterId: filterChapterId ? Number(filterChapterId) : undefined,
+        chapterNumber: filterChapterNumber ? Number(filterChapterNumber) : undefined,
         questionType: (filterType || undefined) as AcademicQuestionType | undefined,
         marks: filterMarks ? Number(filterMarks) : undefined,
       },
@@ -353,15 +327,7 @@ export default function QuestionBuilderPage() {
             <h2 className="text-sm font-semibold text-primary-800">{t['teacher.questionBuilder.bankTitle']}</h2>
 
             <div className="flex flex-wrap gap-2">
-              <select
-                className={selectClass}
-                value={filterClassId}
-                onChange={(event) => {
-                  setFilterClassId(event.target.value)
-                  setFilterSubjectId('')
-                  setFilterChapterId('')
-                }}
-              >
+              <select className={selectClass} value={filterClassId} onChange={(event) => setFilterClassId(event.target.value)}>
                 <option value="">{t['teacher.questionBuilder.selectClass']}</option>
                 {classes.map((schoolClass) => (
                   <option key={schoolClass.id} value={schoolClass.id}>
@@ -369,14 +335,7 @@ export default function QuestionBuilderPage() {
                   </option>
                 ))}
               </select>
-              <select
-                className={selectClass}
-                value={filterSubjectId}
-                onChange={(event) => {
-                  setFilterSubjectId(event.target.value)
-                  setFilterChapterId('')
-                }}
-              >
+              <select className={selectClass} value={filterSubjectId} onChange={(event) => setFilterSubjectId(event.target.value)}>
                 <option value="">{t['teacher.questionBuilder.selectSubject']}</option>
                 {subjects.map((subject) => (
                   <option key={subject.id} value={subject.id}>
@@ -384,19 +343,14 @@ export default function QuestionBuilderPage() {
                   </option>
                 ))}
               </select>
-              <select
-                className={selectClass}
-                value={filterChapterId}
-                disabled={!filterClassId || !filterSubjectId}
-                onChange={(event) => setFilterChapterId(event.target.value)}
-              >
-                <option value="">{t['teacher.questionBuilder.selectChapter']}</option>
-                {filterChapters.map((chapter) => (
-                  <option key={chapter.id} value={chapter.id}>
-                    {chapter.chapter_number}. {chapter.chapter_name}
-                  </option>
-                ))}
-              </select>
+              <input
+                type="number"
+                min={1}
+                placeholder={t['teacher.questionBuilder.chapterNumber']}
+                className={`${selectClass} w-32`}
+                value={filterChapterNumber}
+                onChange={(event) => setFilterChapterNumber(event.target.value)}
+              />
               <select className={selectClass} value={filterType} onChange={(event) => setFilterType(event.target.value)}>
                 <option value="">{t['teacher.questionBuilder.allTypes']}</option>
                 <option value="cq">{t['teacher.questionBuilder.cqLabel']}</option>

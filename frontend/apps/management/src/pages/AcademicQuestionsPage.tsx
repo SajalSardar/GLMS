@@ -2,13 +2,11 @@ import { useEffect, useState } from 'react'
 import {
   createAcademicQuestion,
   deleteAcademicQuestion,
-  listAcademicQuestionChapters,
   listAcademicQuestions,
   listClasses,
   listSubjects,
   updateAcademicQuestion,
   type AcademicQuestion,
-  type AcademicQuestionChapter,
   type AcademicQuestionType,
   type SchoolClass,
   type Subject,
@@ -38,7 +36,8 @@ function stripHtml(html: string): string {
 const initialValues = {
   school_class_id: '',
   subject_id: '',
-  chapter_id: '',
+  chapter_number: '',
+  chapter_name: '',
   question_type: 'cq',
   question_text: '',
   option_1: '',
@@ -54,33 +53,30 @@ const initialValues = {
 // check can't express. The server validates that conditional requirement
 // (StoreAcademicQuestionRequest::withValidator()) and its 'options' error
 // is surfaced via the fieldErrors.options banner in the form below.
-const requiredFields = ['school_class_id', 'subject_id', 'chapter_id', 'question_type', 'question_text', 'marks']
+const requiredFields = ['school_class_id', 'subject_id', 'chapter_number', 'chapter_name', 'question_type', 'question_text', 'marks']
 
 function optionsFromValues(values: Record<string, string>): string[] | null {
   if (values.question_type !== 'mcq') return null
   return [values.option_1, values.option_2, values.option_3, values.option_4]
 }
 
-// Class -> class-wise subject -> chapter (from the question bank's own
-// global chapter list, scoped by class+subject) — replaces free-typed
-// chapter number/name entirely with a managed pick.
+// Class -> class-wise subject — narrows the Subject dropdown to the
+// subjects actually assigned to the picked class (via the global
+// class_subjects pivot), same cascade pattern as AllChaptersPage's
+// ChapterBookCascadeFields.
 function AcademicQuestionFormFields({
   schoolClassId,
   subjectId,
-  chapterId,
-  classes,
   onChange,
   fieldErrors,
 }: {
   schoolClassId: string
   subjectId: string
-  chapterId: string
   classes: SchoolClass[]
   onChange: (key: string, value: string) => void
   fieldErrors: Record<string, string>
 }) {
   const [subjects, setSubjects] = useState<Subject[]>([])
-  const [chapters, setChapters] = useState<AcademicQuestionChapter[]>([])
 
   useEffect(() => {
     if (!schoolClassId) {
@@ -102,75 +98,18 @@ function AcademicQuestionFormFields({
     }
   }, [schoolClassId])
 
-  useEffect(() => {
-    if (!schoolClassId || !subjectId) {
-      setChapters([])
-      return
-    }
-
-    let active = true
-    listAcademicQuestionChapters({ schoolClassId: Number(schoolClassId), subjectId: Number(subjectId) })
-      .then((result) => {
-        if (active) setChapters(result.data)
-      })
-      .catch(() => {
-        if (active) setChapters([])
-      })
-
-    return () => {
-      active = false
-    }
-  }, [schoolClassId, subjectId])
-
-  const chapterEnabled = Boolean(schoolClassId) && Boolean(subjectId)
-
   return (
-    <>
-      <GeoField label={t['management.fields.class']} required error={fieldErrors.school_class_id}>
-        <SearchableSelect
-          value={schoolClassId}
-          onChange={(next) => {
-            onChange('school_class_id', next)
-            onChange('subject_id', '')
-            onChange('chapter_id', '')
-          }}
-          placeholder={t['management.fields.class']}
-          searchPlaceholder={t['management.table.search']}
-          noMatchesLabel={t['management.table.noMatches']}
-          options={classes.map((schoolClass) => ({ value: String(schoolClass.id), label: schoolClass.name }))}
-        />
-      </GeoField>
-
-      <GeoField label={t['management.fields.subject']} required error={fieldErrors.subject_id}>
-        <SearchableSelect
-          value={subjectId}
-          onChange={(next) => {
-            onChange('subject_id', next)
-            onChange('chapter_id', '')
-          }}
-          placeholder={t['management.fields.subject']}
-          searchPlaceholder={t['management.table.search']}
-          noMatchesLabel={t['management.table.noMatches']}
-          options={subjects.map((subject) => ({ value: String(subject.id), label: subject.name }))}
-          className={!schoolClassId ? `${inputClass} cursor-not-allowed opacity-60` : undefined}
-        />
-      </GeoField>
-
-      <GeoField label={t['management.questionBank.colChapter']} required error={fieldErrors.chapter_id}>
-        <SearchableSelect
-          value={chapterId}
-          onChange={(next) => onChange('chapter_id', next)}
-          placeholder={t['management.questionBank.selectChapter']}
-          searchPlaceholder={t['management.table.search']}
-          noMatchesLabel={t['management.table.noMatches']}
-          options={chapters.map((chapter) => ({
-            value: String(chapter.id),
-            label: `${chapter.chapter_number}. ${chapter.chapter_name}`,
-          }))}
-          className={!chapterEnabled ? `${inputClass} cursor-not-allowed opacity-60` : undefined}
-        />
-      </GeoField>
-    </>
+    <GeoField label={t['management.fields.subject']} required error={fieldErrors.subject_id}>
+      <SearchableSelect
+        value={subjectId}
+        onChange={(next) => onChange('subject_id', next)}
+        placeholder={t['management.fields.subject']}
+        searchPlaceholder={t['management.table.search']}
+        noMatchesLabel={t['management.table.noMatches']}
+        options={subjects.map((subject) => ({ value: String(subject.id), label: subject.name }))}
+        className={!schoolClassId ? `${inputClass} cursor-not-allowed opacity-60` : undefined}
+      />
+    </GeoField>
   )
 }
 
@@ -195,7 +134,7 @@ export default function AcademicQuestionsPage() {
     {
       key: 'chapter',
       label: t['management.questionBank.colChapter'],
-      render: (row) => (row.chapter ? `${row.chapter.chapter_number}. ${row.chapter.chapter_name}` : '—'),
+      render: (row) => `${row.chapter_number}. ${row.chapter_name}`,
     },
     {
       key: 'type',
@@ -219,7 +158,8 @@ export default function AcademicQuestionsPage() {
       valuesFromRow={(row) => ({
         school_class_id: String(row.school_class_id),
         subject_id: String(row.subject_id),
-        chapter_id: String(row.chapter_id),
+        chapter_number: String(row.chapter_number),
+        chapter_name: row.chapter_name,
         question_type: row.question_type,
         question_text: row.question_text,
         option_1: row.options?.[0] ?? '',
@@ -231,14 +171,45 @@ export default function AcademicQuestionsPage() {
       })}
       renderFields={(values, onChange, fieldErrors) => (
         <>
+          <GeoField label={t['management.fields.class']} required error={fieldErrors.school_class_id}>
+            <SearchableSelect
+              value={values.school_class_id}
+              onChange={(next) => {
+                onChange('school_class_id', next)
+                onChange('subject_id', '')
+              }}
+              placeholder={t['management.fields.class']}
+              searchPlaceholder={t['management.table.search']}
+              noMatchesLabel={t['management.table.noMatches']}
+              options={classes.map((schoolClass) => ({ value: String(schoolClass.id), label: schoolClass.name }))}
+            />
+          </GeoField>
+
           <AcademicQuestionFormFields
             schoolClassId={values.school_class_id}
             subjectId={values.subject_id}
-            chapterId={values.chapter_id}
             classes={classes}
             onChange={onChange}
             fieldErrors={fieldErrors}
           />
+
+          <GeoField label={t['management.questionBank.chapterNumber']} required error={fieldErrors.chapter_number}>
+            <input
+              type="number"
+              min={1}
+              className={inputClass}
+              value={values.chapter_number}
+              onChange={(event) => onChange('chapter_number', event.target.value)}
+            />
+          </GeoField>
+
+          <GeoField label={t['management.questionBank.chapterName']} required error={fieldErrors.chapter_name}>
+            <input
+              className={inputClass}
+              value={values.chapter_name}
+              onChange={(event) => onChange('chapter_name', event.target.value)}
+            />
+          </GeoField>
 
           <GeoField label={t['management.questionBank.colType']} required error={fieldErrors.question_type}>
             <select
@@ -296,9 +267,7 @@ export default function AcademicQuestionsPage() {
           subjectId: filters.secondaryParentId,
         }, token ?? undefined).then((result) =>
           toSinglePage(
-            result.data.filter((question) =>
-              matchesSearch(question.chapter?.chapter_name ?? '', stripHtml(question.question_text), filters.search),
-            ),
+            result.data.filter((question) => matchesSearch(question.chapter_name, stripHtml(question.question_text), filters.search)),
           ),
         )
       }
@@ -307,7 +276,8 @@ export default function AcademicQuestionsPage() {
           {
             school_class_id: Number(values.school_class_id),
             subject_id: Number(values.subject_id),
-            chapter_id: Number(values.chapter_id),
+            chapter_number: Number(values.chapter_number),
+            chapter_name: values.chapter_name,
             question_type: values.question_type as AcademicQuestionType,
             question_text: values.question_text,
             options: optionsFromValues(values),
@@ -323,7 +293,8 @@ export default function AcademicQuestionsPage() {
           {
             school_class_id: Number(values.school_class_id),
             subject_id: Number(values.subject_id),
-            chapter_id: Number(values.chapter_id),
+            chapter_number: Number(values.chapter_number),
+            chapter_name: values.chapter_name,
             question_type: values.question_type as AcademicQuestionType,
             question_text: values.question_text,
             options: optionsFromValues(values),

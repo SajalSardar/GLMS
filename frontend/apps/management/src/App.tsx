@@ -7,7 +7,6 @@ import AcademicExamTermsPage from './pages/AcademicExamTermsPage'
 import AcademicGradeConfiguresPage from './pages/AcademicGradeConfiguresPage'
 import AcademicSubjectMarkConfiguresPage from './pages/AcademicSubjectMarkConfiguresPage'
 import AcademicYearsPage from './pages/AcademicYearsPage'
-import AcademicQuestionChaptersPage from './pages/AcademicQuestionChaptersPage'
 import AcademicQuestionsPage from './pages/AcademicQuestionsPage'
 import AllChaptersPage from './pages/AllChaptersPage'
 import AttendanceReportPage from './pages/AttendanceReportPage'
@@ -129,20 +128,14 @@ const routineNavItem: SidebarItem = {
 // item's role check).
 const holidaysNavItem: SidebarItem = { to: '/dashboard/holidays', label: t['management.nav.holidays'], icon: 'event_busy' }
 
-// national_admin only — the national question bank, split into the bank
-// itself and the global chapter list that backs its chapter picker.
-// teacher browses the bank (academic_questions.view) and the chapter
-// list (academic_question_chapters.view) to build papers in the teacher
-// portal; school_admin never gets access to either (see
-// questionPapersNavItem instead, which is school_admin's own, print-
-// only, teacher-paper view).
+// national_admin only — the national question bank. teacher browses it
+// (academic_questions.view) to build papers in the teacher portal;
+// school_admin never gets access (see questionPapersNavItem instead,
+// which is school_admin's own, print-only, teacher-paper view).
 const questionBankNavItem: SidebarItem = {
-  label: t['management.nav.questionBankGroup'],
+  to: '/dashboard/question-bank',
+  label: t['management.nav.questionBank'],
   icon: 'quiz',
-  children: [
-    { to: '/dashboard/question-bank/questions', label: t['management.nav.questionBank'], icon: 'quiz' },
-    { to: '/dashboard/question-bank/chapters', label: t['management.nav.academicQuestionChapters'], icon: 'toc' },
-  ],
 }
 
 // Visible to both school_admin and national_admin. school_admin holds full
@@ -411,8 +404,7 @@ function App() {
                 <Route index element={<TeachersOnLeavePage />} />
               </Route>
               <Route path="question-bank" element={<RequireNationalAdmin />}>
-                <Route path="questions" element={<AcademicQuestionsPage />} />
-                <Route path="chapters" element={<AcademicQuestionChaptersPage />} />
+                <Route index element={<AcademicQuestionsPage />} />
               </Route>
               <Route path="holidays" element={<RequireSchoolManager />}>
                 <Route index element={<HolidaysPage />} />

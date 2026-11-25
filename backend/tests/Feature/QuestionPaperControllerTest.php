@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\AcademicQuestionChapter;
 use App\Models\District;
 use App\Models\Division;
 use App\Models\School;
@@ -26,8 +25,6 @@ class QuestionPaperControllerTest extends TestCase
 
     private Subject $subject;
 
-    private AcademicQuestionChapter $chapter;
-
     protected function setUp(): void
     {
         parent::setUp();
@@ -43,12 +40,6 @@ class QuestionPaperControllerTest extends TestCase
 
         $this->schoolClass = SchoolClass::create(['name' => 'Class 6', 'numeric_level' => 6]);
         $this->subject = Subject::create(['name' => 'Bangla', 'code' => 'BAN-101']);
-        $this->chapter = AcademicQuestionChapter::create([
-            'school_class_id' => $this->schoolClass->id,
-            'subject_id' => $this->subject->id,
-            'chapter_number' => 1,
-            'chapter_name' => 'Prose',
-        ]);
     }
 
     private function createQuestion(array $overrides = []): int
@@ -58,7 +49,8 @@ class QuestionPaperControllerTest extends TestCase
         return $this->actingAs($nationalAdmin, 'sanctum')->postJson('/api/v1/academic-questions', array_merge([
             'school_class_id' => $this->schoolClass->id,
             'subject_id' => $this->subject->id,
-            'chapter_id' => $this->chapter->id,
+            'chapter_number' => 1,
+            'chapter_name' => 'Prose',
             'question_type' => 'cq',
             'question_text' => 'Read the passage...',
             'marks' => 10,
@@ -200,7 +192,7 @@ class QuestionPaperControllerTest extends TestCase
             ['type' => 'question', 'academic_question_id' => $questionId],
         ]))->json('data.id');
 
-        $newQuestionId = $this->createQuestion();
+        $newQuestionId = $this->createQuestion(['chapter_name' => 'Poetry']);
         $payload = $this->paperPayload([
             ['type' => 'question', 'academic_question_id' => $newQuestionId],
         ]);
@@ -377,7 +369,8 @@ class QuestionPaperControllerTest extends TestCase
         return [
             'school_class_id' => $this->schoolClass->id,
             'subject_id' => $this->subject->id,
-            'chapter_id' => $this->chapter->id,
+            'chapter_number' => 1,
+            'chapter_name' => 'Prose',
             'question_type' => 'cq',
             'question_text' => 'Read the passage...',
             'marks' => 10,

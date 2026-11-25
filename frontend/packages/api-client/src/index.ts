@@ -2983,73 +2983,6 @@ export function reviewTeacherLeaveApplication(
   })
 }
 
-// ---------- Academic question chapters (the question bank's chapter list) ----------
-
-export interface AcademicQuestionChapter {
-  id: number
-  school_class_id: number
-  subject_id: number
-  chapter_number: number
-  chapter_name: string
-  created_at: string
-  school_class?: { id: number; name: string; bn_name: string | null } | null
-  subject?: { id: number; name: string; bn_name: string | null } | null
-}
-
-export interface AcademicQuestionChapterPayload {
-  school_class_id: number
-  subject_id: number
-  chapter_number: number
-  chapter_name: string
-}
-
-// Global, scoped only by class + subject — not the per-school chapter
-// hierarchy (listChapters()). Unpaginated, same shape as the question
-// bank itself: a small, already-narrowed result set.
-export function listAcademicQuestionChapters(
-  params: { schoolClassId?: number; subjectId?: number } = {},
-  token?: string,
-): Promise<{ data: AcademicQuestionChapter[] }> {
-  const query = buildQuery({
-    school_class_id: params.schoolClassId,
-    subject_id: params.subjectId,
-  })
-
-  return apiFetch<{ data: AcademicQuestionChapter[] }>(`/academic-question-chapters${query}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-  })
-}
-
-export function createAcademicQuestionChapter(
-  payload: AcademicQuestionChapterPayload,
-  token: string,
-): Promise<{ data: AcademicQuestionChapter }> {
-  return apiFetch<{ data: AcademicQuestionChapter }>('/academic-question-chapters', {
-    method: 'POST',
-    headers: authHeaders(token),
-    body: JSON.stringify(payload),
-  })
-}
-
-export function updateAcademicQuestionChapter(
-  id: number,
-  payload: AcademicQuestionChapterPayload,
-  token: string,
-): Promise<{ data: AcademicQuestionChapter }> {
-  return apiFetch<{ data: AcademicQuestionChapter }>(`/academic-question-chapters/${id}`, {
-    method: 'PUT',
-    headers: authHeaders(token),
-    body: JSON.stringify(payload),
-  })
-}
-
-export function deleteAcademicQuestionChapter(id: number, token: string): Promise<void> {
-  return apiFetch<void>(`/academic-question-chapters/${id}`, {
-    method: 'DELETE',
-    headers: authHeaders(token),
-  })
-}
-
 // ---------- Academic questions (the national question bank) ----------
 
 export type AcademicQuestionType = 'cq' | 'mcq'
@@ -3058,7 +2991,8 @@ export interface AcademicQuestion {
   id: number
   school_class_id: number
   subject_id: number
-  chapter_id: number
+  chapter_number: number
+  chapter_name: string
   question_type: AcademicQuestionType
   question_text: string
   options: string[] | null
@@ -3067,13 +3001,13 @@ export interface AcademicQuestion {
   created_at: string
   school_class?: { id: number; name: string; bn_name: string | null } | null
   subject?: { id: number; name: string; bn_name: string | null } | null
-  chapter?: { id: number; chapter_number: number; chapter_name: string } | null
 }
 
 export interface AcademicQuestionPayload {
   school_class_id: number
   subject_id: number
-  chapter_id: number
+  chapter_number: number
+  chapter_name: string
   question_type: AcademicQuestionType
   question_text: string
   options?: string[] | null
@@ -3089,7 +3023,7 @@ export function listAcademicQuestions(
   params: {
     schoolClassId?: number
     subjectId?: number
-    chapterId?: number
+    chapterNumber?: number
     questionType?: AcademicQuestionType
     marks?: number
   } = {},
@@ -3098,7 +3032,7 @@ export function listAcademicQuestions(
   const query = buildQuery({
     school_class_id: params.schoolClassId,
     subject_id: params.subjectId,
-    chapter_id: params.chapterId,
+    chapter_number: params.chapterNumber,
     question_type: params.questionType,
     marks: params.marks,
   })
