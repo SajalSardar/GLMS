@@ -15,6 +15,7 @@ use App\Policies\Concerns\ChecksScope;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
@@ -27,14 +28,20 @@ class UserController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(): AnonymousResourceCollection
+    public function index(Request $request): AnonymousResourceCollection
     {
         $this->authorize('viewAny', User::class);
 
         $users = User::query()
             ->with(['role.permissions', 'school', 'district'])
+            ->when(
+                $request->string('search')->toString(),
+                fn ($query, $search) => $query->where(
+                    fn ($nameOrEmail) => $nameOrEmail->where('name', 'like', "%{$search}%")->orWhere('email', 'like', "%{$search}%"),
+                ),
+            )
             ->orderBy('name')
-            ->paginate(request()->integer('per_page', 15));
+            ->paginate($request->integer('per_page', 15));
 
         return UserResource::collection($users);
     }

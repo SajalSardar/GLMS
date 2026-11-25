@@ -40,6 +40,26 @@ class UserAuthorizationTest extends TestCase
         $this->actingAs($allowed, 'sanctum')->patchJson("/api/v1/users/{$target->id}/role", ['role_id' => $assignableRole->id])->assertOk();
     }
 
+    public function test_index_can_be_filtered_by_search_on_name_or_email(): void
+    {
+        User::factory()->create(['name' => 'Rafiq Islam', 'email' => 'rafiq@example.test']);
+        User::factory()->create(['name' => 'Karim Ahmed', 'email' => 'karim@example.test']);
+
+        $actor = $this->actorWithPermissions(['users.view']);
+
+        $this->actingAs($actor, 'sanctum')
+            ->getJson('/api/v1/users?search=Rafiq')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.name', 'Rafiq Islam');
+
+        $this->actingAs($actor, 'sanctum')
+            ->getJson('/api/v1/users?search=karim@example.test')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.name', 'Karim Ahmed');
+    }
+
     public function test_a_non_split_off_account_still_requires_an_eight_character_password(): void
     {
         $staffRole = Role::create(['name' => 'office_staff_spv', 'label' => 'Office Staff']);

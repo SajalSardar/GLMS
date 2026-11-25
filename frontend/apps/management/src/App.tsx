@@ -20,8 +20,11 @@ import DivisionsPage from './pages/DivisionsPage'
 import HolidaysPage from './pages/HolidaysPage'
 import ManagementClassRoutinePage from './pages/ManagementClassRoutinePage'
 import ManagementLogin from './pages/ManagementLogin'
+import PermissionsPage from './pages/PermissionsPage'
 import PromoteStudentsPage from './pages/PromoteStudentsPage'
 import PublishResultsPage from './pages/PublishResultsPage'
+import RolePermissionsPage from './pages/RolePermissionsPage'
+import RolesPage from './pages/RolesPage'
 import SchoolDetailPage from './pages/SchoolDetailPage'
 import SchoolsPage from './pages/SchoolsPage'
 import SectionsPage from './pages/SectionsPage'
@@ -34,6 +37,7 @@ import TeacherDetailPage from './pages/TeacherDetailPage'
 import TeacherRoutinePage from './pages/TeacherRoutinePage'
 import TeachersPage from './pages/TeachersPage'
 import UpazilasPage from './pages/UpazilasPage'
+import UsersPage from './pages/UsersPage'
 
 const t = getCommonStrings('en')
 
@@ -119,6 +123,23 @@ const routineNavItem: SidebarItem = {
 // GeoCrudTable's permission props on HolidaysPage.tsx, not via this nav
 // item's role check).
 const holidaysNavItem: SidebarItem = { to: '/dashboard/holidays', label: t['management.nav.holidays'], icon: 'event_busy' }
+
+// Visible to both school_admin and national_admin. school_admin holds full
+// CRUD on Users (its own school's staff accounts, auto-scoped by
+// TenantScope) but only roles.view/permissions.view — no roles.create/
+// update/delete or roles.updatePermissions — so UsersPage renders fully
+// editable for it while RolesPage/PermissionsPage render read-only, all
+// via each page's own GeoCrudTable permission props (see
+// RolePermissionSeeder), not via this nav item's role check.
+const usersRolesNavItem: SidebarItem = {
+  label: t['management.nav.usersRoles'],
+  icon: 'manage_accounts',
+  children: [
+    { to: '/dashboard/users-roles/users', label: t['management.nav.users'], icon: 'person' },
+    { to: '/dashboard/users-roles/roles', label: t['management.nav.roles'], icon: 'shield_person' },
+    { to: '/dashboard/users-roles/permissions', label: t['management.nav.permissions'], icon: 'key' },
+  ],
+}
 
 // Class versions, shifts, sections, and subject-teacher assignments are
 // configured per-school by either role (see RolePermissionSeeder) — nested
@@ -261,6 +282,7 @@ function DashboardLayout() {
       : []),
     ...(role === 'national_admin' ? [holidaysNavItem, schoolSetupItem] : []),
     ...(role === 'school_admin' ? [holidaysNavItem, schoolAdminSchoolSetupItem] : []),
+    ...(role === 'national_admin' || role === 'school_admin' ? [usersRolesNavItem] : []),
     ...(role === 'national_admin' ? [systemSetupItem] : []),
   ]
 
@@ -303,6 +325,10 @@ function App() {
                 <Route path="promote-students" element={<PromoteStudentsPage />} />
                 <Route path="routine/teacher" element={<TeacherRoutinePage />} />
                 <Route path="routine/class" element={<ManagementClassRoutinePage />} />
+                <Route path="users-roles/users" element={<UsersPage />} />
+                <Route path="users-roles/roles" element={<RolesPage />} />
+                <Route path="users-roles/roles/:id/permissions" element={<RolePermissionsPage />} />
+                <Route path="users-roles/permissions" element={<PermissionsPage />} />
               </Route>
               <Route path="holidays" element={<RequireSchoolManager />}>
                 <Route index element={<HolidaysPage />} />

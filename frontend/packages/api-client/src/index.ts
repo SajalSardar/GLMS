@@ -2733,3 +2733,149 @@ export function confirmStudentPromotions(
     body: JSON.stringify(payload),
   })
 }
+
+// ---------- Permissions ----------
+
+export interface Permission {
+  id: number
+  name: string
+  label: string
+  description: string | null
+}
+
+// Unpaginated — GET /permissions returns the full catalog as a plain array
+// (PermissionController::index), not a PaginatedResponse like the geo/CRUD
+// lists above.
+export function listPermissions(token: string): Promise<{ data: Permission[] }> {
+  return apiFetch<{ data: Permission[] }>('/permissions', {
+    headers: authHeaders(token),
+  })
+}
+
+// ---------- Roles ----------
+
+export interface Role {
+  id: number
+  name: string
+  label: string
+  description: string | null
+  permissions?: Permission[]
+}
+
+export interface RolePayload {
+  name: string
+  label: string
+  description?: string | null
+}
+
+// Unpaginated — GET /roles returns every role as a plain array
+// (RoleController::index), not a PaginatedResponse.
+export function listRoles(token: string): Promise<{ data: Role[] }> {
+  return apiFetch<{ data: Role[] }>('/roles', {
+    headers: authHeaders(token),
+  })
+}
+
+export function getRole(id: number, token: string): Promise<{ data: Role }> {
+  return apiFetch<{ data: Role }>(`/roles/${id}`, {
+    headers: authHeaders(token),
+  })
+}
+
+export function createRole(payload: RolePayload, token: string): Promise<{ data: Role }> {
+  return createGeo<Role, RolePayload>('roles', payload, token)
+}
+
+export function updateRole(id: number, payload: Partial<RolePayload>, token: string): Promise<{ data: Role }> {
+  return updateGeo<Role, Partial<RolePayload>>('roles', id, payload, token)
+}
+
+export function deleteRole(id: number, token: string): Promise<void> {
+  return deleteGeo('roles', id, token)
+}
+
+// Replaces the role's entire permission set — the backend (RoleController::
+// updatePermissions) additionally rejects granting a permission the acting
+// actor doesn't themselves hold, so this can never escalate a role past
+// the caller's own level.
+export function updateRolePermissions(
+  id: number,
+  permissionNames: string[],
+  token: string,
+): Promise<{ data: Role }> {
+  return apiFetch<{ data: Role }>(`/roles/${id}/permissions`, {
+    method: 'PUT',
+    headers: authHeaders(token),
+    body: JSON.stringify({ permissions: permissionNames }),
+  })
+}
+
+// ---------- Staff users (the `users` table: national_admin/district_officer/
+// school_admin/trainer/office_staff/it_admin/auditor accounts — distinct
+// from TeacherUser/StudentUser/GuardianUser, which have their own tables) ----------
+
+export interface StaffUser {
+  id: number
+  name: string
+  email: string | null
+  phone: string | null
+  role?: Role | null
+  school?: School | null
+  district?: District | null
+}
+
+export interface StaffUserPayload {
+  name: string
+  email: string
+  phone?: string | null
+  password?: string
+  role_id?: number | null
+  school_id?: number | null
+  district_id?: number | null
+}
+
+export function listStaffUsers(
+  params: { page?: number; perPage?: number; search?: string } = {},
+  token: string,
+): Promise<PaginatedResponse<StaffUser>> {
+  const query: Record<string, string | number | undefined> = {
+    page: params.page,
+    per_page: params.perPage,
+    search: params.search || undefined,
+  }
+
+  return apiFetch<PaginatedResponse<StaffUser>>(`/users${buildQuery(query)}`, {
+    headers: authHeaders(token),
+  })
+}
+
+export function createStaffUser(payload: StaffUserPayload, token: string): Promise<{ data: StaffUser }> {
+  return createGeo<StaffUser, StaffUserPayload>('users', payload, token)
+}
+
+export function updateStaffUser(
+  id: number,
+  payload: Partial<StaffUserPayload>,
+  token: string,
+): Promise<{ data: StaffUser }> {
+  return updateGeo<StaffUser, Partial<StaffUserPayload>>('users', id, payload, token)
+}
+
+export function deleteStaffUser(id: number, token: string): Promise<void> {
+  return deleteGeo('users', id, token)
+}
+
+// Role/school/district changes go through this endpoint instead of
+// updateStaffUser() — the backend keeps the privilege-escalation and scope
+// checks there (UserController::assignRole), not on the plain update.
+export function assignStaffUserRole(
+  id: number,
+  payload: { role_id: number; school_id?: number | null; district_id?: number | null },
+  token: string,
+): Promise<{ data: StaffUser }> {
+  return apiFetch<{ data: StaffUser }>(`/users/${id}/role`, {
+    method: 'PATCH',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  })
+}

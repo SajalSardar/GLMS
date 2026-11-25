@@ -54,7 +54,14 @@ class RolePermissionSeeder extends Seeder
                 'subject_teacher_assignments.update', 'subject_teacher_assignments.delete',
                 'timetable_entries.view', 'timetable_entries.create', 'timetable_entries.update',
                 'timetable_entries.delete', 'timetable_entries.publish', 'timetable_entries.generate',
-                'users.view', 'users.create', 'users.update',
+                // Full CRUD on Users (the users table — staff accounts, not
+                // teacher/student/guardian) for the school's own account
+                // management. Roles/Permissions are view-only: no
+                // roles.create/update/delete or roles.updatePermissions, so
+                // a school_admin can see what a role can do but never grant
+                // a role (including its own) more than it already has.
+                'users.view', 'users.create', 'users.update', 'users.delete',
+                'roles.view', 'permissions.view',
                 'teacher_profiles.view', 'teacher_profiles.create', 'teacher_profiles.update', 'teacher_profiles.delete',
                 'student_profiles.view', 'student_profiles.create', 'student_profiles.update', 'student_profiles.delete',
                 'student_leave_applications.view', 'student_leave_applications.update',
