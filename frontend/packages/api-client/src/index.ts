@@ -2879,3 +2879,100 @@ export function assignStaffUserRole(
     body: JSON.stringify(payload),
   })
 }
+
+// ---------- Teacher leave applications ----------
+
+export type TeacherLeaveApplicationStatus = 'pending' | 'approved' | 'rejected'
+
+export interface TeacherColleague {
+  id: number
+  name: string
+}
+
+export interface TeacherLeaveApplication {
+  id: number
+  teacher_id: number
+  school_id: number
+  district_id: number | null
+  from_date: string
+  to_date: string
+  reason: string
+  status: TeacherLeaveApplicationStatus
+  delegate_teacher_id: number | null
+  admin_comment: string | null
+  reviewed_by_id: number | null
+  reviewed_at: string | null
+  created_at: string
+  teacher?: { id: number; name: string; school_name: string | null } | null
+  delegate?: { id: number; name: string } | null
+  reviewed_by?: { id: number; name: string } | null
+  // Set server-side from TeacherLeaveApplicationPolicy::review() — true
+  // only for an actor holding teacher_leave_applications.update, never
+  // derived client-side.
+  can_review: boolean
+}
+
+// A teacher submits their own leave application, optionally naming a
+// substitute colleague at their own school — scoped server-side to the
+// teacher's own school/district (see TeacherLeaveApplicationController::
+// store()); the teacher never picks those themselves.
+export function createTeacherLeaveApplication(
+  payload: { from_date: string; to_date: string; reason: string; delegate_teacher_id?: number | null },
+  token: string,
+): Promise<{ data: TeacherLeaveApplication }> {
+  return apiFetch<{ data: TeacherLeaveApplication }>('/teacher-leave-applications', {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  })
+}
+
+// This teacher's own leave applications, most recent first.
+export function listMyTeacherLeaveApplications(token: string): Promise<{ data: TeacherLeaveApplication[] }> {
+  return apiFetch<{ data: TeacherLeaveApplication[] }>('/teacher-leave-applications/mine', {
+    headers: authHeaders(token),
+  })
+}
+
+// Other teachers at this teacher's own school, for the substitute picker
+// — TenantScope narrows this to the caller's own school automatically.
+export function listTeacherColleagues(token: string): Promise<{ data: TeacherColleague[] }> {
+  return apiFetch<{ data: TeacherColleague[] }>('/teacher-leave-applications/colleagues', {
+    headers: authHeaders(token),
+  })
+}
+
+// Staff listing — any actor with teacher_leave_applications.view sees
+// every application in their own school (TenantScope); `current: true`
+// narrows to applications in effect right now (approved, today within
+// range) — the "who is on leave right now" view.
+export function listTeacherLeaveApplications(
+  params: { status?: TeacherLeaveApplicationStatus; current?: boolean } = {},
+  token: string,
+): Promise<{ data: TeacherLeaveApplication[] }> {
+  const query = buildQuery({ status: params.status, current: params.current ? 1 : undefined })
+
+  return apiFetch<{ data: TeacherLeaveApplication[] }>(`/teacher-leave-applications${query}`, {
+    headers: authHeaders(token),
+  })
+}
+
+export function getTeacherLeaveApplication(id: number, token: string): Promise<{ data: TeacherLeaveApplication }> {
+  return apiFetch<{ data: TeacherLeaveApplication }>(`/teacher-leave-applications/${id}`, {
+    headers: authHeaders(token),
+  })
+}
+
+// Approve or reject, with an optional comment — only valid for a row
+// whose `can_review` came back true.
+export function reviewTeacherLeaveApplication(
+  id: number,
+  payload: { status: 'approved' | 'rejected'; admin_comment?: string | null },
+  token: string,
+): Promise<{ data: TeacherLeaveApplication }> {
+  return apiFetch<{ data: TeacherLeaveApplication }>(`/teacher-leave-applications/${id}/review`, {
+    method: 'PATCH',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  })
+}
