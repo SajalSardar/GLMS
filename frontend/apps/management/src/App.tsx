@@ -23,6 +23,7 @@ import ManagementClassRoutinePage from './pages/ManagementClassRoutinePage'
 import ManagementLogin from './pages/ManagementLogin'
 import PermissionsPage from './pages/PermissionsPage'
 import PromoteStudentsPage from './pages/PromoteStudentsPage'
+import QuestionPapersPage from './pages/QuestionPapersPage'
 import PublishResultsPage from './pages/PublishResultsPage'
 import RolePermissionsPage from './pages/RolePermissionsPage'
 import RolesPage from './pages/RolesPage'
@@ -162,6 +163,16 @@ const teacherLeaveApplicationsNavItem: SidebarItem = {
   to: '/dashboard/teacher-leave-applications',
   label: t['management.nav.teacherLeaveApplications'],
   icon: 'work_off',
+}
+
+// school_admin only — print-only view of every question paper built by
+// any teacher at their own school (TenantScope-filtered). national_admin
+// never gets this nav item: it manages the underlying question bank
+// instead (questionBankNavItem), not individual teachers' papers.
+const questionPapersNavItem: SidebarItem = {
+  to: '/dashboard/question-papers',
+  label: t['management.nav.questionPapers'],
+  icon: 'description',
 }
 
 // national_admin only — read-only. Approving/rejecting stays exclusively
@@ -331,7 +342,7 @@ function DashboardLayout() {
     ...(role === 'national_admin' || role === 'school_admin'
       ? [attendanceNavItem, publishResultsNavItem, promoteStudentsNavItem, routineNavItem]
       : []),
-    ...(role === 'school_admin' ? [teacherLeaveApplicationsNavItem] : []),
+    ...(role === 'school_admin' ? [teacherLeaveApplicationsNavItem, questionPapersNavItem] : []),
     ...(role === 'national_admin' ? [teachersOnLeaveNavItem] : []),
     ...(role === 'national_admin' ? [holidaysNavItem, questionBankNavItem, schoolSetupItem] : []),
     ...(role === 'school_admin' ? [holidaysNavItem, schoolAdminSchoolSetupItem] : []),
@@ -385,6 +396,9 @@ function App() {
               </Route>
               <Route path="teacher-leave-applications" element={<RequireSchoolAdmin />}>
                 <Route index element={<TeacherLeaveApplicationsPage />} />
+              </Route>
+              <Route path="question-papers" element={<RequireSchoolAdmin />}>
+                <Route index element={<QuestionPapersPage />} />
               </Route>
               <Route path="teachers-on-leave" element={<RequireNationalAdmin />}>
                 <Route index element={<TeachersOnLeavePage />} />
