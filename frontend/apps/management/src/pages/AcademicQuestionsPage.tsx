@@ -11,6 +11,7 @@ import {
   type SchoolClass,
   type Subject,
 } from '@ttla/api-client'
+import { useAuth } from '@ttla/auth'
 import { getCommonStrings } from '@ttla/i18n'
 import GeoCrudTable, { GeoField, toSinglePage, type GeoColumn } from '../components/GeoCrudTable'
 import SearchableSelect from '../components/SearchableSelect'
@@ -52,6 +53,7 @@ function optionsFromValues(values: Record<string, string>): string[] | null {
 }
 
 export default function AcademicQuestionsPage() {
+  const { token } = useAuth()
   const [classes, setClasses] = useState<SchoolClass[]>([])
   const [subjects, setSubjects] = useState<Subject[]>([])
 
@@ -207,7 +209,7 @@ export default function AcademicQuestionsPage() {
         listAcademicQuestions({
           schoolClassId: filters.parentId,
           subjectId: filters.secondaryParentId,
-        }).then((result) =>
+        }, token ?? undefined).then((result) =>
           toSinglePage(
             result.data.filter((question) => matchesSearch(question.chapter_name, question.question_text, filters.search)),
           ),
