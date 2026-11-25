@@ -181,6 +181,10 @@ class TeacherLeaveApplicationControllerTest extends TestCase
     {
         $unassignedTeacher = $this->teacherActorWithPermissions([], null, null);
         $this->teacherActorWithPermissions([], $this->schoolA->id, $this->schoolA->district_id);
+        // A second null-school teacher: a plain where('school_id', null) would
+        // degenerate into whereNull('school_id') and match this one — the
+        // result must still be empty, not "every other schoolless teacher".
+        $this->teacherActorWithPermissions([], null, null);
 
         $response = $this->actingAs($unassignedTeacher, 'sanctum')
             ->getJson('/api/v1/teacher-leave-applications/colleagues')

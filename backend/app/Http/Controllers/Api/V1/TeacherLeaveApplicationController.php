@@ -111,9 +111,16 @@ class TeacherLeaveApplicationController extends Controller
      * no school assigned is a real, reachable state for (see
      * test_store_rejects_a_teacher_with_no_school_assigned) — relying on
      * it alone would hand that teacher every teacher nationwide instead
-     * of an empty list. Deliberately minimal (id + name only) — this
-     * endpoint has no permission check at all, so it must never leak
-     * anything beyond a name.
+     * of an empty list. A plain `where('school_id', $teacher->school_id)`
+     * is not enough on its own: when the value is null, the query builder
+     * degenerates that into `whereNull('school_id')`, which would instead
+     * match every OTHER teacher who also has no school assigned — still a
+     * cross-tenant leak, just narrower (reachable in practice: school_id
+     * is nullOnDelete(), so deleting a school nulls it for every teacher
+     * who was there). Forcing an unconditionally-empty result for a
+     * null-school teacher closes that gap too. Deliberately minimal
+     * (id + name only) — this endpoint has no permission check at all, so
+     * it must never leak anything beyond a name.
      */
     public function colleagues(Request $request): JsonResponse
     {
@@ -122,7 +129,11 @@ class TeacherLeaveApplicationController extends Controller
 
         $colleagues = TeacherUser::query()
             ->where('id', '!=', $teacher->id)
-            ->where('school_id', $teacher->school_id)
+            ->when(
+                $teacher->school_id !== null,
+                fn ($query) => $query->where('school_id', $teacher->school_id),
+                fn ($query) => $query->whereRaw('1 = 0'),
+            )
             ->orderBy('name')
             ->get(['id', 'name']);
 
