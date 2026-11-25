@@ -11,6 +11,7 @@ use App\Models\TeacherUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Validation\ValidationException;
 
 class TeacherLeaveApplicationController extends Controller
 {
@@ -50,11 +51,22 @@ class TeacherLeaveApplicationController extends Controller
     /**
      * A teacher submits their own leave application, scoped server-side
      * to their own school/district (never taken from the request) — same
-     * reasoning as StudentLeaveApplicationController::store().
+     * reasoning as StudentLeaveApplicationController::store(). A teacher
+     * with no school assigned is rejected outright: school_id is NOT
+     * NULL on teacher_leave_applications, so letting this through would
+     * otherwise surface as an uncaught DB constraint violation (500)
+     * instead of a clean validation error — same guard shape as
+     * StudentLeaveApplicationController::store()'s profile check.
      */
     public function store(StoreTeacherLeaveApplicationRequest $request): JsonResponse
     {
         $teacher = $request->user();
+
+        if ($teacher->school_id === null) {
+            throw ValidationException::withMessages([
+                'teacher' => ['Your account has no school assigned. Please contact your administrator.'],
+            ]);
+        }
 
         $application = TeacherLeaveApplication::create([
             'teacher_id' => $teacher->id,

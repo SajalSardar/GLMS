@@ -113,6 +113,15 @@ class TeacherLeaveApplicationControllerTest extends TestCase
         ])->assertUnprocessable()->assertJsonValidationErrors('from_date');
     }
 
+    public function test_store_rejects_a_teacher_with_no_school_assigned(): void
+    {
+        $teacher = $this->teacherActorWithPermissions([], null, null);
+
+        $this->actingAs($teacher, 'sanctum')->postJson('/api/v1/teacher-leave-applications', [
+            'from_date' => '2026-12-01', 'to_date' => '2026-12-03', 'reason' => 'Family event',
+        ])->assertUnprocessable()->assertJsonValidationErrors('teacher');
+    }
+
     public function test_store_is_forbidden_for_a_non_teacher_actor(): void
     {
         $staff = $this->actorWithPermissions([]);
