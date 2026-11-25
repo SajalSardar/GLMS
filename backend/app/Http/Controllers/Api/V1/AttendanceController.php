@@ -9,6 +9,7 @@ use App\Models\Holiday;
 use App\Models\Section;
 use App\Models\StudentProfile;
 use App\Models\StudentUser;
+use App\Models\TeacherLeaveApplication;
 use App\Models\TeacherUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,21 +20,27 @@ class AttendanceController extends Controller
 {
     /**
      * Sections this teacher may touch attendance for — the ones they're
-     * the class teacher of (can_record: true) plus any they only hold a
-     * SubjectTeacherAssignment in (can_record: false, view only) — the
-     * same two-tier split AttendancePolicy enforces per-section,
-     * flattened into one list so the teacher portal can build its
-     * section picker in a single call.
+     * the class teacher of (can_record: true), any they hold an approved
+     * substitute delegation for (can_record: true), plus any they only
+     * hold a SubjectTeacherAssignment in (can_record: false, view only).
      */
     public function mySections(Request $request): JsonResponse
     {
         $teacher = $request->user();
         abort_unless($teacher instanceof TeacherUser, 403);
 
+        $delegatedClassTeacherIds = TeacherLeaveApplication::query()
+            ->where('delegate_teacher_id', $teacher->id)
+            ->where('status', 'approved')
+            ->whereDate('from_date', '<=', now())
+            ->whereDate('to_date', '>=', now())
+            ->pluck('teacher_id');
+
         $sections = Section::query()
             ->with(['shift.classVersion.schoolClass', 'shift.academicYear'])
-            ->where(function ($query) use ($teacher) {
+            ->where(function ($query) use ($teacher, $delegatedClassTeacherIds) {
                 $query->where('class_teacher_id', $teacher->id)
+                    ->orWhereIn('class_teacher_id', $delegatedClassTeacherIds)
                     ->orWhereHas('subjectTeacherAssignments', fn ($assignments) => $assignments->where('teacher_id', $teacher->id));
             })
             ->orderBy('name')
@@ -43,12 +50,6 @@ class AttendanceController extends Controller
             'data' => $sections->map(fn (Section $section) => [
                 'id' => $section->id,
                 'name' => $section->bn_name ?? $section->name,
-                // IDs alongside the display labels — the teacher portal's
-                // Attendance List/Monthly Report filters group this flat
-                // list into cascading Academic Year -> Class -> Class
-                // Version -> Shift -> Section dropdowns entirely
-                // client-side (a teacher's own section count is small
-                // enough that a second endpoint isn't worth it).
                 'class_id' => $section->shift?->classVersion?->class_id,
                 'class_name' => $section->shift?->classVersion?->schoolClass?->name,
                 'class_version_id' => $section->shift?->class_version_id,
@@ -57,7 +58,8 @@ class AttendanceController extends Controller
                 'shift' => $section->shift?->name,
                 'academic_year_id' => $section->shift?->academic_year_id,
                 'academic_year' => $section->shift?->academicYear?->name,
-                'can_record' => $section->class_teacher_id === $teacher->id,
+                'can_record' => $section->class_teacher_id === $teacher->id
+                    || $delegatedClassTeacherIds->contains($section->class_teacher_id),
             ])->values(),
         ]);
     }

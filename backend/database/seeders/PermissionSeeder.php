@@ -118,6 +118,17 @@ class PermissionSeeder extends Seeder
             ['name' => 'student_leave_applications.view', 'label' => 'View student leave applications'],
             ['name' => 'student_leave_applications.update', 'label' => 'Review student leave applications'],
 
+            // A teacher submits their own leave application and names a
+            // substitute colleague outside this permission system
+            // entirely (StoreTeacherLeaveApplicationRequest just checks
+            // the actor is a TeacherUser) — these two only gate a staff
+            // actor's ability to list/review every teacher's application.
+            // Unlike student_leave_applications.update, reviewing here
+            // has no additional per-row ownership check: the reviewer is
+            // always school_admin, scoped only by TenantScope.
+            ['name' => 'teacher_leave_applications.view', 'label' => 'View teacher leave applications'],
+            ['name' => 'teacher_leave_applications.update', 'label' => 'Review teacher leave applications'],
+
             // A student's own attendance is self-scoped outside this
             // permission system (AttendanceController::mine() just checks
             // the actor is a StudentUser, same as leave applications'
