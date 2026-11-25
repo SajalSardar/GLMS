@@ -40,7 +40,7 @@ function App() {
               <Route path="attendance/list" element={<AttendancePage tab="list" />} />
               <Route path="attendance/report" element={<AttendancePage tab="report" />} />
               <Route path="class-routine" element={<ClassRoutinePage />} />
-              <Route path="leave-applications" element={<LeaveApplicationsPage />} />
+              <Route path="student-leave" element={<LeaveApplicationsPage />} />
               <Route path="holidays" element={<HolidaysPage />} />
               <Route path="marks-entry" element={<MarksEntryPage />} />
               <Route path="marksheets" element={<MarksheetsPage />} />

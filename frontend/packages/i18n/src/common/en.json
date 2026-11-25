@@ -761,7 +761,7 @@
   "management.promoteStudents.pickTarget": "Pick a target class and section before confirming.",
 
   "teacher.nav.dashboard": "Dashboard",
-  "teacher.nav.leaveApplications": "Leave Applications",
+  "teacher.nav.leaveApplications": "Student Leave",
   "teacher.nav.logout": "Log out",
 
   "teacher.login.brandFull": "Teacher Training & Learning Analytics Platform",
@@ -783,12 +783,12 @@
   "teacher.dashboard.welcome": "Welcome, {name}!",
   "teacher.dashboard.welcomeGeneric": "Welcome!",
   "teacher.dashboard.subtitle": "Here's an overview of your section.",
-  "teacher.dashboard.leaveApplicationsTitle": "Leave Applications",
+  "teacher.dashboard.leaveApplicationsTitle": "Student Leave Applications",
   "teacher.dashboard.leaveApplicationsDesc": "Review and respond to your students' leave requests.",
   "teacher.dashboard.holidaysTitle": "Holiday Calendar",
   "teacher.dashboard.holidaysDesc": "See the weekly and government holidays.",
 
-  "teacher.leaveApplications.title": "Leave Applications",
+  "teacher.leaveApplications.title": "Student Leave Applications",
   "teacher.leaveApplications.loading": "Loading leave applications...",
   "teacher.leaveApplications.empty": "No leave applications to show.",
   "teacher.leaveApplications.filterAllStatus": "All statuses",

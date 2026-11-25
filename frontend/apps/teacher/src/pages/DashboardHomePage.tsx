@@ -17,7 +17,7 @@ export default function DashboardHomePage() {
 
       <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Link
-          to="/leave-applications"
+          to="/student-leave"
           className="rounded-lg border border-gray-100 bg-white p-5 shadow-sm transition hover:border-primary-300 hover:shadow"
         >
           <p className="font-semibold text-primary-700">{t['teacher.dashboard.leaveApplicationsTitle']}</p>

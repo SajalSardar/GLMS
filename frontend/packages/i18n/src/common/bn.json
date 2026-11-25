@@ -761,7 +761,7 @@
   "management.promoteStudents.pickTarget": "নিশ্চিত করার আগে একটি লক্ষ্য শ্রেণি এবং শাখা নির্বাচন করুন।",
 
   "teacher.nav.dashboard": "ড্যাশবোর্ড",
-  "teacher.nav.leaveApplications": "ছুটির আবেদন",
+  "teacher.nav.leaveApplications": "শিক্ষার্থীর ছুটি",
   "teacher.nav.logout": "লগ আউট",
 
   "teacher.login.brandFull": "টিচার ট্রেইনিং অ্যান্ড লার্নিং অ্যানালিটিক্স প্ল্যাটফর্ম",
@@ -783,12 +783,12 @@
   "teacher.dashboard.welcome": "স্বাগতম, {name}!",
   "teacher.dashboard.welcomeGeneric": "স্বাগতম!",
   "teacher.dashboard.subtitle": "তোমার শাখার একটি সংক্ষিপ্ত বিবরণ।",
-  "teacher.dashboard.leaveApplicationsTitle": "ছুটির আবেদন",
+  "teacher.dashboard.leaveApplicationsTitle": "শিক্ষার্থীর ছুটির আবেদন",
   "teacher.dashboard.leaveApplicationsDesc": "তোমার শিক্ষার্থীদের ছুটির আবেদন পর্যালোচনা ও জবাব দাও।",
   "teacher.dashboard.holidaysTitle": "ছুটির ক্যালেন্ডার",
   "teacher.dashboard.holidaysDesc": "সাপ্তাহিক ও সরকারি ছুটি দেখো।",
 
-  "teacher.leaveApplications.title": "ছুটির আবেদন",
+  "teacher.leaveApplications.title": "শিক্ষার্থীর ছুটির আবেদন",
   "teacher.leaveApplications.loading": "ছুটির আবেদন লোড হচ্ছে...",
   "teacher.leaveApplications.empty": "দেখানোর মতো কোনো ছুটির আবেদন নেই।",
   "teacher.leaveApplications.filterAllStatus": "সকল অবস্থা",
