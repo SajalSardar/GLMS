@@ -15,6 +15,7 @@ import {
 } from '@ttla/api-client'
 import { useAuth } from '@ttla/auth'
 import { getCommonStrings } from '@ttla/i18n'
+import DatePickerField from '../components/DatePickerField'
 import { GeoField } from '../components/GeoCrudTable'
 import SearchableSelect from '../components/SearchableSelect'
 import { schoolLabel } from '../components/schoolOptions'
@@ -22,6 +23,8 @@ import { buttonNeutral, buttonPrimary, inputClass } from '../components/styles'
 import { useToast, ToastViewport } from '../components/Toast'
 
 const t = getCommonStrings('en')
+
+const CURRENT_YEAR = new Date().getFullYear()
 
 const REQUIRED_MESSAGE = 'This field is required.'
 
@@ -299,11 +302,14 @@ function TeacherForm({
         </GeoField>
 
         <GeoField label={t['management.fields.joiningDate']} error={fieldErrors.joining_date}>
-          <input
-            type="date"
-            className={inputClass}
+          <DatePickerField
             value={values.joining_date}
-            onChange={(event) => onChange('joining_date', event.target.value)}
+            onChange={(next) => onChange('joining_date', next)}
+            minYear={CURRENT_YEAR - 50}
+            maxYear={CURRENT_YEAR + 1}
+            placeholder={t['management.fields.selectDate']}
+            todayLabel={t['management.table.today']}
+            clearLabel={t['management.table.clear']}
           />
         </GeoField>
 

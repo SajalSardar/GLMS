@@ -6,8 +6,11 @@ import {
   type AcademicYear,
 } from '@ttla/api-client'
 import { getCommonStrings } from '@ttla/i18n'
+import DatePickerField from '../components/DatePickerField'
 import GeoCrudTable, { GeoField, type GeoColumn } from '../components/GeoCrudTable'
 import { inputClass } from '../components/styles'
+
+const CURRENT_YEAR = new Date().getFullYear()
 
 const t = getCommonStrings('en')
 
@@ -79,20 +82,28 @@ export default function AcademicYearsPage() {
           </GeoField>
 
           <GeoField label={t['management.fields.startDate']} required error={fieldErrors.start_date}>
-            <input
-              type="date"
-              className={inputClass}
+            <DatePickerField
               value={values.start_date}
-              onChange={(event) => onChange('start_date', event.target.value)}
+              onChange={(next) => onChange('start_date', next)}
+              minYear={CURRENT_YEAR - 10}
+              maxYear={CURRENT_YEAR + 10}
+              placeholder={t['management.fields.selectDate']}
+              todayLabel={t['management.table.today']}
+              clearLabel={t['management.table.clear']}
             />
           </GeoField>
 
           <GeoField label={t['management.fields.endDate']} required error={fieldErrors.end_date}>
-            <input
-              type="date"
-              className={inputClass}
+            <DatePickerField
               value={values.end_date}
-              onChange={(event) => onChange('end_date', event.target.value)}
+              onChange={(next) => onChange('end_date', next)}
+              // Matches StoreAcademicYearRequest's 'after:start_date' rule.
+              minDate={values.start_date || undefined}
+              minYear={CURRENT_YEAR - 10}
+              maxYear={CURRENT_YEAR + 10}
+              placeholder={t['management.fields.selectDate']}
+              todayLabel={t['management.table.today']}
+              clearLabel={t['management.table.clear']}
             />
           </GeoField>
 

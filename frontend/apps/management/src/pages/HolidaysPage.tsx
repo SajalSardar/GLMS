@@ -11,9 +11,12 @@ import {
   type HolidayType,
 } from '@ttla/api-client'
 import { getCommonStrings } from '@ttla/i18n'
+import DatePickerField from '../components/DatePickerField'
 import GeoCrudTable, { GeoField, type GeoColumn } from '../components/GeoCrudTable'
 import SearchableSelect from '../components/SearchableSelect'
 import { inputClass } from '../components/styles'
+
+const CURRENT_YEAR = new Date().getFullYear()
 
 const t = getCommonStrings('en')
 
@@ -157,19 +160,27 @@ export default function HolidaysPage() {
           ) : (
             <>
               <GeoField label={t['management.fields.startDate']} required error={fieldErrors.start_date}>
-                <input
-                  type="date"
-                  className={inputClass}
+                <DatePickerField
                   value={values.start_date}
-                  onChange={(event) => onChange('start_date', event.target.value)}
+                  onChange={(next) => onChange('start_date', next)}
+                  minYear={CURRENT_YEAR - 5}
+                  maxYear={CURRENT_YEAR + 5}
+                  placeholder={t['management.fields.selectDate']}
+                  todayLabel={t['management.table.today']}
+                  clearLabel={t['management.table.clear']}
                 />
               </GeoField>
               <GeoField label={t['management.fields.endDate']} required error={fieldErrors.end_date}>
-                <input
-                  type="date"
-                  className={inputClass}
+                <DatePickerField
                   value={values.end_date}
-                  onChange={(event) => onChange('end_date', event.target.value)}
+                  onChange={(next) => onChange('end_date', next)}
+                  // Matches StoreHolidayRequest's 'after_or_equal:start_date' rule.
+                  minDate={values.start_date || undefined}
+                  minYear={CURRENT_YEAR - 5}
+                  maxYear={CURRENT_YEAR + 5}
+                  placeholder={t['management.fields.selectDate']}
+                  todayLabel={t['management.table.today']}
+                  clearLabel={t['management.table.clear']}
                 />
               </GeoField>
             </>

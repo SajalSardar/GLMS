@@ -10,6 +10,7 @@ import {
 } from '@ttla/api-client'
 import { useAuth } from '@ttla/auth'
 import { getCommonStrings } from '@ttla/i18n'
+import DatePickerField from '../components/DatePickerField'
 import Pagination from '../components/Pagination'
 
 const t = getCommonStrings('en')
@@ -79,6 +80,15 @@ export default function TeacherLeavePage() {
     event.preventDefault()
     if (!token) return
 
+    // DatePickerField's underlying element is a <button>, not a native
+    // <input>, so it never participates in the browser's own required-
+    // field validation the way the old <input type="date" required>
+    // did — this replaces that lost guard.
+    if (!fromDate || !toDate) {
+      setFormError(t['teacher.teacherLeave.datesRequired'])
+      return
+    }
+
     setSubmitting(true)
     setFormError(null)
     setSubmitSuccess(false)
@@ -121,23 +131,24 @@ export default function TeacherLeavePage() {
           <div className="flex flex-wrap gap-4">
             <label className="flex flex-1 flex-col gap-1.5 text-sm">
               <span className="font-medium text-gray-700">{t['teacher.teacherLeave.fromDate']}</span>
-              <input
-                type="date"
-                required
-                className="h-11 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-800 outline-none transition-colors focus:border-primary-500"
+              <DatePickerField
                 value={fromDate}
-                onChange={(event) => setFromDate(event.target.value)}
+                onChange={setFromDate}
+                placeholder={t['management.fields.selectDate']}
+                todayLabel={t['management.table.today']}
+                clearLabel={t['management.table.clear']}
               />
             </label>
             <label className="flex flex-1 flex-col gap-1.5 text-sm">
               <span className="font-medium text-gray-700">{t['teacher.teacherLeave.toDate']}</span>
-              <input
-                type="date"
-                required
-                min={fromDate || undefined}
-                className="h-11 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-800 outline-none transition-colors focus:border-primary-500"
+              <DatePickerField
                 value={toDate}
-                onChange={(event) => setToDate(event.target.value)}
+                onChange={setToDate}
+                // Matches StoreTeacherLeaveApplicationRequest's 'after_or_equal:from_date' rule.
+                minDate={fromDate || undefined}
+                placeholder={t['management.fields.selectDate']}
+                todayLabel={t['management.table.today']}
+                clearLabel={t['management.table.clear']}
               />
             </label>
           </div>
