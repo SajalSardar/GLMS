@@ -23,11 +23,11 @@ export default function TeachersPage() {
   const [districts, setDistricts] = useState<District[]>([])
 
   useEffect(() => {
-    listSchools({ perPage: 200 })
+    listSchools({ perPage: 200 }, token ?? undefined)
       .then((result) => setSchools(result.data))
       .catch(() => setSchools([]))
 
-    listDistricts({ perPage: 200 })
+    listDistricts({ perPage: 200 }, token ?? undefined)
       .then((result) => setDistricts(result.data))
       .catch(() => setDistricts([]))
   }, [])

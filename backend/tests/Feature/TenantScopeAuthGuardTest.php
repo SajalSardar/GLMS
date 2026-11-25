@@ -140,6 +140,30 @@ class TenantScopeAuthGuardTest extends TestCase
         $response->assertJsonPath('data.0.id', $this->schoolA->id);
     }
 
+    public function test_school_scoped_actor_sees_only_their_own_district_via_district_model(): void
+    {
+        $actor = $this->actorWithPermissions(['districts.view'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $response = $this->actingAs($actor, 'sanctum')
+            ->getJson('/api/v1/districts')
+            ->assertOk();
+
+        $response->assertJsonCount(1, 'data');
+        $response->assertJsonPath('data.0.id', $this->schoolA->district_id);
+    }
+
+    public function test_district_scoped_actor_sees_only_their_own_district_via_district_model(): void
+    {
+        $actor = $this->actorWithPermissions(['districts.view'], null, $this->schoolA->district_id);
+
+        $response = $this->actingAs($actor, 'sanctum')
+            ->getJson('/api/v1/districts')
+            ->assertOk();
+
+        $response->assertJsonCount(1, 'data');
+        $response->assertJsonPath('data.0.id', $this->schoolA->district_id);
+    }
+
     public function test_school_scoped_actor_sees_only_their_own_school_shifts_and_sections(): void
     {
         $shiftA = Shift::create(['class_version_id' => $this->versionA->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'name' => 'Day Shift', 'start_time' => '08:00', 'end_time' => '13:00', 'days_of_week' => ['sunday']]);

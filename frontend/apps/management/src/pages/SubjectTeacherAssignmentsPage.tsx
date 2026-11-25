@@ -109,7 +109,7 @@ export default function SubjectTeacherAssignmentsPage() {
       .then((result) => setClassVersions(result.data))
       .catch(() => setClassVersions([]))
 
-    listSchools({ perPage: 200 })
+    listSchools({ perPage: 200 }, token ?? undefined)
       .then((result) => setSchools(result.data))
       .catch(() => setSchools([]))
 

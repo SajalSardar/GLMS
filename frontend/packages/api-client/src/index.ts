@@ -218,6 +218,7 @@ function buildQuery(params: Record<string, string | number | undefined>): string
 function listGeo<T>(
   resource: string,
   params: { page?: number; perPage?: number; search?: string; filterKey?: string; filterValue?: number },
+  token?: string,
 ): Promise<PaginatedResponse<T>> {
   const query: Record<string, string | number | undefined> = {
     page: params.page,
@@ -229,7 +230,9 @@ function listGeo<T>(
     query[params.filterKey] = params.filterValue
   }
 
-  return apiFetch<PaginatedResponse<T>>(`/${resource}${buildQuery(query)}`)
+  return apiFetch<PaginatedResponse<T>>(`/${resource}${buildQuery(query)}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  })
 }
 
 function createGeo<T, P>(resource: string, payload: P, token: string): Promise<{ data: T }> {
@@ -301,14 +304,19 @@ export function deleteSubject(id: number, token: string): Promise<void> {
 
 export function listDistricts(
   params: { page?: number; perPage?: number; search?: string; divisionId?: number } = {},
+  token?: string,
 ): Promise<PaginatedResponse<District>> {
-  return listGeo<District>('districts', {
-    page: params.page,
-    perPage: params.perPage,
-    search: params.search,
-    filterKey: 'division_id',
-    filterValue: params.divisionId,
-  })
+  return listGeo<District>(
+    'districts',
+    {
+      page: params.page,
+      perPage: params.perPage,
+      search: params.search,
+      filterKey: 'division_id',
+      filterValue: params.divisionId,
+    },
+    token,
+  )
 }
 
 export function createDistrict(payload: DistrictPayload, token: string): Promise<{ data: District }> {

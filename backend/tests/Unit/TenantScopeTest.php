@@ -87,6 +87,42 @@ class TenantScopeTest extends TestCase
         $this->assertCount(2, School::all());
     }
 
+    public function test_school_scoped_actor_sees_only_their_own_district_via_district_model(): void
+    {
+        $role = Role::create(['name' => 'school_admin_district', 'label' => 'School Admin']);
+        $actor = User::factory()->create(['role_id' => $role->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id]);
+
+        Auth::login($actor);
+
+        $visible = District::all();
+
+        $this->assertCount(1, $visible);
+        $this->assertSame($this->schoolA->district_id, $visible->first()->id);
+    }
+
+    public function test_district_scoped_actor_sees_only_their_own_district_via_district_model(): void
+    {
+        $role = Role::create(['name' => 'district_officer_district', 'label' => 'District Officer']);
+        $actor = User::factory()->create(['role_id' => $role->id, 'school_id' => null, 'district_id' => $this->schoolA->district_id]);
+
+        Auth::login($actor);
+
+        $visible = District::all();
+
+        $this->assertCount(1, $visible);
+        $this->assertSame($this->schoolA->district_id, $visible->first()->id);
+    }
+
+    public function test_unscoped_actor_sees_both_districts_via_district_model(): void
+    {
+        $role = Role::create(['name' => 'national_admin_district', 'label' => 'National Admin']);
+        $actor = User::factory()->create(['role_id' => $role->id, 'school_id' => null, 'district_id' => null]);
+
+        Auth::login($actor);
+
+        $this->assertCount(2, District::all());
+    }
+
     public function test_academic_years_is_national_not_scoped_by_school(): void
     {
         AcademicYear::create([

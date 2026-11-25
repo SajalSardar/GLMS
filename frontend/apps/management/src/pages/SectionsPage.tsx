@@ -118,7 +118,7 @@ export default function SectionsPage() {
       .then((result) => setShifts(result.data))
       .catch(() => setShifts([]))
 
-    listSchools({ perPage: 200 })
+    listSchools({ perPage: 200 }, token ?? undefined)
       .then((result) => setSchools(result.data))
       .catch(() => setSchools([]))
 

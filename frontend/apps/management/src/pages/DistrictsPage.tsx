@@ -8,6 +8,7 @@ import {
   type Division,
   type District,
 } from '@ttla/api-client'
+import { useAuth } from '@ttla/auth'
 import { getCommonStrings } from '@ttla/i18n'
 import GeoCrudTable, { GeoField, type GeoColumn } from '../components/GeoCrudTable'
 import SearchableSelect from '../components/SearchableSelect'
@@ -30,6 +31,7 @@ function toPayload(values: Record<string, string>) {
 }
 
 export default function DistrictsPage() {
+  const { token } = useAuth()
   const [divisions, setDivisions] = useState<Division[]>([])
 
   useEffect(() => {
@@ -112,7 +114,9 @@ export default function DistrictsPage() {
           </GeoField>
         </>
       )}
-      fetchPage={(page, filters) => listDistricts({ page, search: filters.search, divisionId: filters.parentId })}
+      fetchPage={(page, filters) =>
+        listDistricts({ page, search: filters.search, divisionId: filters.parentId }, token ?? undefined)
+      }
       createRow={(values, token) => createDistrict(toPayload(values), token)}
       updateRow={(id, values, token) => updateDistrict(id, toPayload(values), token)}
       deleteRow={(id, token) => deleteDistrict(id, token)}

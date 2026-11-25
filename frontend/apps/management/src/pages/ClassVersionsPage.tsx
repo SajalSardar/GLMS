@@ -97,7 +97,7 @@ export default function ClassVersionsPage() {
       .then((result) => setAllClasses(result.data))
       .catch(() => setAllClasses([]))
 
-    listSchools({ perPage: 200 })
+    listSchools({ perPage: 200 }, token ?? undefined)
       .then((result) => setSchools(result.data))
       .catch(() => setSchools([]))
 

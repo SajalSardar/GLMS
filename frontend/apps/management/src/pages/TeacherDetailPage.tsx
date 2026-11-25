@@ -429,7 +429,7 @@ export default function TeacherDetailPage() {
   }, [teacherId])
 
   useEffect(() => {
-    listSchools({ perPage: 200 })
+    listSchools({ perPage: 200 }, token ?? undefined)
       .then((result) => setSchools(result.data))
       .catch(() => setSchools([]))
   }, [])

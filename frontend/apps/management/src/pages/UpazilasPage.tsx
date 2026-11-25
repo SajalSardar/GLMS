@@ -8,6 +8,7 @@ import {
   type District,
   type Upazila,
 } from '@ttla/api-client'
+import { useAuth } from '@ttla/auth'
 import { getCommonStrings } from '@ttla/i18n'
 import GeoCrudTable, { GeoField, type GeoColumn } from '../components/GeoCrudTable'
 import SearchableSelect from '../components/SearchableSelect'
@@ -28,10 +29,11 @@ function toPayload(values: Record<string, string>) {
 }
 
 export default function UpazilasPage() {
+  const { token } = useAuth()
   const [districts, setDistricts] = useState<District[]>([])
 
   useEffect(() => {
-    listDistricts({ perPage: 200 })
+    listDistricts({ perPage: 200 }, token ?? undefined)
       .then((result) => setDistricts(result.data))
       .catch(() => setDistricts([]))
   }, [])

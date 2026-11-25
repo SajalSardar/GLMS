@@ -67,7 +67,7 @@ export default function PromoteStudentsPage() {
   const [confirming, setConfirming] = useState(false)
 
   useEffect(() => {
-    listSchools({ perPage: 200 })
+    listSchools({ perPage: 200 }, token ?? undefined)
       .then((result) => {
         setSchools(result.data)
         setSchoolId((previous) => previous ?? result.data[0]?.id ?? null)

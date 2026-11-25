@@ -266,7 +266,7 @@ export default function SchoolsPage() {
     listDivisions({ perPage: 200 })
       .then((result) => setDivisions(result.data))
       .catch(() => setDivisions([]))
-    listDistricts({ perPage: 200 })
+    listDistricts({ perPage: 200 }, token ?? undefined)
       .then((result) => setDistricts(result.data))
       .catch(() => setDistricts([]))
     listUpazilas({ perPage: 200 })

@@ -159,7 +159,7 @@ export default function AttendanceReportPage() {
   const [report, setReport] = useState<AttendanceReport | null>(null)
 
   useEffect(() => {
-    listSchools({ perPage: 200 })
+    listSchools({ perPage: 200 }, token ?? undefined)
       .then((result) => {
         setSchools(result.data)
         setSchoolId((previous) => previous ?? result.data[0]?.id ?? null)

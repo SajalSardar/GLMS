@@ -122,6 +122,18 @@ const pageButtonBase =
 const pageButtonInactive = 'text-gray-600 hover:border-primary-500 hover:bg-primary-500 hover:text-white'
 const pageButtonActive = 'border-primary-500 bg-primary-500 text-white'
 
+// A tenant-scoped actor's filter (e.g. a school_admin's school, or a
+// district_officer's district) resolves to exactly one option once the
+// options finish loading — auto-select it instead of leaving the select on
+// "All <things>", since there's nothing else to pick.
+function useSoleOptionAutoSelect(filter: GeoParentFilter | undefined, setValue: (value: string) => void): void {
+  const soleId = filter && filter.options.length === 1 ? filter.options[0].id : undefined
+
+  useEffect(() => {
+    if (soleId !== undefined) setValue(String(soleId))
+  }, [soleId, setValue])
+}
+
 function getPageNumbers(current: number, last: number): Array<number | 'ellipsis'> {
   if (last <= 7) {
     return Array.from({ length: last }, (_, index) => index + 1)
@@ -179,6 +191,11 @@ export default function GeoCrudTable<T extends { id: number }>({
   const [secondaryParentId, setSecondaryParentId] = useState('')
   const [tertiaryParentId, setTertiaryParentId] = useState('')
   const [quaternaryParentId, setQuaternaryParentId] = useState('')
+
+  useSoleOptionAutoSelect(parentFilter, setParentId)
+  useSoleOptionAutoSelect(secondaryFilter, setSecondaryParentId)
+  useSoleOptionAutoSelect(tertiaryFilter, setTertiaryParentId)
+  useSoleOptionAutoSelect(quaternaryFilter, setQuaternaryParentId)
 
   const [formOpen, setFormOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)

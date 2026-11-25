@@ -2,6 +2,7 @@
 
 namespace App\Models\Scopes;
 
+use App\Models\District;
 use App\Models\School;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -32,7 +33,11 @@ class TenantScope implements Scope
      * Restrict the query to the authenticated actor's tenant: a
      * school-scoped actor sees only their own school's rows (or, for
      * School itself, only their own school row); a district-scoped actor
-     * (no school_id) sees only their own district's rows; an unscoped
+     * (no school_id) sees only their own district's rows. District itself
+     * is always scoped by the actor's own district_id — which is set for
+     * both a school_admin (denormalized from their school) and a
+     * district_officer — regardless of whether school_id is also set, so
+     * a school_admin sees only their own district there too. An unscoped
      * actor (e.g. national_admin) is unrestricted. An unauthenticated
      * request is also unrestricted, so the existing public index/show
      * routes keep working unchanged.
@@ -74,6 +79,14 @@ class TenantScope implements Scope
         }
 
         if ($user === null) {
+            return;
+        }
+
+        if ($model instanceof District) {
+            if ($user->district_id !== null) {
+                $builder->where($model->getTable().'.id', $user->district_id);
+            }
+
             return;
         }
 

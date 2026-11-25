@@ -134,7 +134,7 @@ export default function ShiftsPage() {
       .then((result) => setAcademicYears(result.data))
       .catch(() => setAcademicYears([]))
 
-    listSchools({ perPage: 200 })
+    listSchools({ perPage: 200 }, token ?? undefined)
       .then((result) => setSchools(result.data))
       .catch(() => setSchools([]))
 
