@@ -2976,3 +2976,200 @@ export function reviewTeacherLeaveApplication(
     body: JSON.stringify(payload),
   })
 }
+
+// ---------- Academic questions (the national question bank) ----------
+
+export type AcademicQuestionType = 'cq' | 'mcq'
+
+export interface AcademicQuestion {
+  id: number
+  school_class_id: number
+  subject_id: number
+  chapter_number: number
+  chapter_name: string
+  question_type: AcademicQuestionType
+  question_text: string
+  options: string[] | null
+  marks: number
+  is_active: boolean
+  created_at: string
+  school_class?: { id: number; name: string; bn_name: string | null } | null
+  subject?: { id: number; name: string; bn_name: string | null } | null
+}
+
+export interface AcademicQuestionPayload {
+  school_class_id: number
+  subject_id: number
+  chapter_number: number
+  chapter_name: string
+  question_type: AcademicQuestionType
+  question_text: string
+  options?: string[] | null
+  marks: number
+  is_active?: boolean
+}
+
+// The national bank, filtered by the criteria a teacher uses to find
+// relevant questions for a paper — unpaginated, same shape as
+// listChapters()/listTeacherLeaveApplications() (a flat, small-enough
+// result set given the filters already narrow it).
+export function listAcademicQuestions(
+  params: {
+    schoolClassId?: number
+    subjectId?: number
+    chapterNumber?: number
+    questionType?: AcademicQuestionType
+    marks?: number
+  } = {},
+  token?: string,
+): Promise<{ data: AcademicQuestion[] }> {
+  const query = buildQuery({
+    school_class_id: params.schoolClassId,
+    subject_id: params.subjectId,
+    chapter_number: params.chapterNumber,
+    question_type: params.questionType,
+    marks: params.marks,
+  })
+
+  return apiFetch<{ data: AcademicQuestion[] }>(`/academic-questions${query}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  })
+}
+
+export function createAcademicQuestion(
+  payload: AcademicQuestionPayload,
+  token: string,
+): Promise<{ data: AcademicQuestion }> {
+  return apiFetch<{ data: AcademicQuestion }>('/academic-questions', {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  })
+}
+
+export function updateAcademicQuestion(
+  id: number,
+  payload: AcademicQuestionPayload,
+  token: string,
+): Promise<{ data: AcademicQuestion }> {
+  return apiFetch<{ data: AcademicQuestion }>(`/academic-questions/${id}`, {
+    method: 'PUT',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deleteAcademicQuestion(id: number, token: string): Promise<void> {
+  return apiFetch<void>(`/academic-questions/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(token),
+  })
+}
+
+// ---------- Question papers (a teacher's saved, built paper) ----------
+
+export type QuestionPaperItemType = 'question' | 'heading'
+
+export interface QuestionPaperItem {
+  id: number
+  item_type: QuestionPaperItemType
+  order_index: number
+  heading_text: string | null
+  academic_question?: {
+    id: number
+    question_type: AcademicQuestionType
+    question_text: string
+    options: string[] | null
+    marks: number
+    chapter_number: number
+    chapter_name: string
+  } | null
+}
+
+// The shape sent to create/update — a plain input, not the richer
+// QuestionPaperItem the server returns (no id/order_index needed; order
+// is implied by array position).
+export interface QuestionPaperItemInput {
+  type: QuestionPaperItemType
+  academic_question_id?: number | null
+  heading_text?: string | null
+}
+
+export interface QuestionPaper {
+  id: number
+  teacher_id: number
+  school_id: number
+  district_id: number | null
+  title: string
+  school_class_id: number
+  subject_id: number
+  time_duration_minutes: number | null
+  full_marks: number | null
+  instructions: string | null
+  created_at: string
+  teacher?: { id: number; name: string } | null
+  school_class?: { id: number; name: string; bn_name: string | null } | null
+  subject?: { id: number; name: string; bn_name: string | null } | null
+  items?: QuestionPaperItem[]
+  // Set server-side from QuestionPaperPolicy — true only for the
+  // paper's own creator, never derived client-side.
+  can_edit: boolean
+  can_delete: boolean
+}
+
+export interface QuestionPaperPayload {
+  title: string
+  school_class_id: number
+  subject_id: number
+  time_duration_minutes?: number | null
+  full_marks?: number | null
+  instructions?: string | null
+  items: QuestionPaperItemInput[]
+}
+
+// TenantScope-filtered on the backend: a teacher sees their own school's
+// papers (own + colleagues'), school_admin sees their own school's
+// papers, national_admin sees every school's.
+export function listQuestionPapers(token: string): Promise<{ data: QuestionPaper[] }> {
+  return apiFetch<{ data: QuestionPaper[] }>('/question-papers', {
+    headers: authHeaders(token),
+  })
+}
+
+export function createQuestionPaper(
+  payload: QuestionPaperPayload,
+  token: string,
+): Promise<{ data: QuestionPaper }> {
+  return apiFetch<{ data: QuestionPaper }>('/question-papers', {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  })
+}
+
+export function getQuestionPaper(id: number, token: string): Promise<{ data: QuestionPaper }> {
+  return apiFetch<{ data: QuestionPaper }>(`/question-papers/${id}`, {
+    headers: authHeaders(token),
+  })
+}
+
+// Full replace semantics — payload.items always replaces the paper's
+// entire item set server-side (see QuestionPaperController::update()).
+export function updateQuestionPaper(
+  id: number,
+  payload: QuestionPaperPayload,
+  token: string,
+): Promise<{ data: QuestionPaper }> {
+  return apiFetch<{ data: QuestionPaper }>(`/question-papers/${id}`, {
+    method: 'PUT',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deleteQuestionPaper(id: number, token: string): Promise<void> {
+  return apiFetch<void>(`/question-papers/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(token),
+  })
+}
