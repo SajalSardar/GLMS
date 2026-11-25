@@ -311,4 +311,69 @@ class QuestionPaperControllerTest extends TestCase
             ->getJson('/api/v1/question-papers')
             ->assertForbidden();
     }
+
+    public function test_update_succeeds_unchanged_after_one_of_its_questions_is_deactivated(): void
+    {
+        $teacher = $this->teacherActorWithPermissions(['question_papers.create', 'question_papers.update'], $this->schoolA->id, $this->schoolA->district_id);
+        $questionId = $this->createQuestion();
+        $payload = $this->paperPayload([
+            ['type' => 'heading', 'heading_text' => 'Prose'],
+            ['type' => 'question', 'academic_question_id' => $questionId],
+        ]);
+
+        $paperId = $this->actingAs($teacher, 'sanctum')->postJson('/api/v1/question-papers', $payload)->json('data.id');
+
+        $nationalAdmin = $this->actorWithPermissions(['academic_questions.update']);
+        $this->actingAs($nationalAdmin, 'sanctum')
+            ->putJson("/api/v1/academic-questions/{$questionId}", array_merge($this->createQuestionUpdatePayload(), ['is_active' => false]))
+            ->assertOk()
+            ->assertJsonPath('data.is_active', false);
+
+        // Re-saving the same, now-deactivated, item must still succeed —
+        // only brand-new papers (StoreQuestionPaperRequest) require
+        // is_active=true on their questions.
+        $this->actingAs($teacher, 'sanctum')
+            ->putJson("/api/v1/question-papers/{$paperId}", $payload)
+            ->assertOk()
+            ->assertJsonCount(2, 'data.items')
+            ->assertJsonPath('data.items.1.academic_question.id', $questionId);
+    }
+
+    public function test_a_soft_deleted_questions_content_still_appears_on_a_paper_that_references_it(): void
+    {
+        $teacher = $this->teacherActorWithPermissions(['question_papers.create', 'question_papers.view'], $this->schoolA->id, $this->schoolA->district_id);
+        $questionId = $this->createQuestion();
+        $paperId = $this->actingAs($teacher, 'sanctum')->postJson('/api/v1/question-papers', $this->paperPayload([
+            ['type' => 'heading', 'heading_text' => 'Prose'],
+            ['type' => 'question', 'academic_question_id' => $questionId],
+        ]))->json('data.id');
+
+        $nationalAdmin = $this->actorWithPermissions(['academic_questions.delete']);
+        $this->actingAs($nationalAdmin, 'sanctum')
+            ->deleteJson("/api/v1/academic-questions/{$questionId}")
+            ->assertNoContent();
+        $this->assertSoftDeleted('academic_questions', ['id' => $questionId]);
+
+        $this->actingAs($teacher, 'sanctum')
+            ->getJson("/api/v1/question-papers/{$paperId}")
+            ->assertOk()
+            ->assertJsonPath('data.items.1.academic_question.id', $questionId)
+            ->assertJsonPath('data.items.1.academic_question.question_text', 'Read the passage...');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function createQuestionUpdatePayload(): array
+    {
+        return [
+            'school_class_id' => $this->schoolClass->id,
+            'subject_id' => $this->subject->id,
+            'chapter_number' => 1,
+            'chapter_name' => 'Prose',
+            'question_type' => 'cq',
+            'question_text' => 'Read the passage...',
+            'marks' => 10,
+        ];
+    }
 }

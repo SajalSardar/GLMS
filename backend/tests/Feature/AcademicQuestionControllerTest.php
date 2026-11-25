@@ -239,4 +239,17 @@ class AcademicQuestionControllerTest extends TestCase
 
         $this->assertSame([], $response->json('data'));
     }
+
+    public function test_an_actor_with_the_update_permission_sees_inactive_questions_in_the_index(): void
+    {
+        $nationalAdmin = $this->actorWithPermissions(['academic_questions.create', 'academic_questions.update', 'academic_questions.view']);
+        $payload = $this->cqPayload();
+        $payload['is_active'] = false;
+        $this->actingAs($nationalAdmin, 'sanctum')->postJson('/api/v1/academic-questions', $payload)->assertCreated();
+
+        $response = $this->actingAs($nationalAdmin, 'sanctum')->getJson('/api/v1/academic-questions')->assertOk();
+
+        $this->assertCount(1, $response->json('data'));
+        $this->assertFalse($response->json('data.0.is_active'));
+    }
 }

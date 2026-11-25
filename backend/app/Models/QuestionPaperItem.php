@@ -24,6 +24,6 @@ class QuestionPaperItem extends Model
 
     public function academicQuestion(): BelongsTo
     {
-        return $this->belongsTo(AcademicQuestion::class);
+        return $this->belongsTo(AcademicQuestion::class)->withTrashed();
     }
 }

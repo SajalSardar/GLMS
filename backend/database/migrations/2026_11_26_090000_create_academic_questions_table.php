@@ -42,7 +42,7 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
 
-            $table->index(['school_class_id', 'subject_id', 'chapter_number']);
+            $table->index(['school_class_id', 'subject_id', 'chapter_number'], 'academic_questions_class_subject_chapter_index');
             $table->index('question_type');
         });
     }

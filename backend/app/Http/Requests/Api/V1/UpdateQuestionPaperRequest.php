@@ -31,7 +31,7 @@ class UpdateQuestionPaperRequest extends FormRequest
             'items.*.academic_question_id' => [
                 'nullable',
                 'integer',
-                Rule::exists('academic_questions', 'id')->where(fn ($query) => $query->where('is_active', true))->withoutTrashed(),
+                Rule::exists('academic_questions', 'id')->withoutTrashed(),
             ],
             'items.*.heading_text' => ['nullable', 'string', 'max:255'],
         ];

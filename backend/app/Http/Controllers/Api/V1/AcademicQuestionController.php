@@ -18,7 +18,11 @@ class AcademicQuestionController extends Controller
     /**
      * The national question bank, filtered by the criteria a teacher uses
      * to find relevant questions for a paper. Only active questions are
-     * returned — this is a global bank with no TenantScope, so
+     * returned for a view-only caller (a teacher); a caller holding
+     * academic_questions.update (national_admin, via the management
+     * portal's bank CRUD page) sees inactive questions too, since that
+     * page is the only place a deactivated question can be reviewed or
+     * reactivated. This is a global bank with no TenantScope, so
      * school_class_id/subject_id/chapter_number/question_type/marks are
      * the only narrowing available.
      */
@@ -28,7 +32,10 @@ class AcademicQuestionController extends Controller
 
         $questions = AcademicQuestion::query()
             ->with(self::WITH)
-            ->where('is_active', true)
+            ->when(
+                ! $request->user()->hasPermission('academic_questions.update'),
+                fn ($query) => $query->where('is_active', true),
+            )
             ->when($request->integer('school_class_id'), fn ($query, $id) => $query->where('school_class_id', $id))
             ->when($request->integer('subject_id'), fn ($query, $id) => $query->where('subject_id', $id))
             ->when($request->integer('chapter_number'), fn ($query, $number) => $query->where('chapter_number', $number))
