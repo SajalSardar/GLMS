@@ -26,6 +26,7 @@ import {
 } from '@ttla/api-client'
 import { useAuth } from '@ttla/auth'
 import { getCommonStrings } from '@ttla/i18n'
+import DateTimePickerField from '../components/DateTimePickerField'
 import GeoCrudTable, { GeoField, toSinglePage, type GeoColumn } from '../components/GeoCrudTable'
 import SearchableSelect from '../components/SearchableSelect'
 import { buttonNeutral, buttonPrimary, inputClass } from '../components/styles'
@@ -638,20 +639,29 @@ export default function ExamsPage() {
             </GeoField>
 
             <GeoField label={t['management.exams.availableFrom']} error={fieldErrors.available_from}>
-              <input
-                type="datetime-local"
-                className={inputClass}
+              <DateTimePickerField
                 value={values.available_from}
-                onChange={(event) => onChange('available_from', event.target.value)}
+                onChange={(next) => onChange('available_from', next)}
+                placeholder={t['management.fields.selectDate']}
+                todayLabel={t['management.table.today']}
+                clearLabel={t['management.table.clear']}
               />
             </GeoField>
 
             <GeoField label={t['management.exams.availableUntil']} error={fieldErrors.available_until}>
-              <input
-                type="datetime-local"
-                className={inputClass}
+              <DateTimePickerField
                 value={values.available_until}
-                onChange={(event) => onChange('available_until', event.target.value)}
+                onChange={(next) => onChange('available_until', next)}
+                // StoreExamRequest/UpdateExamRequest enforce
+                // 'after:available_from' on the full datetime; this only
+                // narrows the day (DateTimePickerField has no notion of
+                // the paired time input when bounding the calendar), so
+                // picking the same day as available_from but an earlier
+                // time still only gets caught server-side.
+                minDate={values.available_from ? values.available_from.split('T')[0] : undefined}
+                placeholder={t['management.fields.selectDate']}
+                todayLabel={t['management.table.today']}
+                clearLabel={t['management.table.clear']}
               />
             </GeoField>
 

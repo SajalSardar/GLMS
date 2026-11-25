@@ -23,6 +23,7 @@ import {
 } from '@ttla/api-client'
 import { useAuth } from '@ttla/auth'
 import { getCommonStrings } from '@ttla/i18n'
+import DateTimePickerField from '../components/DateTimePickerField'
 import { useToast, ToastViewport } from '../components/Toast'
 
 const t = getCommonStrings('en')
@@ -727,11 +728,30 @@ export default function ClassExamsPage() {
               </Field>
 
               <Field label={t['management.exams.availableFrom']}>
-                <input type="datetime-local" className={selectClass} value={availableFrom} onChange={(event) => setAvailableFrom(event.target.value)} />
+                <DateTimePickerField
+                  value={availableFrom}
+                  onChange={setAvailableFrom}
+                  placeholder={t['management.fields.selectDate']}
+                  todayLabel={t['management.table.today']}
+                  clearLabel={t['management.table.clear']}
+                />
               </Field>
 
               <Field label={t['management.exams.availableUntil']}>
-                <input type="datetime-local" className={selectClass} value={availableUntil} onChange={(event) => setAvailableUntil(event.target.value)} />
+                <DateTimePickerField
+                  value={availableUntil}
+                  onChange={setAvailableUntil}
+                  // StoreExamRequest/UpdateExamRequest enforce
+                  // 'after:available_from' on the full datetime; this only
+                  // narrows the day (DateTimePickerField has no notion of
+                  // the paired time input when bounding the calendar), so
+                  // picking the same day as available_from but an earlier
+                  // time still only gets caught server-side.
+                  minDate={availableFrom ? availableFrom.split('T')[0] : undefined}
+                  placeholder={t['management.fields.selectDate']}
+                  todayLabel={t['management.table.today']}
+                  clearLabel={t['management.table.clear']}
+                />
               </Field>
 
               {selectionMode !== 'manual' && (
