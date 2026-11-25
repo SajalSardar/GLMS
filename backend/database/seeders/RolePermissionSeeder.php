@@ -66,6 +66,7 @@ class RolePermissionSeeder extends Seeder
                 'student_profiles.view', 'student_profiles.create', 'student_profiles.update', 'student_profiles.delete',
                 'student_leave_applications.view', 'student_leave_applications.update',
                 'teacher_leave_applications.view', 'teacher_leave_applications.update',
+                'question_papers.view',
                 'attendances.view', 'attendances.update',
                 'academic_exam_marks.view', 'academic_exam_marks.update', 'academic_exam_marks.publish',
                 'student_promotions.create',
@@ -78,7 +79,7 @@ class RolePermissionSeeder extends Seeder
                 'classrooms.view', 'class_routines.view', 'holidays.view',
                 'academic_exam_terms.view', 'academic_grade_configures.view', 'academic_subject_mark_configures.view',
                 'versions.view', 'class_versions.view', 'shifts.view', 'sections.view', 'subject_teacher_assignments.view',
-                'questions.view',
+                'questions.view', 'academic_questions.view',
                 'exams.view', 'exams.create', 'exams.update', 'exam_attempts.view', 'student_progress.view',
                 'teacher_profiles.view', 'student_profiles.view',
                 // Reviewing a leave application is additionally gated to
@@ -94,6 +95,7 @@ class RolePermissionSeeder extends Seeder
                 // actor reach the endpoints, not record for every section
                 // in the school.
                 'attendances.view', 'attendances.update',
+                'question_papers.view', 'question_papers.create', 'question_papers.update', 'question_papers.delete',
                 'academic_exam_marks.view', 'academic_exam_marks.update',
             ],
 

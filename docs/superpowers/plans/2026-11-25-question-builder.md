@@ -240,22 +240,35 @@ Add this new block immediately after it:
 
 Open `backend/database/seeders/RolePermissionSeeder.php`. `national_admin` already gets every permission via its `$allPermissions` wildcard — no change needed there.
 
-In the `'teacher' => [...]` array, find this line:
+In the `'teacher' => [...]` array, find this block (the single line
+`'questions.view',` also appears alone in the `'trainer'` array further
+down the file — use this exact 3-line block, not the single line on its
+own, to land on the right one):
 
 ```php
+                'versions.view', 'class_versions.view', 'shifts.view', 'sections.view', 'subject_teacher_assignments.view',
                 'questions.view',
+                'exams.view', 'exams.create', 'exams.update', 'exam_attempts.view', 'student_progress.view',
 ```
 
 Change it to:
 
 ```php
+                'versions.view', 'class_versions.view', 'shifts.view', 'sections.view', 'subject_teacher_assignments.view',
                 'questions.view', 'academic_questions.view',
+                'exams.view', 'exams.create', 'exams.update', 'exam_attempts.view', 'student_progress.view',
 ```
 
-In that same `'teacher' => [...]` array, find this line:
+In that same `'teacher' => [...]` array, find this block (the line
+`'attendances.view', 'attendances.update',` also appears alone in the
+`'school_admin'` array further up the file — use this exact 2-line block,
+not the single line on its own, to land on the right one: teacher's
+version is followed by a line with no `academic_exam_marks.publish`,
+school_admin's is):
 
 ```php
                 'attendances.view', 'attendances.update',
+                'academic_exam_marks.view', 'academic_exam_marks.update',
 ```
 
 Change it to:
@@ -263,6 +276,7 @@ Change it to:
 ```php
                 'attendances.view', 'attendances.update',
                 'question_papers.view', 'question_papers.create', 'question_papers.update', 'question_papers.delete',
+                'academic_exam_marks.view', 'academic_exam_marks.update',
 ```
 
 In the `'school_admin' => [...]` array, find this line:

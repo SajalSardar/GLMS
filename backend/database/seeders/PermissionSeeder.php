@@ -129,6 +129,28 @@ class PermissionSeeder extends Seeder
             ['name' => 'teacher_leave_applications.view', 'label' => 'View teacher leave applications'],
             ['name' => 'teacher_leave_applications.update', 'label' => 'Review teacher leave applications'],
 
+            // The national question bank — categorized by class, subject,
+            // and chapter. Only national_admin ever gets create/update/
+            // delete (see RolePermissionSeeder); teacher gets .view to
+            // browse it when building a question paper. school_admin gets
+            // neither — it never browses the raw bank, only prints
+            // already-saved question papers (see question_papers.* below).
+            ['name' => 'academic_questions.view', 'label' => 'View the academic question bank'],
+            ['name' => 'academic_questions.create', 'label' => 'Create academic questions'],
+            ['name' => 'academic_questions.update', 'label' => 'Update academic questions'],
+            ['name' => 'academic_questions.delete', 'label' => 'Delete academic questions'],
+
+            // A teacher's saved, built question paper. .create is teacher-
+            // only; .update/.delete are also teacher-only but additionally
+            // gated to the paper's own creator by QuestionPaperPolicy — a
+            // colleague at the same school can view/print but never edit.
+            // school_admin gets .view only (print-only, per the feature's
+            // explicit requirement) and never .create/.update/.delete.
+            ['name' => 'question_papers.view', 'label' => 'View question papers'],
+            ['name' => 'question_papers.create', 'label' => 'Create question papers'],
+            ['name' => 'question_papers.update', 'label' => 'Update a question paper (creator only)'],
+            ['name' => 'question_papers.delete', 'label' => 'Delete a question paper (creator only)'],
+
             // A student's own attendance is self-scoped outside this
             // permission system (AttendanceController::mine() just checks
             // the actor is a StudentUser, same as leave applications'

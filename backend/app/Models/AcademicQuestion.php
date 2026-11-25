@@ -1,0 +1,45 @@
+<?php
+
+namespace App\Models;
+
+use App\Models\Concerns\Auditable;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+class AcademicQuestion extends Model
+{
+    use Auditable, SoftDeletes;
+
+    public const TYPES = ['cq', 'mcq'];
+
+    protected $fillable = [
+        'school_class_id',
+        'subject_id',
+        'chapter_number',
+        'chapter_name',
+        'question_type',
+        'question_text',
+        'options',
+        'marks',
+        'is_active',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'options' => 'array',
+            'is_active' => 'boolean',
+        ];
+    }
+
+    public function schoolClass(): BelongsTo
+    {
+        return $this->belongsTo(SchoolClass::class, 'school_class_id');
+    }
+
+    public function subject(): BelongsTo
+    {
+        return $this->belongsTo(Subject::class);
+    }
+}

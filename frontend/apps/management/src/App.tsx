@@ -7,6 +7,7 @@ import AcademicExamTermsPage from './pages/AcademicExamTermsPage'
 import AcademicGradeConfiguresPage from './pages/AcademicGradeConfiguresPage'
 import AcademicSubjectMarkConfiguresPage from './pages/AcademicSubjectMarkConfiguresPage'
 import AcademicYearsPage from './pages/AcademicYearsPage'
+import AcademicQuestionsPage from './pages/AcademicQuestionsPage'
 import AllChaptersPage from './pages/AllChaptersPage'
 import AttendanceReportPage from './pages/AttendanceReportPage'
 import BooksPage from './pages/BooksPage'
@@ -22,6 +23,7 @@ import ManagementClassRoutinePage from './pages/ManagementClassRoutinePage'
 import ManagementLogin from './pages/ManagementLogin'
 import PermissionsPage from './pages/PermissionsPage'
 import PromoteStudentsPage from './pages/PromoteStudentsPage'
+import QuestionPapersPage from './pages/QuestionPapersPage'
 import PublishResultsPage from './pages/PublishResultsPage'
 import RolePermissionsPage from './pages/RolePermissionsPage'
 import RolesPage from './pages/RolesPage'
@@ -126,6 +128,16 @@ const routineNavItem: SidebarItem = {
 // item's role check).
 const holidaysNavItem: SidebarItem = { to: '/dashboard/holidays', label: t['management.nav.holidays'], icon: 'event_busy' }
 
+// national_admin only — the national question bank. teacher browses it
+// (academic_questions.view) to build papers in the teacher portal;
+// school_admin never gets access (see questionPapersNavItem instead,
+// which is school_admin's own, print-only, teacher-paper view).
+const questionBankNavItem: SidebarItem = {
+  to: '/dashboard/question-bank',
+  label: t['management.nav.questionBank'],
+  icon: 'quiz',
+}
+
 // Visible to both school_admin and national_admin. school_admin holds full
 // CRUD on Users (its own school's staff accounts, auto-scoped by
 // TenantScope) but only roles.view/permissions.view — no roles.create/
@@ -151,6 +163,16 @@ const teacherLeaveApplicationsNavItem: SidebarItem = {
   to: '/dashboard/teacher-leave-applications',
   label: t['management.nav.teacherLeaveApplications'],
   icon: 'work_off',
+}
+
+// school_admin only — print-only view of every question paper built by
+// any teacher at their own school (TenantScope-filtered). national_admin
+// never gets this nav item: it manages the underlying question bank
+// instead (questionBankNavItem), not individual teachers' papers.
+const questionPapersNavItem: SidebarItem = {
+  to: '/dashboard/question-papers',
+  label: t['management.nav.questionPapers'],
+  icon: 'description',
 }
 
 // national_admin only — read-only. Approving/rejecting stays exclusively
@@ -320,9 +342,9 @@ function DashboardLayout() {
     ...(role === 'national_admin' || role === 'school_admin'
       ? [attendanceNavItem, publishResultsNavItem, promoteStudentsNavItem, routineNavItem]
       : []),
-    ...(role === 'school_admin' ? [teacherLeaveApplicationsNavItem] : []),
+    ...(role === 'school_admin' ? [teacherLeaveApplicationsNavItem, questionPapersNavItem] : []),
     ...(role === 'national_admin' ? [teachersOnLeaveNavItem] : []),
-    ...(role === 'national_admin' ? [holidaysNavItem, schoolSetupItem] : []),
+    ...(role === 'national_admin' ? [holidaysNavItem, questionBankNavItem, schoolSetupItem] : []),
     ...(role === 'school_admin' ? [holidaysNavItem, schoolAdminSchoolSetupItem] : []),
     ...(role === 'national_admin' || role === 'school_admin' ? [usersRolesNavItem] : []),
     ...(role === 'national_admin' ? [systemSetupItem] : []),
@@ -375,8 +397,14 @@ function App() {
               <Route path="teacher-leave-applications" element={<RequireSchoolAdmin />}>
                 <Route index element={<TeacherLeaveApplicationsPage />} />
               </Route>
+              <Route path="question-papers" element={<RequireSchoolAdmin />}>
+                <Route index element={<QuestionPapersPage />} />
+              </Route>
               <Route path="teachers-on-leave" element={<RequireNationalAdmin />}>
                 <Route index element={<TeachersOnLeavePage />} />
+              </Route>
+              <Route path="question-bank" element={<RequireNationalAdmin />}>
+                <Route index element={<AcademicQuestionsPage />} />
               </Route>
               <Route path="holidays" element={<RequireSchoolManager />}>
                 <Route index element={<HolidaysPage />} />

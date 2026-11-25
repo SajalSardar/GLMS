@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\AcademicExamMarkController;
 use App\Http\Controllers\Api\V1\AcademicExamPublicationController;
 use App\Http\Controllers\Api\V1\AcademicExamTermController;
 use App\Http\Controllers\Api\V1\AcademicGradeConfigureController;
+use App\Http\Controllers\Api\V1\AcademicQuestionController;
 use App\Http\Controllers\Api\V1\AcademicSubjectMarkConfigureController;
 use App\Http\Controllers\Api\V1\AcademicYearController;
 use App\Http\Controllers\Api\V1\AttendanceController;
@@ -29,6 +30,7 @@ use App\Http\Controllers\Api\V1\HolidayController;
 use App\Http\Controllers\Api\V1\PermissionController;
 use App\Http\Controllers\Api\V1\PracticeExamController;
 use App\Http\Controllers\Api\V1\QuestionController;
+use App\Http\Controllers\Api\V1\QuestionPaperController;
 use App\Http\Controllers\Api\V1\RoleController;
 use App\Http\Controllers\Api\V1\SchoolController;
 use App\Http\Controllers\Api\V1\SectionController;
@@ -252,6 +254,9 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/teacher-leave-applications', [TeacherLeaveApplicationController::class, 'index']);
         Route::get('/teacher-leave-applications/{teacher_leave_application}', [TeacherLeaveApplicationController::class, 'show']);
         Route::patch('/teacher-leave-applications/{teacher_leave_application}/review', [TeacherLeaveApplicationController::class, 'review']);
+
+        Route::apiResource('academic-questions', AcademicQuestionController::class)->only(['index', 'store', 'update', 'destroy']);
+        Route::apiResource('question-papers', QuestionPaperController::class)->only(['index', 'show', 'store', 'update', 'destroy']);
 
         Route::apiResource('guardians', GuardianController::class);
     });
