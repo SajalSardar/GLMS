@@ -167,7 +167,6 @@ export default function QuestionBuilderPage() {
 
   const [filterClassId, setFilterClassId] = useState('')
   const [filterSubjectId, setFilterSubjectId] = useState('')
-  const [filterChapterNumber, setFilterChapterNumber] = useState('')
   const [filterType, setFilterType] = useState('')
   const [filterMarks, setFilterMarks] = useState('')
   const [bankQuestions, setBankQuestions] = useState<AcademicQuestion[]>([])
@@ -225,7 +224,6 @@ export default function QuestionBuilderPage() {
       {
         schoolClassId: filterClassId ? Number(filterClassId) : undefined,
         subjectId: filterSubjectId ? Number(filterSubjectId) : undefined,
-        chapterNumber: filterChapterNumber ? Number(filterChapterNumber) : undefined,
         questionType: (filterType || undefined) as AcademicQuestionType | undefined,
         marks: filterMarks ? Number(filterMarks) : undefined,
       },
@@ -343,14 +341,6 @@ export default function QuestionBuilderPage() {
                   </option>
                 ))}
               </select>
-              <input
-                type="number"
-                min={1}
-                placeholder={t['teacher.questionBuilder.chapterNumber']}
-                className={`${selectClass} w-32`}
-                value={filterChapterNumber}
-                onChange={(event) => setFilterChapterNumber(event.target.value)}
-              />
               <select className={selectClass} value={filterType} onChange={(event) => setFilterType(event.target.value)}>
                 <option value="">{t['teacher.questionBuilder.allTypes']}</option>
                 <option value="cq">{t['teacher.questionBuilder.cqLabel']}</option>

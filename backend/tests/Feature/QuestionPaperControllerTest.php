@@ -2,12 +2,16 @@
 
 namespace Tests\Feature;
 
+use App\Models\Book;
+use App\Models\Chapter;
+use App\Models\ClassVersion;
 use App\Models\District;
 use App\Models\Division;
 use App\Models\School;
 use App\Models\SchoolClass;
 use App\Models\Subject;
 use App\Models\Upazila;
+use App\Models\Version;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\CreatesAuthorizedActors;
 use Tests\TestCase;
@@ -25,6 +29,10 @@ class QuestionPaperControllerTest extends TestCase
 
     private Subject $subject;
 
+    private int $versionId;
+
+    private Chapter $chapter;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -40,6 +48,16 @@ class QuestionPaperControllerTest extends TestCase
 
         $this->schoolClass = SchoolClass::create(['name' => 'Class 6', 'numeric_level' => 6]);
         $this->subject = Subject::create(['name' => 'Bangla', 'code' => 'BAN-101']);
+        $this->versionId = Version::where('name', 'Bangla')->value('id');
+
+        $classVersion = ClassVersion::create([
+            'class_id' => $this->schoolClass->id,
+            'school_id' => $this->schoolA->id,
+            'district_id' => $this->schoolA->district_id,
+            'version_id' => $this->versionId,
+        ]);
+        $book = Book::create(['class_version_id' => $classVersion->id, 'subject_id' => $this->subject->id, 'name' => 'Bangla Book']);
+        $this->chapter = Chapter::create(['book_id' => $book->id, 'name' => 'Prose']);
     }
 
     private function createQuestion(array $overrides = []): int
@@ -49,8 +67,8 @@ class QuestionPaperControllerTest extends TestCase
         return $this->actingAs($nationalAdmin, 'sanctum')->postJson('/api/v1/academic-questions', array_merge([
             'school_class_id' => $this->schoolClass->id,
             'subject_id' => $this->subject->id,
-            'chapter_number' => 1,
-            'chapter_name' => 'Prose',
+            'version_id' => $this->versionId,
+            'chapter_id' => $this->chapter->id,
             'question_type' => 'cq',
             'question_text' => 'Read the passage...',
             'marks' => 10,
@@ -192,7 +210,7 @@ class QuestionPaperControllerTest extends TestCase
             ['type' => 'question', 'academic_question_id' => $questionId],
         ]))->json('data.id');
 
-        $newQuestionId = $this->createQuestion(['chapter_name' => 'Poetry']);
+        $newQuestionId = $this->createQuestion();
         $payload = $this->paperPayload([
             ['type' => 'question', 'academic_question_id' => $newQuestionId],
         ]);
@@ -369,8 +387,8 @@ class QuestionPaperControllerTest extends TestCase
         return [
             'school_class_id' => $this->schoolClass->id,
             'subject_id' => $this->subject->id,
-            'chapter_number' => 1,
-            'chapter_name' => 'Prose',
+            'version_id' => $this->versionId,
+            'chapter_id' => $this->chapter->id,
             'question_type' => 'cq',
             'question_text' => 'Read the passage...',
             'marks' => 10,

@@ -2,8 +2,16 @@
 
 namespace Tests\Feature;
 
+use App\Models\Book;
+use App\Models\Chapter;
+use App\Models\ClassVersion;
+use App\Models\District;
+use App\Models\Division;
+use App\Models\School;
 use App\Models\SchoolClass;
 use App\Models\Subject;
+use App\Models\Upazila;
+use App\Models\Version;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\CreatesAuthorizedActors;
 use Tests\TestCase;
@@ -17,12 +25,38 @@ class AcademicQuestionControllerTest extends TestCase
 
     private Subject $subject;
 
+    private int $versionId;
+
+    private Chapter $chapter;
+
+    private School $school;
+
     protected function setUp(): void
     {
         parent::setUp();
 
+        $division = Division::create(['name' => 'Division', 'bn_name' => 'বিভাগ']);
+        $district = District::create(['division_id' => $division->id, 'name' => 'District', 'bn_name' => 'জেলা']);
+        $upazila = Upazila::create(['district_id' => $district->id, 'name' => 'Upazila', 'bn_name' => 'উপজেলা']);
+        $this->school = School::create(['division_id' => $division->id, 'district_id' => $district->id, 'upazila_id' => $upazila->id, 'name' => 'School']);
+
         $this->schoolClass = SchoolClass::create(['name' => 'Class 6', 'bn_name' => 'ষষ্ঠ শ্রেণি', 'numeric_level' => 6]);
         $this->subject = Subject::create(['name' => 'Bangla', 'bn_name' => 'বাংলা', 'code' => 'BAN-101']);
+        $this->versionId = Version::where('name', 'Bangla')->value('id');
+        $this->chapter = $this->chapterFor($this->schoolClass, $this->subject);
+    }
+
+    private function chapterFor(SchoolClass $schoolClass, Subject $subject): Chapter
+    {
+        $classVersion = ClassVersion::create([
+            'class_id' => $schoolClass->id,
+            'school_id' => $this->school->id,
+            'district_id' => $this->school->district_id,
+            'version_id' => $this->versionId,
+        ]);
+        $book = Book::create(['class_version_id' => $classVersion->id, 'subject_id' => $subject->id, 'name' => "{$subject->name} Book"]);
+
+        return Chapter::create(['book_id' => $book->id, 'name' => 'Prose']);
     }
 
     /**
@@ -33,8 +67,8 @@ class AcademicQuestionControllerTest extends TestCase
         return [
             'school_class_id' => $this->schoolClass->id,
             'subject_id' => $this->subject->id,
-            'chapter_number' => 1,
-            'chapter_name' => 'Prose',
+            'version_id' => $this->versionId,
+            'chapter_id' => $this->chapter->id,
             'question_type' => 'cq',
             'question_text' => 'Read the passage and answer the following...',
             'marks' => 10,
@@ -49,8 +83,8 @@ class AcademicQuestionControllerTest extends TestCase
         return [
             'school_class_id' => $this->schoolClass->id,
             'subject_id' => $this->subject->id,
-            'chapter_number' => 1,
-            'chapter_name' => 'Prose',
+            'version_id' => $this->versionId,
+            'chapter_id' => $this->chapter->id,
             'question_type' => 'mcq',
             'question_text' => 'Which of the following is correct?',
             'options' => ['Option A', 'Option B', 'Option C', 'Option D'],
@@ -68,7 +102,7 @@ class AcademicQuestionControllerTest extends TestCase
             ->assertJsonPath('data.question_type', 'cq')
             ->assertJsonPath('data.options', null);
 
-        $this->assertDatabaseHas('academic_questions', ['chapter_name' => 'Prose', 'question_type' => 'cq']);
+        $this->assertDatabaseHas('academic_questions', ['chapter_id' => $this->chapter->id, 'question_type' => 'cq']);
     }
 
     public function test_national_admin_can_create_an_mcq_question_with_four_options(): void
@@ -106,6 +140,20 @@ class AcademicQuestionControllerTest extends TestCase
             ->assertJsonValidationErrors('options');
     }
 
+    public function test_store_rejects_a_chapter_that_does_not_belong_to_the_selected_class_version_and_subject(): void
+    {
+        $nationalAdmin = $this->actorWithPermissions(['academic_questions.create']);
+        $otherSubject = Subject::create(['name' => 'Mathematics', 'code' => 'MAT-101']);
+
+        $payload = $this->cqPayload();
+        $payload['subject_id'] = $otherSubject->id;
+
+        $this->actingAs($nationalAdmin, 'sanctum')
+            ->postJson('/api/v1/academic-questions', $payload)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('chapter_id');
+    }
+
     public function test_store_is_forbidden_without_the_create_permission(): void
     {
         $teacher = $this->teacherActorWithPermissions(['academic_questions.view']);
@@ -123,9 +171,10 @@ class AcademicQuestionControllerTest extends TestCase
         $this->actingAs($nationalAdmin, 'sanctum')->postJson('/api/v1/academic-questions', $this->cqPayload())->assertCreated();
 
         $otherClass = SchoolClass::create(['name' => 'Class 7', 'numeric_level' => 7]);
+        $otherChapter = $this->chapterFor($otherClass, $this->subject);
         $this->actingAs($nationalAdmin, 'sanctum')->postJson('/api/v1/academic-questions', array_merge(
             $this->cqPayload(),
-            ['school_class_id' => $otherClass->id],
+            ['school_class_id' => $otherClass->id, 'chapter_id' => $otherChapter->id],
         ))->assertCreated();
 
         $response = $this->actingAs($teacher, 'sanctum')

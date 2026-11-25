@@ -23,8 +23,7 @@ class QuestionPaperItemResource extends JsonResource
                 'question_text' => $this->academicQuestion->question_text,
                 'options' => $this->academicQuestion->options,
                 'marks' => $this->academicQuestion->marks,
-                'chapter_number' => $this->academicQuestion->chapter_number,
-                'chapter_name' => $this->academicQuestion->chapter_name,
+                'chapter_name' => $this->academicQuestion->chapter?->name,
             ]),
         ];
     }

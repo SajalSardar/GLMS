@@ -2991,8 +2991,8 @@ export interface AcademicQuestion {
   id: number
   school_class_id: number
   subject_id: number
-  chapter_number: number
-  chapter_name: string
+  version_id: number
+  chapter_id: number
   question_type: AcademicQuestionType
   question_text: string
   options: string[] | null
@@ -3001,13 +3001,15 @@ export interface AcademicQuestion {
   created_at: string
   school_class?: { id: number; name: string; bn_name: string | null } | null
   subject?: { id: number; name: string; bn_name: string | null } | null
+  version?: { id: number; name: string; bn_name: string | null } | null
+  chapter?: { id: number; name: string; bn_name: string | null } | null
 }
 
 export interface AcademicQuestionPayload {
   school_class_id: number
   subject_id: number
-  chapter_number: number
-  chapter_name: string
+  version_id: number
+  chapter_id: number
   question_type: AcademicQuestionType
   question_text: string
   options?: string[] | null
@@ -3023,7 +3025,8 @@ export function listAcademicQuestions(
   params: {
     schoolClassId?: number
     subjectId?: number
-    chapterNumber?: number
+    versionId?: number
+    chapterId?: number
     questionType?: AcademicQuestionType
     marks?: number
   } = {},
@@ -3032,7 +3035,8 @@ export function listAcademicQuestions(
   const query = buildQuery({
     school_class_id: params.schoolClassId,
     subject_id: params.subjectId,
-    chapter_number: params.chapterNumber,
+    version_id: params.versionId,
+    chapter_id: params.chapterId,
     question_type: params.questionType,
     marks: params.marks,
   })

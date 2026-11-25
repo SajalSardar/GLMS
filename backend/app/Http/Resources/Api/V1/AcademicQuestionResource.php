@@ -16,8 +16,8 @@ class AcademicQuestionResource extends JsonResource
             'id' => $this->id,
             'school_class_id' => $this->school_class_id,
             'subject_id' => $this->subject_id,
-            'chapter_number' => $this->chapter_number,
-            'chapter_name' => $this->chapter_name,
+            'version_id' => $this->version_id,
+            'chapter_id' => $this->chapter_id,
             'question_type' => $this->question_type,
             'question_text' => $this->question_text,
             'options' => $this->options,
@@ -33,6 +33,16 @@ class AcademicQuestionResource extends JsonResource
                 'id' => $this->subject->id,
                 'name' => $this->subject->name,
                 'bn_name' => $this->subject->bn_name,
+            ]),
+            'version' => $this->whenLoaded('version', fn () => $this->version === null ? null : [
+                'id' => $this->version->id,
+                'name' => $this->version->name,
+                'bn_name' => $this->version->bn_name,
+            ]),
+            'chapter' => $this->whenLoaded('chapter', fn () => $this->chapter === null ? null : [
+                'id' => $this->chapter->id,
+                'name' => $this->chapter->name,
+                'bn_name' => $this->chapter->bn_name,
             ]),
         ];
     }
