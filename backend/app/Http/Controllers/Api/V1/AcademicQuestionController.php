@@ -13,7 +13,7 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class AcademicQuestionController extends Controller
 {
-    private const WITH = ['schoolClass', 'subject'];
+    private const WITH = ['schoolClass', 'subject', 'chapter'];
 
     /**
      * The national question bank, filtered by the criteria a teacher uses
@@ -23,7 +23,7 @@ class AcademicQuestionController extends Controller
      * portal's bank CRUD page) sees inactive questions too, since that
      * page is the only place a deactivated question can be reviewed or
      * reactivated. This is a global bank with no TenantScope, so
-     * school_class_id/subject_id/chapter_number/question_type/marks are
+     * school_class_id/subject_id/chapter_id/question_type/marks are
      * the only narrowing available.
      */
     public function index(Request $request): AnonymousResourceCollection
@@ -38,10 +38,10 @@ class AcademicQuestionController extends Controller
             )
             ->when($request->integer('school_class_id'), fn ($query, $id) => $query->where('school_class_id', $id))
             ->when($request->integer('subject_id'), fn ($query, $id) => $query->where('subject_id', $id))
-            ->when($request->integer('chapter_number'), fn ($query, $number) => $query->where('chapter_number', $number))
+            ->when($request->integer('chapter_id'), fn ($query, $id) => $query->where('chapter_id', $id))
             ->when($request->string('question_type')->toString(), fn ($query, $type) => $query->where('question_type', $type))
             ->when($request->integer('marks'), fn ($query, $marks) => $query->where('marks', $marks))
-            ->orderBy('chapter_number')
+            ->orderBy('chapter_id')
             ->orderBy('id')
             ->get();
 
@@ -53,8 +53,7 @@ class AcademicQuestionController extends Controller
         $question = AcademicQuestion::create([
             'school_class_id' => $request->input('school_class_id'),
             'subject_id' => $request->input('subject_id'),
-            'chapter_number' => $request->input('chapter_number'),
-            'chapter_name' => $request->input('chapter_name'),
+            'chapter_id' => $request->input('chapter_id'),
             'question_type' => $request->input('question_type'),
             'question_text' => $request->input('question_text'),
             'options' => $request->input('options'),
@@ -72,8 +71,7 @@ class AcademicQuestionController extends Controller
         $academic_question->update([
             'school_class_id' => $request->input('school_class_id'),
             'subject_id' => $request->input('subject_id'),
-            'chapter_number' => $request->input('chapter_number'),
-            'chapter_name' => $request->input('chapter_name'),
+            'chapter_id' => $request->input('chapter_id'),
             'question_type' => $request->input('question_type'),
             'question_text' => $request->input('question_text'),
             'options' => $request->input('options'),

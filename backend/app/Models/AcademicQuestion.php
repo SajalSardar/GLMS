@@ -16,8 +16,7 @@ class AcademicQuestion extends Model
     protected $fillable = [
         'school_class_id',
         'subject_id',
-        'chapter_number',
-        'chapter_name',
+        'chapter_id',
         'question_type',
         'question_text',
         'options',
@@ -41,5 +40,10 @@ class AcademicQuestion extends Model
     public function subject(): BelongsTo
     {
         return $this->belongsTo(Subject::class);
+    }
+
+    public function chapter(): BelongsTo
+    {
+        return $this->belongsTo(AcademicQuestionChapter::class, 'chapter_id');
     }
 }

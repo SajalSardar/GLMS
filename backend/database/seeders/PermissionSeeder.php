@@ -140,6 +140,15 @@ class PermissionSeeder extends Seeder
             ['name' => 'academic_questions.update', 'label' => 'Update academic questions'],
             ['name' => 'academic_questions.delete', 'label' => 'Delete academic questions'],
 
+            // The global chapter list backing the question bank's chapter
+            // picker — same national_admin-only CRUD tier as the bank
+            // itself; teacher gets .view to populate the picker when
+            // filtering/building a paper.
+            ['name' => 'academic_question_chapters.view', 'label' => 'View the question bank chapter list'],
+            ['name' => 'academic_question_chapters.create', 'label' => 'Create question bank chapters'],
+            ['name' => 'academic_question_chapters.update', 'label' => 'Update question bank chapters'],
+            ['name' => 'academic_question_chapters.delete', 'label' => 'Delete question bank chapters'],
+
             // A teacher's saved, built question paper. .create is teacher-
             // only; .update/.delete are also teacher-only but additionally
             // gated to the paper's own creator by QuestionPaperPolicy — a
