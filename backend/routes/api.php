@@ -39,6 +39,7 @@ use App\Http\Controllers\Api\V1\StudentPromotionController;
 use App\Http\Controllers\Api\V1\StudentUserController;
 use App\Http\Controllers\Api\V1\SubjectController;
 use App\Http\Controllers\Api\V1\SubjectTeacherAssignmentController;
+use App\Http\Controllers\Api\V1\TeacherLeaveApplicationController;
 use App\Http\Controllers\Api\V1\TeacherProfileController;
 use App\Http\Controllers\Api\V1\TeacherUserController;
 use App\Http\Controllers\Api\V1\TimetableEntryController;
@@ -241,6 +242,16 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/student-leave-applications', [StudentLeaveApplicationController::class, 'index']);
         Route::get('/student-leave-applications/{student_leave_application}', [StudentLeaveApplicationController::class, 'show']);
         Route::patch('/student-leave-applications/{student_leave_application}/review', [StudentLeaveApplicationController::class, 'review']);
+
+        Route::post('/teacher-leave-applications', [TeacherLeaveApplicationController::class, 'store']);
+        // "mine" and "colleagues" must be registered before the
+        // {teacher_leave_application} wildcard show route below, same
+        // gotcha as student-leave-applications/mine.
+        Route::get('/teacher-leave-applications/mine', [TeacherLeaveApplicationController::class, 'mine']);
+        Route::get('/teacher-leave-applications/colleagues', [TeacherLeaveApplicationController::class, 'colleagues']);
+        Route::get('/teacher-leave-applications', [TeacherLeaveApplicationController::class, 'index']);
+        Route::get('/teacher-leave-applications/{teacher_leave_application}', [TeacherLeaveApplicationController::class, 'show']);
+        Route::patch('/teacher-leave-applications/{teacher_leave_application}/review', [TeacherLeaveApplicationController::class, 'review']);
 
         Route::apiResource('guardians', GuardianController::class);
     });
