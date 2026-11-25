@@ -104,11 +104,16 @@ class TeacherLeaveApplicationController extends Controller
     /**
      * Other teachers at this teacher's own school, for the substitute
      * picker — self-service, bypasses the permission system entirely
-     * (same convention as store()/mine()); TenantScope on TeacherUser
-     * already narrows the query to the caller's own school, so this
-     * controller adds no explicit school_id filter. Deliberately minimal
-     * (id + name only) — this endpoint has no permission check at all, so
-     * it must never leak anything beyond a name.
+     * (same convention as store()/mine()). The school_id filter is
+     * explicit here rather than left to TenantScope: TenantScope falls
+     * through to completely unrestricted once BOTH school_id and
+     * district_id are null on the acting user, which a TeacherUser with
+     * no school assigned is a real, reachable state for (see
+     * test_store_rejects_a_teacher_with_no_school_assigned) — relying on
+     * it alone would hand that teacher every teacher nationwide instead
+     * of an empty list. Deliberately minimal (id + name only) — this
+     * endpoint has no permission check at all, so it must never leak
+     * anything beyond a name.
      */
     public function colleagues(Request $request): JsonResponse
     {
@@ -117,6 +122,7 @@ class TeacherLeaveApplicationController extends Controller
 
         $colleagues = TeacherUser::query()
             ->where('id', '!=', $teacher->id)
+            ->where('school_id', $teacher->school_id)
             ->orderBy('name')
             ->get(['id', 'name']);
 

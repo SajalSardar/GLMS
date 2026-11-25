@@ -2,6 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Models\AcademicExamTerm;
+use App\Models\AcademicSubjectMarkConfigure;
+use App\Models\AcademicYear;
 use App\Models\ClassVersion;
 use App\Models\District;
 use App\Models\Division;
@@ -9,7 +12,9 @@ use App\Models\School;
 use App\Models\SchoolClass;
 use App\Models\Section;
 use App\Models\Shift;
+use App\Models\StudentLeaveApplication;
 use App\Models\StudentProfile;
+use App\Models\Subject;
 use App\Models\TeacherLeaveApplication;
 use App\Models\Upazila;
 use App\Models\Version;
@@ -208,5 +213,116 @@ class AttendanceDelegationTest extends TestCase
             'date' => now()->toDateString(),
             'records' => [['student_profile_id' => $profile->id, 'status' => 'present']],
         ])->assertOk();
+    }
+
+    /**
+     * AttendancePolicy::viewSection()'s delegate branch, exercised
+     * directly rather than only transitively through recordSection() —
+     * every other test in this file goes through record()/my-sections.
+     * viewSection() also gates roster/report, which an approved delegate
+     * must be able to reach to actually take over the class for the
+     * leave window (they need to see who to mark, not just submit marks
+     * blind).
+     */
+    public function test_an_approved_delegate_can_view_the_roster_and_report_for_the_delegated_section(): void
+    {
+        $classTeacher = $this->teacherActorWithPermissions([], $this->school->id, $this->school->district_id);
+        $this->section->update(['class_teacher_id' => $classTeacher->id]);
+
+        $substitute = $this->teacherActorWithPermissions([], $this->school->id, $this->school->district_id);
+
+        TeacherLeaveApplication::create([
+            'teacher_id' => $classTeacher->id,
+            'school_id' => $this->school->id,
+            'district_id' => $this->school->district_id,
+            'from_date' => now()->subDay()->toDateString(),
+            'to_date' => now()->addDay()->toDateString(),
+            'reason' => 'Sick',
+            'status' => 'approved',
+            'delegate_teacher_id' => $substitute->id,
+        ]);
+
+        $this->studentInSection();
+
+        $this->actingAs($substitute, 'sanctum')
+            ->getJson("/api/v1/attendances/roster?section_id={$this->section->id}&date=".now()->toDateString())
+            ->assertOk();
+
+        $this->actingAs($substitute, 'sanctum')
+            ->getJson('/api/v1/attendances/report?section_id='.$this->section->id.'&year='.now()->format('Y').'&month='.now()->format('n'))
+            ->assertOk();
+    }
+
+    /**
+     * Non-regression, pinning the spec's explicit Non-Goal: an active
+     * attendance delegation must NOT extend to exam-mark recording or
+     * student-leave review — the one place a future maintainer might
+     * assume delegation should "just work" everywhere class_teacher_id
+     * appears. AcademicExamMarkPolicy and StudentLeaveApplicationPolicy
+     * are untouched by this feature and know nothing about
+     * TeacherLeaveApplication, so the same substitute who may record
+     * attendance for this exact section/leave-window must still be
+     * forbidden from both.
+     */
+    public function test_an_approved_attendance_delegation_does_not_extend_to_exam_marks_or_student_leave_review(): void
+    {
+        $classTeacher = $this->teacherActorWithPermissions([], $this->school->id, $this->school->district_id);
+        $this->section->update(['class_teacher_id' => $classTeacher->id]);
+
+        $substitute = $this->teacherActorWithPermissions([], $this->school->id, $this->school->district_id);
+
+        TeacherLeaveApplication::create([
+            'teacher_id' => $classTeacher->id,
+            'school_id' => $this->school->id,
+            'district_id' => $this->school->district_id,
+            'from_date' => now()->subDay()->toDateString(),
+            'to_date' => now()->addDay()->toDateString(),
+            'reason' => 'Sick',
+            'status' => 'approved',
+            'delegate_teacher_id' => $substitute->id,
+        ]);
+
+        $profile = $this->studentInSection();
+        $classId = $this->section->shift->classVersion->class_id;
+
+        // (i) Exam-mark recording for the delegated section is still
+        // forbidden — AcademicExamMarkPolicy only grants recordSection()
+        // to the section's own class teacher or a SubjectTeacherAssignment
+        // holder, neither of which the substitute is.
+        $subject = Subject::create(['name' => 'Mathematics']);
+        AcademicSubjectMarkConfigure::create(['class_id' => $classId, 'subject_id' => $subject->id, 'cq_full_marks' => 70]);
+        $term = AcademicExamTerm::create(['name' => 'First Terminal Examination', 'sort_order' => 1]);
+        $year = AcademicYear::create(['name' => '2026', 'start_date' => '2026-01-01', 'end_date' => '2026-12-31', 'is_current' => true]);
+
+        $this->actingAs($substitute, 'sanctum')->postJson('/api/v1/academic-exam-marks/record', [
+            'section_id' => $this->section->id,
+            'subject_id' => $subject->id,
+            'academic_exam_term_id' => $term->id,
+            'academic_year_id' => $year->id,
+            'records' => [['student_profile_id' => $profile->id, 'cq_marks_obtained' => 50]],
+        ])->assertForbidden();
+
+        // (ii) Reviewing a student-leave application for a student in the
+        // delegated section is still forbidden — StudentLeaveApplicationPolicy
+        // ::review() only grants it to the section's own class teacher.
+        $studentLeaveApplication = StudentLeaveApplication::create([
+            'student_profile_id' => $profile->id,
+            'school_id' => $this->school->id,
+            'district_id' => $this->school->district_id,
+            'class_id' => $classId,
+            'section_id' => $this->section->id,
+            'shift_id' => $this->section->shift_id,
+            'class_version_id' => $this->section->shift->class_version_id,
+            'from_date' => now()->subDay()->toDateString(),
+            'to_date' => now()->addDay()->toDateString(),
+            'reason' => 'Sick',
+            'status' => 'pending',
+        ]);
+
+        $this->actingAs($substitute, 'sanctum')
+            ->patchJson("/api/v1/student-leave-applications/{$studentLeaveApplication->id}/review", [
+                'status' => 'approved',
+            ])
+            ->assertForbidden();
     }
 }

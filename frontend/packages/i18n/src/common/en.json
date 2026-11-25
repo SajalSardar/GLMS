@@ -466,7 +466,6 @@
   "management.teacherLeaveApplications.colReason": "Reason",
   "management.teacherLeaveApplications.colSubstitute": "Substitute",
   "management.teacherLeaveApplications.colStatus": "Status",
-  "management.teacherLeaveApplications.colComment": "Comment",
   "management.teacherLeaveApplications.filterAllStatus": "All statuses",
   "management.teacherLeaveApplications.statusPending": "Pending",
   "management.teacherLeaveApplications.statusApproved": "Approved",

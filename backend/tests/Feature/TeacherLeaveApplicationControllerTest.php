@@ -167,6 +167,28 @@ class TeacherLeaveApplicationControllerTest extends TestCase
         $this->assertFalse($ids->contains($otherSchoolTeacher->id));
     }
 
+    /**
+     * Security regression: TenantScope falls through to completely
+     * unrestricted once an actor has BOTH school_id and district_id null
+     * (see TenantScope::apply()), which a real, already-tested state for
+     * a TeacherUser (test_store_rejects_a_teacher_with_no_school_assigned).
+     * Before colleagues() added its own explicit school_id filter, a
+     * null-school teacher calling this endpoint got back every teacher in
+     * the entire system instead of an empty list. Seeds a real teacher at
+     * a real school so a regression to "return everyone" would be caught.
+     */
+    public function test_colleagues_returns_empty_for_a_teacher_with_no_school_assigned(): void
+    {
+        $unassignedTeacher = $this->teacherActorWithPermissions([], null, null);
+        $this->teacherActorWithPermissions([], $this->schoolA->id, $this->schoolA->district_id);
+
+        $response = $this->actingAs($unassignedTeacher, 'sanctum')
+            ->getJson('/api/v1/teacher-leave-applications/colleagues')
+            ->assertOk();
+
+        $this->assertSame([], $response->json('data'));
+    }
+
     public function test_school_admin_sees_only_their_own_schools_applications(): void
     {
         $teacherA = $this->teacherActorWithPermissions([], $this->schoolA->id, $this->schoolA->district_id);
@@ -251,6 +273,41 @@ class TeacherLeaveApplicationControllerTest extends TestCase
         $this->actingAs($otherTeacher, 'sanctum')
             ->patchJson("/api/v1/teacher-leave-applications/{$applicationId}/review", ['status' => 'approved'])
             ->assertForbidden();
+    }
+
+    /**
+     * Pins the real, intended behavior: review() has no guard against
+     * re-deciding an already-decided application — it mirrors
+     * StudentLeaveApplicationController::review()'s own identical lack of
+     * a re-review guard, a deliberate consistency choice with this
+     * codebase's established convention for the analogous resource, not
+     * an oversight. A future change to this behavior should be a
+     * deliberate decision, caught by this test breaking, not an
+     * accidental regression.
+     */
+    public function test_review_allows_re_reviewing_an_already_decided_application(): void
+    {
+        $teacher = $this->teacherActorWithPermissions([], $this->schoolA->id, $this->schoolA->district_id);
+        $applicationId = $this->actingAs($teacher, 'sanctum')->postJson('/api/v1/teacher-leave-applications', [
+            'from_date' => '2026-12-01', 'to_date' => '2026-12-02', 'reason' => 'Sick',
+        ])->json('data.id');
+
+        $schoolAdmin = $this->actorWithPermissions(['teacher_leave_applications.view', 'teacher_leave_applications.update'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $this->actingAs($schoolAdmin, 'sanctum')
+            ->patchJson("/api/v1/teacher-leave-applications/{$applicationId}/review", ['status' => 'approved'])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'approved');
+
+        $this->actingAs($schoolAdmin, 'sanctum')
+            ->patchJson("/api/v1/teacher-leave-applications/{$applicationId}/review", ['status' => 'rejected'])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'rejected');
+
+        $this->assertDatabaseHas('teacher_leave_applications', [
+            'id' => $applicationId,
+            'status' => 'rejected',
+        ]);
     }
 
     public function test_review_rejects_an_invalid_status(): void
