@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 import {
   createAcademicYear,
   deleteAcademicYear,
@@ -41,27 +40,6 @@ function CurrentBadge({ isCurrent }: { isCurrent: boolean }) {
     >
       {isCurrent ? t['management.fields.yes'] : t['management.fields.no']}
     </span>
-  )
-}
-
-function DetailRow({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <div className="flex items-start justify-between gap-4 border-b border-gray-100 py-2 last:border-0">
-      <span className="text-sm text-gray-500">{label}</span>
-      <span className="text-right text-sm font-medium text-gray-800">{value}</span>
-    </div>
-  )
-}
-
-function AcademicYearDetails({ year }: { year: AcademicYear }) {
-  return (
-    <div className="flex flex-col gap-1">
-      <DetailRow label={t['management.fields.name']} value={year.name} />
-      <DetailRow label={t['management.fields.startDate']} value={year.start_date} />
-      <DetailRow label={t['management.fields.endDate']} value={year.end_date} />
-      <DetailRow label={t['management.fields.current']} value={<CurrentBadge isCurrent={year.is_current} />} />
-      <DetailRow label={t['management.fields.description']} value={year.description ?? '—'} />
-    </div>
   )
 }
 
@@ -141,7 +119,9 @@ export default function AcademicYearsPage() {
       createRow={(values, token) => createAcademicYear(toPayload(values), token)}
       updateRow={(id, values, token) => updateAcademicYear(id, toPayload(values), token)}
       deleteRow={(id, token) => deleteAcademicYear(id, token)}
-      renderDetails={(row) => <AcademicYearDetails year={row} />}
+      createPermission="academic_years.create"
+      updatePermission="academic_years.update"
+      deletePermission="academic_years.delete"
     />
   )
 }

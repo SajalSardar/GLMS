@@ -212,6 +212,16 @@ export default function GeoCrudTable<T extends { id: number }>({
 
   const { toast, showToast } = useToast()
 
+  // Hide the whole Actions column — header included — when nothing in it
+  // would ever render: no row actions, no view (onView/renderDetails), and
+  // the actor lacks both the update and delete permission. A role that
+  // only holds `.view` on a resource (e.g. school_admin on academic years)
+  // then gets a plain read-only table instead of an Actions column with
+  // nothing usable in it.
+  const canUpdate = !updatePermission || can(updatePermission)
+  const canDelete = !deletePermission || can(deletePermission)
+  const showActionsColumn = Boolean(rowActions) || Boolean(onView || renderDetails) || canUpdate || canDelete
+
   const load = useCallback(
     (targetPage: number) => {
       setLoading(true)
@@ -482,19 +492,21 @@ export default function GeoCrudTable<T extends { id: number }>({
                   {column.label}
                 </th>
               ))}
-              <th className="px-5 py-3 text-left whitespace-nowrap">{t['management.table.actions']}</th>
+              {showActionsColumn && (
+                <th className="px-5 py-3 text-left whitespace-nowrap">{t['management.table.actions']}</th>
+              )}
             </tr>
           </thead>
           <tbody className={loading ? 'opacity-60' : undefined}>
             {loading && rows.length === 0 ? (
               <tr>
-                <td colSpan={columns.length + 2} className="px-5 py-6 text-center text-gray-500">
+                <td colSpan={columns.length + (showActionsColumn ? 2 : 1)} className="px-5 py-6 text-center text-gray-500">
                   {t['management.table.loading']}
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={columns.length + 2} className="px-5 py-6 text-center text-gray-500">
+                <td colSpan={columns.length + (showActionsColumn ? 2 : 1)} className="px-5 py-6 text-center text-gray-500">
                   {t['management.table.empty']}
                 </td>
               </tr>
@@ -509,41 +521,43 @@ export default function GeoCrudTable<T extends { id: number }>({
                       {column.render(row)}
                     </td>
                   ))}
-                  <td className="px-5 py-3.5">
-                    <div className="flex items-center gap-[9px]">
-                      {rowActions?.(row)}
-                      {(onView || renderDetails) && (
-                        <button
-                          type="button"
-                          className="cursor-pointer leading-none text-gray-500 transition-colors duration-150 hover:text-primary-500"
-                          onClick={() => (onView ? onView(row) : setViewingRow(row))}
-                          aria-label={t['management.table.view']}
-                        >
-                          <span className="material-symbols-outlined !text-md">visibility</span>
-                        </button>
-                      )}
-                      {(!updatePermission || can(updatePermission)) && (
-                        <button
-                          type="button"
-                          className="cursor-pointer leading-none text-gray-500 transition-colors duration-150 hover:text-primary-500"
-                          onClick={() => (onEdit ? onEdit(row) : openEditForm(row))}
-                          aria-label={t['management.table.edit']}
-                        >
-                          <span className="material-symbols-outlined !text-md">edit</span>
-                        </button>
-                      )}
-                      {(!deletePermission || can(deletePermission)) && (
-                        <button
-                          type="button"
-                          className="cursor-pointer leading-none text-danger-500 transition-colors duration-150 hover:text-danger-600"
-                          onClick={() => openDeleteConfirm(row.id)}
-                          aria-label={t['management.table.delete']}
-                        >
-                          <span className="material-symbols-outlined !text-md">delete</span>
-                        </button>
-                      )}
-                    </div>
-                  </td>
+                  {showActionsColumn && (
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-[9px]">
+                        {rowActions?.(row)}
+                        {(onView || renderDetails) && (
+                          <button
+                            type="button"
+                            className="cursor-pointer leading-none text-gray-500 transition-colors duration-150 hover:text-primary-500"
+                            onClick={() => (onView ? onView(row) : setViewingRow(row))}
+                            aria-label={t['management.table.view']}
+                          >
+                            <span className="material-symbols-outlined !text-md">visibility</span>
+                          </button>
+                        )}
+                        {canUpdate && (
+                          <button
+                            type="button"
+                            className="cursor-pointer leading-none text-gray-500 transition-colors duration-150 hover:text-primary-500"
+                            onClick={() => (onEdit ? onEdit(row) : openEditForm(row))}
+                            aria-label={t['management.table.edit']}
+                          >
+                            <span className="material-symbols-outlined !text-md">edit</span>
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button
+                            type="button"
+                            className="cursor-pointer leading-none text-danger-500 transition-colors duration-150 hover:text-danger-600"
+                            onClick={() => openDeleteConfirm(row.id)}
+                            aria-label={t['management.table.delete']}
+                          >
+                            <span className="material-symbols-outlined !text-md">delete</span>
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))
             )}
