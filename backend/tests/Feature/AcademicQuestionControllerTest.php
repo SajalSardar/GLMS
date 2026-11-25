@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\AcademicQuestion;
 use App\Models\SchoolClass;
 use App\Models\Subject;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -169,6 +168,27 @@ class AcademicQuestionControllerTest extends TestCase
             ->putJson("/api/v1/academic-questions/{$id}", $payload)
             ->assertOk()
             ->assertJsonPath('data.marks', 15);
+    }
+
+    public function test_updating_a_deactivated_question_without_is_active_keeps_it_inactive(): void
+    {
+        $nationalAdmin = $this->actorWithPermissions(['academic_questions.create', 'academic_questions.update']);
+        $payload = $this->cqPayload();
+        $payload['is_active'] = false;
+        $id = $this->actingAs($nationalAdmin, 'sanctum')->postJson('/api/v1/academic-questions', $payload)->json('data.id');
+
+        $updatePayload = $this->cqPayload();
+        $updatePayload['marks'] = 15;
+        // Deliberately omit `is_active` — a caller only changing `marks`
+        // must not reactivate a previously deactivated question.
+
+        $this->actingAs($nationalAdmin, 'sanctum')
+            ->putJson("/api/v1/academic-questions/{$id}", $updatePayload)
+            ->assertOk()
+            ->assertJsonPath('data.marks', 15)
+            ->assertJsonPath('data.is_active', false);
+
+        $this->assertDatabaseHas('academic_questions', ['id' => $id, 'marks' => 15, 'is_active' => false]);
     }
 
     public function test_national_admin_can_delete_a_question(): void

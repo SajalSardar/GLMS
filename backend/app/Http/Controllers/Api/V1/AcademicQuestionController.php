@@ -71,7 +71,7 @@ class AcademicQuestionController extends Controller
             'question_text' => $request->input('question_text'),
             'options' => $request->input('options'),
             'marks' => $request->input('marks'),
-            'is_active' => $request->boolean('is_active', true),
+            'is_active' => $request->boolean('is_active', $academic_question->is_active),
         ]);
 
         return new AcademicQuestionResource($academic_question->load(self::WITH));
