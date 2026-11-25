@@ -1241,6 +1241,83 @@ export function listClassRoutines(
   })
 }
 
+// ---------- Questions (the exam question bank — MCQ/true-false, chapter-scoped) ----------
+
+export type QuestionType = 'mcq_single' | 'mcq_multiple' | 'true_false'
+export type QuestionDifficulty = 'easy' | 'medium' | 'hard'
+
+export interface QuestionOptionPayload {
+  option_text: string
+  bn_option_text?: string | null
+  is_correct: boolean
+  order_index?: number
+}
+
+export interface QuestionOptionRecord extends QuestionOptionPayload {
+  id: number
+}
+
+export interface Question {
+  id: number
+  chapter_id: number
+  question_type: QuestionType
+  question_text: string
+  bn_question_text: string | null
+  marks: number
+  difficulty: QuestionDifficulty
+  order_index: number
+  is_active: boolean
+  chapter?: { id: number; name: string; bn_name: string | null } | null
+  options: QuestionOptionRecord[]
+}
+
+export interface QuestionPayload {
+  chapter_id: number
+  question_type: QuestionType
+  question_text: string
+  bn_question_text?: string | null
+  marks?: number
+  difficulty?: QuestionDifficulty
+  order_index?: number
+  is_active?: boolean
+  options: QuestionOptionPayload[]
+}
+
+// national_admin only (questions.create/update/delete) — every other role
+// at most holds questions.view. Visibility itself isn't tenant-filtered
+// (QuestionController::index() has no actor-scoping), so this list is
+// always the full national pool for whichever chapter is picked.
+export function listQuestions(params: { chapterId?: number } = {}, token?: string): Promise<{ data: Question[] }> {
+  const query = buildQuery({ chapter_id: params.chapterId })
+
+  return apiFetch<{ data: Question[] }>(`/questions${query}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  })
+}
+
+export function createQuestion(payload: QuestionPayload, token: string): Promise<{ data: Question }> {
+  return apiFetch<{ data: Question }>('/questions', {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  })
+}
+
+export function updateQuestion(id: number, payload: QuestionPayload, token: string): Promise<{ data: Question }> {
+  return apiFetch<{ data: Question }>(`/questions/${id}`, {
+    method: 'PUT',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deleteQuestion(id: number, token: string): Promise<void> {
+  return apiFetch<void>(`/questions/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(token),
+  })
+}
+
 // ---------- Exams (public browsing + attempts) ----------
 
 export interface ExamQuestionOption {
@@ -1272,6 +1349,8 @@ export interface ExamQuestionLink {
   question: ExamQuestion
 }
 
+export type ExamSelectionMode = 'manual' | 'fixed_random' | 'per_attempt_random'
+
 export interface Exam {
   id: number
   class_version_id: number
@@ -1279,26 +1358,130 @@ export interface Exam {
   academic_year_id: number
   name: string
   bn_name: string | null
-  selection_mode: 'manual' | 'fixed_random' | 'per_attempt_random'
+  selection_mode: ExamSelectionMode
   status: string
   is_practice: boolean
   available_from: string | null
   available_until: string | null
   time_limit_minutes: number | null
   random_question_count: number | null
+  random_difficulty: QuestionDifficulty | null
   marks_per_question: number | null
   passing_score_percent: number | null
   max_attempts: number | null
+  total_marks?: number
+  class_version?: ClassVersion | null
   subject?: Subject | null
+  academic_year?: AcademicYear | null
   questions?: ExamQuestionLink[] | null
+  random_chapters?: Chapter[] | null
 }
 
-export function listExams(): Promise<{ data: Exam[] }> {
-  return apiFetch<{ data: Exam[] }>('/exams')
+// This app never authenticates via the "web" guard TenantScope reads, so
+// that global scope is always inert here (see ExamController::index()'s
+// own comment) — class_version_id/subject_id/academic_year_id below are
+// the only narrowing a caller gets; an actor with exams.view additionally
+// sees every status (not just published), per the same controller.
+export function listExams(
+  params: { classVersionId?: number; subjectId?: number; academicYearId?: number } = {},
+  token?: string,
+): Promise<{ data: Exam[] }> {
+  const query = buildQuery({
+    class_version_id: params.classVersionId,
+    subject_id: params.subjectId,
+    academic_year_id: params.academicYearId,
+  })
+
+  return apiFetch<{ data: Exam[] }>(`/exams${query}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  })
 }
 
-export function getExam(id: number): Promise<{ data: Exam }> {
-  return apiFetch<{ data: Exam }>(`/exams/${id}`)
+export function getExam(id: number, token?: string): Promise<{ data: Exam }> {
+  return apiFetch<{ data: Exam }>(`/exams/${id}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  })
+}
+
+export interface ExamPayload {
+  class_version_id: number
+  subject_id: number
+  academic_year_id: number
+  name: string
+  bn_name?: string | null
+  selection_mode: ExamSelectionMode
+  time_limit_minutes?: number | null
+  max_attempts?: number | null
+  passing_score_percent?: number | null
+  available_from?: string | null
+  available_until?: string | null
+  random_question_count?: number | null
+  random_difficulty?: QuestionDifficulty | null
+  marks_per_question?: number | null
+}
+
+// class_version_id/subject_id/academic_year_id/selection_mode are
+// immutable after creation — UpdateExamRequest doesn't accept them, so
+// this payload additionally carries `status` (draft/published), the one
+// field store doesn't take but update does.
+export type ExamUpdatePayload = Partial<Omit<ExamPayload, 'class_version_id' | 'subject_id' | 'academic_year_id' | 'selection_mode'>> & {
+  status?: 'draft' | 'published'
+}
+
+export function createExam(payload: ExamPayload, token: string): Promise<{ data: Exam }> {
+  return apiFetch<{ data: Exam }>('/exams', {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  })
+}
+
+export function updateExam(id: number, payload: ExamUpdatePayload, token: string): Promise<{ data: Exam }> {
+  return apiFetch<{ data: Exam }>(`/exams/${id}`, {
+    method: 'PUT',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deleteExam(id: number, token: string): Promise<void> {
+  return apiFetch<void>(`/exams/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(token),
+  })
+}
+
+// Replaces an exam's full manual/fixed_random question list, in order —
+// ExamController::setQuestions() always detaches and re-attaches the
+// whole set.
+export function setExamQuestions(examId: number, questionIds: number[], token: string): Promise<{ data: Exam }> {
+  return apiFetch<{ data: Exam }>(`/exams/${examId}/questions`, {
+    method: 'PATCH',
+    headers: authHeaders(token),
+    body: JSON.stringify({ question_ids: questionIds }),
+  })
+}
+
+// Narrows a fixed_random/per_attempt_random exam's random draw pool to
+// these chapters; an empty list reverts to "every chapter under this
+// exam's own class_version_id/subject_id" (see Exam::eligibleRandomQuestionIds()).
+export function setExamRandomChapters(examId: number, chapterIds: number[], token: string): Promise<{ data: Exam }> {
+  return apiFetch<{ data: Exam }>(`/exams/${examId}/random-chapters`, {
+    method: 'PATCH',
+    headers: authHeaders(token),
+    body: JSON.stringify({ chapter_ids: chapterIds }),
+  })
+}
+
+// fixed_random only — draws random_question_count questions once from
+// the eligible pool and fixes them as the exam's question list (every
+// student gets the same draw). per_attempt_random draws fresh per
+// attempt instead and has no equivalent action here.
+export function randomizeExam(examId: number, token: string): Promise<{ data: Exam }> {
+  return apiFetch<{ data: Exam }>(`/exams/${examId}/randomize`, {
+    method: 'POST',
+    headers: authHeaders(token),
+  })
 }
 
 export interface PracticeExamConfig {

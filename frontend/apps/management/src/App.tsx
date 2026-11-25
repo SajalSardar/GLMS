@@ -18,6 +18,8 @@ import ClassVideosPage from './pages/ClassVideosPage'
 import DashboardPlaceholder from './pages/DashboardPlaceholder'
 import DistrictsPage from './pages/DistrictsPage'
 import DivisionsPage from './pages/DivisionsPage'
+import ExamQuestionsPage from './pages/ExamQuestionsPage'
+import ExamsPage from './pages/ExamsPage'
 import HolidaysPage from './pages/HolidaysPage'
 import ManagementClassRoutinePage from './pages/ManagementClassRoutinePage'
 import ManagementLogin from './pages/ManagementLogin'
@@ -136,6 +138,21 @@ const questionBankNavItem: SidebarItem = {
   to: '/dashboard/question-bank',
   label: t['management.nav.questionBank'],
   icon: 'quiz',
+}
+
+// national_admin only — MCQ/true-false exam question authoring and the
+// Exam shells (class/subject/mode/availability) that attach them. Fully
+// separate from questionBankNavItem above: that's the CQ/MCQ paper-
+// building question bank teachers draw from for their own printed
+// papers; this is the formal timed-exam system (Exam/Question/
+// ExamAttempt) students take via the student portal's Class Exams page.
+const assessmentsNavItem: SidebarItem = {
+  label: t['management.nav.assessmentsGroup'],
+  icon: 'fact_check',
+  children: [
+    { to: '/dashboard/assessments/exams', label: t['management.nav.exams'], icon: 'fact_check' },
+    { to: '/dashboard/assessments/questions', label: t['management.nav.examQuestions'], icon: 'quiz' },
+  ],
 }
 
 // Visible to both school_admin and national_admin. school_admin holds full
@@ -344,7 +361,7 @@ function DashboardLayout() {
       : []),
     ...(role === 'school_admin' ? [teacherLeaveApplicationsNavItem, questionPapersNavItem] : []),
     ...(role === 'national_admin' ? [teachersOnLeaveNavItem] : []),
-    ...(role === 'national_admin' ? [holidaysNavItem, questionBankNavItem, schoolSetupItem] : []),
+    ...(role === 'national_admin' ? [holidaysNavItem, questionBankNavItem, assessmentsNavItem, schoolSetupItem] : []),
     ...(role === 'school_admin' ? [holidaysNavItem, schoolAdminSchoolSetupItem] : []),
     ...(role === 'national_admin' || role === 'school_admin' ? [usersRolesNavItem] : []),
     ...(role === 'national_admin' ? [systemSetupItem] : []),
@@ -405,6 +422,10 @@ function App() {
               </Route>
               <Route path="question-bank" element={<RequireNationalAdmin />}>
                 <Route index element={<AcademicQuestionsPage />} />
+              </Route>
+              <Route path="assessments" element={<RequireNationalAdmin />}>
+                <Route path="exams" element={<ExamsPage />} />
+                <Route path="questions" element={<ExamQuestionsPage />} />
               </Route>
               <Route path="holidays" element={<RequireSchoolManager />}>
                 <Route index element={<HolidaysPage />} />

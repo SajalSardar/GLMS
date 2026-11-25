@@ -25,6 +25,7 @@ const navItems: SidebarItem[] = [
   { to: '/teacher-leave', label: t['teacher.nav.teacherLeave'], icon: 'work_off' },
   { to: '/question-builder', label: t['teacher.nav.questionBuilder'], icon: 'quiz' },
   { to: '/my-question-papers', label: t['teacher.nav.myQuestionPapers'], icon: 'description' },
+  { to: '/class-exams', label: t['teacher.nav.classExams'], icon: 'fact_check' },
   { to: '/holidays', label: t['teacher.nav.holidays'], icon: 'celebration' },
 ]
 
