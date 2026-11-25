@@ -34,6 +34,7 @@ import StudentsPage from './pages/StudentsPage'
 import SubjectsPage from './pages/SubjectsPage'
 import SubjectTeacherAssignmentsPage from './pages/SubjectTeacherAssignmentsPage'
 import TeacherDetailPage from './pages/TeacherDetailPage'
+import TeacherLeaveApplicationsPage from './pages/TeacherLeaveApplicationsPage'
 import TeacherRoutinePage from './pages/TeacherRoutinePage'
 import TeachersPage from './pages/TeachersPage'
 import UpazilasPage from './pages/UpazilasPage'
@@ -139,6 +140,16 @@ const usersRolesNavItem: SidebarItem = {
     { to: '/dashboard/users-roles/roles', label: t['management.nav.roles'], icon: 'shield_person' },
     { to: '/dashboard/users-roles/permissions', label: t['management.nav.permissions'], icon: 'key' },
   ],
+}
+
+// school_admin only — reviews their own school's teacher leave requests
+// (TenantScope-filtered). national_admin gets a separate, read-only
+// "Teachers on Leave" item instead (teachersOnLeaveNavItem, below) — see
+// RequireSchoolAdmin's own comment for why this isn't shared.
+const teacherLeaveApplicationsNavItem: SidebarItem = {
+  to: '/dashboard/teacher-leave-applications',
+  label: t['management.nav.teacherLeaveApplications'],
+  icon: 'work_off',
 }
 
 // Class versions, shifts, sections, and subject-teacher assignments are
@@ -256,6 +267,23 @@ function RequireSchoolManager() {
   )
 }
 
+// Narrower than RequireSchoolManager: national_admin technically holds
+// teacher_leave_applications.update too (its all-permissions wildcard —
+// see TeacherLeaveApplicationPolicy::review()'s own comment), but this
+// review page is deliberately school_admin-only per the product decision
+// that national_admin gets a read-only view instead (TeachersOnLeavePage).
+function RequireSchoolAdmin() {
+  const { role } = useAuth()
+
+  return role === 'school_admin' ? (
+    <Outlet />
+  ) : (
+    <p className="max-w-lg rounded-md bg-danger-50 px-5 py-4 text-danger-600">
+      {t['management.table.accessDenied']}
+    </p>
+  )
+}
+
 function DashboardLayout() {
   const { clearToken, role, token } = useAuth()
   const navigate = useNavigate()
@@ -280,6 +308,7 @@ function DashboardLayout() {
     ...(role === 'national_admin' || role === 'school_admin'
       ? [attendanceNavItem, publishResultsNavItem, promoteStudentsNavItem, routineNavItem]
       : []),
+    ...(role === 'school_admin' ? [teacherLeaveApplicationsNavItem] : []),
     ...(role === 'national_admin' ? [holidaysNavItem, schoolSetupItem] : []),
     ...(role === 'school_admin' ? [holidaysNavItem, schoolAdminSchoolSetupItem] : []),
     ...(role === 'national_admin' || role === 'school_admin' ? [usersRolesNavItem] : []),
@@ -329,6 +358,9 @@ function App() {
                 <Route path="users-roles/roles" element={<RolesPage />} />
                 <Route path="users-roles/roles/:id/permissions" element={<RolePermissionsPage />} />
                 <Route path="users-roles/permissions" element={<PermissionsPage />} />
+              </Route>
+              <Route path="teacher-leave-applications" element={<RequireSchoolAdmin />}>
+                <Route index element={<TeacherLeaveApplicationsPage />} />
               </Route>
               <Route path="holidays" element={<RequireSchoolManager />}>
                 <Route index element={<HolidaysPage />} />
