@@ -1,13 +1,31 @@
-import type { AcademicQuestion } from '@ttla/api-client'
+import type { AcademicQuestionType } from '@ttla/api-client'
+
+// Deliberately narrower than the full AcademicQuestion type: a canvas
+// item only ever needs enough to render itself and to reference the
+// bank question by id — and this exact narrower shape is also what
+// QuestionPaperItemResource's nested `academic_question` already returns
+// from the backend (see QuestionPaperItemResource.php), so loading an
+// existing paper for editing (added in this task) needs no reshaping,
+// and a full AcademicQuestion from the bank search still satisfies this
+// narrower type structurally.
+export interface CanvasQuestionSummary {
+  id: number
+  question_type: AcademicQuestionType
+  question_text: string
+  options: string[] | null
+  marks: number
+  chapter_number: number
+  chapter_name: string
+}
 
 export interface CanvasItem {
   uid: string
   type: 'question' | 'heading'
-  question?: AcademicQuestion
+  question?: CanvasQuestionSummary
   headingText?: string
 }
 
-export function addQuestionToCanvas(items: CanvasItem[], question: AcademicQuestion): CanvasItem[] {
+export function addQuestionToCanvas(items: CanvasItem[], question: CanvasQuestionSummary): CanvasItem[] {
   return [...items, { uid: crypto.randomUUID(), type: 'question', question }]
 }
 

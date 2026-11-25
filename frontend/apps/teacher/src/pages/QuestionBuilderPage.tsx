@@ -2,12 +2,15 @@ import { DndContext, useDraggable, useDroppable, type DragEndEvent } from '@dnd-
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useEffect, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import {
   ApiError,
   createQuestionPaper,
+  getQuestionPaper,
   listAcademicQuestions,
   listClasses,
   listSubjects,
+  updateQuestionPaper,
   type AcademicQuestion,
   type AcademicQuestionType,
   type SchoolClass,
@@ -126,6 +129,10 @@ function CanvasDropZone({ items, onRemove }: { items: CanvasItem[]; onRemove: (u
 export default function QuestionBuilderPage() {
   const { token } = useAuth()
   const { toast, showToast } = useToast()
+  const { paperId } = useParams<{ paperId?: string }>()
+  const navigate = useNavigate()
+  const isEditing = Boolean(paperId)
+  const [loadingPaper, setLoadingPaper] = useState(isEditing)
 
   const [classes, setClasses] = useState<SchoolClass[]>([])
   const [subjects, setSubjects] = useState<Subject[]>([])
@@ -153,6 +160,35 @@ export default function QuestionBuilderPage() {
     listClasses({ perPage: 500 }).then((result) => setClasses(result.data)).catch(() => setClasses([]))
     listSubjects({ perPage: 200 }).then((result) => setSubjects(result.data)).catch(() => setSubjects([]))
   }, [])
+
+  // Edit mode: populate every field (including the canvas) from the
+  // existing paper. QuestionPaperItemResource's nested academic_question
+  // already matches CanvasQuestionSummary exactly — no reshaping needed
+  // beyond wrapping each item with a fresh client-side uid.
+  useEffect(() => {
+    if (!token || !paperId) return
+
+    getQuestionPaper(Number(paperId), token)
+      .then((result) => {
+        const paper = result.data
+        setTitle(paper.title)
+        setSchoolClassId(String(paper.school_class_id))
+        setSubjectId(String(paper.subject_id))
+        setTimeDuration(paper.time_duration_minutes !== null ? String(paper.time_duration_minutes) : '')
+        setFullMarks(paper.full_marks !== null ? String(paper.full_marks) : '')
+        setInstructions(paper.instructions ?? '')
+        setItems(
+          (paper.items ?? []).map((item) => ({
+            uid: crypto.randomUUID(),
+            type: item.item_type,
+            question: item.academic_question ?? undefined,
+            headingText: item.heading_text ?? undefined,
+          })),
+        )
+      })
+      .catch(() => showToast({ type: 'error', message: t['teacher.questionBuilder.saveError'] }))
+      .finally(() => setLoadingPaper(false))
+  }, [token, paperId])
 
   function loadBank() {
     setLoadingBank(true)
@@ -209,23 +245,29 @@ export default function QuestionBuilderPage() {
 
     setSaving(true)
 
+    const payload = {
+      title,
+      school_class_id: Number(schoolClassId),
+      subject_id: Number(subjectId),
+      time_duration_minutes: timeDuration ? Number(timeDuration) : null,
+      full_marks: fullMarks ? Number(fullMarks) : computedFullMarks || null,
+      instructions: instructions || null,
+      items: items.map((item) =>
+        item.type === 'question'
+          ? { type: 'question' as const, academic_question_id: item.question?.id }
+          : { type: 'heading' as const, heading_text: item.headingText },
+      ),
+    }
+
     try {
-      await createQuestionPaper(
-        {
-          title,
-          school_class_id: Number(schoolClassId),
-          subject_id: Number(subjectId),
-          time_duration_minutes: timeDuration ? Number(timeDuration) : null,
-          full_marks: fullMarks ? Number(fullMarks) : computedFullMarks || null,
-          instructions: instructions || null,
-          items: items.map((item) =>
-            item.type === 'question'
-              ? { type: 'question' as const, academic_question_id: item.question?.id }
-              : { type: 'heading' as const, heading_text: item.headingText },
-          ),
-        },
-        token,
-      )
+      if (isEditing && paperId) {
+        await updateQuestionPaper(Number(paperId), payload, token)
+        showToast({ type: 'success', message: t['teacher.questionBuilder.saveSuccess'] })
+        navigate('/my-question-papers')
+        return
+      }
+
+      await createQuestionPaper(payload, token)
 
       showToast({ type: 'success', message: t['teacher.questionBuilder.saveSuccess'] })
       setTitle('')
@@ -240,9 +282,15 @@ export default function QuestionBuilderPage() {
     }
   }
 
+  if (loadingPaper) {
+    return <p className="px-4 py-6 text-sm text-gray-500 lg:px-6">{t['teacher.questionBuilder.loading']}</p>
+  }
+
   return (
     <section className="flex flex-col gap-4 px-4 py-6 lg:px-6">
-      <h1 className="text-2xl font-bold text-primary-700">{t['teacher.questionBuilder.title']}</h1>
+      <h1 className="text-2xl font-bold text-primary-700">
+        {isEditing ? t['teacher.questionBuilder.editTitle'] : t['teacher.questionBuilder.title']}
+      </h1>
 
       <DndContext onDragEnd={handleDragEnd}>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -395,7 +443,13 @@ export default function QuestionBuilderPage() {
               disabled={saving || !schoolClassId || !subjectId || items.length === 0}
               className={buttonPrimary}
             >
-              {saving ? t['teacher.questionBuilder.saving'] : t['teacher.questionBuilder.save']}
+              {saving
+                ? isEditing
+                  ? t['teacher.questionBuilder.updating']
+                  : t['teacher.questionBuilder.saving']
+                : isEditing
+                  ? t['teacher.questionBuilder.update']
+                  : t['teacher.questionBuilder.save']}
             </button>
           </div>
         </div>

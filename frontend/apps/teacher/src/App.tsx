@@ -12,6 +12,7 @@ import MarksheetsPage from './pages/MarksheetsPage'
 import ClassMaterialsPage from './pages/ClassMaterialsPage'
 import TeacherLeavePage from './pages/TeacherLeavePage'
 import QuestionBuilderPage from './pages/QuestionBuilderPage'
+import MyQuestionPapersPage from './pages/MyQuestionPapersPage'
 
 function LoginRoute() {
   const { token } = useAuth()
@@ -45,6 +46,8 @@ function App() {
               <Route path="student-leave" element={<LeaveApplicationsPage />} />
               <Route path="teacher-leave" element={<TeacherLeavePage />} />
               <Route path="question-builder" element={<QuestionBuilderPage />} />
+              <Route path="question-builder/:paperId" element={<QuestionBuilderPage />} />
+              <Route path="my-question-papers" element={<MyQuestionPapersPage />} />
               <Route path="holidays" element={<HolidaysPage />} />
               <Route path="marks-entry" element={<MarksEntryPage />} />
               <Route path="marksheets" element={<MarksheetsPage />} />
