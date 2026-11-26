@@ -43,6 +43,7 @@ use App\Http\Controllers\Api\V1\StudentPromotionController;
 use App\Http\Controllers\Api\V1\StudentUserController;
 use App\Http\Controllers\Api\V1\SubjectController;
 use App\Http\Controllers\Api\V1\SubjectTeacherAssignmentController;
+use App\Http\Controllers\Api\V1\TeacherAttendanceController;
 use App\Http\Controllers\Api\V1\TeacherLeaveApplicationController;
 use App\Http\Controllers\Api\V1\TeacherProfileController;
 use App\Http\Controllers\Api\V1\TeacherUserController;
@@ -264,6 +265,10 @@ Route::prefix('v1')->group(function (): void {
         Route::patch('/teacher-leave-applications/{teacher_leave_application}/review', [TeacherLeaveApplicationController::class, 'review']);
 
         Route::apiResource('kiosk-devices', KioskDeviceController::class)->only(['index', 'store', 'update', 'destroy']);
+
+        Route::get('/teacher-attendances/report', [TeacherAttendanceController::class, 'report']);
+        Route::get('/teacher-attendances/mine', [TeacherAttendanceController::class, 'mine']);
+        Route::patch('/teacher-attendances/correct', [TeacherAttendanceController::class, 'correct']);
 
         Route::apiResource('academic-questions', AcademicQuestionController::class)->only(['index', 'store', 'update', 'destroy']);
         Route::apiResource('question-papers', QuestionPaperController::class)->only(['index', 'show', 'store', 'update', 'destroy']);
