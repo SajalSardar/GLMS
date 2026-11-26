@@ -666,6 +666,14 @@
   "management.kioskDevices.done": "Done",
   "management.kioskDevices.nameRequired": "Device name is required.",
 
+  "management.nav.teacherAttendance": "Teacher Attendance",
+  "management.teacherAttendance.title": "Teacher Attendance Report",
+  "management.teacherAttendance.colEmployeeId": "Employee ID",
+  "management.teacherAttendance.colTeacher": "Teacher Name",
+  "management.teacherAttendance.loading": "Loading the report...",
+  "management.teacherAttendance.empty": "No teachers at this school yet.",
+  "management.teacherAttendance.print": "Print",
+
   "management.schoolDetail.back": "Back to schools",
   "management.schoolDetail.hierarchy": "Classes, versions, shifts & sections",
   "management.schoolDetail.location": "Location",

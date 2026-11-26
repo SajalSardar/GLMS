@@ -666,6 +666,14 @@
   "management.kioskDevices.done": "সম্পন্ন",
   "management.kioskDevices.nameRequired": "ডিভাইসের নাম আবশ্যক।",
 
+  "management.nav.teacherAttendance": "শিক্ষক উপস্থিতি",
+  "management.teacherAttendance.title": "শিক্ষক উপস্থিতি প্রতিবেদন",
+  "management.teacherAttendance.colEmployeeId": "কর্মচারী আইডি",
+  "management.teacherAttendance.colTeacher": "শিক্ষকের নাম",
+  "management.teacherAttendance.loading": "প্রতিবেদন লোড হচ্ছে...",
+  "management.teacherAttendance.empty": "এই বিদ্যালয়ে এখনো কোনো শিক্ষক নেই।",
+  "management.teacherAttendance.print": "প্রিন্ট করুন",
+
   "management.schoolDetail.back": "স্কুল তালিকায় ফিরুন",
   "management.schoolDetail.hierarchy": "ক্লাস, ভার্সন, শিফট ও শাখা",
   "management.schoolDetail.location": "অবস্থান",

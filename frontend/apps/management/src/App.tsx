@@ -38,6 +38,7 @@ import StudentDetailPage from './pages/StudentDetailPage'
 import StudentsPage from './pages/StudentsPage'
 import SubjectsPage from './pages/SubjectsPage'
 import SubjectTeacherAssignmentsPage from './pages/SubjectTeacherAssignmentsPage'
+import TeacherAttendanceReportPage from './pages/TeacherAttendanceReportPage'
 import TeacherDetailPage from './pages/TeacherDetailPage'
 import TeacherLeaveApplicationsPage from './pages/TeacherLeaveApplicationsPage'
 import TeacherRoutinePage from './pages/TeacherRoutinePage'
@@ -103,6 +104,12 @@ const attendanceNavItem: SidebarItem = { to: '/dashboard/attendance', label: t['
 // their own school automatically (see KioskDevicesPage.tsx), national_admin
 // picks which school.
 const kioskDevicesNavItem: SidebarItem = { to: '/dashboard/kiosk-devices', label: t['management.nav.kioskDevices'], icon: 'point_of_sale' }
+
+// Same placement/visibility reasoning as attendanceNavItem above — a
+// monthly grid of every teacher's attendance at a school, mirroring
+// attendanceNavItem's student-side report but driven by kiosk-device
+// punches instead of a class teacher's manual entry.
+const teacherAttendanceNavItem: SidebarItem = { to: '/dashboard/teacher-attendance', label: t['management.nav.teacherAttendance'], icon: 'badge' }
 
 // Same placement/visibility reasoning as attendanceNavItem above —
 // school_admin/national_admin only; recording stays in the teacher
@@ -364,7 +371,7 @@ function DashboardLayout() {
     ...(role === 'national_admin' || role === 'school_admin' ? [teachersNavItem, studentsNavItem] : []),
     ...(role === 'national_admin' || role === 'school_admin' ? [classMaterialsNavItem, examControlNavItem] : []),
     ...(role === 'national_admin' || role === 'school_admin'
-      ? [attendanceNavItem, kioskDevicesNavItem, publishResultsNavItem, promoteStudentsNavItem, routineNavItem]
+      ? [attendanceNavItem, kioskDevicesNavItem, teacherAttendanceNavItem, publishResultsNavItem, promoteStudentsNavItem, routineNavItem]
       : []),
     ...(role === 'school_admin' ? [teacherLeaveApplicationsNavItem, questionPapersNavItem] : []),
     ...(role === 'national_admin' ? [teachersOnLeaveNavItem] : []),
@@ -410,6 +417,7 @@ function App() {
                 <Route path="subject-teacher-assignments" element={<SubjectTeacherAssignmentsPage />} />
                 <Route path="attendance" element={<AttendanceReportPage />} />
                 <Route path="kiosk-devices" element={<KioskDevicesPage />} />
+                <Route path="teacher-attendance" element={<TeacherAttendanceReportPage />} />
                 <Route path="publish-results" element={<PublishResultsPage />} />
                 <Route path="promote-students" element={<PromoteStudentsPage />} />
                 <Route path="routine/teacher" element={<TeacherRoutinePage />} />
