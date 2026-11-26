@@ -9,6 +9,7 @@ import {
 import { useAuth } from '@ttla/auth'
 import { getCommonStrings } from '@ttla/i18n'
 import SearchableSelect from '../components/SearchableSelect'
+import { inputClass } from '../components/styles'
 
 const t = getCommonStrings('en')
 
@@ -192,7 +193,7 @@ export default function TeacherAttendanceReportPage() {
         <label className="flex flex-col gap-1.5 text-sm">
           <span className="font-medium text-gray-700">{t['management.attendance.selectSchool']}</span>
           <SearchableSelect
-            className="min-w-[14rem]"
+            className={`${inputClass} min-w-[14rem]`}
             value={schoolId !== null ? String(schoolId) : ''}
             onChange={(value) => setSchoolId(Number(value))}
             placeholder={t['management.attendance.selectSchool']}
