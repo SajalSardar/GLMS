@@ -27,6 +27,7 @@ const navItems: SidebarItem[] = [
   { to: '/my-question-papers', label: t['teacher.nav.myQuestionPapers'], icon: 'description' },
   { to: '/class-exams', label: t['teacher.nav.classExams'], icon: 'fact_check' },
   { to: '/holidays', label: t['teacher.nav.holidays'], icon: 'celebration' },
+  { to: '/my-attendance', label: t['teacher.nav.myAttendance'], icon: 'badge' },
 ]
 
 export default function TeacherAppShell() {

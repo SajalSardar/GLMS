@@ -14,6 +14,7 @@ import TeacherLeavePage from './pages/TeacherLeavePage'
 import QuestionBuilderPage from './pages/QuestionBuilderPage'
 import MyQuestionPapersPage from './pages/MyQuestionPapersPage'
 import ClassExamsPage from './pages/ClassExamsPage'
+import MyAttendancePage from './pages/MyAttendancePage'
 
 function LoginRoute() {
   const { token } = useAuth()
@@ -54,6 +55,7 @@ function App() {
               <Route path="marks-entry" element={<MarksEntryPage />} />
               <Route path="marksheets" element={<MarksheetsPage />} />
               <Route path="class-materials" element={<ClassMaterialsPage />} />
+              <Route path="my-attendance" element={<MyAttendancePage />} />
             </Route>
           </Route>
         </Routes>
