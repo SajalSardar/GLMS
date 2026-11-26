@@ -15,7 +15,7 @@ import ChaptersPage from './pages/ChaptersPage'
 import ClassesPage from './pages/ClassesPage'
 import ClassVersionsPage from './pages/ClassVersionsPage'
 import ClassVideosPage from './pages/ClassVideosPage'
-import DashboardPlaceholder from './pages/DashboardPlaceholder'
+import DashboardPage from './pages/DashboardPage'
 import DistrictsPage from './pages/DistrictsPage'
 import DivisionsPage from './pages/DivisionsPage'
 import ExamQuestionsPage from './pages/ExamQuestionsPage'
@@ -465,7 +465,7 @@ function App() {
           <Route path="/" element={<LoginRoute />} />
           <Route element={<RequireAuth />}>
             <Route path="/dashboard" element={<DashboardLayout />}>
-              <Route index element={<DashboardPlaceholder />} />
+              <Route index element={<DashboardPage />} />
               <Route element={<RequireRole roles={ALL_MANAGEMENT_ROLES} />}>
                 <Route path="classes" element={<ClassesPage />} />
                 <Route path="academic-years" element={<AcademicYearsPage />} />

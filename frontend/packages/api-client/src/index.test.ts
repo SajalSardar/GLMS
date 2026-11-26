@@ -21,6 +21,7 @@ import {
   getBook,
   getBookPdfLinks,
   getChapterMaterialDownloadLink,
+  getDashboardSummary,
   getExam,
   getHealth,
   getPracticeExamConfig,
@@ -1235,6 +1236,37 @@ describe('student profiles', () => {
     await getStudentDashboard(1, 'tok')
 
     expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/student-profiles/1/dashboard`)
+    expect(mockFetch.mock.calls[0][1]).toMatchObject({ headers: { Authorization: 'Bearer tok' } })
+  })
+})
+
+describe('dashboard summary', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('fetches the management dashboard rollup with a required token', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          data: {
+            schools_count: 2,
+            teachers_count: null,
+            students_count: null,
+            attendance_today: null,
+            attendance_trend: null,
+            upcoming_holidays: null,
+            recent_students: null,
+          },
+        }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    const result = await getDashboardSummary('tok')
+
+    expect(result.data.schools_count).toBe(2)
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/dashboard/summary`)
     expect(mockFetch.mock.calls[0][1]).toMatchObject({ headers: { Authorization: 'Bearer tok' } })
   })
 })

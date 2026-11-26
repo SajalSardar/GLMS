@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\V1\ClassroomController;
 use App\Http\Controllers\Api\V1\ClassRoutineController;
 use App\Http\Controllers\Api\V1\ClassSchoolController;
 use App\Http\Controllers\Api\V1\ClassVersionController;
+use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\DistrictController;
 use App\Http\Controllers\Api\V1\DivisionController;
 use App\Http\Controllers\Api\V1\ExamAttemptController;
@@ -278,6 +279,8 @@ Route::prefix('v1')->group(function (): void {
         Route::apiResource('question-papers', QuestionPaperController::class)->only(['index', 'show', 'store', 'update', 'destroy']);
 
         Route::apiResource('guardians', GuardianController::class);
+
+        Route::get('/dashboard/summary', [DashboardController::class, 'summary']);
     });
 
     Route::middleware('signed')->group(function (): void {

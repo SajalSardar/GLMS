@@ -3477,3 +3477,51 @@ export function deleteQuestionPaper(id: number, token: string): Promise<void> {
     headers: authHeaders(token),
   })
 }
+
+// ---------- Dashboard ----------
+
+export interface DashboardAttendanceSnapshot {
+  date: string
+  present: number
+  absent: number
+  leave: number
+  total: number
+  present_percent: number | null
+}
+
+export interface DashboardUpcomingHoliday {
+  id: number
+  name: string
+  bn_name: string | null
+  start_date: string
+  end_date: string
+}
+
+export interface DashboardRecentStudent {
+  user_id: number
+  student_id: string | null
+  name: string | null
+  school_name: string | null
+  admission_date: string | null
+}
+
+// Every field is null when the viewer lacks the permission its own
+// dedicated page already requires (schools.view, teacher_profiles.view,
+// student_profiles.view, attendances.view, holidays.view) — the
+// dashboard hides a widget whose field is null rather than rendering an
+// empty/zeroed one.
+export interface DashboardSummary {
+  schools_count: number | null
+  teachers_count: number | null
+  students_count: number | null
+  attendance_today: DashboardAttendanceSnapshot | null
+  attendance_trend: DashboardAttendanceSnapshot[] | null
+  upcoming_holidays: DashboardUpcomingHoliday[] | null
+  recent_students: DashboardRecentStudent[] | null
+}
+
+export function getDashboardSummary(token: string): Promise<{ data: DashboardSummary }> {
+  return apiFetch<{ data: DashboardSummary }>('/dashboard/summary', {
+    headers: authHeaders(token),
+  })
+}
