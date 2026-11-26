@@ -4,8 +4,12 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\RecordAttendancePunchRequest;
+use App\Models\Attendance;
 use App\Models\AttendancePunch;
+use App\Models\Holiday;
 use App\Models\KioskDevice;
+use App\Models\StudentAttendancePunch;
+use App\Models\StudentProfile;
 use App\Models\TeacherAttendance;
 use App\Models\TeacherProfile;
 use Illuminate\Http\JsonResponse;
@@ -16,24 +20,21 @@ class AttendancePunchController extends Controller
 {
     /**
      * Receives one punch from a device and derives the day's attendance
-     * from it. This contract only resolves against TeacherProfile today —
-     * the later student-attendance sub-project adds a second lookup
-     * branch (falling back to StudentProfile.student_id) and its own
-     * summary table; the URL, auth mechanism, and request/response shape
-     * do not need to change.
+     * from it. The identifier is tried against TeacherProfile.employee_id
+     * first, then StudentProfile.student_id — both scoped by the
+     * authenticated device's own school_id, never request input. Each
+     * person type has its own raw punch log (AttendancePunch /
+     * StudentAttendancePunch) and writes into its own summary table
+     * (teacher_attendances / the existing attendances table), matching
+     * this codebase's established convention of separate teacher/student
+     * domain tables rather than a shared polymorphic one.
      */
     public function store(RecordAttendancePunchRequest $request): JsonResponse
     {
         /** @var KioskDevice $device */
         $device = $request->attributes->get('kiosk_device');
-
-        $teacherProfile = TeacherProfile::where('school_id', $device->school_id)
-            ->where('employee_id', $request->string('identifier')->toString())
-            ->first();
-
-        if ($teacherProfile === null) {
-            abort(404, 'Unrecognized ID.');
-        }
+        $identifier = $request->string('identifier')->toString();
+        $method = $request->string('method')->toString();
 
         // Normalize to the app's configured timezone — a device-sent
         // offset (e.g. '+06:00') is preserved by Carbon::parse() as-is,
@@ -44,23 +45,55 @@ class AttendancePunchController extends Controller
             ? Carbon::parse($request->string('captured_at')->toString())->setTimezone(config('app.timezone'))
             : now();
 
-        DB::transaction(function () use ($teacherProfile, $device, $request, $punchedAt): void {
-            AttendancePunch::create([
-                'teacher_profile_id' => $teacherProfile->id,
-                'kiosk_device_id' => $device->id,
-                'method' => $request->string('method')->toString(),
-                'punched_at' => $punchedAt,
-            ]);
+        $teacherProfile = TeacherProfile::where('school_id', $device->school_id)
+            ->where('employee_id', $identifier)
+            ->first();
 
-            $this->upsertDaySummary($teacherProfile, $punchedAt);
-        });
+        if ($teacherProfile !== null) {
+            DB::transaction(function () use ($teacherProfile, $device, $method, $punchedAt): void {
+                AttendancePunch::create([
+                    'teacher_profile_id' => $teacherProfile->id,
+                    'kiosk_device_id' => $device->id,
+                    'method' => $method,
+                    'punched_at' => $punchedAt,
+                ]);
 
-        return response()->json([
-            'data' => [
-                'name' => $teacherProfile->user?->name,
-                'punched_at' => $punchedAt->toIso8601String(),
-            ],
-        ], 201);
+                $this->upsertTeacherDaySummary($teacherProfile, $punchedAt);
+            });
+
+            return response()->json([
+                'data' => [
+                    'name' => $teacherProfile->user?->name,
+                    'punched_at' => $punchedAt->toIso8601String(),
+                ],
+            ], 201);
+        }
+
+        $studentProfile = StudentProfile::where('school_id', $device->school_id)
+            ->where('student_id', $identifier)
+            ->first();
+
+        if ($studentProfile !== null) {
+            DB::transaction(function () use ($studentProfile, $device, $method, $punchedAt): void {
+                StudentAttendancePunch::create([
+                    'student_profile_id' => $studentProfile->id,
+                    'kiosk_device_id' => $device->id,
+                    'method' => $method,
+                    'punched_at' => $punchedAt,
+                ]);
+
+                $this->upsertStudentDaySummary($studentProfile, $punchedAt);
+            });
+
+            return response()->json([
+                'data' => [
+                    'name' => $studentProfile->user?->name,
+                    'punched_at' => $punchedAt->toIso8601String(),
+                ],
+            ], 201);
+        }
+
+        abort(404, 'Unrecognized ID.');
     }
 
     /**
@@ -81,7 +114,7 @@ class AttendancePunchController extends Controller
      * the second transaction to wait for the first to commit, then it
      * re-reads and sees the row the first transaction just created.
      */
-    private function upsertDaySummary(TeacherProfile $teacherProfile, Carbon $punchedAt): void
+    private function upsertTeacherDaySummary(TeacherProfile $teacherProfile, Carbon $punchedAt): void
     {
         DB::transaction(function () use ($teacherProfile, $punchedAt): void {
             $attendance = TeacherAttendance::where('teacher_profile_id', $teacherProfile->id)
@@ -113,6 +146,64 @@ class AttendancePunchController extends Controller
                 'check_in_at' => $times->first(),
                 'check_out_at' => $times->count() > 1 ? $times->last() : null,
             ]);
+        });
+    }
+
+    /**
+     * Writes directly into the pre-existing `attendances` table a teacher
+     * would otherwise fill in by hand on the roster — status only, no
+     * check-in/out times (this feature never asked for a time clock on
+     * students, just a daily present/absent/leave status). Always writes
+     * 'present' and clears any prior marked_by_id, for the same reason the
+     * teacher side always wins: a punch is hard evidence of actual
+     * attendance.
+     *
+     * Two things intentionally produce no Attendance row (the raw punch
+     * above still recorded either way, so there is always an audit trail):
+     * a holiday date — mirrors AttendanceController::record()'s own rule
+     * that a holiday is never recorded for; and a student with no
+     * section_id — attendances.section_id/class_id/shift_id/
+     * class_version_id are all NOT NULL, and a school that hasn't adopted
+     * the Version/Shift/Section structure leaves those null on the
+     * profile, so there is nothing valid to attribute the day to.
+     */
+    private function upsertStudentDaySummary(StudentProfile $studentProfile, Carbon $punchedAt): void
+    {
+        if ($studentProfile->section_id === null) {
+            return;
+        }
+
+        if (Holiday::isHoliday($punchedAt)) {
+            return;
+        }
+
+        DB::transaction(function () use ($studentProfile, $punchedAt): void {
+            $existing = Attendance::where('student_profile_id', $studentProfile->id)
+                ->whereDate('date', $punchedAt->toDateString())
+                ->lockForUpdate()
+                ->first();
+
+            $attributes = [
+                'school_id' => $studentProfile->school_id,
+                'district_id' => $studentProfile->district_id,
+                'class_id' => $studentProfile->class_id,
+                'section_id' => $studentProfile->section_id,
+                'shift_id' => $studentProfile->shift_id,
+                'class_version_id' => $studentProfile->class_version_id,
+                'academic_year_id' => $studentProfile->shift?->academic_year_id,
+                'status' => 'present',
+                'marked_by_id' => null,
+            ];
+
+            if ($existing !== null) {
+                $existing->update($attributes);
+            } else {
+                Attendance::create([
+                    ...$attributes,
+                    'student_profile_id' => $studentProfile->id,
+                    'date' => $punchedAt->toDateString(),
+                ]);
+            }
         });
     }
 }

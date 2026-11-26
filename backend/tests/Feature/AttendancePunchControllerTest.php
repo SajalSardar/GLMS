@@ -2,15 +2,24 @@
 
 namespace Tests\Feature;
 
+use App\Models\Attendance;
+use App\Models\ClassVersion;
 use App\Models\District;
 use App\Models\Division;
+use App\Models\Holiday;
 use App\Models\KioskDevice;
 use App\Models\School;
+use App\Models\SchoolClass;
+use App\Models\Section;
+use App\Models\Shift;
+use App\Models\StudentProfile;
+use App\Models\StudentUser;
 use App\Models\TeacherAttendance;
 use App\Models\TeacherLeaveApplication;
 use App\Models\TeacherProfile;
 use App\Models\TeacherUser;
 use App\Models\Upazila;
+use App\Models\Version;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;
@@ -28,6 +37,14 @@ class AttendancePunchControllerTest extends TestCase
     private string $deviceAToken = 'plain-token-a';
 
     private TeacherProfile $profileA;
+
+    private Section $sectionA;
+
+    private Shift $shiftA;
+
+    private ClassVersion $versionA;
+
+    private StudentProfile $studentProfileA;
 
     protected function setUp(): void
     {
@@ -55,6 +72,42 @@ class AttendancePunchControllerTest extends TestCase
             'school_id' => $this->schoolA->id,
             'district_id' => $this->schoolA->district_id,
             'employee_id' => 'EMP-A1',
+        ]);
+
+        $class = SchoolClass::create(['name' => 'Class 6']);
+        $this->versionA = ClassVersion::create([
+            'class_id' => $class->id,
+            'school_id' => $this->schoolA->id,
+            'district_id' => $this->schoolA->district_id,
+            'version_id' => Version::where('name', 'Bangla')->value('id'),
+        ]);
+        $this->shiftA = Shift::create([
+            'class_version_id' => $this->versionA->id,
+            'school_id' => $this->schoolA->id,
+            'district_id' => $this->schoolA->district_id,
+            'name' => 'Day Shift',
+            'start_time' => '08:00',
+            'end_time' => '13:00',
+            'days_of_week' => ['sunday'],
+        ]);
+        $this->sectionA = Section::create([
+            'shift_id' => $this->shiftA->id,
+            'school_id' => $this->schoolA->id,
+            'district_id' => $this->schoolA->district_id,
+            'name' => 'Main',
+        ]);
+
+        $studentUserA = StudentUser::factory()->create(['school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id]);
+        $this->studentProfileA = StudentProfile::create([
+            'user_id' => $studentUserA->id,
+            'school_id' => $this->schoolA->id,
+            'district_id' => $this->schoolA->district_id,
+            'class_id' => $this->versionA->class_id,
+            'section_id' => $this->sectionA->id,
+            'shift_id' => $this->shiftA->id,
+            'class_version_id' => $this->versionA->id,
+            'student_id' => 'STU-A1',
+            'roll_number' => '1',
         ]);
     }
 
@@ -285,5 +338,164 @@ class AttendancePunchControllerTest extends TestCase
             'status' => 'present',
         ]);
         $this->assertSame('2026-12-01', TeacherAttendance::sole()->date->toDateString());
+    }
+
+    /**
+     * A device's token can identify a STUDENT just as well as a teacher —
+     * the same endpoint, scoped by the same device/school, falls back to a
+     * StudentProfile lookup by student_id when no TeacherProfile matches.
+     */
+    public function test_a_valid_student_punch_creates_a_present_attendance_record(): void
+    {
+        $this->withHeaders(['X-Kiosk-Token' => $this->deviceAToken])
+            ->postJson('/api/v1/attendance-punches', [
+                'identifier' => 'STU-A1',
+                'method' => 'id_card',
+                'captured_at' => '2026-12-01T08:55:00+00:00',
+            ])
+            ->assertCreated();
+
+        $this->assertDatabaseHas('student_attendance_punches', [
+            'student_profile_id' => $this->studentProfileA->id,
+            'kiosk_device_id' => $this->deviceA->id,
+            'method' => 'id_card',
+        ]);
+
+        $this->assertDatabaseHas('attendances', [
+            'student_profile_id' => $this->studentProfileA->id,
+            'section_id' => $this->sectionA->id,
+            'class_id' => $this->versionA->class_id,
+            'shift_id' => $this->shiftA->id,
+            'class_version_id' => $this->versionA->id,
+            'status' => 'present',
+            'marked_by_id' => null,
+        ]);
+        $this->assertSame('2026-12-01', Attendance::sole()->date->toDateString());
+    }
+
+    public function test_a_second_student_punch_the_same_day_does_not_duplicate_the_attendance_row(): void
+    {
+        $this->withHeaders(['X-Kiosk-Token' => $this->deviceAToken])
+            ->postJson('/api/v1/attendance-punches', [
+                'identifier' => 'STU-A1', 'method' => 'id_card', 'captured_at' => '2026-12-01T08:55:00+00:00',
+            ])->assertCreated();
+
+        $this->withHeaders(['X-Kiosk-Token' => $this->deviceAToken])
+            ->postJson('/api/v1/attendance-punches', [
+                'identifier' => 'STU-A1', 'method' => 'face', 'captured_at' => '2026-12-01T13:05:00+00:00',
+            ])->assertCreated();
+
+        $this->assertDatabaseCount('student_attendance_punches', 2);
+        $this->assertSame(1, Attendance::where('student_profile_id', $this->studentProfileA->id)->whereDate('date', '2026-12-01')->count());
+    }
+
+    /**
+     * Mirrors the teacher-side retry regression test: the same punch
+     * arriving twice must merge into one Attendance row, not throw on the
+     * (student_profile_id, date) unique constraint.
+     */
+    public function test_a_retried_student_punch_does_not_throw_and_merges_into_one_row(): void
+    {
+        $payload = ['identifier' => 'STU-A1', 'method' => 'id_card', 'captured_at' => '2026-12-01T08:55:00+00:00'];
+
+        $this->withHeaders(['X-Kiosk-Token' => $this->deviceAToken])->postJson('/api/v1/attendance-punches', $payload)->assertCreated();
+        $this->withHeaders(['X-Kiosk-Token' => $this->deviceAToken])->postJson('/api/v1/attendance-punches', $payload)->assertCreated();
+
+        $this->assertSame(1, Attendance::where('student_profile_id', $this->studentProfileA->id)->whereDate('date', '2026-12-01')->count());
+        $this->assertDatabaseCount('student_attendance_punches', 2);
+    }
+
+    /**
+     * A device cannot resolve a student from a different school — same
+     * isolation guarantee already proven for teachers.
+     */
+    public function test_a_devices_token_cannot_resolve_a_student_from_a_different_school(): void
+    {
+        $studentUserB = StudentUser::factory()->create(['school_id' => $this->schoolB->id, 'district_id' => $this->schoolB->district_id]);
+        StudentProfile::create([
+            'user_id' => $studentUserB->id,
+            'school_id' => $this->schoolB->id,
+            'district_id' => $this->schoolB->district_id,
+            'student_id' => 'STU-B1',
+        ]);
+
+        $this->withHeaders(['X-Kiosk-Token' => $this->deviceAToken])
+            ->postJson('/api/v1/attendance-punches', ['identifier' => 'STU-B1', 'method' => 'id_card'])
+            ->assertNotFound();
+    }
+
+    /**
+     * A punch is hard evidence of actual attendance and always wins — a
+     * student who was manually marked absent (or on leave) by their
+     * teacher is corrected to present the moment they tap their card.
+     */
+    public function test_a_student_punch_overwrites_a_teachers_prior_absent_status(): void
+    {
+        Attendance::create([
+            'student_profile_id' => $this->studentProfileA->id,
+            'school_id' => $this->schoolA->id,
+            'district_id' => $this->schoolA->district_id,
+            'class_id' => $this->versionA->class_id,
+            'section_id' => $this->sectionA->id,
+            'shift_id' => $this->shiftA->id,
+            'class_version_id' => $this->versionA->id,
+            'date' => '2026-12-01',
+            'status' => 'absent',
+        ]);
+
+        $this->withHeaders(['X-Kiosk-Token' => $this->deviceAToken])
+            ->postJson('/api/v1/attendance-punches', [
+                'identifier' => 'STU-A1', 'method' => 'id_card', 'captured_at' => '2026-12-01T08:55:00+00:00',
+            ])->assertCreated();
+
+        $this->assertDatabaseHas('attendances', [
+            'student_profile_id' => $this->studentProfileA->id,
+            'date' => '2026-12-01 00:00:00',
+            'status' => 'present',
+        ]);
+    }
+
+    /**
+     * Mirrors AttendanceController::record()'s own rule: a date covered by
+     * an active Holiday is never recorded for. The raw punch still logs
+     * (the student really did tap their card), but no Attendance row is
+     * written or updated for that date.
+     */
+    public function test_a_student_punch_on_a_holiday_is_logged_but_not_recorded(): void
+    {
+        Holiday::create(['type' => 'other', 'start_date' => '2026-12-01', 'end_date' => '2026-12-01', 'name' => 'Special Holiday']);
+
+        $this->withHeaders(['X-Kiosk-Token' => $this->deviceAToken])
+            ->postJson('/api/v1/attendance-punches', [
+                'identifier' => 'STU-A1', 'method' => 'id_card', 'captured_at' => '2026-12-01T08:55:00+00:00',
+            ])->assertCreated();
+
+        $this->assertDatabaseHas('student_attendance_punches', ['student_profile_id' => $this->studentProfileA->id]);
+        $this->assertDatabaseCount('attendances', 0);
+    }
+
+    /**
+     * A student whose school hasn't adopted the Version/Shift/Section
+     * structure has no section_id to attribute attendance to — attendances
+     * requires a real section_id (NOT NULL), so there is nothing valid to
+     * write. The punch is still logged (identity confirmed, audit trail
+     * intact); it just can't produce a summary row.
+     */
+    public function test_a_student_punch_with_no_section_assigned_is_logged_but_not_recorded(): void
+    {
+        $studentUserNoSection = StudentUser::factory()->create(['school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id]);
+        StudentProfile::create([
+            'user_id' => $studentUserNoSection->id,
+            'school_id' => $this->schoolA->id,
+            'district_id' => $this->schoolA->district_id,
+            'student_id' => 'STU-A2',
+        ]);
+
+        $this->withHeaders(['X-Kiosk-Token' => $this->deviceAToken])
+            ->postJson('/api/v1/attendance-punches', ['identifier' => 'STU-A2', 'method' => 'id_card'])
+            ->assertCreated();
+
+        $this->assertDatabaseHas('student_attendance_punches', ['method' => 'id_card']);
+        $this->assertDatabaseCount('attendances', 0);
     }
 }
