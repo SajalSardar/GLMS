@@ -2472,6 +2472,117 @@ export function getMyAttendance(
   })
 }
 
+// ---------- Kiosk devices ----------
+
+export interface KioskDevice {
+  id: number
+  school_id: number
+  school_name: string | null
+  name: string
+  is_active: boolean
+  last_used_at: string | null
+  created_at: string | null
+}
+
+export interface KioskDevicePayload {
+  name: string
+  school_id?: number
+}
+
+export function listKioskDevices(
+  params: { page?: number; perPage?: number } = {},
+  token?: string,
+): Promise<PaginatedResponse<KioskDevice>> {
+  return listGeo<KioskDevice>('kiosk-devices', params, token)
+}
+
+// Only the create response ever carries the plaintext token — shown to
+// the admin exactly once, matching the backend's own one-time-reveal
+// contract (see KioskDeviceController::store()).
+export function createKioskDevice(
+  payload: KioskDevicePayload,
+  token: string,
+): Promise<{ data: KioskDevice & { token: string } }> {
+  return createGeo<KioskDevice & { token: string }, KioskDevicePayload>('kiosk-devices', payload, token)
+}
+
+export function updateKioskDevice(
+  id: number,
+  payload: Partial<{ name: string; is_active: boolean }>,
+  token: string,
+): Promise<{ data: KioskDevice }> {
+  return updateGeo<KioskDevice, Partial<{ name: string; is_active: boolean }>>('kiosk-devices', id, payload, token)
+}
+
+export function deleteKioskDevice(id: number, token: string): Promise<void> {
+  return deleteGeo('kiosk-devices', id, token)
+}
+
+// ---------- Teacher attendance reports ----------
+
+export interface TeacherAttendanceReportTeacherRow {
+  teacher_profile_id: number
+  name: string | null
+  employee_id: string | null
+  statuses: Record<string, AttendanceStatus>
+}
+
+export interface TeacherAttendanceReport {
+  school: { id: number; name: string; address: string | null }
+  year: number
+  month: number
+  dates: AttendanceReportDate[]
+  teachers: TeacherAttendanceReportTeacherRow[]
+}
+
+export function getTeacherAttendanceReport(
+  params: { schoolId: number; year: number; month: number },
+  token: string,
+): Promise<{ data: TeacherAttendanceReport }> {
+  const query = buildQuery({ school_id: params.schoolId, year: params.year, month: params.month })
+
+  return apiFetch<{ data: TeacherAttendanceReport }>(`/teacher-attendances/report${query}`, {
+    headers: authHeaders(token),
+  })
+}
+
+export interface MyTeacherAttendanceDay {
+  date: string
+  status: AttendanceStatus | null
+  check_in_at: string | null
+  check_out_at: string | null
+  holiday_name: string | null
+}
+
+export interface MyTeacherAttendance {
+  year: number
+  month: number
+  days: MyTeacherAttendanceDay[]
+  summary: Record<AttendanceStatus, number>
+}
+
+export function getMyTeacherAttendance(
+  params: { year: number; month: number },
+  token: string,
+): Promise<{ data: MyTeacherAttendance | null }> {
+  const query = buildQuery({ year: params.year, month: params.month })
+
+  return apiFetch<{ data: MyTeacherAttendance | null }>(`/teacher-attendances/mine${query}`, {
+    headers: authHeaders(token),
+  })
+}
+
+export function correctTeacherAttendance(
+  payload: { teacher_profile_id: number; date: string; status: AttendanceStatus; correction_note?: string },
+  token: string,
+): Promise<{ data: { teacher_profile_id: number; date: string; status: AttendanceStatus } }> {
+  return apiFetch('/teacher-attendances/correct', {
+    method: 'PATCH',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  })
+}
+
 // ---------- Academic exam terms ----------
 
 export interface AcademicExamTerm {
