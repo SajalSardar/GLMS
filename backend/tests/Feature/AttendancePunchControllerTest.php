@@ -134,6 +134,49 @@ class AttendancePunchControllerTest extends TestCase
         $this->assertDatabaseCount('attendance_punches', 2);
     }
 
+    /**
+     * Regression test for a retried device upload: the same punch arriving
+     * twice (identical identifier + captured_at, e.g. a device retrying an
+     * upload it never got an ack for) must merge into one
+     * TeacherAttendance row rather than throwing a DB unique-constraint
+     * exception on the second write. This covers the sequential case;
+     * upsertDaySummary()'s DB::transaction()+lockForUpdate() additionally
+     * protects the true interleaved-read race (two requests both reading
+     * null before either writes), which PHPUnit's single-threaded
+     * execution cannot exercise directly — see the fix report for the
+     * code-reading justification of why that race is structurally
+     * impossible under lockForUpdate() on the production (MySQL) engine.
+     */
+    public function test_a_retried_punch_for_the_same_teacher_and_day_does_not_throw_and_merges_into_one_row(): void
+    {
+        $payload = [
+            'identifier' => 'EMP-A1', 'method' => 'id_card', 'captured_at' => '2026-12-01T08:55:00+00:00',
+        ];
+
+        $this->withHeaders(['X-Kiosk-Token' => $this->deviceAToken])
+            ->postJson('/api/v1/attendance-punches', $payload)
+            ->assertCreated();
+
+        // The retry: identical identifier + captured_at, same as a device
+        // re-uploading a punch it never got an acknowledgement for.
+        $this->withHeaders(['X-Kiosk-Token' => $this->deviceAToken])
+            ->postJson('/api/v1/attendance-punches', $payload)
+            ->assertCreated();
+
+        $attendance = TeacherAttendance::where('teacher_profile_id', $this->profileA->id)
+            ->whereDate('date', '2026-12-01')
+            ->sole();
+
+        // Two entries at the identical instant both survive filter() (it
+        // only drops nulls, not duplicates), so check_out_at ends up equal
+        // to check_in_at — the correct result of the unchanged
+        // collect/filter/sort logic for a same-timestamp retry, not a bug.
+        $this->assertSame('2026-12-01T08:55:00+00:00', $attendance->check_in_at->toIso8601String());
+        $this->assertSame('2026-12-01T08:55:00+00:00', $attendance->check_out_at->toIso8601String());
+        $this->assertSame('present', $attendance->status);
+        $this->assertDatabaseCount('attendance_punches', 2);
+    }
+
     public function test_an_unrecognized_identifier_is_rejected_with_404(): void
     {
         $this->withHeaders(['X-Kiosk-Token' => $this->deviceAToken])

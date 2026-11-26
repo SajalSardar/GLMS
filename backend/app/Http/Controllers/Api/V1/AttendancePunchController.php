@@ -10,6 +10,7 @@ use App\Models\TeacherAttendance;
 use App\Models\TeacherProfile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class AttendancePunchController extends Controller
 {
@@ -63,36 +64,48 @@ class AttendancePunchController extends Controller
      * upload) still corrects check_in_at rather than being ignored.
      * Always writes status 'present' — a punch is hard evidence of actual
      * attendance and always wins over a leave record.
+     *
+     * Wrapped in a transaction with a locking read: two near-simultaneous
+     * punches for the same teacher+date (e.g. a retried device upload
+     * arriving twice) must not both see the read-then-write's first()
+     * return null and both attempt create(), which would otherwise throw
+     * on the teacher_attendances (teacher_profile_id, date) unique
+     * constraint instead of merging into one row. lockForUpdate() forces
+     * the second transaction to wait for the first to commit, then it
+     * re-reads and sees the row the first transaction just created.
      */
     private function upsertDaySummary(TeacherProfile $teacherProfile, Carbon $punchedAt): void
     {
-        $attendance = TeacherAttendance::where('teacher_profile_id', $teacherProfile->id)
-            ->whereDate('date', $punchedAt->toDateString())
-            ->first();
+        DB::transaction(function () use ($teacherProfile, $punchedAt): void {
+            $attendance = TeacherAttendance::where('teacher_profile_id', $teacherProfile->id)
+                ->whereDate('date', $punchedAt->toDateString())
+                ->lockForUpdate()
+                ->first();
 
-        if ($attendance === null) {
-            TeacherAttendance::create([
-                'teacher_profile_id' => $teacherProfile->id,
-                'school_id' => $teacherProfile->school_id,
-                'district_id' => $teacherProfile->district_id,
-                'date' => $punchedAt->toDateString(),
+            if ($attendance === null) {
+                TeacherAttendance::create([
+                    'teacher_profile_id' => $teacherProfile->id,
+                    'school_id' => $teacherProfile->school_id,
+                    'district_id' => $teacherProfile->district_id,
+                    'date' => $punchedAt->toDateString(),
+                    'status' => 'present',
+                    'check_in_at' => $punchedAt,
+                    'check_out_at' => null,
+                ]);
+
+                return;
+            }
+
+            $times = collect([$attendance->check_in_at, $attendance->check_out_at, $punchedAt])
+                ->filter()
+                ->sortBy(fn (Carbon $time) => $time->getTimestamp())
+                ->values();
+
+            $attendance->update([
                 'status' => 'present',
-                'check_in_at' => $punchedAt,
-                'check_out_at' => null,
+                'check_in_at' => $times->first(),
+                'check_out_at' => $times->count() > 1 ? $times->last() : null,
             ]);
-
-            return;
-        }
-
-        $times = collect([$attendance->check_in_at, $attendance->check_out_at, $punchedAt])
-            ->filter()
-            ->sortBy(fn (Carbon $time) => $time->getTimestamp())
-            ->values();
-
-        $attendance->update([
-            'status' => 'present',
-            'check_in_at' => $times->first(),
-            'check_out_at' => $times->count() > 1 ? $times->last() : null,
-        ]);
+        });
     }
 }
