@@ -130,6 +130,38 @@ class TeacherAttendanceControllerTest extends TestCase
         $this->assertSame(1, $response->json('data.summary.present'));
     }
 
+    public function test_mine_shows_a_stored_rows_real_status_even_on_a_holiday_date(): void
+    {
+        // A stored row always wins over a holiday — same invariant report()
+        // already enforces. holiday_name should still be reported alongside
+        // the real status, not null it out.
+        Holiday::create([
+            'type' => 'other',
+            'start_date' => '2026-12-01',
+            'end_date' => '2026-12-01',
+            'name' => 'Special Holiday',
+        ]);
+
+        TeacherAttendance::create([
+            'teacher_profile_id' => $this->profile->id,
+            'school_id' => $this->school->id,
+            'district_id' => $this->school->district_id,
+            'date' => '2026-12-01',
+            'status' => 'present',
+            'check_in_at' => '2026-12-01 08:55:00',
+            'check_out_at' => '2026-12-01 16:05:00',
+        ]);
+
+        $response = $this->actingAs($this->teacher, 'sanctum')
+            ->getJson('/api/v1/teacher-attendances/mine?year=2026&month=12')
+            ->assertOk();
+
+        $day = collect($response->json('data.days'))->firstWhere('date', '2026-12-01');
+        $this->assertSame('present', $day['status']);
+        $this->assertSame('Special Holiday', $day['holiday_name']);
+        $this->assertSame(1, $response->json('data.summary.present'));
+    }
+
     public function test_mine_is_forbidden_for_a_non_teacher_actor(): void
     {
         $staff = $this->actorWithPermissions([]);
@@ -165,6 +197,56 @@ class TeacherAttendanceControllerTest extends TestCase
             'correction_note' => 'Device was offline',
         ]);
         $this->assertSame('2026-12-01', TeacherAttendance::first()->date->toDateString());
+    }
+
+    public function test_correcting_a_day_that_already_has_a_row_updates_it_in_place(): void
+    {
+        // Simulates a day already recorded by a device punch (or an earlier
+        // correction), then corrected again by an admin. Must update the
+        // existing row rather than attempt a second insert and collide with
+        // the (teacher_profile_id, date) unique index.
+        TeacherAttendance::create([
+            'teacher_profile_id' => $this->profile->id,
+            'school_id' => $this->school->id,
+            'district_id' => $this->school->district_id,
+            'date' => '2026-12-01',
+            'status' => 'present',
+            'check_in_at' => '2026-12-01 08:55:00',
+            'check_out_at' => '2026-12-01 16:05:00',
+        ]);
+
+        $schoolAdmin = $this->actorWithPermissions(['teacher_attendances.update'], $this->school->id, $this->school->district_id);
+
+        $this->actingAs($schoolAdmin, 'sanctum')
+            ->patchJson('/api/v1/teacher-attendances/correct', [
+                'teacher_profile_id' => $this->profile->id,
+                'date' => '2026-12-01',
+                'status' => 'leave',
+                'correction_note' => 'Device mis-logged this as present',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'leave');
+
+        $this->assertSame(1, TeacherAttendance::count());
+        $updated = TeacherAttendance::first();
+        $this->assertSame('leave', $updated->status);
+        $this->assertSame($schoolAdmin->id, $updated->corrected_by_id);
+        // The device's own check-in/out timestamps are left untouched by a
+        // status correction.
+        $this->assertNotNull($updated->check_in_at);
+
+        // Correcting the SAME day a second time must still update in place,
+        // not throw a unique-constraint violation.
+        $this->actingAs($schoolAdmin, 'sanctum')
+            ->patchJson('/api/v1/teacher-attendances/correct', [
+                'teacher_profile_id' => $this->profile->id,
+                'date' => '2026-12-01',
+                'status' => 'present',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'present');
+
+        $this->assertSame(1, TeacherAttendance::count());
     }
 
     public function test_correct_is_forbidden_without_the_update_permission(): void

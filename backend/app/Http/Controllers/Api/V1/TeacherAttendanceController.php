@@ -104,14 +104,22 @@ class TeacherAttendanceController extends Controller
             ->get()
             ->keyBy(fn (TeacherAttendance $row) => $row->date->toDateString());
 
+        $holidays = Holiday::where('is_active', true)->get();
+
         $days = [];
         $summary = ['present' => 0, 'absent' => 0, 'leave' => 0];
 
         for ($cursor = $start->copy(); $cursor->lte($end); $cursor->addDay()) {
             $dateString = $cursor->toDateString();
             $record = $records->get($dateString);
-            $holidayName = $this->holidayNameCovering($cursor);
+            $holidayName = $holidays->first(fn (Holiday $holiday) => $holiday->coversDate($cursor))?->name;
 
+            // A stored row always wins over a holiday — a real punch or
+            // correction is hard evidence of what actually happened that
+            // day, same invariant report() already enforces. holiday_name
+            // being non-null never hides a row's own status; it only
+            // supplies the synthesized status (leave/absent) when no row
+            // exists at all.
             $status = $record?->status;
 
             if ($status === null && $holidayName === null) {
@@ -124,7 +132,7 @@ class TeacherAttendanceController extends Controller
 
             $days[] = [
                 'date' => $dateString,
-                'status' => $holidayName !== null ? null : $status,
+                'status' => $status,
                 'check_in_at' => $record?->check_in_at?->toIso8601String(),
                 'check_out_at' => $record?->check_out_at?->toIso8601String(),
                 'holiday_name' => $holidayName,
@@ -146,21 +154,42 @@ class TeacherAttendanceController extends Controller
      * missed punch, etc. Overwrites (or creates) the day's final status;
      * check_in_at/check_out_at are left untouched (a correction is about
      * the day's status, not fabricating device timestamps).
+     *
+     * Looked up via whereDate() rather than passed through updateOrCreate()'s
+     * own match array — same hazard, same fix, as
+     * AttendanceController::record(): `date` is cast as 'date' but the value
+     * actually stored went through that cast's set-mutator and serializes as
+     * 'Y-m-d H:i:s', so a raw date string in updateOrCreate()'s match array
+     * never equals the stored value, never finds the existing row, and
+     * collides with the (teacher_profile_id, date) unique index on create().
      */
     public function correct(CorrectTeacherAttendanceRequest $request): JsonResponse
     {
         $profile = TeacherProfile::findOrFail($request->integer('teacher_profile_id'));
+        $date = $request->string('date')->toString();
 
-        $attendance = TeacherAttendance::updateOrCreate(
-            ['teacher_profile_id' => $profile->id, 'date' => $request->string('date')->toString()],
-            [
-                'school_id' => $profile->school_id,
-                'district_id' => $profile->district_id,
-                'status' => $request->string('status')->toString(),
-                'corrected_by_id' => $request->user()->id,
-                'correction_note' => $request->string('correction_note')->toString() ?: null,
-            ],
-        );
+        $attributes = [
+            'school_id' => $profile->school_id,
+            'district_id' => $profile->district_id,
+            'status' => $request->string('status')->toString(),
+            'corrected_by_id' => $request->user()->id,
+            'correction_note' => $request->string('correction_note')->toString() ?: null,
+        ];
+
+        $existing = TeacherAttendance::where('teacher_profile_id', $profile->id)
+            ->whereDate('date', $date)
+            ->first();
+
+        if ($existing !== null) {
+            $existing->update($attributes);
+            $attendance = $existing;
+        } else {
+            $attendance = TeacherAttendance::create([
+                ...$attributes,
+                'teacher_profile_id' => $profile->id,
+                'date' => $date,
+            ]);
+        }
 
         return response()->json(['data' => [
             'teacher_profile_id' => $attendance->teacher_profile_id,
@@ -177,11 +206,6 @@ class TeacherAttendanceController extends Controller
             ->whereDate('from_date', '<=', $date)
             ->whereDate('to_date', '>=', $date)
             ->exists();
-    }
-
-    private function holidayNameCovering(Carbon $date): ?string
-    {
-        return Holiday::where('is_active', true)->get()->first(fn (Holiday $holiday) => $holiday->coversDate($date))?->name;
     }
 
     /**
