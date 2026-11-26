@@ -24,7 +24,7 @@ function schoolClassLabel(schoolClass: SchoolClass): string {
 
 export default function StudentsPage() {
   const navigate = useNavigate()
-  const { token, can } = useAuth()
+  const { token } = useAuth()
   const [schools, setSchools] = useState<School[]>([])
   const [districts, setDistricts] = useState<District[]>([])
   const [classes, setClasses] = useState<SchoolClass[]>([])
@@ -85,19 +85,6 @@ export default function StudentsPage() {
       onAdd={() => navigate('/dashboard/students/new')}
       onView={(row) => navigate(`/dashboard/students/${row.id}`)}
       onEdit={(row) => navigate(`/dashboard/students/${row.id}?edit=1`)}
-      rowActions={(row) =>
-        can('student_profiles.print') ? (
-          <button
-            type="button"
-            className="cursor-pointer leading-none text-gray-500 transition-colors duration-150 hover:text-primary-500"
-            onClick={() => navigate(`/dashboard/students/${row.id}/id-card`)}
-            aria-label={t['management.table.print']}
-            title={t['management.table.print']}
-          >
-            <span className="material-symbols-outlined !text-md">print</span>
-          </button>
-        ) : null
-      }
       parentFilter={{
         label: t['management.fields.school'],
         allLabel: t['management.fields.allSchools'],

@@ -369,7 +369,7 @@ export default function TeacherDetailPage() {
   const { id } = useParams()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const { token } = useAuth()
+  const { token, can } = useAuth()
 
   const isCreate = id === undefined
   const teacherId = isCreate ? null : Number(id)
@@ -583,10 +583,32 @@ export default function TeacherDetailPage() {
         </button>
 
         {!isCreate && mode === 'view' && !loading && teacher && (
-          <button type="button" className={`${buttonPrimary} inline-flex items-center gap-1.5`} onClick={startEdit}>
-            <span className="material-symbols-outlined !text-[18px] leading-none">edit</span>
-            {t['management.teacherDetail.edit']}
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            {can('teacher_profiles.print') && (
+              <>
+                <button
+                  type="button"
+                  className={`${buttonNeutral} inline-flex items-center gap-1.5`}
+                  onClick={() => navigate(`/dashboard/teachers/${teacher.id}/admission-form`)}
+                >
+                  <span className="material-symbols-outlined !text-[18px] leading-none">description</span>
+                  {t['management.idCard.printFormButton']}
+                </button>
+                <button
+                  type="button"
+                  className={`${buttonNeutral} inline-flex items-center gap-1.5`}
+                  onClick={() => navigate(`/dashboard/teachers/${teacher.id}/id-card`)}
+                >
+                  <span className="material-symbols-outlined !text-[18px] leading-none">badge</span>
+                  {t['management.idCard.printIdCardButton']}
+                </button>
+              </>
+            )}
+            <button type="button" className={`${buttonPrimary} inline-flex items-center gap-1.5`} onClick={startEdit}>
+              <span className="material-symbols-outlined !text-[18px] leading-none">edit</span>
+              {t['management.teacherDetail.edit']}
+            </button>
+          </div>
         )}
       </div>
 

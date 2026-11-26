@@ -18,7 +18,7 @@ const t = getCommonStrings('en')
 
 export default function TeachersPage() {
   const navigate = useNavigate()
-  const { token, can } = useAuth()
+  const { token } = useAuth()
   const [schools, setSchools] = useState<School[]>([])
   const [districts, setDistricts] = useState<District[]>([])
 
@@ -63,19 +63,6 @@ export default function TeachersPage() {
       onAdd={() => navigate('/dashboard/teachers/new')}
       onView={(row) => navigate(`/dashboard/teachers/${row.id}`)}
       onEdit={(row) => navigate(`/dashboard/teachers/${row.id}?edit=1`)}
-      rowActions={(row) =>
-        can('teacher_profiles.print') ? (
-          <button
-            type="button"
-            className="cursor-pointer leading-none text-gray-500 transition-colors duration-150 hover:text-primary-500"
-            onClick={() => navigate(`/dashboard/teachers/${row.id}/id-card`)}
-            aria-label={t['management.table.print']}
-            title={t['management.table.print']}
-          >
-            <span className="material-symbols-outlined !text-md">print</span>
-          </button>
-        ) : null
-      }
       parentFilter={{
         label: t['management.fields.school'],
         allLabel: t['management.fields.allSchools'],
