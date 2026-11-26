@@ -27,6 +27,7 @@ use App\Http\Controllers\Api\V1\GuardianUserController;
 use App\Http\Controllers\Api\V1\GuestExamAttemptController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\HolidayController;
+use App\Http\Controllers\Api\V1\KioskDeviceController;
 use App\Http\Controllers\Api\V1\PermissionController;
 use App\Http\Controllers\Api\V1\PracticeExamController;
 use App\Http\Controllers\Api\V1\QuestionController;
@@ -254,6 +255,8 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/teacher-leave-applications', [TeacherLeaveApplicationController::class, 'index']);
         Route::get('/teacher-leave-applications/{teacher_leave_application}', [TeacherLeaveApplicationController::class, 'show']);
         Route::patch('/teacher-leave-applications/{teacher_leave_application}/review', [TeacherLeaveApplicationController::class, 'review']);
+
+        Route::apiResource('kiosk-devices', KioskDeviceController::class)->only(['index', 'store', 'update', 'destroy']);
 
         Route::apiResource('academic-questions', AcademicQuestionController::class)->only(['index', 'store', 'update', 'destroy']);
         Route::apiResource('question-papers', QuestionPaperController::class)->only(['index', 'show', 'store', 'update', 'destroy']);
