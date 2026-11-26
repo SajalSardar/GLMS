@@ -631,6 +631,15 @@
   "management.studentDetail.guardianNameAndPhoneRequired": "Name and phone are both required to add this guardian.",
   "management.studentDetail.guardianAttachFailed": "Could not add this guardian.",
 
+  "management.idCard.back": "Back",
+  "management.idCard.print": "Print",
+  "management.idCard.studentTitle": "Student ID Card",
+  "management.idCard.teacherTitle": "Teacher ID Card",
+  "management.idCard.studentProfileRequired": "Save this student's admission details before printing an ID card.",
+  "management.idCard.teacherProfileRequired": "Save this teacher's joining details before printing an ID card.",
+  "management.idCard.emergencyContact": "Emergency contact",
+  "management.idCard.ifFound": "If found, please contact:",
+
   "management.schoolDetail.back": "Back to schools",
   "management.schoolDetail.hierarchy": "Classes, versions, shifts & sections",
   "management.schoolDetail.location": "Location",
@@ -672,6 +681,7 @@
   "management.schoolLevel.college": "College",
 
   "management.table.addNew": "Add new",
+  "management.table.print": "Print ID card",
   "management.table.view": "View",
   "management.table.close": "Close",
   "management.table.edit": "Edit",

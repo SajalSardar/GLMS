@@ -64,6 +64,7 @@ class RolePermissionSeeder extends Seeder
                 'roles.view', 'permissions.view',
                 'teacher_profiles.view', 'teacher_profiles.create', 'teacher_profiles.update', 'teacher_profiles.delete',
                 'student_profiles.view', 'student_profiles.create', 'student_profiles.update', 'student_profiles.delete',
+                'student_profiles.print', 'teacher_profiles.print',
                 'student_leave_applications.view', 'student_leave_applications.update',
                 'teacher_leave_applications.view', 'teacher_leave_applications.update',
                 'question_papers.view',

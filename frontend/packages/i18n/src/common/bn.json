@@ -631,6 +631,15 @@
   "management.studentDetail.guardianNameAndPhoneRequired": "এই অভিভাবক যুক্ত করতে নাম ও ফোন নম্বর দুটোই প্রয়োজন।",
   "management.studentDetail.guardianAttachFailed": "এই অভিভাবককে যুক্ত করা যায়নি।",
 
+  "management.idCard.back": "ফিরে যান",
+  "management.idCard.print": "প্রিন্ট করুন",
+  "management.idCard.studentTitle": "শিক্ষার্থী আইডি কার্ড",
+  "management.idCard.teacherTitle": "শিক্ষক আইডি কার্ড",
+  "management.idCard.studentProfileRequired": "আইডি কার্ড প্রিন্ট করার আগে এই শিক্ষার্থীর ভর্তির তথ্য সংরক্ষণ করুন।",
+  "management.idCard.teacherProfileRequired": "আইডি কার্ড প্রিন্ট করার আগে এই শিক্ষকের যোগদানের তথ্য সংরক্ষণ করুন।",
+  "management.idCard.emergencyContact": "জরুরি যোগাযোগ",
+  "management.idCard.ifFound": "পাওয়া গেলে যোগাযোগ করুন:",
+
   "management.schoolDetail.back": "স্কুল তালিকায় ফিরুন",
   "management.schoolDetail.hierarchy": "ক্লাস, ভার্সন, শিফট ও শাখা",
   "management.schoolDetail.location": "অবস্থান",
@@ -672,6 +681,7 @@
   "management.schoolLevel.college": "কলেজ",
 
   "management.table.addNew": "নতুন যোগ করুন",
+  "management.table.print": "আইডি কার্ড প্রিন্ট করুন",
   "management.table.view": "বিস্তারিত দেখুন",
   "management.table.close": "বন্ধ করুন",
   "management.table.edit": "সম্পাদনা",

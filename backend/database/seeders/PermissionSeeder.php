@@ -255,6 +255,13 @@ class PermissionSeeder extends Seeder
             // standalone action permission, not split into .view/.create/.update/
             // .delete. No teacher exception anywhere: promotion is admin-only.
             ['name' => 'student_promotions.create', 'label' => 'Promote students to the next class'],
+
+            // Printing an ID card is deliberately NOT bundled into
+            // student_profiles.view/teacher_profiles.view (every staff role
+            // already holds those) — only national_admin and school_admin
+            // get these, per the feature's explicit requirement.
+            ['name' => 'student_profiles.print', 'label' => "Print a student's ID card"],
+            ['name' => 'teacher_profiles.print', 'label' => "Print a teacher's ID card"],
         ];
 
         foreach ($permissions as $permission) {
