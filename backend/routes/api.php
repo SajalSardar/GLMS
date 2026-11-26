@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\AcademicQuestionController;
 use App\Http\Controllers\Api\V1\AcademicSubjectMarkConfigureController;
 use App\Http\Controllers\Api\V1\AcademicYearController;
 use App\Http\Controllers\Api\V1\AttendanceController;
+use App\Http\Controllers\Api\V1\AttendancePunchController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BookController;
 use App\Http\Controllers\Api\V1\ChapterController;
@@ -125,6 +126,12 @@ Route::prefix('v1')->group(function (): void {
     // and the POST writes a row per call.
     Route::get('/practice-exams/config', [PracticeExamController::class, 'config'])->middleware('throttle:30,1');
     Route::post('/practice-exams', [PracticeExamController::class, 'store'])->middleware('throttle:30,1');
+
+    // Device-facing, not a portal user — authenticated by the kiosk.auth
+    // middleware's own token check, not auth:sanctum. Throttled the same
+    // way the other public write endpoint above is.
+    Route::post('/attendance-punches', [AttendancePunchController::class, 'store'])
+        ->middleware(['kiosk.auth', 'throttle:120,1']);
 
     Route::middleware('auth:sanctum')->group(function (): void {
         Route::apiResource('divisions', DivisionController::class)->only(['store', 'update', 'destroy']);
