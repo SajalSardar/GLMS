@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import {
+  ApiError,
   createKioskDevice,
   deleteKioskDevice,
   listKioskDevices,
@@ -14,6 +15,7 @@ import GeoCrudTable, { type GeoColumn } from '../components/GeoCrudTable'
 import { schoolLabel } from '../components/schoolOptions'
 import SearchableSelect from '../components/SearchableSelect'
 import { buttonNeutral, buttonPrimary, inputClass } from '../components/styles'
+import { useToast, ToastViewport } from '../components/Toast'
 
 const t = getCommonStrings('en')
 
@@ -97,7 +99,16 @@ function AddDeviceModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-5" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-5"
+      onClick={() => {
+        // Guarded the same way the Cancel button already is — a backdrop
+        // click during an in-flight save would unmount this modal, and
+        // handleSubmit()'s finally block's setSubmitting(false) would
+        // then fire on an unmounted component.
+        if (!submitting) onClose()
+      }}
+    >
       <div className="w-full max-w-md rounded-md bg-white p-6 shadow-2xl" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
         <h3 className="text-base font-semibold text-gray-800">{t['management.kioskDevices.addNew']}</h3>
 
@@ -141,6 +152,7 @@ export default function KioskDevicesPage() {
   const [adding, setAdding] = useState(false)
   const [revealToken, setRevealToken] = useState<string | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
+  const { toast, showToast } = useToast()
 
   useEffect(() => {
     listSchools({ perPage: 200 }, token ?? undefined)
@@ -178,7 +190,12 @@ export default function KioskDevicesPage() {
         onEdit={(row) => {
           if (!token) return
           const nextActive = !row.is_active
-          updateKioskDevice(row.id, { is_active: nextActive }, token).then(() => setRefreshKey((key) => key + 1))
+          updateKioskDevice(row.id, { is_active: nextActive }, token)
+            .then(() => setRefreshKey((key) => key + 1))
+            .catch((caught: unknown) => {
+              const message = caught instanceof ApiError ? caught.message : String(caught)
+              showToast({ type: 'error', message })
+            })
         }}
       />
 
@@ -201,6 +218,8 @@ export default function KioskDevicesPage() {
       )}
 
       {revealToken && <TokenRevealModal token={revealToken} onClose={() => setRevealToken(null)} />}
+
+      <ToastViewport toast={toast} />
     </section>
   )
 }

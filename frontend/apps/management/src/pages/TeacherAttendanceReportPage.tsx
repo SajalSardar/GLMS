@@ -175,7 +175,16 @@ function CorrectionModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-5" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-5"
+      onClick={() => {
+        // Guarded the same way the Cancel button already is — a backdrop
+        // click during an in-flight save would unmount this modal, and
+        // handleSave()'s finally block's setSubmitting(false) would then
+        // fire on an unmounted component.
+        if (!submitting) onClose()
+      }}
+    >
       <div
         className="w-full max-w-md rounded-md bg-white p-6 shadow-2xl"
         onClick={(event) => event.stopPropagation()}
@@ -194,9 +203,9 @@ function CorrectionModal({
             value={status}
             onChange={(event) => setStatus(event.target.value as AttendanceStatus)}
           >
-            <option value="present">{t['management.attendance.statusPresent']}</option>
-            <option value="absent">{t['management.attendance.statusAbsent']}</option>
-            <option value="leave">{t['management.attendance.statusLeave']}</option>
+            <option value="present">{t['teacher.attendance.statusPresent']}</option>
+            <option value="absent">{t['teacher.attendance.statusAbsent']}</option>
+            <option value="leave">{t['teacher.attendance.statusLeave']}</option>
           </select>
         </label>
 
@@ -284,6 +293,7 @@ export default function TeacherAttendanceReportPage() {
   }, [token, schoolId, year, month, refreshKey])
 
   const canCorrect = can('teacher_attendances.update')
+  const todayString = new Date().toISOString().slice(0, 10)
 
   return (
     <section className="px-4 py-6 print:px-0 print:py-0 lg:px-6">
@@ -378,12 +388,19 @@ export default function TeacherAttendanceReportPage() {
                     <td className="sticky left-24 z-10 bg-white px-3 py-2 whitespace-nowrap font-medium text-gray-900">{row.name ?? '—'}</td>
                     {report.dates.map((dateInfo) => {
                       const status = row.statuses[dateInfo.date] ?? null
+                      // A future date can never have a real status yet —
+                      // same invariant the backend read-side (report()/
+                      // mine()) and CorrectTeacherAttendanceRequest's
+                      // before_or_equal:today rule both enforce. Skip
+                      // attaching the click handler entirely so a future
+                      // cell can't open the correction modal at all.
+                      const isCorrectable = canCorrect && dateInfo.date <= todayString
 
                       return (
                         <td
                           key={dateInfo.date}
                           onClick={
-                            canCorrect
+                            isCorrectable
                               ? () =>
                                   setCorrecting({
                                     teacherProfileId: row.teacher_profile_id,
@@ -393,7 +410,7 @@ export default function TeacherAttendanceReportPage() {
                                   })
                               : undefined
                           }
-                          className={`px-2 py-2 text-center print:cursor-default ${canCorrect ? 'cursor-pointer hover:bg-primary-50' : ''}`}
+                          className={`px-2 py-2 text-center print:cursor-default ${isCorrectable ? 'cursor-pointer hover:bg-primary-50' : ''}`}
                         >
                           {status ? (
                             <span className={`font-semibold ${REPORT_COLOR[status]}`}>{REPORT_LETTER[status]}</span>
