@@ -22,6 +22,8 @@ class TeacherAttendanceControllerTest extends TestCase
 
     private School $school;
 
+    private School $schoolB;
+
     private TeacherUser $teacher;
 
     private TeacherProfile $profile;
@@ -42,28 +44,68 @@ class TeacherAttendanceControllerTest extends TestCase
             'district_id' => $district->id,
             'employee_id' => 'EMP-0001',
         ]);
+
+        // A second school, mirroring KioskDeviceControllerTest's schoolA/
+        // schoolB setup — used by the cross-tenant isolation tests below.
+        $districtB = District::create(['division_id' => $division->id, 'name' => 'District B', 'bn_name' => 'জেলা বি']);
+        $upazilaB = Upazila::create(['district_id' => $districtB->id, 'name' => 'Upazila B', 'bn_name' => 'উপজেলা বি']);
+        $this->schoolB = School::create(['division_id' => $division->id, 'district_id' => $districtB->id, 'upazila_id' => $upazilaB->id, 'name' => 'School B']);
     }
 
     public function test_report_marks_a_day_with_no_record_as_absent(): void
     {
+        // A genuinely past month relative to any real run — avoids the
+        // future-date clamp report() now applies (a date after today is
+        // left out of `statuses` entirely rather than synthesized).
         $schoolAdmin = $this->actorWithPermissions(['teacher_attendances.view'], $this->school->id, $this->school->district_id);
 
         $response = $this->actingAs($schoolAdmin, 'sanctum')
-            ->getJson("/api/v1/teacher-attendances/report?school_id={$this->school->id}&year=2026&month=12")
+            ->getJson("/api/v1/teacher-attendances/report?school_id={$this->school->id}&year=2020&month=1")
             ->assertOk();
 
         $teacherRow = collect($response->json('data.teachers'))->firstWhere('teacher_profile_id', $this->profile->id);
-        $this->assertSame('absent', $teacherRow['statuses']['2026-12-01']);
+        $this->assertSame('absent', $teacherRow['statuses']['2020-01-01']);
+    }
+
+    public function test_report_leaves_a_future_date_out_of_statuses_entirely(): void
+    {
+        $futureYear = (int) now()->addYear()->format('Y');
+
+        $schoolAdmin = $this->actorWithPermissions(['teacher_attendances.view'], $this->school->id, $this->school->district_id);
+
+        $response = $this->actingAs($schoolAdmin, 'sanctum')
+            ->getJson("/api/v1/teacher-attendances/report?school_id={$this->school->id}&year={$futureYear}&month=1")
+            ->assertOk();
+
+        $teacherRow = collect($response->json('data.teachers'))->firstWhere('teacher_profile_id', $this->profile->id);
+        $this->assertArrayNotHasKey("{$futureYear}-01-01", $teacherRow['statuses']);
+    }
+
+    public function test_mine_reports_a_future_date_as_null_status_and_excludes_it_from_the_summary(): void
+    {
+        $futureYear = (int) now()->addYear()->format('Y');
+
+        $response = $this->actingAs($this->teacher, 'sanctum')
+            ->getJson("/api/v1/teacher-attendances/mine?year={$futureYear}&month=1")
+            ->assertOk();
+
+        $day = collect($response->json('data.days'))->firstWhere('date', "{$futureYear}-01-01");
+        $this->assertNull($day['status']);
+        $this->assertSame(0, $response->json('data.summary.present'));
+        $this->assertSame(0, $response->json('data.summary.absent'));
+        $this->assertSame(0, $response->json('data.summary.leave'));
     }
 
     public function test_report_marks_a_day_covered_by_an_approved_leave_as_leave(): void
     {
+        // A genuinely past month — relies on the synthesis path (no stored
+        // row), which only runs for dates on or before today.
         TeacherLeaveApplication::create([
             'teacher_id' => $this->teacher->id,
             'school_id' => $this->school->id,
             'district_id' => $this->school->district_id,
-            'from_date' => '2026-12-01',
-            'to_date' => '2026-12-02',
+            'from_date' => '2020-01-01',
+            'to_date' => '2020-01-02',
             'reason' => 'Sick',
             'status' => 'approved',
         ]);
@@ -71,31 +113,34 @@ class TeacherAttendanceControllerTest extends TestCase
         $schoolAdmin = $this->actorWithPermissions(['teacher_attendances.view'], $this->school->id, $this->school->district_id);
 
         $response = $this->actingAs($schoolAdmin, 'sanctum')
-            ->getJson("/api/v1/teacher-attendances/report?school_id={$this->school->id}&year=2026&month=12")
+            ->getJson("/api/v1/teacher-attendances/report?school_id={$this->school->id}&year=2020&month=1")
             ->assertOk();
 
         $teacherRow = collect($response->json('data.teachers'))->firstWhere('teacher_profile_id', $this->profile->id);
-        $this->assertSame('leave', $teacherRow['statuses']['2026-12-01']);
+        $this->assertSame('leave', $teacherRow['statuses']['2020-01-01']);
     }
 
     public function test_report_overlays_a_holiday_instead_of_marking_absent(): void
     {
+        // A genuinely past date — the future-date clamp alone would also
+        // leave the key out of `statuses`, which would mask this test's
+        // actual intent (the holiday overlay, not the future-date clamp).
         Holiday::create([
             'type' => 'other',
-            'start_date' => '2026-12-01',
-            'end_date' => '2026-12-01',
+            'start_date' => '2020-01-01',
+            'end_date' => '2020-01-01',
             'name' => 'Special Holiday',
         ]);
 
         $schoolAdmin = $this->actorWithPermissions(['teacher_attendances.view'], $this->school->id, $this->school->district_id);
 
         $response = $this->actingAs($schoolAdmin, 'sanctum')
-            ->getJson("/api/v1/teacher-attendances/report?school_id={$this->school->id}&year=2026&month=12")
+            ->getJson("/api/v1/teacher-attendances/report?school_id={$this->school->id}&year=2020&month=1")
             ->assertOk();
 
         $teacherRow = collect($response->json('data.teachers'))->firstWhere('teacher_profile_id', $this->profile->id);
-        $this->assertArrayNotHasKey('2026-12-01', $teacherRow['statuses']);
-        $dateInfo = collect($response->json('data.dates'))->firstWhere('date', '2026-12-01');
+        $this->assertArrayNotHasKey('2020-01-01', $teacherRow['statuses']);
+        $dateInfo = collect($response->json('data.dates'))->firstWhere('date', '2020-01-01');
         $this->assertSame('Special Holiday', $dateInfo['holiday_name']);
     }
 
@@ -274,5 +319,41 @@ class TeacherAttendanceControllerTest extends TestCase
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('status');
+    }
+
+    public function test_school_admin_cannot_report_another_schools_attendance(): void
+    {
+        // TenantScope on School hides schoolB's row from
+        // School::findOrFail() for an actor scoped to school A — proving
+        // this protection stays in place rather than only working because
+        // nothing has removed it yet.
+        $schoolAdminA = $this->actorWithPermissions(['teacher_attendances.view'], $this->school->id, $this->school->district_id);
+
+        $this->actingAs($schoolAdminA, 'sanctum')
+            ->getJson("/api/v1/teacher-attendances/report?school_id={$this->schoolB->id}&year=2020&month=1")
+            ->assertNotFound();
+    }
+
+    public function test_school_admin_cannot_correct_another_schools_teacher_attendance(): void
+    {
+        // TenantScope on TeacherProfile hides schoolB's profile from
+        // TeacherProfile::findOrFail() for an actor scoped to school A.
+        $teacherB = TeacherUser::factory()->create(['school_id' => $this->schoolB->id, 'district_id' => $this->schoolB->district_id]);
+        $profileB = TeacherProfile::create([
+            'user_id' => $teacherB->id,
+            'school_id' => $this->schoolB->id,
+            'district_id' => $this->schoolB->district_id,
+            'employee_id' => 'EMP-0002',
+        ]);
+
+        $schoolAdminA = $this->actorWithPermissions(['teacher_attendances.update'], $this->school->id, $this->school->district_id);
+
+        $this->actingAs($schoolAdminA, 'sanctum')
+            ->patchJson('/api/v1/teacher-attendances/correct', [
+                'teacher_profile_id' => $profileB->id,
+                'date' => '2026-12-01',
+                'status' => 'present',
+            ])
+            ->assertNotFound();
     }
 }

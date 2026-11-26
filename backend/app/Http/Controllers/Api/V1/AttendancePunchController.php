@@ -39,14 +39,16 @@ class AttendancePunchController extends Controller
             ? Carbon::parse($request->string('captured_at')->toString())
             : now();
 
-        AttendancePunch::create([
-            'teacher_profile_id' => $teacherProfile->id,
-            'kiosk_device_id' => $device->id,
-            'method' => $request->string('method')->toString(),
-            'punched_at' => $punchedAt,
-        ]);
+        DB::transaction(function () use ($teacherProfile, $device, $request, $punchedAt): void {
+            AttendancePunch::create([
+                'teacher_profile_id' => $teacherProfile->id,
+                'kiosk_device_id' => $device->id,
+                'method' => $request->string('method')->toString(),
+                'punched_at' => $punchedAt,
+            ]);
 
-        $this->upsertDaySummary($teacherProfile, $punchedAt);
+            $this->upsertDaySummary($teacherProfile, $punchedAt);
+        });
 
         return response()->json([
             'data' => [

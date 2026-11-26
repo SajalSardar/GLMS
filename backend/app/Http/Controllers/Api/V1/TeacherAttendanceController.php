@@ -13,6 +13,7 @@ use App\Models\TeacherUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 
 class TeacherAttendanceController extends Controller
 {
@@ -32,6 +33,15 @@ class TeacherAttendanceController extends Controller
 
         [$year, $month, $start, $end] = $this->resolveMonth($request);
         $dates = $this->dateRange($start, $end);
+        $today = Carbon::today();
+
+        // Precomputed once from $dates (which already evaluated every
+        // active Holiday row against every date in range) rather than
+        // re-querying Holiday::isHoliday() per teacher per day below.
+        $holidayDates = collect($dates)
+            ->filter(fn (array $date) => $date['holiday_name'] !== null)
+            ->pluck('date')
+            ->flip();
 
         $profiles = TeacherProfile::where('school_id', $school->id)->with('user')->get();
 
@@ -40,8 +50,20 @@ class TeacherAttendanceController extends Controller
             ->get()
             ->groupBy('teacher_profile_id');
 
-        $teacherRows = $profiles->map(function (TeacherProfile $profile) use ($start, $end, $attendanceByTeacher) {
+        // One query for every teacher's approved leave ranges overlapping
+        // the requested month, instead of an onApprovedLeave() existence
+        // query per teacher per day below.
+        $approvedLeavesByTeacher = TeacherLeaveApplication::query()
+            ->whereIn('teacher_id', $profiles->pluck('user_id'))
+            ->where('status', 'approved')
+            ->whereDate('from_date', '<=', $end)
+            ->whereDate('to_date', '>=', $start)
+            ->get()
+            ->groupBy('teacher_id');
+
+        $teacherRows = $profiles->map(function (TeacherProfile $profile) use ($start, $end, $today, $attendanceByTeacher, $holidayDates, $approvedLeavesByTeacher) {
             $own = $attendanceByTeacher->get($profile->id, collect())->keyBy(fn (TeacherAttendance $row) => $row->date->toDateString());
+            $leaves = $approvedLeavesByTeacher->get($profile->user_id, collect());
             $statuses = [];
 
             for ($cursor = $start->copy(); $cursor->lte($end); $cursor->addDay()) {
@@ -54,11 +76,23 @@ class TeacherAttendanceController extends Controller
                     continue;
                 }
 
-                if (Holiday::isHoliday($cursor)) {
+                // A date after today has no status to synthesize yet —
+                // status is only computed lazily for past dates with no
+                // row (see this method's own doc comment); leave it out
+                // of `statuses` entirely, same as a holiday.
+                if ($cursor->gt($today)) {
                     continue;
                 }
 
-                $statuses[$dateString] = $this->onApprovedLeave($profile->user_id, $cursor) ? 'leave' : 'absent';
+                if ($holidayDates->has($dateString)) {
+                    continue;
+                }
+
+                $onLeave = $leaves->contains(
+                    fn (TeacherLeaveApplication $leave) => $leave->from_date->lte($cursor) && $leave->to_date->gte($cursor)
+                );
+
+                $statuses[$dateString] = $onLeave ? 'leave' : 'absent';
             }
 
             return [
@@ -105,6 +139,7 @@ class TeacherAttendanceController extends Controller
             ->keyBy(fn (TeacherAttendance $row) => $row->date->toDateString());
 
         $holidays = Holiday::where('is_active', true)->get();
+        $today = Carbon::today();
 
         $days = [];
         $summary = ['present' => 0, 'absent' => 0, 'leave' => 0];
@@ -119,10 +154,12 @@ class TeacherAttendanceController extends Controller
             // day, same invariant report() already enforces. holiday_name
             // being non-null never hides a row's own status; it only
             // supplies the synthesized status (leave/absent) when no row
-            // exists at all.
+            // exists at all. A date after today has no status to
+            // synthesize yet — it stays null and is excluded from the
+            // summary below, same as report() leaves it out of `statuses`.
             $status = $record?->status;
 
-            if ($status === null && $holidayName === null) {
+            if ($status === null && $holidayName === null && $cursor->lte($today)) {
                 $status = $this->onApprovedLeave($teacher->id, $cursor) ? 'leave' : 'absent';
             }
 
@@ -167,6 +204,16 @@ class TeacherAttendanceController extends Controller
     {
         $profile = TeacherProfile::findOrFail($request->integer('teacher_profile_id'));
         $date = $request->string('date')->toString();
+
+        // teacher_attendances.school_id/district_id are NOT NULL, but
+        // teacher_profiles.school_id/district_id are nullable — without
+        // this guard a profile with no school assigned yet would 500 on
+        // the NOT NULL constraint violation below instead of a clean 422.
+        if ($profile->school_id === null) {
+            throw ValidationException::withMessages([
+                'teacher_profile_id' => ['This teacher has no school assigned and cannot have attendance corrected.'],
+            ]);
+        }
 
         $attributes = [
             'school_id' => $profile->school_id,
