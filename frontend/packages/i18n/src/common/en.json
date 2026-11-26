@@ -673,6 +673,9 @@
   "management.teacherAttendance.loading": "Loading the report...",
   "management.teacherAttendance.empty": "No teachers at this school yet.",
   "management.teacherAttendance.print": "Print",
+  "management.teacherAttendance.correctionTitle": "Correct attendance",
+  "management.teacherAttendance.correctionStatus": "Status",
+  "management.teacherAttendance.correctionNote": "Note (optional)",
 
   "management.schoolDetail.back": "Back to schools",
   "management.schoolDetail.hierarchy": "Classes, versions, shifts & sections",
@@ -989,6 +992,7 @@
   "teacher.myAttendance.month": "Month",
   "teacher.myAttendance.loading": "Loading...",
   "teacher.myAttendance.noProfile": "Your profile hasn't been set up yet — contact your administrator.",
+  "teacher.myAttendance.loadError": "Something went wrong loading your attendance. Please try again.",
   "teacher.myAttendance.colDate": "Date",
   "teacher.myAttendance.colStatus": "Status",
   "teacher.myAttendance.colCheckIn": "Check-in",

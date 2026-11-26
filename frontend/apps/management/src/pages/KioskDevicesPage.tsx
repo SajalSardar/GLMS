@@ -136,7 +136,7 @@ function AddDeviceModal({
 }
 
 export default function KioskDevicesPage() {
-  const { token } = useAuth()
+  const { token, schoolId } = useAuth()
   const [schools, setSchools] = useState<School[]>([])
   const [adding, setAdding] = useState(false)
   const [revealToken, setRevealToken] = useState<string | null>(null)
@@ -185,13 +185,12 @@ export default function KioskDevicesPage() {
       {adding && (
         <AddDeviceModal
           schools={schools}
-          // A school_admin's own listSchools call is already narrowed to
-          // just their own school by TenantScope (it applies regardless of
-          // the route's own public/auth:sanctum status — see TenantScope's
-          // own comment), so `schools.length > 1` is only ever true for an
-          // unscoped actor (national_admin), who is the only one who needs
-          // to pick which school the device belongs to.
-          needsSchoolPicker={schools.length > 1}
+          // schoolId is null only for an unscoped actor (national_admin),
+          // who is the only one who needs to pick which school the device
+          // belongs to — a school_admin's own schoolId restricts the
+          // picker to their own school rather than trusting the (public,
+          // unscoped) /schools endpoint's response shape to imply it.
+          needsSchoolPicker={schoolId === null}
           onCreated={(plainToken) => {
             setAdding(false)
             setRevealToken(plainToken)

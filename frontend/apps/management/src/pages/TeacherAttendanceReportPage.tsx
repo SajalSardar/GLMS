@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import {
+  correctTeacherAttendance,
   getTeacherAttendanceReport,
   listSchools,
   type AttendanceStatus,
@@ -9,7 +10,7 @@ import {
 import { useAuth } from '@ttla/auth'
 import { getCommonStrings } from '@ttla/i18n'
 import SearchableSelect from '../components/SearchableSelect'
-import { inputClass } from '../components/styles'
+import { buttonNeutral, buttonPrimary, inputClass } from '../components/styles'
 
 const t = getCommonStrings('en')
 
@@ -128,12 +129,109 @@ function SmartMonthPicker({
   )
 }
 
-// Report-only, same reasoning as AttendanceReportPage's own comment —
-// school_admin/national_admin get visibility into every teacher's
-// attendance, not the ability to record it; recording stays locked to
-// the kiosk-device punch flow / teacher portal.
+// Opened by clicking a day-cell (only when the actor has
+// teacher_attendances.update) to cover a device-offline/missed-punch day
+// — same fixed-backdrop/role="dialog" convention as KioskDevicesPage's
+// AddDeviceModal. Save calls the existing correctTeacherAttendance
+// api-client function then tells the caller to re-fetch the report so
+// the grid reflects the correction immediately.
+function CorrectionModal({
+  teacherName,
+  date,
+  teacherProfileId,
+  initialStatus,
+  token,
+  onClose,
+  onSaved,
+}: {
+  teacherName: string
+  date: string
+  teacherProfileId: number
+  initialStatus: AttendanceStatus | null
+  token: string
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const [status, setStatus] = useState<AttendanceStatus>(initialStatus ?? 'present')
+  const [note, setNote] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+
+  async function handleSave() {
+    setSubmitting(true)
+    setError(null)
+
+    try {
+      await correctTeacherAttendance(
+        { teacher_profile_id: teacherProfileId, date, status, correction_note: note.trim() || undefined },
+        token,
+      )
+      onSaved()
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : String(caught))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-5" onClick={onClose}>
+      <div
+        className="w-full max-w-md rounded-md bg-white p-6 shadow-2xl"
+        onClick={(event) => event.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+      >
+        <h3 className="text-base font-semibold text-gray-800">{t['management.teacherAttendance.correctionTitle']}</h3>
+        <p className="mt-2 text-sm text-gray-600">
+          {teacherName} — {date}
+        </p>
+
+        <label className="mt-4 flex flex-col gap-1.5 text-sm">
+          <span className="font-medium text-gray-700">{t['management.teacherAttendance.correctionStatus']}</span>
+          <select
+            className={inputClass}
+            value={status}
+            onChange={(event) => setStatus(event.target.value as AttendanceStatus)}
+          >
+            <option value="present">{t['management.attendance.statusPresent']}</option>
+            <option value="absent">{t['management.attendance.statusAbsent']}</option>
+            <option value="leave">{t['management.attendance.statusLeave']}</option>
+          </select>
+        </label>
+
+        <label className="mt-4 flex flex-col gap-1.5 text-sm">
+          <span className="font-medium text-gray-700">{t['management.teacherAttendance.correctionNote']}</span>
+          <textarea
+            className="min-h-20 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 outline-none transition-colors focus:border-primary-500"
+            value={note}
+            onChange={(event) => setNote(event.target.value)}
+          />
+        </label>
+
+        {error && <p className="mt-3 rounded-md bg-danger-50 px-4 py-3 text-sm text-danger-600">{error}</p>}
+
+        <div className="mt-5 flex justify-end gap-3">
+          <button type="button" className={buttonNeutral} onClick={onClose} disabled={submitting}>
+            {t['management.table.cancel']}
+          </button>
+          <button type="button" className={buttonPrimary} onClick={handleSave} disabled={submitting}>
+            {submitting ? t['management.table.saving'] : t['management.table.save']}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Report-only for most actors, same reasoning as AttendanceReportPage's
+// own comment — school_admin/national_admin get visibility into every
+// teacher's attendance, not the ability to record it; recording stays
+// locked to the kiosk-device punch flow / teacher portal. The one
+// exception is a manual correction (device offline, missed punch, etc.)
+// via teacher_attendances.update, below.
 export default function TeacherAttendanceReportPage() {
-  const { token } = useAuth()
+  const { token, can } = useAuth()
 
   const [schools, setSchools] = useState<School[]>([])
   const [schoolId, setSchoolId] = useState<number | null>(null)
@@ -143,6 +241,13 @@ export default function TeacherAttendanceReportPage() {
   const [month, setMonth] = useState(now.getMonth() + 1)
   const [loading, setLoading] = useState(false)
   const [report, setReport] = useState<TeacherAttendanceReport | null>(null)
+  const [refreshKey, setRefreshKey] = useState(0)
+  const [correcting, setCorrecting] = useState<{
+    teacherProfileId: number
+    teacherName: string
+    date: string
+    status: AttendanceStatus | null
+  } | null>(null)
 
   useEffect(() => {
     listSchools({ perPage: 200 }, token ?? undefined)
@@ -176,7 +281,9 @@ export default function TeacherAttendanceReportPage() {
     return () => {
       active = false
     }
-  }, [token, schoolId, year, month])
+  }, [token, schoolId, year, month, refreshKey])
+
+  const canCorrect = can('teacher_attendances.update')
 
   return (
     <section className="px-4 py-6 print:px-0 print:py-0 lg:px-6">
@@ -270,10 +377,24 @@ export default function TeacherAttendanceReportPage() {
                     <td className="sticky left-0 z-10 bg-white px-3 py-2 whitespace-nowrap text-gray-500">{row.employee_id ?? '—'}</td>
                     <td className="sticky left-24 z-10 bg-white px-3 py-2 whitespace-nowrap font-medium text-gray-900">{row.name ?? '—'}</td>
                     {report.dates.map((dateInfo) => {
-                      const status = row.statuses[dateInfo.date]
+                      const status = row.statuses[dateInfo.date] ?? null
 
                       return (
-                        <td key={dateInfo.date} className="px-2 py-2 text-center">
+                        <td
+                          key={dateInfo.date}
+                          onClick={
+                            canCorrect
+                              ? () =>
+                                  setCorrecting({
+                                    teacherProfileId: row.teacher_profile_id,
+                                    teacherName: row.name ?? row.employee_id ?? '',
+                                    date: dateInfo.date,
+                                    status,
+                                  })
+                              : undefined
+                          }
+                          className={`px-2 py-2 text-center print:cursor-default ${canCorrect ? 'cursor-pointer hover:bg-primary-50' : ''}`}
+                        >
                           {status ? (
                             <span className={`font-semibold ${REPORT_COLOR[status]}`}>{REPORT_LETTER[status]}</span>
                           ) : dateInfo.holiday_name ? (
@@ -290,6 +411,21 @@ export default function TeacherAttendanceReportPage() {
             </table>
           </div>
         </div>
+      )}
+
+      {correcting && token && (
+        <CorrectionModal
+          teacherName={correcting.teacherName}
+          date={correcting.date}
+          teacherProfileId={correcting.teacherProfileId}
+          initialStatus={correcting.status}
+          token={token}
+          onClose={() => setCorrecting(null)}
+          onSaved={() => {
+            setCorrecting(null)
+            setRefreshKey((key) => key + 1)
+          }}
+        />
       )}
     </section>
   )

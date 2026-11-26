@@ -673,6 +673,9 @@
   "management.teacherAttendance.loading": "প্রতিবেদন লোড হচ্ছে...",
   "management.teacherAttendance.empty": "এই বিদ্যালয়ে এখনো কোনো শিক্ষক নেই।",
   "management.teacherAttendance.print": "প্রিন্ট করুন",
+  "management.teacherAttendance.correctionTitle": "উপস্থিতি সংশোধন করুন",
+  "management.teacherAttendance.correctionStatus": "অবস্থা",
+  "management.teacherAttendance.correctionNote": "নোট (ঐচ্ছিক)",
 
   "management.schoolDetail.back": "স্কুল তালিকায় ফিরুন",
   "management.schoolDetail.hierarchy": "ক্লাস, ভার্সন, শিফট ও শাখা",
@@ -989,6 +992,7 @@
   "teacher.myAttendance.month": "মাস",
   "teacher.myAttendance.loading": "লোড হচ্ছে...",
   "teacher.myAttendance.noProfile": "আপনার প্রোফাইল এখনো তৈরি করা হয়নি — প্রশাসকের সাথে যোগাযোগ করুন।",
+  "teacher.myAttendance.loadError": "আপনার উপস্থিতি লোড করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।",
   "teacher.myAttendance.colDate": "তারিখ",
   "teacher.myAttendance.colStatus": "অবস্থা",
   "teacher.myAttendance.colCheckIn": "প্রবেশের সময়",

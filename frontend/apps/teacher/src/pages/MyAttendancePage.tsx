@@ -28,6 +28,7 @@ export default function MyAttendancePage() {
   const [loading, setLoading] = useState(true)
   const [record, setRecord] = useState<MyTeacherAttendance | null>(null)
   const [hasProfile, setHasProfile] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!token) return
@@ -39,9 +40,12 @@ export default function MyAttendancePage() {
         if (!active) return
         setRecord(result.data)
         setHasProfile(result.data !== null)
+        setError(null)
       })
       .catch(() => {
-        if (active) setRecord(null)
+        if (!active) return
+        setRecord(null)
+        setError(t['teacher.myAttendance.loadError'])
       })
       .finally(() => {
         if (active) setLoading(false)
@@ -74,6 +78,8 @@ export default function MyAttendancePage() {
 
         <input
           type="number"
+          min={2000}
+          max={2100}
           className="h-11 w-24 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-800 outline-none transition-colors focus:border-primary-500"
           value={year}
           onChange={(event) => setYear(Number(event.target.value))}
@@ -82,7 +88,9 @@ export default function MyAttendancePage() {
 
       {loading && <p className="mt-6 text-sm text-gray-500">{t['teacher.myAttendance.loading']}</p>}
 
-      {!loading && !hasProfile && <p className="mt-6 text-sm text-gray-500">{t['teacher.myAttendance.noProfile']}</p>}
+      {!loading && error && <p className="mt-6 text-sm text-danger-600">{error}</p>}
+
+      {!loading && !error && !hasProfile && <p className="mt-6 text-sm text-gray-500">{t['teacher.myAttendance.noProfile']}</p>}
 
       {!loading && record && (
         <>
