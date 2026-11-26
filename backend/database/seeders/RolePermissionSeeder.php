@@ -72,6 +72,8 @@ class RolePermissionSeeder extends Seeder
                 'academic_exam_marks.view', 'academic_exam_marks.update', 'academic_exam_marks.publish',
                 'student_promotions.create',
                 'guardians.view', 'guardians.create', 'guardians.update', 'guardians.delete',
+                'kiosk_devices.view', 'kiosk_devices.create', 'kiosk_devices.update', 'kiosk_devices.delete',
+                'teacher_attendances.view', 'teacher_attendances.update',
             ],
 
             'teacher' => [

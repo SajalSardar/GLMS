@@ -262,6 +262,19 @@ class PermissionSeeder extends Seeder
             // get these, per the feature's explicit requirement.
             ['name' => 'student_profiles.print', 'label' => "Print a student's ID card"],
             ['name' => 'teacher_profiles.print', 'label' => "Print a teacher's ID card"],
+
+            // A physical attendance device identifies a teacher (ID card or
+            // its own built-in face match) and reports the result here —
+            // kiosk_devices.* governs provisioning/revoking those devices;
+            // teacher_attendances.* governs viewing the resulting report and
+            // manually correcting a day.
+            ['name' => 'kiosk_devices.view', 'label' => 'View kiosk devices'],
+            ['name' => 'kiosk_devices.create', 'label' => 'Provision a kiosk device'],
+            ['name' => 'kiosk_devices.update', 'label' => 'Rename or activate/deactivate a kiosk device'],
+            ['name' => 'kiosk_devices.delete', 'label' => 'Revoke a kiosk device'],
+
+            ['name' => 'teacher_attendances.view', 'label' => "View teachers' attendance report"],
+            ['name' => 'teacher_attendances.update', 'label' => "Manually correct a teacher's attendance for a day"],
         ];
 
         foreach ($permissions as $permission) {
