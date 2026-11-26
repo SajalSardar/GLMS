@@ -119,6 +119,37 @@ class DashboardControllerTest extends TestCase
             ]);
     }
 
+    public function test_a_teacher_actor_can_load_the_summary_without_a_type_error(): void
+    {
+        // Regression: the controller's private helpers were once typed to
+        // App\Models\User specifically, so a TeacherUser/StudentUser/
+        // GuardianUser calling this same shared endpoint (every portal's
+        // dashboard hits it, not just management) threw a TypeError.
+        $this->teacherIn($this->schoolA);
+        $actor = $this->teacherActorWithPermissions(self::PERMISSIONS, $this->schoolA->id, $this->schoolA->district_id);
+
+        $response = $this->actingAs($actor, 'sanctum')->getJson('/api/v1/dashboard/summary')->assertOk();
+
+        $response->assertJsonPath('data.teachers_count', 1);
+    }
+
+    public function test_a_student_actor_can_load_the_summary_without_a_type_error(): void
+    {
+        $this->studentIn($this->schoolA, 'Student A');
+        $actor = $this->studentActorWithPermissions(self::PERMISSIONS, $this->schoolA->id, $this->schoolA->district_id);
+
+        $response = $this->actingAs($actor, 'sanctum')->getJson('/api/v1/dashboard/summary')->assertOk();
+
+        $response->assertJsonPath('data.students_count', 1);
+    }
+
+    public function test_a_guardian_actor_can_load_the_summary_without_a_type_error(): void
+    {
+        $actor = $this->guardianActorWithPermissions(self::PERMISSIONS, $this->schoolA->id, $this->schoolA->district_id);
+
+        $this->actingAs($actor, 'sanctum')->getJson('/api/v1/dashboard/summary')->assertOk();
+    }
+
     public function test_an_unscoped_actor_sees_counts_across_every_school(): void
     {
         $this->teacherIn($this->schoolA);

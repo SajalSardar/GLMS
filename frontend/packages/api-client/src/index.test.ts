@@ -24,6 +24,7 @@ import {
   getDashboardSummary,
   getExam,
   getHealth,
+  getMe,
   getPracticeExamConfig,
   getStudentDashboard,
   listAcademicYears,
@@ -61,6 +62,8 @@ import {
   updateChapterMaterial,
   updateClassSchoolSubjects,
   updateDivision,
+  updateMe,
+  updateMyPassword,
   updateSchool,
   updateSubjectTeacherAssignment,
   uploadBookPdf,
@@ -1268,6 +1271,57 @@ describe('dashboard summary', () => {
     expect(result.data.schools_count).toBe(2)
     expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/dashboard/summary`)
     expect(mockFetch.mock.calls[0][1]).toMatchObject({ headers: { Authorization: 'Bearer tok' } })
+  })
+})
+
+describe('my account', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('fetches the current actor profile', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          data: { name: 'Jane', bn_name: null, email: 'jane@example.test', phone: null, role: 'school_admin', role_label: 'School Admin' },
+        }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    const result = await getMe('tok')
+
+    expect(result.data.name).toBe('Jane')
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/me`)
+    expect(mockFetch.mock.calls[0][1]).toMatchObject({ headers: { Authorization: 'Bearer tok' } })
+  })
+
+  it('updates the current actor profile', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({ data: { name: 'Jane Updated', bn_name: null, email: null, phone: null, role: null, role_label: null } }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    await updateMe({ name: 'Jane Updated' }, 'tok')
+
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/me`)
+    expect(mockFetch.mock.calls[0][1]).toMatchObject({
+      method: 'PATCH',
+      headers: { Authorization: 'Bearer tok' },
+      body: JSON.stringify({ name: 'Jane Updated' }),
+    })
+  })
+
+  it('changes the current actor password', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 204 })
+    vi.stubGlobal('fetch', mockFetch)
+
+    await updateMyPassword({ current_password: 'old', password: 'new-password', password_confirmation: 'new-password' }, 'tok')
+
+    expect(mockFetch.mock.calls[0][0]).toBe(`${import.meta.env.VITE_API_BASE_URL}/me/password`)
+    expect(mockFetch.mock.calls[0][1]).toMatchObject({ method: 'PATCH', headers: { Authorization: 'Bearer tok' } })
   })
 })
 

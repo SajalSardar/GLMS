@@ -24,6 +24,7 @@ import DashboardBooksPage from './pages/dashboard/BooksPage'
 import DashboardVideoLecturePage from './pages/dashboard/VideoLecturePage'
 import DashboardExamsPage from './pages/dashboard/ExamsPage'
 import DashboardResultsPage from './pages/dashboard/ResultsPage'
+import DashboardMyProfilePage from './pages/dashboard/MyProfilePage'
 
 // Logged-in students get the same sidebar+topbar AppShell the management
 // portal uses; guests browsing these same routes (books/video-lecture/
@@ -83,6 +84,7 @@ function App() {
                 <Route path="holidays" element={<DashboardHolidayCalendarPage />} />
                 <Route path="attendance" element={<DashboardAttendancePage />} />
                 <Route path="results" element={<DashboardResultsPage />} />
+                <Route path="profile" element={<DashboardMyProfilePage />} />
               </Route>
               <Route path="books" element={<BooksRoute />} />
               <Route path="books/:id" element={<BookDetailPage />} />

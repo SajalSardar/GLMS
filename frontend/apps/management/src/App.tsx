@@ -24,6 +24,7 @@ import HolidaysPage from './pages/HolidaysPage'
 import KioskDevicesPage from './pages/KioskDevicesPage'
 import ManagementClassRoutinePage from './pages/ManagementClassRoutinePage'
 import ManagementLogin from './pages/ManagementLogin'
+import MyProfilePage from './pages/MyProfilePage'
 import PermissionsPage from './pages/PermissionsPage'
 import PromoteStudentsPage from './pages/PromoteStudentsPage'
 import QuestionPapersPage from './pages/QuestionPapersPage'
@@ -386,7 +387,7 @@ function RequireRole({ roles }: { roles: string[] }) {
 }
 
 function DashboardLayout() {
-  const { clearToken, role, token } = useAuth()
+  const { clearToken, name, role, token } = useAuth()
   const navigate = useNavigate()
 
   // Revokes the token server-side before dropping it locally — clearToken()
@@ -450,7 +451,12 @@ function DashboardLayout() {
       title="Management Portal"
       navItems={navItems}
       logoSrc="/logo.webp"
-      userLabel={role ? formatRole(role) : undefined}
+      userName={name ?? undefined}
+      userRole={role ? formatRole(role) : undefined}
+      profileTo="/dashboard/profile"
+      profileLabel={t['management.nav.profile']}
+      notificationsLabel={t['management.nav.notifications']}
+      noNotificationsLabel={t['management.nav.noNotifications']}
       onLogout={handleLogout}
       logoutLabel={t['management.logout']}
     />
@@ -466,6 +472,10 @@ function App() {
           <Route element={<RequireAuth />}>
             <Route path="/dashboard" element={<DashboardLayout />}>
               <Route index element={<DashboardPage />} />
+              {/* No RequireRole guard — every management-portal role may
+                  view/edit their own account, regardless of what else
+                  they're permissioned for. */}
+              <Route path="profile" element={<MyProfilePage />} />
               <Route element={<RequireRole roles={ALL_MANAGEMENT_ROLES} />}>
                 <Route path="classes" element={<ClassesPage />} />
                 <Route path="academic-years" element={<AcademicYearsPage />} />

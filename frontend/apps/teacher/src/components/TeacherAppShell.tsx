@@ -30,8 +30,15 @@ const navItems: SidebarItem[] = [
   { to: '/my-attendance', label: t['teacher.nav.myAttendance'], icon: 'badge' },
 ]
 
+function formatRole(role: string): string {
+  return role
+    .split('_')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
+}
+
 export default function TeacherAppShell() {
-  const { token, name, clearToken } = useAuth()
+  const { token, name, role, clearToken } = useAuth()
   const navigate = useNavigate()
 
   // Revokes the token server-side before dropping it locally — same
@@ -50,7 +57,13 @@ export default function TeacherAppShell() {
     <AppShell
       title={t['teacher.login.portalName']}
       navItems={navItems}
-      userLabel={name ?? undefined}
+      logoSrc="/logo.webp"
+      userName={name ?? undefined}
+      userRole={role ? formatRole(role) : undefined}
+      profileTo="/profile"
+      profileLabel={t['teacher.nav.profile']}
+      notificationsLabel={t['teacher.nav.notifications']}
+      noNotificationsLabel={t['teacher.nav.noNotifications']}
       onLogout={handleLogout}
       logoutLabel={t['teacher.nav.logout']}
     />

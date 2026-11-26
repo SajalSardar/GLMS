@@ -3525,3 +3525,46 @@ export function getDashboardSummary(token: string): Promise<{ data: DashboardSum
     headers: authHeaders(token),
   })
 }
+
+// ---------- My account (self-service) ----------
+
+// Shared by every portal's logged-in actor (management/teacher/student/
+// guardian) — one endpoint, since the backend resolves $request->user()
+// to whichever login-table model backed the token. bn_name is present
+// for teacher/student/guardian actors but not management ones.
+export interface Me {
+  name: string
+  bn_name: string | null
+  email: string | null
+  phone: string | null
+  role: string | null
+  role_label: string | null
+}
+
+export function getMe(token: string): Promise<{ data: Me }> {
+  return apiFetch<{ data: Me }>('/me', {
+    headers: authHeaders(token),
+  })
+}
+
+export function updateMe(
+  payload: { name: string; bn_name?: string | null; email?: string | null; phone?: string | null },
+  token: string,
+): Promise<{ data: Me }> {
+  return apiFetch<{ data: Me }>('/me', {
+    method: 'PATCH',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  })
+}
+
+export function updateMyPassword(
+  payload: { current_password: string; password: string; password_confirmation: string },
+  token: string,
+): Promise<void> {
+  return apiFetch<void>('/me/password', {
+    method: 'PATCH',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  })
+}

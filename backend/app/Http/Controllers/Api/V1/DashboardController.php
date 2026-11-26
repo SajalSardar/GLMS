@@ -4,10 +4,13 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
+use App\Models\GuardianUser;
 use App\Models\Holiday;
 use App\Models\School;
 use App\Models\StudentProfile;
+use App\Models\StudentUser;
 use App\Models\TeacherProfile;
+use App\Models\TeacherUser;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -16,20 +19,21 @@ use Illuminate\Support\Carbon;
 class DashboardController extends Controller
 {
     /**
-     * One aggregate read for the Management Portal's dashboard, rather
-     * than one round trip per widget. Each section is independently
-     * gated on the same permission its own dedicated endpoint already
-     * requires (schools.view, teacher_profiles.view, student_profiles.view,
-     * attendances.view, holidays.view) and is `null` in the response when
-     * the actor lacks it — the frontend hides a widget whose field is
-     * null, the same convention ExamAttemptResource already uses for
-     * is_correct. Every count below is a plain Eloquent query, so
-     * TenantScope narrows it to the actor's own school/district for free,
-     * exactly like every other report in this app.
+     * One aggregate read shared by every portal's dashboard (management,
+     * teacher, student), rather than one round trip per widget. Each
+     * section is independently gated on the same permission its own
+     * dedicated endpoint already requires (schools.view,
+     * teacher_profiles.view, student_profiles.view, attendances.view,
+     * holidays.view) and is `null` in the response when the actor lacks
+     * it — the frontend hides a widget whose field is null, the same
+     * convention ExamAttemptResource already uses for is_correct. Every
+     * count below is a plain Eloquent query, so TenantScope narrows it to
+     * the actor's own school/district for free, exactly like every other
+     * report in this app.
      */
     public function summary(Request $request): JsonResponse
     {
-        /** @var User $user */
+        /** @var User|TeacherUser|StudentUser|GuardianUser $user */
         $user = $request->user();
 
         return response()->json([
@@ -48,7 +52,7 @@ class DashboardController extends Controller
     /**
      * @return array{date: string, present: int, absent: int, leave: int, total: int, present_percent: float|null}|null
      */
-    private function attendanceToday(User $user): ?array
+    private function attendanceToday(User|TeacherUser|StudentUser|GuardianUser $user): ?array
     {
         if (! $user->hasPermission('attendances.view')) {
             return null;
@@ -60,7 +64,7 @@ class DashboardController extends Controller
     /**
      * @return list<array{date: string, present: int, absent: int, leave: int, total: int, present_percent: float|null}>|null
      */
-    private function attendanceTrend(User $user): ?array
+    private function attendanceTrend(User|TeacherUser|StudentUser|GuardianUser $user): ?array
     {
         if (! $user->hasPermission('attendances.view')) {
             return null;
@@ -98,7 +102,7 @@ class DashboardController extends Controller
      *
      * @return list<array{id: int, name: string, bn_name: ?string, start_date: string, end_date: string}>|null
      */
-    private function upcomingHolidays(User $user): ?array
+    private function upcomingHolidays(User|TeacherUser|StudentUser|GuardianUser $user): ?array
     {
         if (! $user->hasPermission('holidays.view')) {
             return null;
@@ -127,7 +131,7 @@ class DashboardController extends Controller
      *
      * @return list<array{user_id: int, student_id: ?string, name: ?string, school_name: ?string, admission_date: ?string}>|null
      */
-    private function recentStudents(User $user): ?array
+    private function recentStudents(User|TeacherUser|StudentUser|GuardianUser $user): ?array
     {
         if (! $user->hasPermission('student_profiles.view')) {
             return null;

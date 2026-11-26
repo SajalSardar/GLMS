@@ -48,8 +48,15 @@ function LanguageSwitcher({
 // swapped in only once a student is authenticated (see App.tsx's
 // StudentAreaShell). Guests browsing the very same routes (books,
 // video-lecture, exams all support guest access) keep SiteShell.
+function formatRole(role: string): string {
+  return role
+    .split('_')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
+}
+
 export default function StudentAppShell() {
-  const { token, name, clearToken } = useAuth()
+  const { token, name, role, clearToken } = useAuth()
   const { t, locale, setLocale } = useLocale()
 
   const navItems: SidebarItem[] = [
@@ -78,7 +85,12 @@ export default function StudentAppShell() {
       title={t['landing.brand']}
       navItems={navItems}
       logoSrc="/logo.webp"
-      userLabel={name ?? undefined}
+      userName={name ?? undefined}
+      userRole={role ? formatRole(role) : undefined}
+      profileTo="/profile"
+      profileLabel={t['student.nav.profile']}
+      notificationsLabel={t['student.nav.notifications']}
+      noNotificationsLabel={t['student.nav.noNotifications']}
       onLogout={handleLogout}
       logoutLabel={t['student.nav.logout']}
       mainClassName="flex-1"

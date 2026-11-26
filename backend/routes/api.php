@@ -30,6 +30,7 @@ use App\Http\Controllers\Api\V1\GuestExamAttemptController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\HolidayController;
 use App\Http\Controllers\Api\V1\KioskDeviceController;
+use App\Http\Controllers\Api\V1\MeController;
 use App\Http\Controllers\Api\V1\PermissionController;
 use App\Http\Controllers\Api\V1\PracticeExamController;
 use App\Http\Controllers\Api\V1\QuestionController;
@@ -140,6 +141,14 @@ Route::prefix('v1')->group(function (): void {
         ->middleware(['kiosk.auth', 'throttle:120,1']);
 
     Route::middleware('auth:sanctum')->group(function (): void {
+        // Self-service "my account" — the one route every login-table
+        // model (User/TeacherUser/StudentUser/GuardianUser) shares, since
+        // each already resolves correctly via $request->user() regardless
+        // of which table backed the token. See MeController's own comment.
+        Route::get('/me', [MeController::class, 'show']);
+        Route::patch('/me', [MeController::class, 'update']);
+        Route::patch('/me/password', [MeController::class, 'updatePassword']);
+
         Route::apiResource('divisions', DivisionController::class)->only(['store', 'update', 'destroy']);
         Route::apiResource('districts', DistrictController::class)->only(['store', 'update', 'destroy']);
         Route::apiResource('upazilas', UpazilaController::class)->only(['store', 'update', 'destroy']);
