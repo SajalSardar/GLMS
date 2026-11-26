@@ -16,6 +16,20 @@ return new class extends Migration
      * correction_note are set only when a human overrides a day via
      * TeacherAttendanceController::correct() — distinguishing "the device
      * recorded this" from "a human overrode it."
+     *
+     * corrected_by_id is deliberately NOT constrained to the `users`
+     * table: after the user-table split, an actor-id column FK'd to one
+     * specific user table breaks for any actor whose id comes from a
+     * different table — see
+     * 2026_11_19_194634_drop_users_only_fk_from_upload_tracking_columns.php,
+     * which removed this exact pattern from chapter_materials.uploaded_by_id
+     * and books.pdf_uploaded_by_id. The actor correcting an attendance day
+     * is always a staff User in practice (teacher_attendances.update is
+     * only ever granted to national_admin/school_admin roles today), but
+     * unlike Attendance.marked_by_id (which FKs to teacher_users
+     * specifically), this column stays unconstrained rather than FK'd to
+     * any one table, to stay defensive against a future role
+     * reassignment — matching the precedent migration's own resolution.
      */
     public function up(): void
     {
@@ -33,7 +47,7 @@ return new class extends Migration
             $table->timestamp('check_in_at')->nullable();
             $table->timestamp('check_out_at')->nullable();
 
-            $table->foreignId('corrected_by_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->unsignedBigInteger('corrected_by_id')->nullable();
             $table->text('correction_note')->nullable();
 
             $table->timestamps();

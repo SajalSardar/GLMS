@@ -35,8 +35,13 @@ class AttendancePunchController extends Controller
             abort(404, 'Unrecognized ID.');
         }
 
+        // Normalize to the app's configured timezone — a device-sent
+        // offset (e.g. '+06:00') is preserved by Carbon::parse() as-is,
+        // but everything downstream (the derived attendance date,
+        // check_in_at/check_out_at) must agree on one timezone or a
+        // non-UTC offset silently renders hours off.
         $punchedAt = $request->filled('captured_at')
-            ? Carbon::parse($request->string('captured_at')->toString())
+            ? Carbon::parse($request->string('captured_at')->toString())->setTimezone(config('app.timezone'))
             : now();
 
         DB::transaction(function () use ($teacherProfile, $device, $request, $punchedAt): void {

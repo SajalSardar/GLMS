@@ -12,6 +12,7 @@ use App\Models\TeacherProfile;
 use App\Models\TeacherUser;
 use App\Models\Upazila;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class AttendancePunchControllerTest extends TestCase
@@ -109,7 +110,49 @@ class AttendancePunchControllerTest extends TestCase
         // the student-attendance Attendance model's equivalent test.
         $this->assertSame('2026-12-01', TeacherAttendance::sole()->date->toDateString());
 
+        // Guards against a regression where check_out_at gets set to the
+        // same value as check_in_at on the very first punch — only a
+        // SECOND punch the same day should ever populate check_out_at
+        // (see the test below).
+        $this->assertNull(TeacherAttendance::sole()->check_out_at);
+
         $this->assertNotNull($this->deviceA->fresh()->last_used_at);
+    }
+
+    /**
+     * A device can send captured_at with any offset (e.g. a Bangladesh
+     * device sending '+06:00' local time) — the offset must be
+     * normalized to the app's configured timezone before it's used to
+     * derive the attendance date and stored as check_in_at, or the
+     * stored/returned instant renders hours off. config('app.timezone')
+     * is 'UTC' in this app (see config/app.php), so a '+06:00' timestamp
+     * must normalize to its UTC-equivalent instant — 6 hours earlier.
+     */
+    public function test_a_punch_with_a_non_utc_offset_is_normalized_to_the_apps_timezone(): void
+    {
+        $response = $this->withHeaders(['X-Kiosk-Token' => $this->deviceAToken])
+            ->postJson('/api/v1/attendance-punches', [
+                'identifier' => 'EMP-A1',
+                'method' => 'id_card',
+                'captured_at' => '2026-12-01T14:55:00+06:00',
+            ])
+            ->assertCreated();
+
+        // '2026-12-01T14:55:00+06:00' is the same instant as
+        // '2026-12-01T08:55:00Z' — assert against the UTC-equivalent
+        // instant so this test holds regardless of config('app.timezone').
+        $expectedInstant = Carbon::parse('2026-12-01T14:55:00+06:00')->setTimezone(config('app.timezone'));
+
+        $this->assertSame($expectedInstant->toIso8601String(), $response->json('data.punched_at'));
+
+        $attendance = TeacherAttendance::sole();
+        $this->assertSame($expectedInstant->toIso8601String(), $attendance->check_in_at->toIso8601String());
+        // The date derived from the normalized instant, not the raw
+        // device-local date — '14:55 +06:00' on 2026-12-01 is '08:55 UTC'
+        // the same day in this case, but this assertion is what would
+        // catch the offset being silently discarded for an offset large
+        // enough to cross midnight.
+        $this->assertSame($expectedInstant->toDateString(), $attendance->date->toDateString());
     }
 
     public function test_a_second_punch_the_same_day_sets_check_out_without_changing_check_in(): void

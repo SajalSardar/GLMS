@@ -10,6 +10,7 @@ use App\Models\TeacherAttendance;
 use App\Models\TeacherLeaveApplication;
 use App\Models\TeacherProfile;
 use App\Models\TeacherUser;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -76,11 +77,14 @@ class TeacherAttendanceController extends Controller
                     continue;
                 }
 
-                // A date after today has no status to synthesize yet —
-                // status is only computed lazily for past dates with no
-                // row (see this method's own doc comment); leave it out
-                // of `statuses` entirely, same as a holiday.
-                if ($cursor->gt($today)) {
+                // Today or a date after today has no status to synthesize
+                // yet — status is only computed lazily for a date strictly
+                // before today with no row (see this method's own doc
+                // comment); leave it out of `statuses` entirely, same as a
+                // holiday. Today is deliberately excluded here (not just
+                // future dates) so a teacher who hasn't punched in yet this
+                // morning isn't marked 'absent' before the day is over.
+                if ($cursor->gte($today)) {
                     continue;
                 }
 
@@ -154,12 +158,15 @@ class TeacherAttendanceController extends Controller
             // day, same invariant report() already enforces. holiday_name
             // being non-null never hides a row's own status; it only
             // supplies the synthesized status (leave/absent) when no row
-            // exists at all. A date after today has no status to
+            // exists at all. Today or a date after today has no status to
             // synthesize yet — it stays null and is excluded from the
             // summary below, same as report() leaves it out of `statuses`.
+            // Today is deliberately excluded here (strictly-before, not
+            // on-or-before) so a teacher who hasn't punched in yet this
+            // morning isn't marked 'absent' before the day is over.
             $status = $record?->status;
 
-            if ($status === null && $holidayName === null && $cursor->lte($today)) {
+            if ($status === null && $holidayName === null && $cursor->lt($today)) {
                 $status = $this->onApprovedLeave($teacher->id, $cursor) ? 'leave' : 'absent';
             }
 
@@ -219,7 +226,14 @@ class TeacherAttendanceController extends Controller
             'school_id' => $profile->school_id,
             'district_id' => $profile->district_id,
             'status' => $request->string('status')->toString(),
-            'corrected_by_id' => $request->user()->id,
+            // corrected_by_id has no FK constraint (see the migration's
+            // own doc comment) — the actor stamping a correction is
+            // always a staff User in practice (teacher_attendances.update
+            // is only ever granted to national_admin/school_admin roles
+            // today), but this guard keeps the column defensively
+            // nullable against a future role reassignment rather than
+            // assuming $request->user() is always a User instance.
+            'corrected_by_id' => $request->user() instanceof User ? $request->user()->id : null,
             'correction_note' => $request->string('correction_note')->toString() ?: null,
         ];
 

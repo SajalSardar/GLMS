@@ -20,6 +20,13 @@ class KioskDevice extends Model
         'last_used_at',
     ];
 
+    /**
+     * The token is already never serialized anywhere today — this is
+     * cheap defense-in-depth against a future raw ->toArray()/->toJson()
+     * call on the model leaking the hash.
+     */
+    protected $hidden = ['token'];
+
     protected function casts(): array
     {
         return [

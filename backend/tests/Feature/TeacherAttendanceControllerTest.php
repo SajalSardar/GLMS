@@ -81,6 +81,66 @@ class TeacherAttendanceControllerTest extends TestCase
         $this->assertArrayNotHasKey("{$futureYear}-01-01", $teacherRow['statuses']);
     }
 
+    public function test_report_leaves_today_out_of_statuses_when_no_row_exists(): void
+    {
+        // Today must not be synthesized as absent/leave before the day is
+        // over — a teacher who hasn't punched in yet this morning
+        // shouldn't be marked 'absent' while the day is still in
+        // progress. Only a date strictly before today is eligible for
+        // synthesis (see report()'s cursor skip condition: gte, not gt).
+        $today = now();
+        $schoolAdmin = $this->actorWithPermissions(['teacher_attendances.view'], $this->school->id, $this->school->district_id);
+
+        $response = $this->actingAs($schoolAdmin, 'sanctum')
+            ->getJson("/api/v1/teacher-attendances/report?school_id={$this->school->id}&year={$today->year}&month={$today->month}")
+            ->assertOk();
+
+        $teacherRow = collect($response->json('data.teachers'))->firstWhere('teacher_profile_id', $this->profile->id);
+        $this->assertArrayNotHasKey($today->toDateString(), $teacherRow['statuses']);
+    }
+
+    public function test_report_returns_a_stored_rows_actual_status_for_today(): void
+    {
+        // report()'s actual primary happy path — a real stored row always
+        // wins and is returned as-is, even for today, where synthesis is
+        // otherwise skipped entirely (see the test above). None of the
+        // other report() tests ever create a real TeacherAttendance row.
+        $today = now();
+
+        TeacherAttendance::create([
+            'teacher_profile_id' => $this->profile->id,
+            'school_id' => $this->school->id,
+            'district_id' => $this->school->district_id,
+            'date' => $today->toDateString(),
+            'status' => 'present',
+            'check_in_at' => $today->copy()->setTime(8, 55),
+        ]);
+
+        $schoolAdmin = $this->actorWithPermissions(['teacher_attendances.view'], $this->school->id, $this->school->district_id);
+
+        $response = $this->actingAs($schoolAdmin, 'sanctum')
+            ->getJson("/api/v1/teacher-attendances/report?school_id={$this->school->id}&year={$today->year}&month={$today->month}")
+            ->assertOk();
+
+        $teacherRow = collect($response->json('data.teachers'))->firstWhere('teacher_profile_id', $this->profile->id);
+        $this->assertSame('present', $teacherRow['statuses'][$today->toDateString()]);
+    }
+
+    public function test_mine_reports_today_as_null_status_when_no_row_exists(): void
+    {
+        // Same invariant as report()'s equivalent test above, from the
+        // teacher's own "My Attendance" view: today must not be
+        // synthesized as absent/leave before the day is over.
+        $today = now();
+
+        $response = $this->actingAs($this->teacher, 'sanctum')
+            ->getJson("/api/v1/teacher-attendances/mine?year={$today->year}&month={$today->month}")
+            ->assertOk();
+
+        $day = collect($response->json('data.days'))->firstWhere('date', $today->toDateString());
+        $this->assertNull($day['status']);
+    }
+
     public function test_mine_reports_a_future_date_as_null_status_and_excludes_it_from_the_summary(): void
     {
         $futureYear = (int) now()->addYear()->format('Y');
@@ -223,7 +283,7 @@ class TeacherAttendanceControllerTest extends TestCase
         $this->actingAs($schoolAdmin, 'sanctum')
             ->patchJson('/api/v1/teacher-attendances/correct', [
                 'teacher_profile_id' => $this->profile->id,
-                'date' => '2026-12-01',
+                'date' => '2025-12-01',
                 'status' => 'present',
                 'correction_note' => 'Device was offline',
             ])
@@ -241,7 +301,7 @@ class TeacherAttendanceControllerTest extends TestCase
             'corrected_by_id' => $schoolAdmin->id,
             'correction_note' => 'Device was offline',
         ]);
-        $this->assertSame('2026-12-01', TeacherAttendance::first()->date->toDateString());
+        $this->assertSame('2025-12-01', TeacherAttendance::first()->date->toDateString());
     }
 
     public function test_correcting_a_day_that_already_has_a_row_updates_it_in_place(): void
@@ -254,10 +314,10 @@ class TeacherAttendanceControllerTest extends TestCase
             'teacher_profile_id' => $this->profile->id,
             'school_id' => $this->school->id,
             'district_id' => $this->school->district_id,
-            'date' => '2026-12-01',
+            'date' => '2025-12-01',
             'status' => 'present',
-            'check_in_at' => '2026-12-01 08:55:00',
-            'check_out_at' => '2026-12-01 16:05:00',
+            'check_in_at' => '2025-12-01 08:55:00',
+            'check_out_at' => '2025-12-01 16:05:00',
         ]);
 
         $schoolAdmin = $this->actorWithPermissions(['teacher_attendances.update'], $this->school->id, $this->school->district_id);
@@ -265,7 +325,7 @@ class TeacherAttendanceControllerTest extends TestCase
         $this->actingAs($schoolAdmin, 'sanctum')
             ->patchJson('/api/v1/teacher-attendances/correct', [
                 'teacher_profile_id' => $this->profile->id,
-                'date' => '2026-12-01',
+                'date' => '2025-12-01',
                 'status' => 'leave',
                 'correction_note' => 'Device mis-logged this as present',
             ])
@@ -285,7 +345,7 @@ class TeacherAttendanceControllerTest extends TestCase
         $this->actingAs($schoolAdmin, 'sanctum')
             ->patchJson('/api/v1/teacher-attendances/correct', [
                 'teacher_profile_id' => $this->profile->id,
-                'date' => '2026-12-01',
+                'date' => '2025-12-01',
                 'status' => 'present',
             ])
             ->assertOk()
@@ -301,7 +361,7 @@ class TeacherAttendanceControllerTest extends TestCase
         $this->actingAs($schoolAdmin, 'sanctum')
             ->patchJson('/api/v1/teacher-attendances/correct', [
                 'teacher_profile_id' => $this->profile->id,
-                'date' => '2026-12-01',
+                'date' => '2025-12-01',
                 'status' => 'present',
             ])
             ->assertForbidden();
@@ -314,11 +374,30 @@ class TeacherAttendanceControllerTest extends TestCase
         $this->actingAs($schoolAdmin, 'sanctum')
             ->patchJson('/api/v1/teacher-attendances/correct', [
                 'teacher_profile_id' => $this->profile->id,
-                'date' => '2026-12-01',
+                'date' => '2025-12-01',
                 'status' => 'not-a-real-status',
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('status');
+    }
+
+    public function test_correct_rejects_a_future_date(): void
+    {
+        // Backend-side enforcement of the "never synthesize or allow a
+        // future status" invariant, independent of whatever the frontend
+        // grid allows — a future-dated correction must be rejected with a
+        // 422 regardless.
+        $schoolAdmin = $this->actorWithPermissions(['teacher_attendances.update'], $this->school->id, $this->school->district_id);
+        $futureDate = now()->addDay()->toDateString();
+
+        $this->actingAs($schoolAdmin, 'sanctum')
+            ->patchJson('/api/v1/teacher-attendances/correct', [
+                'teacher_profile_id' => $this->profile->id,
+                'date' => $futureDate,
+                'status' => 'present',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('date');
     }
 
     public function test_school_admin_cannot_report_another_schools_attendance(): void
@@ -351,7 +430,7 @@ class TeacherAttendanceControllerTest extends TestCase
         $this->actingAs($schoolAdminA, 'sanctum')
             ->patchJson('/api/v1/teacher-attendances/correct', [
                 'teacher_profile_id' => $profileB->id,
-                'date' => '2026-12-01',
+                'date' => '2025-12-01',
                 'status' => 'present',
             ])
             ->assertNotFound();

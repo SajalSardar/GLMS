@@ -21,7 +21,7 @@ class CorrectTeacherAttendanceRequest extends FormRequest
     {
         return [
             'teacher_profile_id' => ['required', 'integer', Rule::exists('teacher_profiles', 'id')->withoutTrashed()],
-            'date' => ['required', 'date'],
+            'date' => ['required', 'date', 'before_or_equal:today'],
             'status' => ['required', Rule::in(TeacherAttendance::STATUSES)],
             'correction_note' => ['nullable', 'string', 'max:2000'],
         ];
