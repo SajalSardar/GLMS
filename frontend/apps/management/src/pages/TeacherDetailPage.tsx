@@ -17,10 +17,12 @@ import { useAuth } from '@ttla/auth'
 import { getCommonStrings } from '@ttla/i18n'
 import DatePickerField from '../components/DatePickerField'
 import { GeoField } from '../components/GeoCrudTable'
+import PrintModal from '../components/PrintModal'
 import SearchableSelect from '../components/SearchableSelect'
 import { schoolLabel } from '../components/schoolOptions'
 import { buttonNeutral, buttonPrimary, inputClass } from '../components/styles'
 import { useToast, ToastViewport } from '../components/Toast'
+import { TeacherAdmissionFormView, TeacherIdCardView } from '../components/TeacherPrintViews'
 
 const t = getCommonStrings('en')
 
@@ -386,6 +388,9 @@ export default function TeacherDetailPage() {
   const [formError, setFormError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const { toast, showToast } = useToast()
+  // Which print popup is open, if any — a popup over this page rather than
+  // a route, since the teacher/profile data is already loaded here.
+  const [printMode, setPrintMode] = useState<'idCard' | 'form' | null>(null)
 
   // Tracks the most recently requested id so a slower, superseded response
   // (e.g. teacher 1's request resolving after teacher 2's, once the user
@@ -571,7 +576,8 @@ export default function TeacherDetailPage() {
   }
 
   return (
-    <section className="space-y-5">
+    <>
+      <section className="space-y-5 print:hidden">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <button
           type="button"
@@ -589,7 +595,7 @@ export default function TeacherDetailPage() {
                 <button
                   type="button"
                   className={`${buttonNeutral} inline-flex items-center gap-1.5`}
-                  onClick={() => navigate(`/dashboard/teachers/${teacher.id}/admission-form`)}
+                  onClick={() => setPrintMode('form')}
                 >
                   <span className="material-symbols-outlined !text-[18px] leading-none">description</span>
                   {t['management.idCard.printFormButton']}
@@ -597,7 +603,7 @@ export default function TeacherDetailPage() {
                 <button
                   type="button"
                   className={`${buttonNeutral} inline-flex items-center gap-1.5`}
-                  onClick={() => navigate(`/dashboard/teachers/${teacher.id}/id-card`)}
+                  onClick={() => setPrintMode('idCard')}
                 >
                   <span className="material-symbols-outlined !text-[18px] leading-none">badge</span>
                   {t['management.idCard.printIdCardButton']}
@@ -654,6 +660,20 @@ export default function TeacherDetailPage() {
       )}
 
       <ToastViewport toast={toast} />
-    </section>
+      </section>
+
+      {printMode && teacher && (
+        <PrintModal
+          title={printMode === 'idCard' ? t['management.idCard.teacherTitle'] : t['management.idCard.teacherFormTitle']}
+          onClose={() => setPrintMode(null)}
+        >
+          {printMode === 'idCard' ? (
+            <TeacherIdCardView teacher={teacher} profile={profile} />
+          ) : (
+            <TeacherAdmissionFormView teacher={teacher} profile={profile} />
+          )}
+        </PrintModal>
+      )}
+    </>
   )
 }

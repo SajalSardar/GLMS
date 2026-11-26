@@ -631,7 +631,6 @@
   "management.studentDetail.guardianNameAndPhoneRequired": "এই অভিভাবক যুক্ত করতে নাম ও ফোন নম্বর দুটোই প্রয়োজন।",
   "management.studentDetail.guardianAttachFailed": "এই অভিভাবককে যুক্ত করা যায়নি।",
 
-  "management.idCard.back": "ফিরে যান",
   "management.idCard.print": "প্রিন্ট করুন",
   "management.idCard.studentTitle": "শিক্ষার্থী আইডি কার্ড",
   "management.idCard.teacherTitle": "শিক্ষক আইডি কার্ড",

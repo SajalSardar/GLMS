@@ -631,7 +631,6 @@
   "management.studentDetail.guardianNameAndPhoneRequired": "Name and phone are both required to add this guardian.",
   "management.studentDetail.guardianAttachFailed": "Could not add this guardian.",
 
-  "management.idCard.back": "Back",
   "management.idCard.print": "Print",
   "management.idCard.studentTitle": "Student ID Card",
   "management.idCard.teacherTitle": "Teacher ID Card",

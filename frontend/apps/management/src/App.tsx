@@ -33,15 +33,11 @@ import SchoolDetailPage from './pages/SchoolDetailPage'
 import SchoolsPage from './pages/SchoolsPage'
 import SectionsPage from './pages/SectionsPage'
 import ShiftsPage from './pages/ShiftsPage'
-import StudentAdmissionFormPage from './pages/StudentAdmissionFormPage'
 import StudentDetailPage from './pages/StudentDetailPage'
-import StudentIdCardPage from './pages/StudentIdCardPage'
 import StudentsPage from './pages/StudentsPage'
 import SubjectsPage from './pages/SubjectsPage'
 import SubjectTeacherAssignmentsPage from './pages/SubjectTeacherAssignmentsPage'
-import TeacherAdmissionFormPage from './pages/TeacherAdmissionFormPage'
 import TeacherDetailPage from './pages/TeacherDetailPage'
-import TeacherIdCardPage from './pages/TeacherIdCardPage'
 import TeacherLeaveApplicationsPage from './pages/TeacherLeaveApplicationsPage'
 import TeacherRoutinePage from './pages/TeacherRoutinePage'
 import TeachersOnLeavePage from './pages/TeachersOnLeavePage'
@@ -396,13 +392,9 @@ function App() {
                 <Route path="teachers" element={<TeachersPage />} />
                 <Route path="teachers/new" element={<TeacherDetailPage />} />
                 <Route path="teachers/:id" element={<TeacherDetailPage />} />
-                <Route path="teachers/:id/id-card" element={<TeacherIdCardPage />} />
-                <Route path="teachers/:id/admission-form" element={<TeacherAdmissionFormPage />} />
                 <Route path="students" element={<StudentsPage />} />
                 <Route path="students/new" element={<StudentDetailPage />} />
                 <Route path="students/:id" element={<StudentDetailPage />} />
-                <Route path="students/:id/id-card" element={<StudentIdCardPage />} />
-                <Route path="students/:id/admission-form" element={<StudentAdmissionFormPage />} />
                 <Route path="classes" element={<ClassesPage />} />
                 <Route path="academic-years" element={<AcademicYearsPage />} />
                 <Route path="class-versions" element={<ClassVersionsPage />} />
