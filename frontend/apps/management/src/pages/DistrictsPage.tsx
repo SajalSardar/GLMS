@@ -120,6 +120,9 @@ export default function DistrictsPage() {
       createRow={(values, token) => createDistrict(toPayload(values), token)}
       updateRow={(id, values, token) => updateDistrict(id, toPayload(values), token)}
       deleteRow={(id, token) => deleteDistrict(id, token)}
+      createPermission="districts.create"
+      updatePermission="districts.update"
+      deletePermission="districts.delete"
       parentFilter={{
         label: t['management.fields.division'],
         allLabel: t['management.fields.allDivisions'],

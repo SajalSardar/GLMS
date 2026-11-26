@@ -263,6 +263,9 @@ export default function SectionsPage() {
       createRow={(values, token) => createSection(toPayload(values), token)}
       updateRow={(id, values, token) => updateSection(id, toPayload(values), token)}
       deleteRow={(id, token) => deleteSection(id, token)}
+      createPermission="sections.create"
+      updatePermission="sections.update"
+      deletePermission="sections.delete"
       renderDetails={(row) => <SectionDetails section={row} schools={schools} />}
       parentFilter={{
         label: t['management.fields.school'],

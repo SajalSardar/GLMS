@@ -85,6 +85,9 @@ export default function StudentsPage() {
       onAdd={() => navigate('/dashboard/students/new')}
       onView={(row) => navigate(`/dashboard/students/${row.id}`)}
       onEdit={(row) => navigate(`/dashboard/students/${row.id}?edit=1`)}
+      createPermission="student_profiles.create"
+      updatePermission="student_profiles.update"
+      deletePermission="student_profiles.delete"
       parentFilter={{
         label: t['management.fields.school'],
         allLabel: t['management.fields.allSchools'],

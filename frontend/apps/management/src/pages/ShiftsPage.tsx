@@ -316,6 +316,9 @@ export default function ShiftsPage() {
       createRow={(values, token) => createShift(toPayload(values), token)}
       updateRow={(id, values, token) => updateShift(id, toPayload(values), token)}
       deleteRow={(id, token) => deleteShift(id, token)}
+      createPermission="shifts.create"
+      updatePermission="shifts.update"
+      deletePermission="shifts.delete"
       renderDetails={(row) => <ShiftDetails shift={row} schools={schools} />}
       parentFilter={{
         label: t['management.fields.school'],

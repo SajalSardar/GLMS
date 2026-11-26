@@ -100,6 +100,9 @@ export default function UpazilasPage() {
       createRow={(values, token) => createUpazila(toPayload(values), token)}
       updateRow={(id, values, token) => updateUpazila(id, toPayload(values), token)}
       deleteRow={(id, token) => deleteUpazila(id, token)}
+      createPermission="upazilas.create"
+      updatePermission="upazilas.update"
+      deletePermission="upazilas.delete"
       parentFilter={{
         label: t['management.fields.district'],
         allLabel: t['management.fields.allDistricts'],

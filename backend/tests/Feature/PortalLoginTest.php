@@ -216,24 +216,23 @@ class PortalLoginTest extends TestCase
 
     /**
      * The generic endpoint's defining difference from the four portal
-     * ones: it has no role allowlist, on purpose. `trainer` is mapped to
-     * no portal in config/portals.php, yet holds a real permission grant
-     * (RolePermissionSeeder) and a seeded login-ready account
-     * (UserSeeder) — this endpoint is its only way in. Asserted
+     * ones: it has no role allowlist, on purpose. `office_staff` is
+     * mapped to no portal in config/portals.php, yet holds a real
+     * permission grant (RolePermissionSeeder) and a seeded login-ready
+     * account (UserSeeder) — this endpoint is its only way in. Asserted
      * explicitly so that narrowing /auth/login to a portal allowlist (a
      * tempting-looking consistency fix) fails here instead of silently
-     * locking out trainer/office_staff/it_admin/auditor. See
-     * AuthController::login()'s docblock.
+     * locking it out. See AuthController::login()'s docblock.
      */
     public function test_generic_login_accepts_a_role_mapped_to_no_portal(): void
     {
-        $this->assertNotContains('trainer', array_merge(...array_values(config('portals'))));
+        $this->assertNotContains('office_staff', array_merge(...array_values(config('portals'))));
 
-        $role = $this->roleNamed('trainer');
-        $user = User::factory()->create(['role_id' => $role->id, 'email' => 'trainer@example.test', 'password' => 'correct-password']);
+        $role = $this->roleNamed('office_staff');
+        $user = User::factory()->create(['role_id' => $role->id, 'email' => 'office.staff@example.test', 'password' => 'correct-password']);
 
         $response = $this->postJson('/api/v1/auth/login', [
-            'login' => 'trainer@example.test',
+            'login' => 'office.staff@example.test',
             'password' => 'correct-password',
         ]);
 
@@ -249,16 +248,38 @@ class PortalLoginTest extends TestCase
      */
     public function test_portal_logins_reject_a_role_mapped_to_no_portal(): void
     {
-        $role = $this->roleNamed('auditor');
-        User::factory()->create(['role_id' => $role->id, 'email' => 'auditor@example.test', 'password' => 'correct-password']);
+        $role = $this->roleNamed('office_staff');
+        User::factory()->create(['role_id' => $role->id, 'email' => 'office.staff@example.test', 'password' => 'correct-password']);
 
         $response = $this->postJson('/api/v1/auth/management/login', [
-            'login' => 'auditor@example.test',
+            'login' => 'office.staff@example.test',
             'password' => 'correct-password',
         ]);
 
         $response->assertStatus(422);
         $response->assertJsonValidationErrors(['login' => 'The provided credentials are incorrect.']);
+    }
+
+    /**
+     * trainer/it_admin/auditor used to be portal-less too, but each was
+     * added to config('portals.management') once the Management Portal
+     * grew nav items/route guards for their permission grants — so the
+     * management login now accepts them like any other management role.
+     */
+    public function test_management_login_accepts_trainer_it_admin_and_auditor(): void
+    {
+        foreach (['trainer', 'it_admin', 'auditor'] as $roleName) {
+            $role = $this->roleNamed($roleName);
+            $user = User::factory()->create(['role_id' => $role->id, 'email' => "{$roleName}@example.test", 'password' => 'correct-password']);
+
+            $response = $this->postJson('/api/v1/auth/management/login', [
+                'login' => "{$roleName}@example.test",
+                'password' => 'correct-password',
+            ]);
+
+            $response->assertOk();
+            $response->assertJsonPath('data.id', $user->id);
+        }
     }
 
     public function test_logout_revokes_the_token_used_to_authenticate_the_request(): void

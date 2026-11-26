@@ -61,6 +61,9 @@ export default function DivisionsPage() {
         updateDivision(id, { name: values.name, bn_name: values.bn_name, url: values.url || null }, token)
       }
       deleteRow={(id, token) => deleteDivision(id, token)}
+      createPermission="divisions.create"
+      updatePermission="divisions.update"
+      deletePermission="divisions.delete"
     />
   )
 }

@@ -102,6 +102,9 @@ export default function ClassesPage() {
       createRow={(values, token) => createClass(toPayload(values), token)}
       updateRow={(id, values, token) => updateClass(id, toPayload(values), token)}
       deleteRow={(id, token) => deleteClass(id, token)}
+      createPermission="classes.create"
+      updatePermission="classes.update"
+      deletePermission="classes.delete"
       renderDetails={(row) => <ClassDetails schoolClass={row} />}
     />
   )

@@ -63,6 +63,9 @@ export default function TeachersPage() {
       onAdd={() => navigate('/dashboard/teachers/new')}
       onView={(row) => navigate(`/dashboard/teachers/${row.id}`)}
       onEdit={(row) => navigate(`/dashboard/teachers/${row.id}?edit=1`)}
+      createPermission="teacher_profiles.create"
+      updatePermission="teacher_profiles.update"
+      deletePermission="teacher_profiles.delete"
       parentFilter={{
         label: t['management.fields.school'],
         allLabel: t['management.fields.allSchools'],

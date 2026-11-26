@@ -81,6 +81,9 @@ export default function SubjectsPage() {
         )
       }
       deleteRow={(id, token) => deleteSubject(id, token)}
+      createPermission="subjects.create"
+      updatePermission="subjects.update"
+      deletePermission="subjects.delete"
     />
   )
 }

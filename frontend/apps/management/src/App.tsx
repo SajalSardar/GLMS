@@ -51,24 +51,28 @@ const t = getCommonStrings('en')
 
 const baseNavItems: SidebarItem[] = [{ to: '/dashboard', label: 'Dashboard', icon: 'dashboard', end: true }]
 
-// Teacher accounts are managed by the same roles that manage sections/
-// shifts/etc. (school_admin and national_admin — see RolePermissionSeeder's
-// users.* grants), but sit as their own top-level item right after
-// Dashboard rather than nested under School Setup/System Setup, per the
-// explicit request to place it there.
+// Visible to TEACHER_PROFILE_VIEWERS (national_admin, school_admin,
+// district_officer, trainer, auditor — see that constant's own comment),
+// but sits as its own top-level item right after Dashboard rather than
+// nested under School Setup/System Setup, per the explicit request to
+// place it there. school_admin/national_admin hold full teacher_profiles
+// CRUD; the other three are view-only (GeoCrudTable's permission-gated
+// Add/Edit/Delete on TeachersPage.tsx renders this read-only for them,
+// not role-gated like the route itself).
 const teachersNavItem: SidebarItem = { to: '/dashboard/teachers', label: t['management.nav.teachers'], icon: 'person' }
 
-// Same placement reasoning as teachersNavItem above — student accounts
-// share the same users.* grants and sit as their own top-level item too.
+// Visible to STUDENT_AND_ATTENDANCE_VIEWERS (national_admin, school_admin,
+// district_officer, auditor) — same placement reasoning as teachersNavItem
+// above, sitting as its own top-level item too.
 const studentsNavItem: SidebarItem = { to: '/dashboard/students', label: t['management.nav.students'], icon: 'face' }
 
-// Visible to both school_admin and national_admin — school_admin holds
-// books.view/chapters.view/chapter_videos.view but not create/update/
-// delete (see RolePermissionSeeder), so GeoCrudTable's permission-gated
-// Add/Edit/Delete (see BooksPage.tsx/AllChaptersPage.tsx/
-// ClassVideosPage.tsx) renders this read-only for them, not role-gated
-// like the route itself. Placed right after Students, per the explicit
-// request to move it there.
+// Visible to every management-portal-eligible role (ALL_MANAGEMENT_ROLES,
+// below) — only school_admin/national_admin hold create/update/delete on
+// books.view/chapters.view/chapter_videos.view (see RolePermissionSeeder),
+// so GeoCrudTable's permission-gated Add/Edit/Delete (see BooksPage.tsx/
+// AllChaptersPage.tsx/ClassVideosPage.tsx) renders this read-only for
+// everyone else, not role-gated like the route itself. Placed right after
+// Students, per the explicit request to move it there.
 const classMaterialsNavItem: SidebarItem = {
   label: t['management.nav.classMaterials'],
   icon: 'auto_stories',
@@ -79,11 +83,11 @@ const classMaterialsNavItem: SidebarItem = {
   ],
 }
 
-// Visible to both school_admin and national_admin — school_admin only
-// holds the .view permission on each of these (see RolePermissionSeeder),
-// not create/update/delete, so each page's own GeoCrudTable permission
-// props render it read-only for them. Placed right after Class
-// Materials, per the explicit request to move it there.
+// Visible to every management-portal-eligible role (ALL_MANAGEMENT_ROLES,
+// below) — only national_admin holds create/update/delete on these three
+// (see RolePermissionSeeder); everyone else's .view-only grant renders
+// read-only via each page's own GeoCrudTable permission props. Placed
+// right after Class Materials, per the explicit request to move it there.
 const examControlNavItem: SidebarItem = {
   label: t['management.nav.examControl'],
   icon: 'rule',
@@ -94,8 +98,8 @@ const examControlNavItem: SidebarItem = {
   ],
 }
 
-// Report-only (see AttendanceReportPage's own comment) — visible to the
-// same school_admin/national_admin pair as teachersNavItem/studentsNavItem
+// Report-only (see AttendanceReportPage's own comment) — visible to
+// STUDENT_AND_ATTENDANCE_VIEWERS, the same role set as studentsNavItem
 // above, since recording itself stays in the teacher portal.
 const attendanceNavItem: SidebarItem = { to: '/dashboard/attendance', label: t['management.nav.attendance'], icon: 'fact_check' }
 
@@ -124,9 +128,11 @@ const promoteStudentsNavItem: SidebarItem = { to: '/dashboard/promote-students',
 // two flat items — Teacher Routine mirrors the Teacher Portal's own
 // Class Routine page (any teacher, not just "mine"); Class Routine
 // mirrors the Student Portal's own Class Routine page (any section).
-// Same school_admin/national_admin visibility as the items above; each
-// page itself restricts a school_admin's own School picker to their own
-// school (see TeacherRoutinePage.tsx/ManagementClassRoutinePage.tsx).
+// Visible to TEACHER_PROFILE_VIEWERS — Teacher Routine's own teacher
+// picker needs that same permission, which is why this whole group is
+// gated on it rather than something routine-specific; each page itself
+// restricts a school_admin's own School picker to their own school (see
+// TeacherRoutinePage.tsx/ManagementClassRoutinePage.tsx).
 const routineNavItem: SidebarItem = {
   label: t['management.nav.routine'],
   icon: 'calendar_month',
@@ -137,9 +143,9 @@ const routineNavItem: SidebarItem = {
 }
 
 // The academic holiday calendar is national, not per-school — no
-// TenantScope/school filtering applies to it. Visible to both
-// school_admin and national_admin now (school_admin holds holidays.view
-// but not create/update/delete, per RolePermissionSeeder — gated via
+// TenantScope/school filtering applies to it. Visible to every
+// management-portal-eligible role (only school_admin/national_admin hold
+// create/update/delete, per RolePermissionSeeder — gated via
 // GeoCrudTable's permission props on HolidaysPage.tsx, not via this nav
 // item's role check).
 const holidaysNavItem: SidebarItem = { to: '/dashboard/holidays', label: t['management.nav.holidays'], icon: 'event_busy' }
@@ -154,12 +160,15 @@ const questionBankNavItem: SidebarItem = {
   icon: 'quiz',
 }
 
-// national_admin only — MCQ/true-false exam question authoring and the
-// Exam shells (class/subject/mode/availability) that attach them. Fully
-// separate from questionBankNavItem above: that's the CQ/MCQ paper-
-// building question bank teachers draw from for their own printed
-// papers; this is the formal timed-exam system (Exam/Question/
-// ExamAttempt) students take via the student portal's Class Exams page.
+// national_admin/district_officer/trainer (ASSESSMENT_VIEWERS, below) —
+// MCQ/true-false exam question authoring and the Exam shells (class/
+// subject/mode/availability) that attach them. Fully separate from
+// questionBankNavItem above: that's the CQ/MCQ paper-building question
+// bank teachers draw from for their own printed papers; this is the
+// formal timed-exam system (Exam/Question/ExamAttempt) students take via
+// the student portal's Class Exams page. school_admin holds the same
+// exams.view/questions.view permissions but is deliberately excluded from
+// this UI by product decision.
 const assessmentsNavItem: SidebarItem = {
   label: t['management.nav.assessmentsGroup'],
   icon: 'fact_check',
@@ -189,7 +198,8 @@ const usersRolesNavItem: SidebarItem = {
 // school_admin only — reviews their own school's teacher leave requests
 // (TenantScope-filtered). national_admin gets a separate, read-only
 // "Teachers on Leave" item instead (teachersOnLeaveNavItem, below) — see
-// RequireSchoolAdmin's own comment for why this isn't shared.
+// the comment on the "teachers-on-leave" <Route> in App() for why this
+// isn't shared.
 const teacherLeaveApplicationsNavItem: SidebarItem = {
   to: '/dashboard/teacher-leave-applications',
   label: t['management.nav.teacherLeaveApplications'],
@@ -210,7 +220,8 @@ const questionPapersNavItem: SidebarItem = {
 // a school_admin action (see teacherLeaveApplicationsNavItem above);
 // national_admin can technically call the same review endpoint (its
 // wildcard permission set is never excluded from an ability by role-name
-// check in this app) but this portal deliberately builds no UI for it.
+// check in this app) but this portal deliberately builds no UI for it —
+// see the comment on the "teachers-on-leave" <Route> in App() for why.
 const teachersOnLeaveNavItem: SidebarItem = {
   to: '/dashboard/teachers-on-leave',
   label: t['management.nav.teachersOnLeave'],
@@ -232,16 +243,33 @@ const schoolOperationsNavItems: SidebarItem[] = [
   { to: '/dashboard/sections', label: t['management.nav.sections'], icon: 'groups' },
 ]
 
-// national_admin only — a national_admin manages every school's
-// operations data from one place. Unlike schoolAdminSchoolSetupItem
-// below, this doesn't nest Classes/Academic Years — those sit under
-// national_admin's own "System Setup" group instead (systemSetupItem).
+// TEACHER_PROFILE_VIEWERS minus school_admin (national_admin,
+// district_officer, trainer, auditor) — each manages every school's
+// operations data from one place rather than only their own. Unlike
+// schoolAdminSchoolSetupItem below, this doesn't nest Classes/Academic
+// Years — those sit under the "System Setup" group instead
+// (systemSetupItem), alongside divisions/districts/upazilas/subjects.
 const schoolSetupItem: SidebarItem = {
   label: t['management.nav.schoolSetup'],
   icon: 'school',
   children: [
     { to: '/dashboard/schools', label: t['management.schools.title'], icon: 'apartment' },
     ...schoolOperationsNavItems,
+  ],
+}
+
+// it_admin's own variant of schoolSetupItem above: it holds schools.view/
+// class_versions.view/shifts.view/sections.view but not
+// subject_teacher_assignments.view (see RolePermissionSeeder), so its
+// School Setup group drops that one child rather than reusing
+// schoolOperationsNavItems (whose first entry is Subject-Teacher
+// Assignments) wholesale.
+const itAdminSchoolSetupItem: SidebarItem = {
+  label: t['management.nav.schoolSetup'],
+  icon: 'school',
+  children: [
+    { to: '/dashboard/schools', label: t['management.schools.title'], icon: 'apartment' },
+    ...schoolOperationsNavItems.slice(1),
   ],
 }
 
@@ -308,39 +336,47 @@ function RequireAuth() {
   return token ? <Outlet /> : <Navigate to="/" replace />
 }
 
-function RequireNationalAdmin() {
+// Six management-portal-eligible roles now exist (config/portals.php's
+// 'management' allowlist), each with its own permission subset from
+// RolePermissionSeeder — too many route/role combinations for one named
+// guard component per combination, so routes instead pass their own exact
+// role list to the single RequireRole component below. Each constant here
+// documents which permission(s) it stands in for, and which roles hold
+// them, among the six.
+// Every management-portal-eligible role holds .view on: schools, classes,
+// academic_years, class_versions, shifts, sections, holidays, books,
+// chapters, chapter_videos, chapter_materials, academic_exam_terms,
+// academic_grade_configures, academic_subject_mark_configures.
+const ALL_MANAGEMENT_ROLES = ['national_admin', 'school_admin', 'district_officer', 'trainer', 'it_admin', 'auditor']
+const SCHOOL_MANAGERS = ['national_admin', 'school_admin']
+// teacher_profiles.view holders — also doubles as "can use the teacher
+// picker", so it gates Subject-Teacher Assignments and Routine (Teacher
+// Routine's picker needs it) too, not just the Teachers list itself.
+const TEACHER_PROFILE_VIEWERS = ['national_admin', 'school_admin', 'district_officer', 'trainer', 'auditor']
+// student_profiles.view and attendances.view are held by the exact same
+// role set among the six.
+const STUDENT_AND_ATTENDANCE_VIEWERS = ['national_admin', 'school_admin', 'district_officer', 'auditor']
+// Holds BOTH exams.view and questions.view, which assessmentsNavItem's two
+// children each need — school_admin holds both too but is deliberately
+// excluded here by product decision (see assessmentsNavItem's own
+// comment); it_admin/auditor hold at most one of the two and are excluded
+// rather than showing a group with one dead child.
+const ASSESSMENT_VIEWERS = ['national_admin', 'district_officer', 'trainer']
+// divisions/districts/upazilas/subjects/classes/academic_years.view — held
+// by every one of the six roles, but school_admin gets its own "School
+// Setup" group instead (schoolAdminSchoolSetupItem) rather than this one,
+// by the same kind of product decision as ASSESSMENT_VIEWERS above.
+const SYSTEM_SETUP_VIEWERS = ['national_admin', 'district_officer', 'trainer', 'it_admin', 'auditor']
+// users.view/roles.view/permissions.view holders — school_admin and
+// national_admin get full/partial CRUD there (gated per-page), auditor
+// gets the same pages fully read-only (no matching create/update/delete
+// permission).
+const USERS_ROLES_VIEWERS = ['national_admin', 'school_admin', 'auditor']
+
+function RequireRole({ roles }: { roles: string[] }) {
   const { role } = useAuth()
 
-  return role === 'national_admin' ? (
-    <Outlet />
-  ) : (
-    <p className="max-w-lg rounded-md bg-danger-50 px-5 py-4 text-danger-600">
-      {t['management.table.accessDenied']}
-    </p>
-  )
-}
-
-function RequireSchoolManager() {
-  const { role } = useAuth()
-
-  return role === 'national_admin' || role === 'school_admin' ? (
-    <Outlet />
-  ) : (
-    <p className="max-w-lg rounded-md bg-danger-50 px-5 py-4 text-danger-600">
-      {t['management.table.accessDenied']}
-    </p>
-  )
-}
-
-// Narrower than RequireSchoolManager: national_admin technically holds
-// teacher_leave_applications.update too (its all-permissions wildcard —
-// see TeacherLeaveApplicationPolicy::review()'s own comment), but this
-// review page is deliberately school_admin-only per the product decision
-// that national_admin gets a read-only view instead (TeachersOnLeavePage).
-function RequireSchoolAdmin() {
-  const { role } = useAuth()
-
-  return role === 'school_admin' ? (
+  return role !== null && roles.includes(role) ? (
     <Outlet />
   ) : (
     <p className="max-w-lg rounded-md bg-danger-50 px-5 py-4 text-danger-600">
@@ -366,19 +402,47 @@ function DashboardLayout() {
     navigate('/', { replace: true })
   }
 
+  const isSchoolAdmin = role === 'school_admin'
+  const isNationalAdmin = role === 'national_admin'
+  const isItAdmin = role === 'it_admin'
+  const canViewTeachers = role !== null && TEACHER_PROFILE_VIEWERS.includes(role)
+  const canViewStudentsAndAttendance = role !== null && STUDENT_AND_ATTENDANCE_VIEWERS.includes(role)
+  const canViewAssessments = role !== null && ASSESSMENT_VIEWERS.includes(role)
+  const canViewSystemSetup = role !== null && SYSTEM_SETUP_VIEWERS.includes(role)
+  const canViewUsersRoles = role !== null && USERS_ROLES_VIEWERS.includes(role)
+
   const navItems = [
     ...baseNavItems,
-    ...(role === 'national_admin' || role === 'school_admin' ? [teachersNavItem, studentsNavItem] : []),
-    ...(role === 'national_admin' || role === 'school_admin' ? [classMaterialsNavItem, examControlNavItem] : []),
-    ...(role === 'national_admin' || role === 'school_admin'
-      ? [attendanceNavItem, kioskDevicesNavItem, teacherAttendanceNavItem, publishResultsNavItem, promoteStudentsNavItem, routineNavItem]
+    ...(canViewTeachers ? [teachersNavItem] : []),
+    ...(canViewStudentsAndAttendance ? [studentsNavItem] : []),
+    // classMaterialsNavItem/examControlNavItem/holidaysNavItem are always
+    // shown — every management-portal-eligible role holds .view on all of
+    // books/chapters/chapter_videos/chapter_materials, the three exam
+    // control config resources, and holidays (see ALL_MANAGEMENT_ROLES).
+    classMaterialsNavItem,
+    examControlNavItem,
+    ...(canViewStudentsAndAttendance ? [attendanceNavItem] : []),
+    ...(isNationalAdmin || isSchoolAdmin
+      ? [kioskDevicesNavItem, teacherAttendanceNavItem, publishResultsNavItem, promoteStudentsNavItem]
       : []),
-    ...(role === 'school_admin' ? [teacherLeaveApplicationsNavItem, questionPapersNavItem] : []),
-    ...(role === 'national_admin' ? [teachersOnLeaveNavItem] : []),
-    ...(role === 'national_admin' ? [holidaysNavItem, questionBankNavItem, assessmentsNavItem, schoolSetupItem] : []),
-    ...(role === 'school_admin' ? [holidaysNavItem, schoolAdminSchoolSetupItem] : []),
-    ...(role === 'national_admin' || role === 'school_admin' ? [usersRolesNavItem] : []),
-    ...(role === 'national_admin' ? [systemSetupItem] : []),
+    ...(canViewTeachers ? [routineNavItem] : []),
+    ...(isSchoolAdmin ? [teacherLeaveApplicationsNavItem, questionPapersNavItem] : []),
+    ...(isNationalAdmin ? [teachersOnLeaveNavItem, questionBankNavItem] : []),
+    holidaysNavItem,
+    ...(canViewAssessments ? [assessmentsNavItem] : []),
+    // Three mutually exclusive "School Setup" variants, one per shape of
+    // access to schools.view + schoolOperationsNavItems (see each
+    // constant's own comment for which roles hold what): school_admin's
+    // own (classes/years nested in, since it has no System Setup group of
+    // its own); it_admin's (no Subject-Teacher Assignments child, since it
+    // lacks that permission); everyone else who reaches here at all also
+    // holds every schoolOperationsNavItems permission (same role set as
+    // TEACHER_PROFILE_VIEWERS, minus school_admin).
+    ...(isSchoolAdmin ? [schoolAdminSchoolSetupItem] : []),
+    ...(isItAdmin ? [itAdminSchoolSetupItem] : []),
+    ...(canViewTeachers && !isSchoolAdmin ? [schoolSetupItem] : []),
+    ...(canViewUsersRoles ? [usersRolesNavItem] : []),
+    ...(canViewSystemSetup ? [systemSetupItem] : []),
   ]
 
   return (
@@ -402,66 +466,74 @@ function App() {
           <Route element={<RequireAuth />}>
             <Route path="/dashboard" element={<DashboardLayout />}>
               <Route index element={<DashboardPlaceholder />} />
-              <Route element={<RequireSchoolManager />}>
-                <Route path="teachers" element={<TeachersPage />} />
-                <Route path="teachers/new" element={<TeacherDetailPage />} />
-                <Route path="teachers/:id" element={<TeacherDetailPage />} />
-                <Route path="students" element={<StudentsPage />} />
-                <Route path="students/new" element={<StudentDetailPage />} />
-                <Route path="students/:id" element={<StudentDetailPage />} />
+              <Route element={<RequireRole roles={ALL_MANAGEMENT_ROLES} />}>
                 <Route path="classes" element={<ClassesPage />} />
                 <Route path="academic-years" element={<AcademicYearsPage />} />
                 <Route path="class-versions" element={<ClassVersionsPage />} />
                 <Route path="shifts" element={<ShiftsPage />} />
                 <Route path="sections" element={<SectionsPage />} />
+                <Route path="holidays" element={<HolidaysPage />} />
+                <Route path="schools" element={<SchoolsPage />} />
+                <Route path="schools/:id" element={<SchoolDetailPage />} />
+                <Route path="class-materials/books" element={<BooksPage />} />
+                <Route path="class-materials/books/:bookId/chapters" element={<ChaptersPage />} />
+                <Route path="class-materials/chapters" element={<AllChaptersPage />} />
+                <Route path="class-materials/class-videos" element={<ClassVideosPage />} />
+                <Route path="exam-control/academic-exam-terms" element={<AcademicExamTermsPage />} />
+                <Route path="exam-control/academic-grade-configures" element={<AcademicGradeConfiguresPage />} />
+                <Route path="exam-control/academic-subject-mark-configures" element={<AcademicSubjectMarkConfiguresPage />} />
+              </Route>
+              <Route element={<RequireRole roles={TEACHER_PROFILE_VIEWERS} />}>
+                <Route path="teachers" element={<TeachersPage />} />
+                <Route path="teachers/new" element={<TeacherDetailPage />} />
+                <Route path="teachers/:id" element={<TeacherDetailPage />} />
                 <Route path="subject-teacher-assignments" element={<SubjectTeacherAssignmentsPage />} />
+                <Route path="routine/teacher" element={<TeacherRoutinePage />} />
+                <Route path="routine/class" element={<ManagementClassRoutinePage />} />
+              </Route>
+              <Route element={<RequireRole roles={STUDENT_AND_ATTENDANCE_VIEWERS} />}>
+                <Route path="students" element={<StudentsPage />} />
+                <Route path="students/new" element={<StudentDetailPage />} />
+                <Route path="students/:id" element={<StudentDetailPage />} />
                 <Route path="attendance" element={<AttendanceReportPage />} />
+              </Route>
+              <Route element={<RequireRole roles={SCHOOL_MANAGERS} />}>
                 <Route path="kiosk-devices" element={<KioskDevicesPage />} />
                 <Route path="teacher-attendance" element={<TeacherAttendanceReportPage />} />
                 <Route path="publish-results" element={<PublishResultsPage />} />
                 <Route path="promote-students" element={<PromoteStudentsPage />} />
-                <Route path="routine/teacher" element={<TeacherRoutinePage />} />
-                <Route path="routine/class" element={<ManagementClassRoutinePage />} />
+              </Route>
+              <Route element={<RequireRole roles={USERS_ROLES_VIEWERS} />}>
                 <Route path="users-roles/users" element={<UsersPage />} />
                 <Route path="users-roles/roles" element={<RolesPage />} />
                 <Route path="users-roles/roles/:id/permissions" element={<RolePermissionsPage />} />
                 <Route path="users-roles/permissions" element={<PermissionsPage />} />
               </Route>
-              <Route path="teacher-leave-applications" element={<RequireSchoolAdmin />}>
+              <Route path="teacher-leave-applications" element={<RequireRole roles={['school_admin']} />}>
                 <Route index element={<TeacherLeaveApplicationsPage />} />
               </Route>
-              <Route path="question-papers" element={<RequireSchoolAdmin />}>
+              <Route path="question-papers" element={<RequireRole roles={['school_admin']} />}>
                 <Route index element={<QuestionPapersPage />} />
               </Route>
-              <Route path="teachers-on-leave" element={<RequireNationalAdmin />}>
+              {/*
+                national_admin technically holds teacher_leave_applications.update
+                too (its all-permissions wildcard — see
+                TeacherLeaveApplicationPolicy::review()'s own comment), but this
+                review page is deliberately school_admin-only per the product
+                decision that national_admin gets a read-only view instead
+                (TeachersOnLeavePage, below).
+              */}
+              <Route path="teachers-on-leave" element={<RequireRole roles={['national_admin']} />}>
                 <Route index element={<TeachersOnLeavePage />} />
               </Route>
-              <Route path="question-bank" element={<RequireNationalAdmin />}>
+              <Route path="question-bank" element={<RequireRole roles={['national_admin']} />}>
                 <Route index element={<AcademicQuestionsPage />} />
               </Route>
-              <Route path="assessments" element={<RequireNationalAdmin />}>
+              <Route path="assessments" element={<RequireRole roles={ASSESSMENT_VIEWERS} />}>
                 <Route path="exams" element={<ExamsPage />} />
                 <Route path="questions" element={<ExamQuestionsPage />} />
               </Route>
-              <Route path="holidays" element={<RequireSchoolManager />}>
-                <Route index element={<HolidaysPage />} />
-              </Route>
-              <Route path="schools" element={<RequireSchoolManager />}>
-                <Route index element={<SchoolsPage />} />
-                <Route path=":id" element={<SchoolDetailPage />} />
-              </Route>
-              <Route path="class-materials" element={<RequireSchoolManager />}>
-                <Route path="books" element={<BooksPage />} />
-                <Route path="books/:bookId/chapters" element={<ChaptersPage />} />
-                <Route path="chapters" element={<AllChaptersPage />} />
-                <Route path="class-videos" element={<ClassVideosPage />} />
-              </Route>
-              <Route path="exam-control" element={<RequireSchoolManager />}>
-                <Route path="academic-exam-terms" element={<AcademicExamTermsPage />} />
-                <Route path="academic-grade-configures" element={<AcademicGradeConfiguresPage />} />
-                <Route path="academic-subject-mark-configures" element={<AcademicSubjectMarkConfiguresPage />} />
-              </Route>
-              <Route path="system-setup" element={<RequireNationalAdmin />}>
+              <Route path="system-setup" element={<RequireRole roles={SYSTEM_SETUP_VIEWERS} />}>
                 <Route path="divisions" element={<DivisionsPage />} />
                 <Route path="districts" element={<DistrictsPage />} />
                 <Route path="upazilas" element={<UpazilasPage />} />

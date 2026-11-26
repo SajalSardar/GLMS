@@ -16,8 +16,11 @@ class PortalsConfigTest extends TestCase
         $this->assertSame(['student'], config('portals.student'));
     }
 
-    public function test_management_portal_allows_the_three_administrative_roles(): void
+    public function test_management_portal_allows_the_six_administrative_roles(): void
     {
-        $this->assertSame(['national_admin', 'district_officer', 'school_admin'], config('portals.management'));
+        $this->assertSame(
+            ['national_admin', 'district_officer', 'school_admin', 'trainer', 'it_admin', 'auditor'],
+            config('portals.management'),
+        );
     }
 }

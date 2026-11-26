@@ -279,6 +279,9 @@ export default function SubjectTeacherAssignmentsPage() {
       createRow={(values, token) => createSubjectTeacherAssignment(toPayload(values), token)}
       updateRow={(id, values, token) => updateSubjectTeacherAssignment(id, { teacher_id: Number(values.teacher_id) }, token)}
       deleteRow={(id, token) => deleteSubjectTeacherAssignment(id, token)}
+      createPermission="subject_teacher_assignments.create"
+      updatePermission="subject_teacher_assignments.update"
+      deletePermission="subject_teacher_assignments.delete"
       renderDetails={(row) => <AssignmentDetails assignment={row} schools={schools} />}
       parentFilter={{
         label: t['management.fields.school'],

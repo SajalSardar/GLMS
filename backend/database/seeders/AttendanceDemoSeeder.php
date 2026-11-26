@@ -37,7 +37,18 @@ class AttendanceDemoSeeder extends Seeder
     {
         $school = School::find(1);
         $teacherProfile = TeacherProfile::where('employee_id', 'EMP-0001')->first();
-        $studentProfiles = StudentProfile::where('school_id', 1)->whereNotNull('section_id')->get();
+        // section_id/shift_id/class_version_id are all NOT NULL on
+        // attendances (see its migration), so every one of the three must
+        // already be set on the profile — matching
+        // AttendancePunchController::upsertStudentDaySummary()'s own
+        // section_id-only guard would still let a shift_id-less profile
+        // (section backfilled without the Version/Shift/Section structure)
+        // through and crash the insert.
+        $studentProfiles = StudentProfile::where('school_id', 1)
+            ->whereNotNull('section_id')
+            ->whereNotNull('shift_id')
+            ->whereNotNull('class_version_id')
+            ->get();
 
         if ($school === null || $teacherProfile === null || $studentProfiles->isEmpty()) {
             return;

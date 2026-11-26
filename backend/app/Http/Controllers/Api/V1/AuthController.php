@@ -39,12 +39,13 @@ class AuthController extends Controller
      *    holds only management/staff accounts; teacher, student and
      *    guardian credentials live in `teacher_users`/`student_users`/
      *    `guardian_users` and are unreachable from here.
-     * 2. The only roles reachable here that no portal accepts are
-     *    `trainer`, `office_staff`, `it_admin` and `auditor`. Each has a
-     *    real permission grant (RolePermissionSeeder) and a seeded
-     *    login-ready account (UserSeeder); this endpoint is their only
-     *    way in, so adding the allowlist would lock them out rather than
-     *    close anything.
+     * 2. The only role reachable here that no portal accepts is
+     *    `office_staff` (trainer/it_admin/auditor moved into
+     *    config('portals.management') once the Management Portal grew
+     *    nav items for them). It has a real permission grant
+     *    (RolePermissionSeeder) and a seeded login-ready account
+     *    (UserSeeder); this endpoint is its only way in, so adding the
+     *    allowlist would lock it out rather than close anything.
      * 3. A token issued here carries only its own role's permissions, and
      *    every endpoint is Policy-gated on those — authenticating is not
      *    itself an authorization.

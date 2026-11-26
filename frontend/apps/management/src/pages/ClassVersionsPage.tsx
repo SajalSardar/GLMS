@@ -264,6 +264,9 @@ export default function ClassVersionsPage() {
       createRow={(values, token) => createClassVersion(toPayload(values), token)}
       updateRow={(id, values, token) => updateClassVersion(id, toPayload(values), token)}
       deleteRow={(id, token) => deleteClassVersion(id, token)}
+      createPermission="class_versions.create"
+      updatePermission="class_versions.update"
+      deletePermission="class_versions.delete"
       renderDetails={(row) => <ClassVersionDetails version={row} schools={schools} />}
       parentFilter={{
         label: t['management.fields.school'],
