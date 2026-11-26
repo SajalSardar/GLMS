@@ -7,6 +7,8 @@ use App\Http\Requests\Api\V1\StoreSchoolRequest;
 use App\Http\Requests\Api\V1\UpdateSchoolRequest;
 use App\Http\Resources\Api\V1\SchoolResource;
 use App\Models\School;
+use App\Models\Scopes\TenantScope;
+use App\Policies\Concerns\ChecksScope;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -14,9 +16,12 @@ use Illuminate\Http\Response;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class SchoolController extends Controller
 {
+    use ChecksScope;
+
     /**
      * Display a listing of the resource.
      */
@@ -65,9 +70,20 @@ class SchoolController extends Controller
             $data['logo_disk'] = $disk;
         }
 
+        // The tenant global scope would otherwise hide a trashed row that
+        // belongs to a different district, making it invisible to this
+        // lookup — which would just fall through to create() and crash on
+        // the real DB unique index instead of producing a clean
+        // validation error. Bypass it here so the inScope() check below is
+        // what actually decides, not an accident of query visibility —
+        // same pattern as UserController::store()'s trashed-row lookup.
         $school = ($data['eiin'] ?? null)
-            ? School::onlyTrashed()->where('eiin', $data['eiin'])->first()
+            ? School::onlyTrashed()->withoutGlobalScope(TenantScope::class)->where('eiin', $data['eiin'])->first()
             : null;
+
+        if ($school && ! $this->inScope($request->user(), null, $school->district_id)) {
+            throw ValidationException::withMessages(['eiin' => ['The eiin has already been taken.']]);
+        }
 
         if ($school) {
             $school->restore();

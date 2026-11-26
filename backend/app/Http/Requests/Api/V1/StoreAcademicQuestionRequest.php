@@ -27,7 +27,7 @@ class StoreAcademicQuestionRequest extends FormRequest
             'version_id' => ['required', 'integer', Rule::exists('versions', 'id')],
             'chapter_id' => ['required', 'integer', Rule::exists('chapters', 'id')->withoutTrashed()],
             'question_type' => ['required', Rule::in(AcademicQuestion::TYPES)],
-            'question_text' => ['required', 'string'],
+            'question_text' => ['required', 'string', 'max:10000'],
             'options' => ['nullable', 'array', 'size:4'],
             'options.*' => ['required', 'string', 'max:500'],
             'marks' => ['required', 'integer', 'min:1'],

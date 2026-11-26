@@ -26,8 +26,8 @@ class UpdateQuestionRequest extends FormRequest
     {
         return [
             'question_type' => ['sometimes', 'string', Rule::in(['mcq_single', 'mcq_multiple', 'true_false'])],
-            'question_text' => ['sometimes', 'required', 'string'],
-            'bn_question_text' => ['sometimes', 'nullable', 'string'],
+            'question_text' => ['sometimes', 'required', 'string', 'max:10000'],
+            'bn_question_text' => ['sometimes', 'nullable', 'string', 'max:10000'],
             'marks' => ['sometimes', 'integer', 'min:1', 'max:1000'],
             'difficulty' => ['sometimes', 'string', Rule::in(['easy', 'medium', 'hard'])],
             'order_index' => ['sometimes', 'integer', 'min:0', 'max:1000'],

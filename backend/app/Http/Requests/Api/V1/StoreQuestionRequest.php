@@ -26,8 +26,8 @@ class StoreQuestionRequest extends FormRequest
         return [
             'chapter_id' => ['required', 'integer', Rule::exists('chapters', 'id')->withoutTrashed()],
             'question_type' => ['required', 'string', Rule::in(['mcq_single', 'mcq_multiple', 'true_false'])],
-            'question_text' => ['required', 'string'],
-            'bn_question_text' => ['nullable', 'string'],
+            'question_text' => ['required', 'string', 'max:10000'],
+            'bn_question_text' => ['nullable', 'string', 'max:10000'],
             'marks' => ['sometimes', 'integer', 'min:1', 'max:1000'],
             'difficulty' => ['sometimes', 'string', Rule::in(['easy', 'medium', 'hard'])],
             'order_index' => ['sometimes', 'integer', 'min:0', 'max:1000'],

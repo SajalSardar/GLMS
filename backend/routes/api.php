@@ -120,11 +120,15 @@ Route::prefix('v1')->group(function (): void {
     // TimetableEntryController::index()/show().
     Route::apiResource('timetable-entries', TimetableEntryController::class)->only(['index', 'show']);
     Route::apiResource('exams', ExamController::class)->only(['index', 'show']);
-    Route::post('/exams/{exam}/random-draw', [GuestExamAttemptController::class, 'randomDraw']);
-    Route::post('/exams/{exam}/guest-submissions', [GuestExamAttemptController::class, 'submit']);
     // Throttled inline rather than on the whole `api` group (which has
-    // no rate limiter configured anywhere else): these two are public
-    // and the POST writes a row per call.
+    // no rate limiter configured anywhere else): these two are public,
+    // unauthenticated, and randomDraw()/submit() hand back full question
+    // text and (on submit) the correct option IDs — without a limiter,
+    // either could be hammered to scrape a practice exam's entire
+    // question bank and answer key.
+    Route::post('/exams/{exam}/random-draw', [GuestExamAttemptController::class, 'randomDraw'])->middleware('throttle:30,1');
+    Route::post('/exams/{exam}/guest-submissions', [GuestExamAttemptController::class, 'submit'])->middleware('throttle:30,1');
+    // Same reasoning as above — public and a POST writes a row per call.
     Route::get('/practice-exams/config', [PracticeExamController::class, 'config'])->middleware('throttle:30,1');
     Route::post('/practice-exams', [PracticeExamController::class, 'store'])->middleware('throttle:30,1');
 
