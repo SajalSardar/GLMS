@@ -48,6 +48,7 @@ class DatabaseSeeder extends Seeder
             LmsContentDemoSeeder::class,
             AcademicExamResultsDemoSeeder::class,
             AcademicQuestionDemoSeeder::class,
+            AttendanceDemoSeeder::class,
         ]);
     }
 }
