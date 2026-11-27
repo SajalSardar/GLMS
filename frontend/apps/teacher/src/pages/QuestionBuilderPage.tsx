@@ -543,7 +543,7 @@ export default function QuestionBuilderPage() {
                   {t['teacher.questionBuilder.loadQuestions']}
                 </button>
 
-                <div className="flex flex-col gap-2">
+                <div className="flex max-h-[28rem] flex-col gap-2 overflow-y-auto">
                   {loadingBank && <p className="text-sm text-gray-500">{t['teacher.questionBuilder.loading']}</p>}
                   {!loadingBank && bankQuestions.length === 0 && (
                     <p className="text-sm text-gray-500">{t['teacher.questionBuilder.empty']}</p>
