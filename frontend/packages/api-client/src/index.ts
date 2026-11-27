@@ -2956,6 +2956,55 @@ export function getAcademicExamSectionStudents(
   )
 }
 
+export interface AcademicExamSectionGridSubjectColumn {
+  subject_id: number
+  subject_name: string
+}
+
+export interface AcademicExamSectionGridSubjectCell {
+  cq: number | null
+  cq_full: number | null
+  mcq: number | null
+  mcq_full: number | null
+  practical: number | null
+  practical_full: number | null
+  total_obtained: number
+  total_full: number
+}
+
+export interface AcademicExamSectionGridStudent {
+  student_profile_id: number
+  name: string | null
+  roll_number: string | null
+  subjects: Record<number, AcademicExamSectionGridSubjectCell>
+  total_obtained: number
+  total_full: number
+}
+
+export interface AcademicExamSectionGrid {
+  section_id: number
+  academic_exam_term_id: number
+  academic_year_id: number
+  is_published: boolean
+  subjects: AcademicExamSectionGridSubjectColumn[]
+  students: AcademicExamSectionGridStudent[]
+}
+
+export function getAcademicExamSectionMarksheet(
+  params: { sectionId: number; academicExamTermId: number; academicYearId: number },
+  token: string,
+): Promise<{ data: AcademicExamSectionGrid }> {
+  const query = buildQuery({
+    section_id: params.sectionId,
+    academic_exam_term_id: params.academicExamTermId,
+    academic_year_id: params.academicYearId,
+  })
+
+  return apiFetch<{ data: AcademicExamSectionGrid }>(`/academic-exam-marks/section-marksheet${query}`, {
+    headers: authHeaders(token),
+  })
+}
+
 // ---------- Academic exam results (student's own) ----------
 
 export interface MyAcademicExamResultTerm {

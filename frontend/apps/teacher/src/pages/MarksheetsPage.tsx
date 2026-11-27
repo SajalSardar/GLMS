@@ -30,6 +30,11 @@ function uniqueByKey<T, K>(items: T[], keyFn: (item: T) => K | null): T[] {
   return result
 }
 
+// Two-step flow, matching the management portal's Publish Results screen:
+// picking a section (plus exam term/academic year) shows that section's
+// student roster with a View action, and clicking it shows one student's
+// marksheet — rather than the old single-screen design that required a
+// student picked from a second dropdown before anything rendered.
 export default function MarksheetsPage() {
   const { token } = useAuth()
 
@@ -40,10 +45,12 @@ export default function MarksheetsPage() {
 
   const [sectionId, setSectionId] = useState<number | null>(null)
   const [students, setStudents] = useState<AcademicExamSectionStudent[]>([])
-  const [studentProfileId, setStudentProfileId] = useState<number | null>(null)
+  const [studentsLoading, setStudentsLoading] = useState(false)
+
   const [academicExamTermId, setAcademicExamTermId] = useState<number | null>(null)
   const [academicYearId, setAcademicYearId] = useState<number | null>(null)
 
+  const [selectedStudent, setSelectedStudent] = useState<AcademicExamSectionStudent | null>(null)
   const [loadingMarksheet, setLoadingMarksheet] = useState(false)
   const [marksheet, setMarksheet] = useState<AcademicExamMarksheet | null>(null)
 
@@ -54,7 +61,9 @@ export default function MarksheetsPage() {
       .then(([assignmentResult, termResult, yearResult]) => {
         setAssignments(assignmentResult.data)
         setTerms(termResult.data)
+        setAcademicExamTermId((previous) => previous ?? termResult.data[0]?.id ?? null)
         setYears(yearResult.data)
+        setAcademicYearId((previous) => previous ?? yearResult.data.find((year) => year.is_current)?.id ?? null)
       })
       .catch(() => {
         setAssignments([])
@@ -69,11 +78,12 @@ export default function MarksheetsPage() {
   useEffect(() => {
     if (!token || sectionId === null) {
       setStudents([])
-      setStudentProfileId(null)
+      setSelectedStudent(null)
       return
     }
 
     let active = true
+    setStudentsLoading(true)
 
     getAcademicExamSectionStudents({ sectionId }, token)
       .then((result) => {
@@ -83,6 +93,9 @@ export default function MarksheetsPage() {
       .catch(() => {
         if (active) setStudents([])
       })
+      .finally(() => {
+        if (active) setStudentsLoading(false)
+      })
 
     return () => {
       active = false
@@ -90,7 +103,7 @@ export default function MarksheetsPage() {
   }, [token, sectionId])
 
   useEffect(() => {
-    if (!token || studentProfileId === null || academicExamTermId === null || academicYearId === null) {
+    if (!token || !selectedStudent || academicExamTermId === null || academicYearId === null) {
       setMarksheet(null)
       return
     }
@@ -98,7 +111,7 @@ export default function MarksheetsPage() {
     let active = true
     setLoadingMarksheet(true)
 
-    getAcademicExamMarksheet({ studentProfileId, academicExamTermId, academicYearId }, token)
+    getAcademicExamMarksheet({ studentProfileId: selectedStudent.student_profile_id, academicExamTermId, academicYearId }, token)
       .then((result) => {
         if (active) setMarksheet(result.data)
       })
@@ -112,7 +125,14 @@ export default function MarksheetsPage() {
     return () => {
       active = false
     }
-  }, [token, studentProfileId, academicExamTermId, academicYearId])
+  }, [token, selectedStudent, academicExamTermId, academicYearId])
+
+  function backToList() {
+    setSelectedStudent(null)
+    setMarksheet(null)
+  }
+
+  const canViewMarksheet = academicExamTermId !== null && academicYearId !== null
 
   return (
     <div>
@@ -129,30 +149,12 @@ export default function MarksheetsPage() {
         <select
           className="h-11 min-w-[12rem] rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-800 outline-none transition-colors focus:border-primary-500"
           value={sectionId ?? ''}
-          onChange={(event) => {
-            setSectionId(event.target.value ? Number(event.target.value) : null)
-            setStudentProfileId(null)
-          }}
+          onChange={(event) => setSectionId(event.target.value ? Number(event.target.value) : null)}
         >
           <option value="">{t['teacher.marksheets.selectSection']}</option>
           {sections.map((row) => (
             <option key={row.section_id} value={row.section_id}>
               {[row.class_name, row.class_version, row.shift, row.section_name].filter(Boolean).join(' - ')}
-            </option>
-          ))}
-        </select>
-
-        <select
-          className="h-11 min-w-[10rem] rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-800 outline-none transition-colors focus:border-primary-500 disabled:cursor-not-allowed disabled:opacity-60"
-          value={studentProfileId ?? ''}
-          disabled={sectionId === null}
-          onChange={(event) => setStudentProfileId(event.target.value ? Number(event.target.value) : null)}
-        >
-          <option value="">{t['teacher.marksheets.selectStudent']}</option>
-          {students.map((student) => (
-            <option key={student.student_profile_id} value={student.student_profile_id}>
-              {student.roll_number ? `${student.roll_number} - ` : ''}
-              {student.name}
             </option>
           ))}
         </select>
@@ -197,75 +199,144 @@ export default function MarksheetsPage() {
 
       {loadingFilters && <p className="mt-6 text-sm text-gray-500 print:hidden">{t['teacher.marksheets.loading']}</p>}
 
-      {!loadingFilters && (sectionId === null || studentProfileId === null || academicExamTermId === null || academicYearId === null) && (
-        <p className="mt-6 text-sm text-gray-500 print:hidden">{t['teacher.marksheets.pickAllFilters']}</p>
+      {!loadingFilters && sectionId === null && (
+        <p className="mt-6 text-sm text-gray-500 print:hidden">{t['teacher.marksheets.selectSectionPrompt']}</p>
       )}
 
-      {loadingMarksheet && <p className="mt-6 text-sm text-gray-500 print:hidden">{t['teacher.marksheets.loading']}</p>}
+      {!loadingFilters && sectionId !== null && !selectedStudent && (
+        <div className="mt-4 print:hidden">
+          {!canViewMarksheet && <p className="mb-3 text-sm text-gray-500">{t['teacher.marksheets.pickTermYearHint']}</p>}
 
-      {!loadingMarksheet && marksheet && marksheet.subjects.length === 0 && (
-        <p className="mt-6 text-sm text-gray-500 print:hidden">{t['teacher.marksheets.noMarksRecorded']}</p>
-      )}
-
-      {!loadingMarksheet && marksheet && marksheet.subjects.length > 0 && (
-        <div className="mt-4 rounded-md bg-white p-6 shadow-sm print:mt-0 print:rounded-none print:p-0 print:shadow-none">
-          <div className="overflow-x-auto rounded-md border border-gray-100">
-            <table className="w-full min-w-[32rem] text-sm">
+          <div className="overflow-x-auto rounded-md bg-white shadow-sm">
+            <table className="w-full min-w-[24rem] text-sm">
               <thead className="bg-primary-50 text-xs font-medium tracking-wide text-gray-500 uppercase">
                 <tr>
-                  <th className="px-4 py-3 text-left whitespace-nowrap">{t['teacher.marksheets.colSubject']}</th>
-                  <th className="px-4 py-3 text-left whitespace-nowrap">{t['teacher.marksheets.colCq']}</th>
-                  <th className="px-4 py-3 text-left whitespace-nowrap">{t['teacher.marksheets.colMcq']}</th>
-                  <th className="px-4 py-3 text-left whitespace-nowrap">{t['teacher.marksheets.colPractical']}</th>
-                  <th className="px-4 py-3 text-left whitespace-nowrap">{t['teacher.marksheets.colTotal']}</th>
-                  <th className="px-4 py-3 text-left whitespace-nowrap">{t['teacher.marksheets.colGrade']}</th>
+                  <th className="px-4 py-3 text-left whitespace-nowrap">{t['teacher.marksheets.colRoll']}</th>
+                  <th className="px-4 py-3 text-left whitespace-nowrap">{t['teacher.marksheets.colStudent']}</th>
+                  <th className="px-4 py-3 text-left whitespace-nowrap">{t['teacher.marksheets.colActions']}</th>
                 </tr>
               </thead>
               <tbody>
-                {marksheet.subjects.map((subject) => (
-                  <tr key={subject.subject_id} className="border-t border-gray-100">
-                    <td className="px-4 py-3 whitespace-nowrap font-medium text-gray-900">{subject.subject_name}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-gray-600">{subject.cq ?? '—'}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-gray-600">{subject.mcq ?? '—'}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-gray-600">{subject.practical ?? '—'}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-gray-600">
-                      {subject.total_obtained} / {subject.total_full}
+                {studentsLoading ? (
+                  <tr>
+                    <td colSpan={3} className="px-4 py-6 text-center text-gray-500">
+                      {t['teacher.marksheets.loading']}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-gray-600">{subject.grade_name ?? '—'}</td>
                   </tr>
-                ))}
+                ) : students.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="px-4 py-6 text-center text-gray-500">
+                      {t['teacher.marksheets.noStudents']}
+                    </td>
+                  </tr>
+                ) : (
+                  students.map((student) => (
+                    <tr key={student.student_profile_id} className="border-t border-gray-100">
+                      <td className="px-4 py-3 whitespace-nowrap text-gray-500">{student.roll_number ?? '—'}</td>
+                      <td className="px-4 py-3 whitespace-nowrap font-medium text-gray-900">{student.name ?? '—'}</td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <button
+                          type="button"
+                          disabled={!canViewMarksheet}
+                          className="cursor-pointer leading-none text-gray-500 transition-colors duration-150 hover:text-primary-500 disabled:cursor-not-allowed disabled:opacity-40"
+                          onClick={() => setSelectedStudent(student)}
+                          aria-label={t['teacher.marksheets.view']}
+                        >
+                          <span className="material-symbols-outlined !text-[20px]">visibility</span>
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
+        </div>
+      )}
 
-          <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <div className="rounded-md border border-gray-100 p-3">
-              <p className="text-xs font-semibold tracking-wide text-gray-500 uppercase">{t['teacher.marksheets.gpa']}</p>
-              <p className="mt-1 text-lg font-bold text-gray-900">{marksheet.gpa.toFixed(2)}</p>
+      {selectedStudent && (
+        <div className="mt-4">
+          <button
+            type="button"
+            onClick={backToList}
+            className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:border-primary-300 print:hidden"
+          >
+            <span className="material-symbols-outlined !text-[18px] leading-none">arrow_back</span>
+            {t['teacher.marksheets.backToList']}
+          </button>
+
+          <h2 className="mt-3 text-lg font-semibold text-gray-900 print:hidden">
+            {selectedStudent.roll_number ? `${selectedStudent.roll_number} - ` : ''}
+            {selectedStudent.name}
+          </h2>
+
+          {loadingMarksheet && <p className="mt-6 text-sm text-gray-500 print:hidden">{t['teacher.marksheets.loading']}</p>}
+
+          {!loadingMarksheet && marksheet && marksheet.subjects.length === 0 && (
+            <p className="mt-6 text-sm text-gray-500 print:hidden">{t['teacher.marksheets.noMarksRecorded']}</p>
+          )}
+
+          {!loadingMarksheet && marksheet && marksheet.subjects.length > 0 && (
+            <div className="mt-4 rounded-md bg-white p-6 shadow-sm print:mt-0 print:rounded-none print:p-0 print:shadow-none">
+              <div className="overflow-x-auto rounded-md border border-gray-100">
+                <table className="w-full min-w-[32rem] text-sm">
+                  <thead className="bg-primary-50 text-xs font-medium tracking-wide text-gray-500 uppercase">
+                    <tr>
+                      <th className="px-4 py-3 text-left whitespace-nowrap">{t['teacher.marksheets.colSubject']}</th>
+                      <th className="px-4 py-3 text-left whitespace-nowrap">{t['teacher.marksheets.colCq']}</th>
+                      <th className="px-4 py-3 text-left whitespace-nowrap">{t['teacher.marksheets.colMcq']}</th>
+                      <th className="px-4 py-3 text-left whitespace-nowrap">{t['teacher.marksheets.colPractical']}</th>
+                      <th className="px-4 py-3 text-left whitespace-nowrap">{t['teacher.marksheets.colTotal']}</th>
+                      <th className="px-4 py-3 text-left whitespace-nowrap">{t['teacher.marksheets.colGrade']}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {marksheet.subjects.map((subject) => (
+                      <tr key={subject.subject_id} className="border-t border-gray-100">
+                        <td className="px-4 py-3 whitespace-nowrap font-medium text-gray-900">{subject.subject_name}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-gray-600">{subject.cq ?? '—'}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-gray-600">{subject.mcq ?? '—'}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-gray-600">{subject.practical ?? '—'}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-gray-600">
+                          {subject.total_obtained} / {subject.total_full}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-gray-600">{subject.grade_name ?? '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+                <div className="rounded-md border border-gray-100 p-3">
+                  <p className="text-xs font-semibold tracking-wide text-gray-500 uppercase">{t['teacher.marksheets.gpa']}</p>
+                  <p className="mt-1 text-lg font-bold text-gray-900">{marksheet.gpa.toFixed(2)}</p>
+                </div>
+                <div className="rounded-md border border-gray-100 p-3">
+                  <p className="text-xs font-semibold tracking-wide text-gray-500 uppercase">{t['teacher.marksheets.result']}</p>
+                  <p className={`mt-1 text-lg font-bold ${marksheet.result === 'pass' ? 'text-success-600' : 'text-danger-600'}`}>
+                    {marksheet.result === 'pass' ? t['teacher.marksheets.resultPass'] : t['teacher.marksheets.resultFail']}
+                  </p>
+                </div>
+                <div className="rounded-md border border-gray-100 p-3">
+                  <p className="text-xs font-semibold tracking-wide text-gray-500 uppercase">{t['teacher.marksheets.sectionPosition']}</p>
+                  <p className="mt-1 text-lg font-bold text-gray-900">
+                    {marksheet.section_position !== null
+                      ? `${marksheet.section_position} / ${marksheet.section_total_students}`
+                      : t['teacher.marksheets.positionNotAvailable']}
+                  </p>
+                </div>
+                <div className="rounded-md border border-gray-100 p-3">
+                  <p className="text-xs font-semibold tracking-wide text-gray-500 uppercase">{t['teacher.marksheets.classPosition']}</p>
+                  <p className="mt-1 text-lg font-bold text-gray-900">
+                    {marksheet.class_position !== null
+                      ? `${marksheet.class_position} / ${marksheet.class_total_students}`
+                      : t['teacher.marksheets.positionNotAvailable']}
+                  </p>
+                </div>
+              </div>
             </div>
-            <div className="rounded-md border border-gray-100 p-3">
-              <p className="text-xs font-semibold tracking-wide text-gray-500 uppercase">{t['teacher.marksheets.result']}</p>
-              <p className={`mt-1 text-lg font-bold ${marksheet.result === 'pass' ? 'text-success-600' : 'text-danger-600'}`}>
-                {marksheet.result === 'pass' ? t['teacher.marksheets.resultPass'] : t['teacher.marksheets.resultFail']}
-              </p>
-            </div>
-            <div className="rounded-md border border-gray-100 p-3">
-              <p className="text-xs font-semibold tracking-wide text-gray-500 uppercase">{t['teacher.marksheets.sectionPosition']}</p>
-              <p className="mt-1 text-lg font-bold text-gray-900">
-                {marksheet.section_position !== null
-                  ? `${marksheet.section_position} / ${marksheet.section_total_students}`
-                  : t['teacher.marksheets.positionNotAvailable']}
-              </p>
-            </div>
-            <div className="rounded-md border border-gray-100 p-3">
-              <p className="text-xs font-semibold tracking-wide text-gray-500 uppercase">{t['teacher.marksheets.classPosition']}</p>
-              <p className="mt-1 text-lg font-bold text-gray-900">
-                {marksheet.class_position !== null
-                  ? `${marksheet.class_position} / ${marksheet.class_total_students}`
-                  : t['teacher.marksheets.positionNotAvailable']}
-              </p>
-            </div>
-          </div>
+          )}
         </div>
       )}
     </div>

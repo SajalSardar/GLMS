@@ -73,6 +73,62 @@ class MarksheetBuilder
     }
 
     /**
+     * Every student in $section's per-subject marks for one (term, year)
+     * — the class-wide tabulation sheet behind the management portal's
+     * Publish Results "view" screen. Reuses subjectResults() per student;
+     * unlike build(), never computes rank/GPA — not needed for this
+     * report, and ranking every student here would be an O(n²) cost
+     * across the whole section for data this report never shows.
+     *
+     * $subjects lists every subject configured for the section's class
+     * (not just ones with marks entered), so the grid's column set is
+     * stable regardless of how much marking is still outstanding.
+     *
+     * @return array{
+     *   subjects: list<array{subject_id:int, subject_name:string}>,
+     *   students: list<array{student_profile_id:int, name:?string,
+     *     roll_number:?string,
+     *     subjects: array<int, array{cq:?int, cq_full:?int, mcq:?int,
+     *       mcq_full:?int, practical:?int, practical_full:?int,
+     *       total_obtained:int, total_full:int}>,
+     *     total_obtained:int, total_full:int},
+     * }
+     */
+    public function sectionGrid(Section $section, AcademicExamTerm $term, int $academicYearId): array
+    {
+        $classId = $section->shift?->classVersion?->class_id;
+
+        $subjectColumns = AcademicSubjectMarkConfigure::where('class_id', $classId)
+            ->with('subject')
+            ->get()
+            ->map(fn (AcademicSubjectMarkConfigure $configure) => [
+                'subject_id' => $configure->subject_id,
+                'subject_name' => $configure->subject?->bn_name ?? $configure->subject?->name ?? '',
+            ])
+            ->values()
+            ->all();
+
+        $students = StudentProfile::where('section_id', $section->id)->with('user')->get()
+            ->sortBy(fn (StudentProfile $profile) => (int) ($profile->roll_number ?? 0))
+            ->values();
+
+        $rows = $students->map(function (StudentProfile $profile) use ($term, $academicYearId) {
+            $subjects = $this->subjectResults($profile, $term->id, $academicYearId)->keyBy('subject_id');
+
+            return [
+                'student_profile_id' => $profile->id,
+                'name' => $profile->user?->name,
+                'roll_number' => $profile->roll_number,
+                'subjects' => $subjects->all(),
+                'total_obtained' => (int) $subjects->sum('total_obtained'),
+                'total_full' => (int) $subjects->sum('total_full'),
+            ];
+        })->values()->all();
+
+        return ['subjects' => $subjectColumns, 'students' => $rows];
+    }
+
+    /**
      * Per-subject totals/percent/grade/pass for one student. A subject
      * with marks entered but no academic_subject_mark_configures row is
      * skipped (treated as not yet gradeable) rather than throwing —

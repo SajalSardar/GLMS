@@ -638,6 +638,58 @@ class AcademicExamMarkControllerTest extends TestCase
             ->assertJsonPath('conflicted_student_ids', []);
     }
 
+    public function test_section_marksheet_returns_every_students_subject_breakdown_and_totals(): void
+    {
+        $classTeacher = $this->teacherActorWithPermissions(['academic_exam_marks.view', 'academic_exam_marks.update'], $this->school->id, $this->school->district_id);
+        $this->section->update(['class_teacher_id' => $classTeacher->id]);
+
+        $student = $this->studentInSection();
+        $profile = $student->profile;
+
+        $this->actingAs($classTeacher, 'sanctum')->postJson('/api/v1/academic-exam-marks/record', $this->recordPayload($profile->id))->assertOk();
+
+        $this->actingAs($classTeacher, 'sanctum')
+            ->getJson("/api/v1/academic-exam-marks/section-marksheet?section_id={$this->section->id}&academic_exam_term_id={$this->term->id}&academic_year_id={$this->year->id}")
+            ->assertOk()
+            ->assertJsonPath('data.is_published', false)
+            ->assertJsonPath('data.subjects.0.subject_id', $this->subject->id)
+            ->assertJsonPath('data.students.0.student_profile_id', $profile->id)
+            ->assertJsonPath("data.students.0.subjects.{$this->subject->id}.cq", 60)
+            ->assertJsonPath("data.students.0.subjects.{$this->subject->id}.mcq", 25)
+            ->assertJsonPath('data.students.0.total_obtained', 85);
+    }
+
+    public function test_section_marksheet_reflects_publish_state(): void
+    {
+        $classTeacher = $this->teacherActorWithPermissions(['academic_exam_marks.view', 'academic_exam_marks.update'], $this->school->id, $this->school->district_id);
+        $this->section->update(['class_teacher_id' => $classTeacher->id]);
+        $this->publishSectionTerm($this->section);
+
+        $this->actingAs($classTeacher, 'sanctum')
+            ->getJson("/api/v1/academic-exam-marks/section-marksheet?section_id={$this->section->id}&academic_exam_term_id={$this->term->id}&academic_year_id={$this->year->id}")
+            ->assertOk()
+            ->assertJsonPath('data.is_published', true);
+    }
+
+    public function test_section_marksheet_is_forbidden_for_a_teacher_with_no_relation_to_the_section(): void
+    {
+        $unrelatedTeacher = $this->teacherActorWithPermissions(['academic_exam_marks.view', 'academic_exam_marks.update'], $this->school->id, $this->school->district_id);
+
+        $this->actingAs($unrelatedTeacher, 'sanctum')
+            ->getJson("/api/v1/academic-exam-marks/section-marksheet?section_id={$this->section->id}&academic_exam_term_id={$this->term->id}&academic_year_id={$this->year->id}")
+            ->assertForbidden();
+    }
+
+    public function test_section_marksheet_is_viewable_by_staff_with_academic_exam_marks_view(): void
+    {
+        $this->studentInSection();
+        $admin = $this->actorWithPermissions(['academic_exam_marks.view'], $this->school->id, $this->school->district_id);
+
+        $this->actingAs($admin, 'sanctum')
+            ->getJson("/api/v1/academic-exam-marks/section-marksheet?section_id={$this->section->id}&academic_exam_term_id={$this->term->id}&academic_year_id={$this->year->id}")
+            ->assertOk();
+    }
+
     public function test_section_students_lists_the_whole_roster_for_the_class_teacher(): void
     {
         $classTeacher = $this->teacherActorWithPermissions(['academic_exam_marks.view', 'academic_exam_marks.update'], $this->school->id, $this->school->district_id);

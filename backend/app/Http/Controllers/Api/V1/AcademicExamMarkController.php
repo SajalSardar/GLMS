@@ -220,6 +220,33 @@ class AcademicExamMarkController extends Controller
     }
 
     /**
+     * The whole section's tabulation sheet for one exam term/academic
+     * year — every student's per-subject CQ/MCQ/practical breakdown and
+     * total, plus the section's publish state — the data behind the
+     * management portal's Publish Results "view" screen. Same
+     * authorization as marksheet() (viewMarksheet on the section), since
+     * this is the same report fanned out to every student instead of one.
+     */
+    public function sectionMarksheet(Request $request): JsonResponse
+    {
+        $section = Section::findOrFail($request->integer('section_id'));
+        $term = AcademicExamTerm::findOrFail($request->integer('academic_exam_term_id'));
+        $academicYearId = $request->integer('academic_year_id');
+
+        $this->authorize('viewMarksheet', [AcademicExamMark::class, $section]);
+
+        return response()->json([
+            'data' => [
+                'section_id' => $section->id,
+                'academic_exam_term_id' => $term->id,
+                'academic_year_id' => $academicYearId,
+                'is_published' => AcademicExamPublication::isPublished($section->id, $term->id, $academicYearId),
+                ...$this->marksheetBuilder->sectionGrid($section, $term, $academicYearId),
+            ],
+        ]);
+    }
+
+    /**
      * Every student in a section, independent of subject — used by the
      * teacher portal's Marksheets lookup to populate its Student picker
      * once a Section has been chosen.
