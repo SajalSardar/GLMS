@@ -709,7 +709,7 @@ export default function QuestionBuilderPage() {
                   {chapters.length === 0 ? (
                     <p className="text-sm text-gray-400">{t['teacher.questionBuilder.noChapters']}</p>
                   ) : (
-                    <div className="flex max-h-32 flex-col gap-1 overflow-y-auto">
+                    <div className="flex max-h-32 flex-wrap gap-x-4 gap-y-1.5 overflow-y-auto">
                       {chapters.map((chapter) => (
                         <label key={chapter.id} className="flex cursor-pointer items-center gap-2 text-sm text-gray-700">
                           <input
