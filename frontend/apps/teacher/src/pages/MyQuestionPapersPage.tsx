@@ -46,12 +46,15 @@ function PrintableQuestionPaper({ paper }: { paper: QuestionPaper }) {
   const english = isEnglishSubjectPaper(paper)
   const className = english ? paper.school_class?.name : (paper.school_class?.bn_name ?? paper.school_class?.name)
   const subjectName = english ? paper.subject?.name : (paper.subject?.bn_name ?? paper.subject?.name)
+  const schoolName = english ? paper.school?.name : (paper.school?.bn_name ?? paper.school?.name)
 
   return (
     <div className="mx-auto max-w-3xl bg-white p-8 text-gray-900 print:p-0">
       <style>{richQuestionTextStyle}</style>
       <div className="text-center">
-        <h1 className="text-lg font-bold">{paper.title}</h1>
+        {schoolName && <p className="text-xl font-bold">{schoolName}</p>}
+        {paper.school?.address && <p className="text-sm text-gray-600">{paper.school.address}</p>}
+        <h1 className="mt-2 text-lg font-bold">{paper.title}</h1>
         <p className="mt-1 text-sm">
           {className ?? ''} — {subjectName ?? ''}
         </p>

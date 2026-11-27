@@ -3461,6 +3461,7 @@ export interface QuestionPaper {
   instructions: string | null
   created_at: string
   teacher?: { id: number; name: string } | null
+  school?: { id: number; name: string; bn_name: string | null; address: string | null } | null
   school_class?: { id: number; name: string; bn_name: string | null } | null
   subject?: { id: number; name: string; bn_name: string | null } | null
   items?: QuestionPaperItem[]

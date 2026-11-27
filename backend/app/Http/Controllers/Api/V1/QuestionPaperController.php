@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\DB;
 
 class QuestionPaperController extends Controller
 {
-    private const WITH = ['teacher', 'schoolClass', 'subject', 'items.academicQuestion.chapter'];
+    private const WITH = ['teacher', 'school', 'schoolClass', 'subject', 'items.academicQuestion.chapter'];
 
     public function index(): AnonymousResourceCollection
     {

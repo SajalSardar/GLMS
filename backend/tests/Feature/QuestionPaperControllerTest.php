@@ -43,7 +43,7 @@ class QuestionPaperControllerTest extends TestCase
         $upazilaA = Upazila::create(['district_id' => $districtA->id, 'name' => 'Upazila A', 'bn_name' => 'উপজেলা এ']);
         $upazilaB = Upazila::create(['district_id' => $districtB->id, 'name' => 'Upazila B', 'bn_name' => 'উপজেলা বি']);
 
-        $this->schoolA = School::create(['division_id' => $division->id, 'district_id' => $districtA->id, 'upazila_id' => $upazilaA->id, 'name' => 'School A']);
+        $this->schoolA = School::create(['division_id' => $division->id, 'district_id' => $districtA->id, 'upazila_id' => $upazilaA->id, 'name' => 'School A', 'address' => '12 Main Road, Dhaka']);
         $this->schoolB = School::create(['division_id' => $division->id, 'district_id' => $districtB->id, 'upazila_id' => $upazilaB->id, 'name' => 'School B']);
 
         $this->schoolClass = SchoolClass::create(['name' => 'Class 6', 'numeric_level' => 6]);
@@ -108,6 +108,8 @@ class QuestionPaperControllerTest extends TestCase
 
         $response->assertJsonPath('data.teacher_id', $teacher->id)
             ->assertJsonPath('data.school_id', $this->schoolA->id)
+            ->assertJsonPath('data.school.name', 'School A')
+            ->assertJsonPath('data.school.address', '12 Main Road, Dhaka')
             ->assertJsonCount(2, 'data.items')
             ->assertJsonPath('data.items.0.item_type', 'heading')
             ->assertJsonPath('data.items.1.item_type', 'question');

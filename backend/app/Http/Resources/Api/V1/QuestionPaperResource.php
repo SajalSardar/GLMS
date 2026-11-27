@@ -28,6 +28,12 @@ class QuestionPaperResource extends JsonResource
                 'id' => $this->teacher->id,
                 'name' => $this->teacher->name,
             ]),
+            'school' => $this->whenLoaded('school', fn () => $this->school === null ? null : [
+                'id' => $this->school->id,
+                'name' => $this->school->name,
+                'bn_name' => $this->school->bn_name,
+                'address' => $this->school->address,
+            ]),
             'school_class' => $this->whenLoaded('schoolClass', fn () => $this->schoolClass === null ? null : [
                 'id' => $this->schoolClass->id,
                 'name' => $this->schoolClass->name,
