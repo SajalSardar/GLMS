@@ -202,7 +202,7 @@ function CanvasItemCard({
       className={`flex flex-col gap-2 rounded-md border border-gray-200 bg-white p-3 text-sm ${isDragging ? 'opacity-50' : ''}`}
     >
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2" onPointerDown={(event) => event.stopPropagation()}>
+        <div className="flex min-w-0 items-center gap-2" onPointerDown={(event) => event.stopPropagation()}>
           <input
             type="text"
             value={item.serialLabel ?? String(index + 1)}
@@ -213,6 +213,16 @@ function CanvasItemCard({
           <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500 uppercase">
             {item.questionType === 'mcq' ? t['teacher.questionBuilder.mcqLabel'] : t['teacher.questionBuilder.cqLabel']}
           </span>
+          <div className="flex items-center gap-1.5 text-xs text-gray-400">
+            <input
+              type="number"
+              min={0}
+              value={item.marks ?? ''}
+              onChange={(event) => onMarksChange(event.target.value)}
+              className="w-16 rounded border border-gray-200 px-1.5 py-0.5 text-xs outline-none focus:border-primary-500"
+            />
+            <span>{t['teacher.questionBuilder.marksFilter']}</span>
+          </div>
         </div>
         <div className="flex items-center gap-1">
           <IndentControls indentLevel={item.indentLevel} onIndent={onIndent} onOutdent={onOutdent} />
@@ -237,17 +247,6 @@ function CanvasItemCard({
           ))}
         </div>
       )}
-
-      <div className="flex items-center gap-1.5 text-xs text-gray-400" onPointerDown={(event) => event.stopPropagation()}>
-        <input
-          type="number"
-          min={0}
-          value={item.marks ?? ''}
-          onChange={(event) => onMarksChange(event.target.value)}
-          className="w-16 rounded border border-gray-200 px-1.5 py-0.5 text-xs outline-none focus:border-primary-500"
-        />
-        <span>{t['teacher.questionBuilder.marksFilter']}</span>
-      </div>
     </div>
   )
 }
@@ -330,6 +329,7 @@ export default function QuestionBuilderPage() {
   const [fullMarks, setFullMarks] = useState('')
   const [instructions, setInstructions] = useState('')
 
+  const [filtersOpen, setFiltersOpen] = useState(true)
   const [filterType, setFilterType] = useState('')
   const [filterMarks, setFilterMarks] = useState('')
   const [chapters, setChapters] = useState<Chapter[]>([])
@@ -660,11 +660,18 @@ export default function QuestionBuilderPage() {
             </p>
           </div>
 
-          <DndContext onDragEnd={handleDragEnd}>
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-[2fr_3fr]">
-              <div className="flex flex-col gap-3 rounded-md bg-white p-4 shadow-sm">
-                <h2 className="text-sm font-semibold text-primary-800">{t['teacher.questionBuilder.bankTitle']}</h2>
+          <div className="rounded-md bg-white p-4 shadow-sm">
+            <button
+              type="button"
+              onClick={() => setFiltersOpen((previous) => !previous)}
+              className="flex w-full cursor-pointer items-center justify-between text-sm font-semibold text-primary-800"
+            >
+              {t['teacher.questionBuilder.filtersTitle']}
+              <span className="material-symbols-outlined !text-[20px]">{filtersOpen ? 'expand_less' : 'expand_more'}</span>
+            </button>
 
+            {filtersOpen && (
+              <div className="mt-3 flex flex-col gap-3">
                 <div className="flex flex-wrap gap-2">
                   <select className={selectClass} value={filterType} onChange={(event) => setFilterType(event.target.value)}>
                     <option value="">{t['teacher.questionBuilder.allTypes']}</option>
@@ -679,6 +686,9 @@ export default function QuestionBuilderPage() {
                     value={filterMarks}
                     onChange={(event) => setFilterMarks(event.target.value)}
                   />
+                  <button type="button" onClick={loadBank} disabled={loadingBank} className={buttonPrimary}>
+                    {t['teacher.questionBuilder.loadQuestions']}
+                  </button>
                 </div>
 
                 <div className="flex flex-col gap-1.5 rounded-md border border-gray-200 p-3">
@@ -703,12 +713,16 @@ export default function QuestionBuilderPage() {
                     </div>
                   )}
                 </div>
+              </div>
+            )}
+          </div>
 
-                <button type="button" onClick={loadBank} disabled={loadingBank} className={buttonPrimary}>
-                  {t['teacher.questionBuilder.loadQuestions']}
-                </button>
+          <DndContext onDragEnd={handleDragEnd}>
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-[2fr_3fr]">
+              <div className="flex flex-col gap-3 rounded-md bg-white p-4 shadow-sm">
+                <h2 className="text-sm font-semibold text-primary-800">{t['teacher.questionBuilder.bankTitle']}</h2>
 
-                <div className="flex max-h-[28rem] flex-col gap-2 overflow-y-auto">
+                <div className="flex max-h-[32rem] flex-col gap-2 overflow-y-auto">
                   {loadingBank && <p className="text-sm text-gray-500">{t['teacher.questionBuilder.loading']}</p>}
                   {!loadingBank && bankQuestions.length === 0 && (
                     <p className="text-sm text-gray-500">{t['teacher.questionBuilder.empty']}</p>

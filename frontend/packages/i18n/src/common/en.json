@@ -1304,6 +1304,7 @@
   "teacher.questionBuilder.detailsStepTitle": "Step 1: Paper Details",
   "teacher.questionBuilder.next": "Next",
   "teacher.questionBuilder.back": "Back",
+  "teacher.questionBuilder.filtersTitle": "Filters",
   "teacher.questionBuilder.bankTitle": "Available questions",
   "teacher.questionBuilder.paperTitle": "Step 2: Build Paper",
   "teacher.questionBuilder.titleLabel": "Paper title",
