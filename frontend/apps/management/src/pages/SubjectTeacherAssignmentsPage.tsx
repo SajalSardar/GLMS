@@ -99,6 +99,15 @@ export default function SubjectTeacherAssignmentsPage() {
   const [teachers, setTeachers] = useState<TeacherUser[]>([])
   const [schools, setSchools] = useState<School[]>([])
   const [classes, setClasses] = useState<SchoolClass[]>([])
+  // Every existing assignment, loaded once — used only to keep the
+  // create form's Subject dropdown from ever offering a subject the
+  // selected section already has a (live) assignment for. The actual
+  // enforcement is server-side (subject_teacher_assignments' own
+  // unique(section_id, subject_id) index, checked cleanly in
+  // SubjectTeacherAssignmentController::store()); this is purely a UX
+  // layer so a conflicting pick is never offered instead of only being
+  // caught after submit.
+  const [assignments, setAssignments] = useState<SubjectTeacherAssignment[]>([])
 
   useEffect(() => {
     listSections({ perPage: 200 })
@@ -121,6 +130,10 @@ export default function SubjectTeacherAssignmentsPage() {
       listTeacherUsers({ perPage: 500 }, token)
         .then((result) => setTeachers(result.data))
         .catch(() => setTeachers([]))
+
+      listSubjectTeacherAssignments({ perPage: 500 }, token)
+        .then((result) => setAssignments(result.data))
+        .catch(() => setAssignments([]))
     }
   }, [token])
 
@@ -169,10 +182,19 @@ export default function SubjectTeacherAssignmentsPage() {
           .filter((section) => String(section.school_id) === values.school_id)
           .map((section) => ({ value: String(section.id), label: sectionLabel(section) }))
 
-        const subjectOptions = (selectedClassVersion?.subjects ?? []).map((subject) => ({
-          value: String(subject.id),
-          label: subject.name,
-        }))
+        // Only relevant on create — editing an existing row shows subject_id
+        // as read-only text (see isEditing below), so there's no dropdown to
+        // filter there in the first place.
+        const assignedSubjectIdsInSection = new Set(
+          assignments.filter((a) => a.section_id === Number(values.section_id)).map((a) => a.subject_id),
+        )
+
+        const subjectOptions = (selectedClassVersion?.subjects ?? [])
+          .filter((subject) => !assignedSubjectIdsInSection.has(subject.id))
+          .map((subject) => ({
+            value: String(subject.id),
+            label: subject.name,
+          }))
 
         // Scoped by the chosen School directly (not the chosen Section) —
         // a teacher belongs to exactly one school regardless of which of
@@ -276,9 +298,18 @@ export default function SubjectTeacherAssignmentsPage() {
           sectionId: filters.tertiaryParentId,
         }, token ?? undefined)
       }
-      createRow={(values, token) => createSubjectTeacherAssignment(toPayload(values), token)}
+      createRow={(values, token) =>
+        createSubjectTeacherAssignment(toPayload(values), token).then((result) => {
+          setAssignments((previous) => [...previous, result.data])
+          return result
+        })
+      }
       updateRow={(id, values, token) => updateSubjectTeacherAssignment(id, { teacher_id: Number(values.teacher_id) }, token)}
-      deleteRow={(id, token) => deleteSubjectTeacherAssignment(id, token)}
+      deleteRow={(id, token) =>
+        deleteSubjectTeacherAssignment(id, token).then(() => {
+          setAssignments((previous) => previous.filter((assignment) => assignment.id !== id))
+        })
+      }
       createPermission="subject_teacher_assignments.create"
       updatePermission="subject_teacher_assignments.update"
       deletePermission="subject_teacher_assignments.delete"
