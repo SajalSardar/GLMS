@@ -3,8 +3,11 @@ import type { AcademicQuestion } from '@ttla/api-client'
 import {
   addHeadingToCanvas,
   addQuestionToCanvas,
+  addTextToCanvas,
   removeCanvasItem,
   reorderCanvasItems,
+  setQuestionMarksOverride,
+  setQuestionSerialLabel,
   type CanvasItem,
 } from './questionBuilderCanvas'
 
@@ -36,7 +39,7 @@ describe('addQuestionToCanvas', () => {
   })
 
   it('appends after existing items without disturbing them', () => {
-    const existing: CanvasItem[] = [{ uid: 'a', type: 'heading', headingText: 'Prose' }]
+    const existing: CanvasItem[] = [{ uid: 'a', type: 'heading', text: 'Prose' }]
     const result = addQuestionToCanvas(existing, makeQuestion())
 
     expect(result).toHaveLength(2)
@@ -50,7 +53,7 @@ describe('addHeadingToCanvas', () => {
     const result = addHeadingToCanvas([], '  Poetry  ')
 
     expect(result).toHaveLength(1)
-    expect(result[0]).toMatchObject({ type: 'heading', headingText: 'Poetry' })
+    expect(result[0]).toMatchObject({ type: 'heading', text: 'Poetry' })
   })
 
   it('is a no-op for blank or whitespace-only text', () => {
@@ -59,10 +62,24 @@ describe('addHeadingToCanvas', () => {
   })
 })
 
+describe('addTextToCanvas', () => {
+  it('appends a new plain text item with the trimmed content', () => {
+    const result = addTextToCanvas([], '  Read the note below.  ')
+
+    expect(result).toHaveLength(1)
+    expect(result[0]).toMatchObject({ type: 'text', text: 'Read the note below.' })
+  })
+
+  it('is a no-op for blank or whitespace-only text', () => {
+    expect(addTextToCanvas([], '')).toEqual([])
+    expect(addTextToCanvas([], '   ')).toEqual([])
+  })
+})
+
 describe('removeCanvasItem', () => {
   it('removes exactly the item with the matching uid', () => {
     const items: CanvasItem[] = [
-      { uid: 'a', type: 'heading', headingText: 'Prose' },
+      { uid: 'a', type: 'heading', text: 'Prose' },
       { uid: 'b', type: 'question', question: makeQuestion() },
     ]
 
@@ -70,7 +87,7 @@ describe('removeCanvasItem', () => {
   })
 
   it('is a no-op when the uid is not present', () => {
-    const items: CanvasItem[] = [{ uid: 'a', type: 'heading', headingText: 'Prose' }]
+    const items: CanvasItem[] = [{ uid: 'a', type: 'heading', text: 'Prose' }]
 
     expect(removeCanvasItem(items, 'missing')).toEqual(items)
   })
@@ -79,9 +96,9 @@ describe('removeCanvasItem', () => {
 describe('reorderCanvasItems', () => {
   it('moves the active item to the position of the over item', () => {
     const items: CanvasItem[] = [
-      { uid: 'a', type: 'heading', headingText: 'First' },
-      { uid: 'b', type: 'heading', headingText: 'Second' },
-      { uid: 'c', type: 'heading', headingText: 'Third' },
+      { uid: 'a', type: 'heading', text: 'First' },
+      { uid: 'b', type: 'heading', text: 'Second' },
+      { uid: 'c', type: 'heading', text: 'Third' },
     ]
 
     const result = reorderCanvasItems(items, 'c', 'a')
@@ -90,15 +107,57 @@ describe('reorderCanvasItems', () => {
   })
 
   it('is a no-op when active and over are the same item', () => {
-    const items: CanvasItem[] = [{ uid: 'a', type: 'heading', headingText: 'Only' }]
+    const items: CanvasItem[] = [{ uid: 'a', type: 'heading', text: 'Only' }]
 
     expect(reorderCanvasItems(items, 'a', 'a')).toBe(items)
   })
 
   it('is a no-op when either uid is not found', () => {
-    const items: CanvasItem[] = [{ uid: 'a', type: 'heading', headingText: 'Only' }]
+    const items: CanvasItem[] = [{ uid: 'a', type: 'heading', text: 'Only' }]
 
     expect(reorderCanvasItems(items, 'a', 'missing')).toBe(items)
     expect(reorderCanvasItems(items, 'missing', 'a')).toBe(items)
+  })
+})
+
+describe('setQuestionMarksOverride', () => {
+  it('sets the override on the matching item, leaving others untouched', () => {
+    const items: CanvasItem[] = [
+      { uid: 'a', type: 'question', question: makeQuestion({ id: 1 }) },
+      { uid: 'b', type: 'question', question: makeQuestion({ id: 2 }) },
+    ]
+
+    const result = setQuestionMarksOverride(items, 'a', '15')
+
+    expect(result[0].marksOverride).toBe(15)
+    expect(result[1].marksOverride).toBeUndefined()
+  })
+
+  it('clears the override back to undefined for an empty value', () => {
+    const items: CanvasItem[] = [{ uid: 'a', type: 'question', question: makeQuestion(), marksOverride: 15 }]
+
+    expect(setQuestionMarksOverride(items, 'a', '')[0].marksOverride).toBeUndefined()
+    expect(setQuestionMarksOverride(items, 'a', '   ')[0].marksOverride).toBeUndefined()
+  })
+})
+
+describe('setQuestionSerialLabel', () => {
+  it('sets the label on the matching item, leaving others untouched', () => {
+    const items: CanvasItem[] = [
+      { uid: 'a', type: 'question', question: makeQuestion({ id: 1 }) },
+      { uid: 'b', type: 'question', question: makeQuestion({ id: 2 }) },
+    ]
+
+    const result = setQuestionSerialLabel(items, 'a', '1(a)')
+
+    expect(result[0].serialLabel).toBe('1(a)')
+    expect(result[1].serialLabel).toBeUndefined()
+  })
+
+  it('clears the label back to undefined (auto-number) for an empty value', () => {
+    const items: CanvasItem[] = [{ uid: 'a', type: 'question', question: makeQuestion(), serialLabel: '1(a)' }]
+
+    expect(setQuestionSerialLabel(items, 'a', '')[0].serialLabel).toBeUndefined()
+    expect(setQuestionSerialLabel(items, 'a', '   ')[0].serialLabel).toBeUndefined()
   })
 })

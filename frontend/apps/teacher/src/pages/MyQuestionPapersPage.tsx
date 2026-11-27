@@ -75,21 +75,37 @@ function PrintableQuestionPaper({ paper }: { paper: QuestionPaper }) {
 
       <div className="mt-6 flex flex-col gap-3">
         {items.map((item) => {
+          // Section headings are always centered — a real exam paper's
+          // headings (গদ্য, ব্যাকরণ, ...) read that way regardless of
+          // subject/medium, unlike the Time/Marks labels and option
+          // lettering above, which do switch with it.
           if (item.item_type === 'heading') {
             return (
-              <h2 key={item.id} className="mt-4 text-base font-semibold underline">
-                {item.heading_text}
+              <h2 key={item.id} className="mt-4 text-center text-base font-semibold underline">
+                {item.text_content}
               </h2>
+            )
+          }
+
+          // A plain inserted note/instruction — reads like ordinary
+          // paper text, never numbered alongside the real questions.
+          if (item.item_type === 'text') {
+            return (
+              <p key={item.id} className="text-sm">
+                {item.text_content}
+              </p>
             )
           }
 
           questionNumber += 1
           const question = item.academic_question
+          const displayNumber = item.serial_label ?? String(questionNumber)
+          const displayMarks = item.marks_override ?? question?.marks
 
           return (
             <div key={item.id} className="flex justify-between gap-4">
               <div className="flex-1">
-                <p className="font-medium">{questionNumber}.</p>
+                <p className="font-medium">{displayNumber}.</p>
                 <div
                   className="rich-question-text"
                   dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(question?.question_text ?? '') }}
@@ -104,7 +120,7 @@ function PrintableQuestionPaper({ paper }: { paper: QuestionPaper }) {
                   </ol>
                 )}
               </div>
-              <span className="shrink-0 text-sm">{question?.marks}</span>
+              <span className="shrink-0 text-sm">{displayMarks}</span>
             </div>
           )
         })}

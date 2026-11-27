@@ -101,7 +101,7 @@ class QuestionPaperControllerTest extends TestCase
 
         $response = $this->actingAs($teacher, 'sanctum')
             ->postJson('/api/v1/question-papers', $this->paperPayload([
-                ['type' => 'heading', 'heading_text' => 'Prose'],
+                ['type' => 'heading', 'text_content' => 'Prose'],
                 ['type' => 'question', 'academic_question_id' => $questionId],
             ]))
             ->assertCreated();
@@ -115,6 +115,25 @@ class QuestionPaperControllerTest extends TestCase
             ->assertJsonPath('data.items.1.item_type', 'question');
 
         $this->assertDatabaseHas('question_papers', ['teacher_id' => $teacher->id, 'school_id' => $this->schoolA->id]);
+    }
+
+    public function test_a_text_item_and_a_questions_marks_and_serial_overrides_round_trip(): void
+    {
+        $teacher = $this->teacherActorWithPermissions(['question_papers.create'], $this->schoolA->id, $this->schoolA->district_id);
+        $questionId = $this->createQuestion(['marks' => 10]);
+
+        $response = $this->actingAs($teacher, 'sanctum')
+            ->postJson('/api/v1/question-papers', $this->paperPayload([
+                ['type' => 'text', 'text_content' => 'Read the following note before answering.'],
+                ['type' => 'question', 'academic_question_id' => $questionId, 'marks_override' => 15, 'serial_label' => '1(a)'],
+            ]))
+            ->assertCreated();
+
+        $response->assertJsonPath('data.items.0.item_type', 'text')
+            ->assertJsonPath('data.items.0.text_content', 'Read the following note before answering.')
+            ->assertJsonPath('data.items.1.item_type', 'question')
+            ->assertJsonPath('data.items.1.marks_override', 15)
+            ->assertJsonPath('data.items.1.serial_label', '1(a)');
     }
 
     public function test_store_rejects_a_teacher_with_no_school_assigned(): void
@@ -149,7 +168,7 @@ class QuestionPaperControllerTest extends TestCase
             ->assertJsonValidationErrors('items.0.academic_question_id');
     }
 
-    public function test_store_rejects_a_heading_item_missing_heading_text(): void
+    public function test_store_rejects_a_heading_item_missing_text_content(): void
     {
         $teacher = $this->teacherActorWithPermissions(['question_papers.create'], $this->schoolA->id, $this->schoolA->district_id);
 
@@ -160,7 +179,7 @@ class QuestionPaperControllerTest extends TestCase
         $this->actingAs($teacher, 'sanctum')
             ->postJson('/api/v1/question-papers', $payload)
             ->assertUnprocessable()
-            ->assertJsonValidationErrors('items.0.heading_text');
+            ->assertJsonValidationErrors('items.0.text_content');
     }
 
     public function test_store_rejects_an_inactive_academic_question(): void
@@ -183,7 +202,7 @@ class QuestionPaperControllerTest extends TestCase
         $teacher = $this->teacherActorWithPermissions(['question_papers.create'], $this->schoolA->id, $this->schoolA->district_id);
         $questionId = $this->createQuestion();
         $paperId = $this->actingAs($teacher, 'sanctum')->postJson('/api/v1/question-papers', $this->paperPayload([
-            ['type' => 'heading', 'heading_text' => 'Prose'],
+            ['type' => 'heading', 'text_content' => 'Prose'],
             ['type' => 'question', 'academic_question_id' => $questionId],
         ]))->json('data.id');
 
@@ -208,7 +227,7 @@ class QuestionPaperControllerTest extends TestCase
         $teacher = $this->teacherActorWithPermissions(['question_papers.create', 'question_papers.update'], $this->schoolA->id, $this->schoolA->district_id);
         $questionId = $this->createQuestion();
         $paperId = $this->actingAs($teacher, 'sanctum')->postJson('/api/v1/question-papers', $this->paperPayload([
-            ['type' => 'heading', 'heading_text' => 'Prose'],
+            ['type' => 'heading', 'text_content' => 'Prose'],
             ['type' => 'question', 'academic_question_id' => $questionId],
         ]))->json('data.id');
 
@@ -231,7 +250,7 @@ class QuestionPaperControllerTest extends TestCase
         $teacher = $this->teacherActorWithPermissions(['question_papers.create', 'question_papers.delete'], $this->schoolA->id, $this->schoolA->district_id);
         $questionId = $this->createQuestion();
         $paperId = $this->actingAs($teacher, 'sanctum')->postJson('/api/v1/question-papers', $this->paperPayload([
-            ['type' => 'heading', 'heading_text' => 'Prose'],
+            ['type' => 'heading', 'text_content' => 'Prose'],
             ['type' => 'question', 'academic_question_id' => $questionId],
         ]))->json('data.id');
 
@@ -249,13 +268,13 @@ class QuestionPaperControllerTest extends TestCase
 
         $questionId1 = $this->createQuestion();
         $this->actingAs($teacherA, 'sanctum')->postJson('/api/v1/question-papers', $this->paperPayload([
-            ['type' => 'heading', 'heading_text' => 'Prose'],
+            ['type' => 'heading', 'text_content' => 'Prose'],
             ['type' => 'question', 'academic_question_id' => $questionId1],
         ]))->assertCreated();
 
         $questionId2 = $this->createQuestion();
         $this->actingAs($teacherB, 'sanctum')->postJson('/api/v1/question-papers', $this->paperPayload([
-            ['type' => 'heading', 'heading_text' => 'Prose'],
+            ['type' => 'heading', 'text_content' => 'Prose'],
             ['type' => 'question', 'academic_question_id' => $questionId2],
         ]))->assertCreated();
 
@@ -280,13 +299,13 @@ class QuestionPaperControllerTest extends TestCase
 
         $questionId1 = $this->createQuestion();
         $this->actingAs($teacherA, 'sanctum')->postJson('/api/v1/question-papers', $this->paperPayload([
-            ['type' => 'heading', 'heading_text' => 'Prose'],
+            ['type' => 'heading', 'text_content' => 'Prose'],
             ['type' => 'question', 'academic_question_id' => $questionId1],
         ]))->assertCreated();
 
         $questionId2 = $this->createQuestion();
         $this->actingAs($teacherB, 'sanctum')->postJson('/api/v1/question-papers', $this->paperPayload([
-            ['type' => 'heading', 'heading_text' => 'Prose'],
+            ['type' => 'heading', 'text_content' => 'Prose'],
             ['type' => 'question', 'academic_question_id' => $questionId2],
         ]))->assertCreated();
 
@@ -305,13 +324,13 @@ class QuestionPaperControllerTest extends TestCase
 
         $questionId1 = $this->createQuestion();
         $this->actingAs($teacherA, 'sanctum')->postJson('/api/v1/question-papers', $this->paperPayload([
-            ['type' => 'heading', 'heading_text' => 'Prose'],
+            ['type' => 'heading', 'text_content' => 'Prose'],
             ['type' => 'question', 'academic_question_id' => $questionId1],
         ]))->assertCreated();
 
         $questionId2 = $this->createQuestion();
         $this->actingAs($teacherB, 'sanctum')->postJson('/api/v1/question-papers', $this->paperPayload([
-            ['type' => 'heading', 'heading_text' => 'Prose'],
+            ['type' => 'heading', 'text_content' => 'Prose'],
             ['type' => 'question', 'academic_question_id' => $questionId2],
         ]))->assertCreated();
 
@@ -337,7 +356,7 @@ class QuestionPaperControllerTest extends TestCase
         $teacher = $this->teacherActorWithPermissions(['question_papers.create', 'question_papers.update'], $this->schoolA->id, $this->schoolA->district_id);
         $questionId = $this->createQuestion();
         $payload = $this->paperPayload([
-            ['type' => 'heading', 'heading_text' => 'Prose'],
+            ['type' => 'heading', 'text_content' => 'Prose'],
             ['type' => 'question', 'academic_question_id' => $questionId],
         ]);
 
@@ -364,7 +383,7 @@ class QuestionPaperControllerTest extends TestCase
         $teacher = $this->teacherActorWithPermissions(['question_papers.create', 'question_papers.view'], $this->schoolA->id, $this->schoolA->district_id);
         $questionId = $this->createQuestion();
         $paperId = $this->actingAs($teacher, 'sanctum')->postJson('/api/v1/question-papers', $this->paperPayload([
-            ['type' => 'heading', 'heading_text' => 'Prose'],
+            ['type' => 'heading', 'text_content' => 'Prose'],
             ['type' => 'question', 'academic_question_id' => $questionId],
         ]))->json('data.id');
 

@@ -27,8 +27,11 @@ import { useToast, ToastViewport } from '../components/Toast'
 import {
   addHeadingToCanvas,
   addQuestionToCanvas,
+  addTextToCanvas,
   removeCanvasItem,
   reorderCanvasItems,
+  setQuestionMarksOverride,
+  setQuestionSerialLabel,
   type CanvasItem,
 } from './questionBuilderCanvas'
 
@@ -76,10 +79,46 @@ function BankQuestionCard({ question }: { question: AcademicQuestion }) {
   )
 }
 
-function CanvasItemCard({ item, index, onRemove }: { item: CanvasItem; index: number; onRemove: () => void }) {
+// A small, unobtrusive remove button shared by every canvas item card —
+// stopping pointerdown here is required: the card's own pointerdown is
+// dnd-kit's drag-activation listener (spread via {...listeners} on the
+// card), so without stopping it first, every click on this button is
+// captured as a (zero-distance) drag-and-drop instead of reaching
+// onClick, and the button silently never removes anything.
+function RemoveButton({ onRemove, className }: { onRemove: () => void; className?: string }) {
+  return (
+    <button
+      type="button"
+      onPointerDown={(event) => event.stopPropagation()}
+      onClick={onRemove}
+      className={`cursor-pointer text-danger-500 hover:text-danger-600 ${className ?? ''}`}
+    >
+      <span className="material-symbols-outlined !text-[18px]">close</span>
+    </button>
+  )
+}
+
+function CanvasItemCard({
+  item,
+  index,
+  onRemove,
+  onMarksChange,
+  onSerialChange,
+}: {
+  item: CanvasItem
+  index: number
+  onRemove: () => void
+  onMarksChange: (value: string) => void
+  onSerialChange: (value: string) => void
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.uid })
   const style = { transform: CSS.Transform.toString(transform), transition }
 
+  // Headings always render centered — a real exam paper's section
+  // headings (গদ্য, ব্যাকরণ, ...) are centered, never left-aligned — so
+  // the remove button is overlaid via absolute positioning rather than
+  // sharing a flex row with the heading text, which would pull the text
+  // off-center toward whichever side has more room.
   if (item.type === 'heading') {
     return (
       <div
@@ -87,22 +126,28 @@ function CanvasItemCard({ item, index, onRemove }: { item: CanvasItem; index: nu
         style={style}
         {...attributes}
         {...listeners}
-        className={`flex items-center justify-between rounded-md bg-gray-100 px-3 py-2 ${isDragging ? 'opacity-50' : ''}`}
+        className={`relative flex items-center justify-center rounded-md bg-gray-100 px-3 py-2 ${isDragging ? 'opacity-50' : ''}`}
       >
-        <span className="text-sm font-semibold text-gray-700">{item.headingText}</span>
-        {/* The card's own pointerdown is dnd-kit's drag-activation listener
-            (spread via {...listeners} above) — without stopping it here
-            first, every click on this button is captured as a (zero-
-            distance) drag-and-drop instead of reaching onClick, so the
-            button silently never removes anything. */}
-        <button
-          type="button"
-          onPointerDown={(event) => event.stopPropagation()}
-          onClick={onRemove}
-          className="cursor-pointer text-danger-500 hover:text-danger-600"
-        >
-          <span className="material-symbols-outlined !text-[18px]">close</span>
-        </button>
+        <span className="text-center text-sm font-semibold text-gray-700">{item.text}</span>
+        <RemoveButton onRemove={onRemove} className="absolute right-3" />
+      </div>
+    )
+  }
+
+  // A plain inserted text block — e.g. a note or extra instruction
+  // between questions — reads like ordinary paper text: left-aligned,
+  // normal weight, no section-heading styling and no question numbering.
+  if (item.type === 'text') {
+    return (
+      <div
+        ref={setNodeRef}
+        style={style}
+        {...attributes}
+        {...listeners}
+        className={`flex items-start justify-between gap-3 rounded-md border border-gray-200 bg-white p-3 text-sm text-gray-700 ${isDragging ? 'opacity-50' : ''}`}
+      >
+        <p>{item.text}</p>
+        <RemoveButton onRemove={onRemove} className="shrink-0" />
       </div>
     )
   }
@@ -115,29 +160,49 @@ function CanvasItemCard({ item, index, onRemove }: { item: CanvasItem; index: nu
       {...listeners}
       className={`flex items-start justify-between gap-3 rounded-md border border-gray-200 bg-white p-3 text-sm ${isDragging ? 'opacity-50' : ''}`}
     >
-      <div>
-        <p className="font-medium">{index + 1}.</p>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            value={item.serialLabel ?? String(index + 1)}
+            onPointerDown={(event) => event.stopPropagation()}
+            onChange={(event) => onSerialChange(event.target.value)}
+            className="w-14 rounded border border-gray-200 px-1.5 py-0.5 text-sm font-medium outline-none focus:border-primary-500"
+          />
+          <span className="font-medium">.</span>
+        </div>
         <div
-          className="rich-question-text"
+          className="rich-question-text mt-1"
           dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(item.question?.question_text ?? '') }}
         />
-        <p className="mt-1 text-xs text-gray-400">
-          {item.question?.marks} {t['teacher.questionBuilder.marksFilter']}
-        </p>
+        <div className="mt-1 flex items-center gap-1.5 text-xs text-gray-400">
+          <input
+            type="number"
+            min={0}
+            value={item.marksOverride ?? item.question?.marks ?? ''}
+            onPointerDown={(event) => event.stopPropagation()}
+            onChange={(event) => onMarksChange(event.target.value)}
+            className="w-16 rounded border border-gray-200 px-1.5 py-0.5 text-xs outline-none focus:border-primary-500"
+          />
+          <span>{t['teacher.questionBuilder.marksFilter']}</span>
+        </div>
       </div>
-      <button
-        type="button"
-        onPointerDown={(event) => event.stopPropagation()}
-        onClick={onRemove}
-        className="shrink-0 cursor-pointer text-danger-500 hover:text-danger-600"
-      >
-        <span className="material-symbols-outlined !text-[18px]">close</span>
-      </button>
+      <RemoveButton onRemove={onRemove} className="shrink-0" />
     </div>
   )
 }
 
-function CanvasDropZone({ items, onRemove }: { items: CanvasItem[]; onRemove: (uid: string) => void }) {
+function CanvasDropZone({
+  items,
+  onRemove,
+  onMarksChange,
+  onSerialChange,
+}: {
+  items: CanvasItem[]
+  onRemove: (uid: string) => void
+  onMarksChange: (uid: string, value: string) => void
+  onSerialChange: (uid: string, value: string) => void
+}) {
   const { setNodeRef, isOver } = useDroppable({ id: 'canvas' })
 
   return (
@@ -151,7 +216,14 @@ function CanvasDropZone({ items, onRemove }: { items: CanvasItem[]; onRemove: (u
 
       <SortableContext items={items.map((item) => item.uid)} strategy={verticalListSortingStrategy}>
         {items.map((item, index) => (
-          <CanvasItemCard key={item.uid} item={item} index={index} onRemove={() => onRemove(item.uid)} />
+          <CanvasItemCard
+            key={item.uid}
+            item={item}
+            index={index}
+            onRemove={() => onRemove(item.uid)}
+            onMarksChange={(value) => onMarksChange(item.uid, value)}
+            onSerialChange={(value) => onSerialChange(item.uid, value)}
+          />
         ))}
       </SortableContext>
     </div>
@@ -196,6 +268,8 @@ export default function QuestionBuilderPage() {
   const [items, setItems] = useState<CanvasItem[]>([])
   const [headingDraft, setHeadingDraft] = useState('')
   const [addingHeading, setAddingHeading] = useState(false)
+  const [textDraft, setTextDraft] = useState('')
+  const [addingText, setAddingText] = useState(false)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -281,7 +355,9 @@ export default function QuestionBuilderPage() {
             uid: crypto.randomUUID(),
             type: item.item_type,
             question: item.academic_question ?? undefined,
-            headingText: item.heading_text ?? undefined,
+            text: item.text_content ?? undefined,
+            marksOverride: item.marks_override ?? undefined,
+            serialLabel: item.serial_label ?? undefined,
           })),
         )
         setStep(2)
@@ -343,8 +419,14 @@ export default function QuestionBuilderPage() {
     setAddingHeading(false)
   }
 
+  function confirmText() {
+    setItems((prev) => addTextToCanvas(prev, textDraft))
+    setTextDraft('')
+    setAddingText(false)
+  }
+
   const computedFullMarks = items.reduce(
-    (sum, item) => sum + (item.type === 'question' ? (item.question?.marks ?? 0) : 0),
+    (sum, item) => sum + (item.type === 'question' ? (item.marksOverride ?? item.question?.marks ?? 0) : 0),
     0,
   )
 
@@ -364,8 +446,13 @@ export default function QuestionBuilderPage() {
       instructions: instructions || null,
       items: items.map((item) =>
         item.type === 'question'
-          ? { type: 'question' as const, academic_question_id: item.question?.id }
-          : { type: 'heading' as const, heading_text: item.headingText },
+          ? {
+              type: 'question' as const,
+              academic_question_id: item.question?.id,
+              marks_override: item.marksOverride ?? null,
+              serial_label: item.serialLabel ?? null,
+            }
+          : { type: item.type, text_content: item.text },
       ),
     }
 
@@ -557,35 +644,70 @@ export default function QuestionBuilderPage() {
               <div className="flex flex-col gap-3 rounded-md bg-white p-4 shadow-sm">
                 <h2 className="text-sm font-semibold text-primary-800">{t['teacher.questionBuilder.paperTitle']}</h2>
 
-                <CanvasDropZone items={items} onRemove={(uid) => setItems((prev) => removeCanvasItem(prev, uid))} />
+                <CanvasDropZone
+                  items={items}
+                  onRemove={(uid) => setItems((prev) => removeCanvasItem(prev, uid))}
+                  onMarksChange={(uid, value) => setItems((prev) => setQuestionMarksOverride(prev, uid, value))}
+                  onSerialChange={(uid, value) => setItems((prev) => setQuestionSerialLabel(prev, uid, value))}
+                />
 
-                {addingHeading ? (
-                  <div className="flex gap-2">
-                    <input
-                      className={selectClass}
-                      placeholder={t['teacher.questionBuilder.headingPlaceholder']}
-                      value={headingDraft}
-                      onChange={(event) => setHeadingDraft(event.target.value)}
-                    />
-                    <button type="button" onClick={confirmHeading} className={buttonPrimary}>
-                      {t['teacher.questionBuilder.addHeading']}
+                <div className="flex flex-wrap gap-2">
+                  {addingHeading ? (
+                    <div className="flex grow gap-2">
+                      <input
+                        className={selectClass}
+                        placeholder={t['teacher.questionBuilder.headingPlaceholder']}
+                        value={headingDraft}
+                        onChange={(event) => setHeadingDraft(event.target.value)}
+                      />
+                      <button type="button" onClick={confirmHeading} className={buttonPrimary}>
+                        {t['teacher.questionBuilder.addHeading']}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAddingHeading(false)
+                          setHeadingDraft('')
+                        }}
+                        className={buttonNeutral}
+                      >
+                        {t['teacher.questionBuilder.cancelHeading']}
+                      </button>
+                    </div>
+                  ) : (
+                    <button type="button" onClick={() => setAddingHeading(true)} className={buttonNeutral}>
+                      {t['teacher.questionBuilder.insertHeading']}
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAddingHeading(false)
-                        setHeadingDraft('')
-                      }}
-                      className={buttonNeutral}
-                    >
-                      {t['teacher.questionBuilder.cancelHeading']}
+                  )}
+
+                  {addingText ? (
+                    <div className="flex grow gap-2">
+                      <input
+                        className={selectClass}
+                        placeholder={t['teacher.questionBuilder.textPlaceholder']}
+                        value={textDraft}
+                        onChange={(event) => setTextDraft(event.target.value)}
+                      />
+                      <button type="button" onClick={confirmText} className={buttonPrimary}>
+                        {t['teacher.questionBuilder.addText']}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAddingText(false)
+                          setTextDraft('')
+                        }}
+                        className={buttonNeutral}
+                      >
+                        {t['teacher.questionBuilder.cancelHeading']}
+                      </button>
+                    </div>
+                  ) : (
+                    <button type="button" onClick={() => setAddingText(true)} className={buttonNeutral}>
+                      {t['teacher.questionBuilder.insertText']}
                     </button>
-                  </div>
-                ) : (
-                  <button type="button" onClick={() => setAddingHeading(true)} className={buttonNeutral}>
-                    {t['teacher.questionBuilder.insertHeading']}
-                  </button>
-                )}
+                  )}
+                </div>
 
                 <button
                   type="button"

@@ -3421,13 +3421,17 @@ export function deleteAcademicQuestion(id: number, token: string): Promise<void>
 
 // ---------- Question papers (a teacher's saved, built paper) ----------
 
-export type QuestionPaperItemType = 'question' | 'heading'
+export type QuestionPaperItemType = 'question' | 'heading' | 'text'
 
 export interface QuestionPaperItem {
   id: number
   item_type: QuestionPaperItemType
   order_index: number
-  heading_text: string | null
+  text_content: string | null
+  // Null means "use the bank question's own marks / the usual 1, 2, 3...
+  // count" — set only when a teacher overrode one for this paper.
+  marks_override: number | null
+  serial_label: string | null
   academic_question?: {
     id: number
     question_type: AcademicQuestionType
@@ -3445,7 +3449,9 @@ export interface QuestionPaperItem {
 export interface QuestionPaperItemInput {
   type: QuestionPaperItemType
   academic_question_id?: number | null
-  heading_text?: string | null
+  marks_override?: number | null
+  serial_label?: string | null
+  text_content?: string | null
 }
 
 export interface QuestionPaper {

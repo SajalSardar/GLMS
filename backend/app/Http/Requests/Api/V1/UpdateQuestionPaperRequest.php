@@ -27,13 +27,15 @@ class UpdateQuestionPaperRequest extends FormRequest
             'full_marks' => ['nullable', 'integer', 'min:1'],
             'instructions' => ['nullable', 'string', 'max:2000'],
             'items' => ['required', 'array', 'min:1'],
-            'items.*.type' => ['required', Rule::in(['question', 'heading'])],
+            'items.*.type' => ['required', Rule::in(['question', 'heading', 'text'])],
             'items.*.academic_question_id' => [
                 'nullable',
                 'integer',
                 Rule::exists('academic_questions', 'id')->withoutTrashed(),
             ],
-            'items.*.heading_text' => ['nullable', 'string', 'max:255'],
+            'items.*.marks_override' => ['nullable', 'integer', 'min:1'],
+            'items.*.serial_label' => ['nullable', 'string', 'max:20'],
+            'items.*.text_content' => ['nullable', 'string', 'max:255'],
         ];
     }
 
@@ -47,8 +49,8 @@ class UpdateQuestionPaperRequest extends FormRequest
                     $validator->errors()->add("items.$index.academic_question_id", 'A question item requires academic_question_id.');
                 }
 
-                if ($type === 'heading' && empty($item['heading_text'])) {
-                    $validator->errors()->add("items.$index.heading_text", 'A heading item requires heading_text.');
+                if (in_array($type, ['heading', 'text'], true) && empty($item['text_content'])) {
+                    $validator->errors()->add("items.$index.text_content", "A {$type} item requires text_content.");
                 }
             }
         });

@@ -21,9 +21,18 @@ export interface CanvasQuestionSummary {
 
 export interface CanvasItem {
   uid: string
-  type: 'question' | 'heading'
+  type: 'question' | 'heading' | 'text'
   question?: CanvasQuestionSummary
-  headingText?: string
+  // Shared by 'heading' and 'text' — a heading differs from a plain
+  // inserted text block only in how it renders (centered, bold,
+  // underlined vs plain), not in what it stores.
+  text?: string
+  // 'question' only — this paper's own override of the bank question's
+  // marks/number; undefined means "use the question's own marks / the
+  // usual running count" (see questionNumber in the printable paper and
+  // CanvasItemCard's own index+1 fallback).
+  marksOverride?: number
+  serialLabel?: string
 }
 
 export function addQuestionToCanvas(items: CanvasItem[], question: CanvasQuestionSummary): CanvasItem[] {
@@ -34,7 +43,14 @@ export function addHeadingToCanvas(items: CanvasItem[], headingText: string): Ca
   const trimmed = headingText.trim()
   if (!trimmed) return items
 
-  return [...items, { uid: crypto.randomUUID(), type: 'heading', headingText: trimmed }]
+  return [...items, { uid: crypto.randomUUID(), type: 'heading', text: trimmed }]
+}
+
+export function addTextToCanvas(items: CanvasItem[], text: string): CanvasItem[] {
+  const trimmed = text.trim()
+  if (!trimmed) return items
+
+  return [...items, { uid: crypto.randomUUID(), type: 'text', text: trimmed }]
 }
 
 export function removeCanvasItem(items: CanvasItem[], uid: string): CanvasItem[] {
@@ -57,4 +73,20 @@ export function reorderCanvasItems(items: CanvasItem[], activeUid: string, overU
   const [moved] = copy.splice(oldIndex, 1)
   copy.splice(newIndex, 0, moved)
   return copy
+}
+
+// Empty string clears back to "use the bank question's own marks" —
+// callers pass the raw <input> value, so parsing happens once, here.
+export function setQuestionMarksOverride(items: CanvasItem[], uid: string, rawValue: string): CanvasItem[] {
+  const trimmed = rawValue.trim()
+  const marksOverride = trimmed === '' ? undefined : Number(trimmed)
+
+  return items.map((item) => (item.uid === uid ? { ...item, marksOverride } : item))
+}
+
+// Empty string clears back to "auto-number as usual".
+export function setQuestionSerialLabel(items: CanvasItem[], uid: string, rawValue: string): CanvasItem[] {
+  const trimmed = rawValue.trim()
+
+  return items.map((item) => (item.uid === uid ? { ...item, serialLabel: trimmed === '' ? undefined : trimmed } : item))
 }

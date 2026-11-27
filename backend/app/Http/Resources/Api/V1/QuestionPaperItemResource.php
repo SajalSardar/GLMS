@@ -16,7 +16,12 @@ class QuestionPaperItemResource extends JsonResource
             'id' => $this->id,
             'item_type' => $this->item_type,
             'order_index' => $this->order_index,
-            'heading_text' => $this->heading_text,
+            'text_content' => $this->text_content,
+            // Both null means "use the bank question's own value / the
+            // usual 1, 2, 3... count" — set only when a teacher overrode
+            // one for this paper specifically.
+            'marks_override' => $this->marks_override,
+            'serial_label' => $this->serial_label,
             'academic_question' => $this->whenLoaded('academicQuestion', fn () => $this->academicQuestion === null ? null : [
                 'id' => $this->academicQuestion->id,
                 'question_type' => $this->academicQuestion->question_type,

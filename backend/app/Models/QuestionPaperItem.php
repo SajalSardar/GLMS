@@ -7,13 +7,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class QuestionPaperItem extends Model
 {
-    public const TYPES = ['question', 'heading'];
+    public const TYPES = ['question', 'heading', 'text'];
 
     protected $fillable = [
         'question_paper_id',
         'item_type',
         'academic_question_id',
-        'heading_text',
+        'marks_override',
+        'serial_label',
+        'text_content',
         'order_index',
     ];
 
