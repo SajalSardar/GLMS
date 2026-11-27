@@ -18,12 +18,34 @@ const richQuestionTextStyle = `
   .rich-question-text ol { list-style: decimal; padding-left: 1.25rem; }
 `
 
+// Real Bangladeshi school papers are written in the medium of the
+// subject itself — an English paper reads in English (option lettering
+// included), everything else (Bangla, Mathematics, Science, ...) reads
+// in Bangla — rather than following whatever language this portal's own
+// chrome happens to be in. "English" is matched by Subject.name (the
+// national catalog's canonical English name), not by the teacher's
+// current locale.
+function isEnglishSubjectPaper(paper: QuestionPaper): boolean {
+  return paper.subject?.name === 'English'
+}
+
+// ক/খ/গ/ঘ are four consecutive Unicode code points (U+0995..U+0998) —
+// exactly matching the 4-option MCQ shape, same convention as the
+// sample exam papers this feature's design was based on; A/B/C/D for
+// an English-subject paper instead (see isEnglishSubjectPaper() above).
+function optionLetter(index: number, english: boolean): string {
+  return english ? String.fromCharCode(0x41 + index) : String.fromCharCode(0x0995 + index)
+}
+
 // Deliberately duplicated in the management app's QuestionPapersPage —
 // see this plan's Global Constraints on per-app duplication of shared
 // rendering, not a cross-app packages/ui component.
 function PrintableQuestionPaper({ paper }: { paper: QuestionPaper }) {
   const items = paper.items ?? []
   let questionNumber = 0
+  const english = isEnglishSubjectPaper(paper)
+  const className = english ? paper.school_class?.name : (paper.school_class?.bn_name ?? paper.school_class?.name)
+  const subjectName = english ? paper.subject?.name : (paper.subject?.bn_name ?? paper.subject?.name)
 
   return (
     <div className="mx-auto max-w-3xl bg-white p-8 text-gray-900 print:p-0">
@@ -31,11 +53,19 @@ function PrintableQuestionPaper({ paper }: { paper: QuestionPaper }) {
       <div className="text-center">
         <h1 className="text-lg font-bold">{paper.title}</h1>
         <p className="mt-1 text-sm">
-          {paper.school_class?.name ?? ''} — {paper.subject?.name ?? ''}
+          {className ?? ''} — {subjectName ?? ''}
         </p>
         <div className="mt-2 flex justify-center gap-6 text-sm">
-          {paper.time_duration_minutes !== null && <span>Time: {paper.time_duration_minutes} min</span>}
-          {paper.full_marks !== null && <span>Full Marks: {paper.full_marks}</span>}
+          {paper.time_duration_minutes !== null && (
+            <span>
+              {english ? 'Time' : 'সময়'}: {paper.time_duration_minutes} {english ? 'min' : 'মিনিট'}
+            </span>
+          )}
+          {paper.full_marks !== null && (
+            <span>
+              {english ? 'Full Marks' : 'পূর্ণমান'}: {paper.full_marks}
+            </span>
+          )}
         </div>
         {paper.instructions && <p className="mt-2 text-sm italic">{paper.instructions}</p>}
       </div>
@@ -65,7 +95,7 @@ function PrintableQuestionPaper({ paper }: { paper: QuestionPaper }) {
                   <ol className="mt-1 ml-5 list-none">
                     {question.options.map((option, index) => (
                       <li key={index}>
-                        {String.fromCharCode(0x0995 + index)}) {option}
+                        {optionLetter(index, english)}) {option}
                       </li>
                     ))}
                   </ol>
