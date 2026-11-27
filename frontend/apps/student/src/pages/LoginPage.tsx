@@ -1,10 +1,11 @@
 import { useId, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { studentLogin } from '@ttla/api-client'
+import { guardianLogin, studentLogin } from '@ttla/api-client'
 import { useAuth } from '@ttla/auth'
 import { useLocale } from '../lib/locale'
 
 type IconName = 'eyeOpen' | 'eyeClosed'
+type LoginMode = 'student' | 'guardian'
 
 const FOCUS_RING =
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent-dark)]'
@@ -44,14 +45,18 @@ function Icon({ name }: { name: IconName }) {
   }
 }
 
+const modeToggleButton =
+  'flex-1 cursor-pointer rounded-[0.5rem] px-3 py-2 text-center text-sm font-semibold transition-colors'
+
 function LoginCard() {
-  const { setToken, setName, setUserId } = useAuth()
+  const { setToken, setRole, setName, setUserId } = useAuth()
   const { t } = useLocale()
   const navigate = useNavigate()
-  const studentIdFieldId = useId()
+  const identifierFieldId = useId()
   const passwordFieldId = useId()
 
-  const [studentId, setStudentId] = useState('')
+  const [mode, setMode] = useState<LoginMode>('student')
+  const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showContactNote, setShowContactNote] = useState(false)
@@ -64,15 +69,25 @@ function LoginCard() {
     setSubmitting(true)
 
     try {
-      const result = await studentLogin(studentId.trim(), password, 'web')
+      const result = mode === 'guardian'
+        ? await guardianLogin(identifier.trim(), password, 'web')
+        : await studentLogin(identifier.trim(), password, 'web')
+
       setToken(result.token)
+      // Needed so every downstream guardian-vs-student branch (the
+      // child picker, read-only UI guards, useActiveStudentProfile())
+      // has something to key off — previously never set here at all.
+      setRole(result.data?.role?.name ?? null)
       // Persisted so the certificate can print the student's real name
       // rather than a generic "Student" label.
       setName(result.data?.name ?? null)
       // Persisted so BooksPage can look up this student's own class via
       // /student-profiles?user_id=... without a dedicated "me" endpoint.
+      // For a guardian session this is the GUARDIAN's own id, not a
+      // student's — pages must resolve the active child through
+      // useActiveStudentProfile() instead of this field directly.
       setUserId(result.data?.id ?? null)
-      navigate('/dashboard')
+      navigate(mode === 'guardian' ? '/select-child' : '/dashboard')
     } catch {
       setError(t['landing.login.errorGeneric'])
     } finally {
@@ -93,17 +108,41 @@ function LoginCard() {
       </h1>
       <p className="mt-[0.5rem] mb-5 text-center text-[0.9rem] text-[color:var(--color-muted)]">{t['landing.login.subtitle']}</p>
 
-      <label className="mt-[0.9rem] mb-[0.4rem] block text-[0.85rem] font-medium" htmlFor={studentIdFieldId}>
-        {t['landing.login.studentId']}
+      <div
+        role="tablist"
+        className="flex gap-1 rounded-[0.6rem] border border-[color:var(--color-border)] bg-[color:var(--color-border)]/20 p-1"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === 'student'}
+          className={`${modeToggleButton} ${mode === 'student' ? 'bg-white text-primary-700 shadow-sm' : 'text-[color:var(--color-muted)]'} ${FOCUS_RING}`}
+          onClick={() => setMode('student')}
+        >
+          {t['landing.login.modeStudent']}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === 'guardian'}
+          className={`${modeToggleButton} ${mode === 'guardian' ? 'bg-white text-primary-700 shadow-sm' : 'text-[color:var(--color-muted)]'} ${FOCUS_RING}`}
+          onClick={() => setMode('guardian')}
+        >
+          {t['landing.login.modeGuardian']}
+        </button>
+      </div>
+
+      <label className="mt-[0.9rem] mb-[0.4rem] block text-[0.85rem] font-medium" htmlFor={identifierFieldId}>
+        {mode === 'guardian' ? t['landing.login.guardianContact'] : t['landing.login.studentId']}
       </label>
       <input
-        id={studentIdFieldId}
+        id={identifierFieldId}
         className={`w-full rounded-[0.6rem] border border-[color:var(--color-border)] bg-white px-[0.8rem] py-[0.65rem] text-base text-[color:var(--color-ink)] focus:border-primary-500 ${FOCUS_RING}`}
         type="text"
         autoComplete="username"
-        placeholder={t['landing.login.studentIdPlaceholder']}
-        value={studentId}
-        onChange={(event) => setStudentId(event.target.value)}
+        placeholder={mode === 'guardian' ? t['landing.login.guardianContactPlaceholder'] : t['landing.login.studentIdPlaceholder']}
+        value={identifier}
+        onChange={(event) => setIdentifier(event.target.value)}
         required
       />
 

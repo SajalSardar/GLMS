@@ -72,7 +72,7 @@ export interface PortalLoginResponse {
 }
 
 function portalLogin(
-  portal: 'student' | 'management' | 'teacher',
+  portal: 'student' | 'management' | 'teacher' | 'guardian',
   login: string,
   password: string,
   deviceName?: string,
@@ -106,6 +106,14 @@ export function teacherLogin(
   deviceName?: string,
 ): Promise<PortalLoginResponse> {
   return portalLogin('teacher', login, password, deviceName)
+}
+
+export function guardianLogin(
+  login: string,
+  password: string,
+  deviceName?: string,
+): Promise<PortalLoginResponse> {
+  return portalLogin('guardian', login, password, deviceName)
 }
 
 // Revokes the token server-side (AuthController::logout() deletes the
@@ -1083,9 +1091,13 @@ export function listChapterMaterials(
 // exact school/district/shift/section/class/class_version tuple (see
 // ChapterMaterialController::mine()), so e.g. DashboardPage.tsx can show
 // "new materials for your class" without fetching every chapter's
-// materials and filtering client-side.
-export function listMyChapterMaterials(token: string): Promise<{ data: ChapterMaterial[] }> {
-  return apiFetch<{ data: ChapterMaterial[] }>('/chapter-materials/mine', {
+// materials and filtering client-side. `studentProfileId` is required
+// when the caller is a guardian session (identifies which linked child);
+// omitted entirely for a student session, which is always "self".
+export function listMyChapterMaterials(token: string, studentProfileId?: number): Promise<{ data: ChapterMaterial[] }> {
+  const query = buildQuery({ student_profile_id: studentProfileId })
+
+  return apiFetch<{ data: ChapterMaterial[] }>(`/chapter-materials/mine${query}`, {
     headers: authHeaders(token),
   })
 }
@@ -1198,9 +1210,11 @@ export interface ClassRoutine {
 // The current student's own weekly class routine — scoped server-side to
 // their exact school/district/class/section/shift/class_version tuple
 // (see ClassRoutineController::mine()), already ordered by day-of-week
-// then period.
-export function listMyClassRoutines(token: string): Promise<{ data: ClassRoutine[] }> {
-  return apiFetch<{ data: ClassRoutine[] }>('/class-routines/mine', {
+// then period. `studentProfileId` is required for a guardian session.
+export function listMyClassRoutines(token: string, studentProfileId?: number): Promise<{ data: ClassRoutine[] }> {
+  const query = buildQuery({ student_profile_id: studentProfileId })
+
+  return apiFetch<{ data: ClassRoutine[] }>(`/class-routines/mine${query}`, {
     headers: authHeaders(token),
   })
 }
@@ -1544,12 +1558,17 @@ export function startExamAttempt(examId: number, token: string): Promise<{ data:
 
 // The current student's own submitted practice-exam attempts (score
 // history) — self-scoped on the backend, so no exam id/permission is
-// needed beyond being logged in as a student.
+// needed beyond being logged in as a student. `studentProfileId` is
+// required for a guardian session.
 export function listMyExamAttempts(
-  params: { page?: number; perPage?: number } = {},
+  params: { page?: number; perPage?: number; studentProfileId?: number } = {},
   token: string,
 ): Promise<PaginatedResponse<ExamAttempt>> {
-  const query: Record<string, string | number | undefined> = { page: params.page, per_page: params.perPage }
+  const query: Record<string, string | number | undefined> = {
+    page: params.page,
+    per_page: params.perPage,
+    student_profile_id: params.studentProfileId,
+  }
 
   return apiFetch<PaginatedResponse<ExamAttempt>>(`/my-exam-attempts${buildQuery(query)}`, {
     headers: authHeaders(token),
@@ -2163,6 +2182,16 @@ export function listStudentProfiles(
   })
 }
 
+// Every student profile linked to the signed-in guardian — the Student
+// Portal's post-login child picker (and "switch child" control) reads
+// this. Deliberately not paginated: a guardian's own linked-children
+// list is always small.
+export function listMyChildren(token: string): Promise<{ data: StudentProfile[] }> {
+  return apiFetch<{ data: StudentProfile[] }>('/guardians/me/children', {
+    headers: authHeaders(token),
+  })
+}
+
 export function createStudentProfile(payload: StudentProfilePayload, token: string): Promise<{ data: StudentProfile }> {
   return createGeo<StudentProfile, StudentProfilePayload>('student-profiles', payload, token)
 }
@@ -2288,8 +2317,12 @@ export function createLeaveApplication(
 }
 
 // This student's own leave applications, most recent first.
-export function listMyLeaveApplications(token: string): Promise<{ data: StudentLeaveApplication[] }> {
-  return apiFetch<{ data: StudentLeaveApplication[] }>('/student-leave-applications/mine', {
+// `studentProfileId` is required for a guardian session (read-only —
+// submitting a new application stays student-only, see createLeaveApplication()).
+export function listMyLeaveApplications(token: string, studentProfileId?: number): Promise<{ data: StudentLeaveApplication[] }> {
+  const query = buildQuery({ student_profile_id: studentProfileId })
+
+  return apiFetch<{ data: StudentLeaveApplication[] }>(`/student-leave-applications/mine${query}`, {
     headers: authHeaders(token),
   })
 }
@@ -2460,12 +2493,13 @@ export interface MyAttendance {
 }
 
 // This student's own monthly attendance — the source data for the
-// student portal's calendar view.
+// student portal's calendar view. `studentProfileId` is required for a
+// guardian session.
 export function getMyAttendance(
-  params: { year: number; month: number },
+  params: { year: number; month: number; studentProfileId?: number },
   token: string,
 ): Promise<{ data: MyAttendance | null }> {
-  const query = buildQuery({ year: params.year, month: params.month })
+  const query = buildQuery({ year: params.year, month: params.month, student_profile_id: params.studentProfileId })
 
   return apiFetch<{ data: MyAttendance | null }>(`/attendances/mine${query}`, {
     headers: authHeaders(token),
@@ -3013,17 +3047,24 @@ export interface MyAcademicExamResultTerm {
   academic_year_id: number
 }
 
-export function listMyAcademicExamResultTerms(token: string): Promise<{ data: MyAcademicExamResultTerm[] }> {
-  return apiFetch<{ data: MyAcademicExamResultTerm[] }>('/academic-exam-marks/mine/terms', {
+// `studentProfileId` is required for a guardian session.
+export function listMyAcademicExamResultTerms(token: string, studentProfileId?: number): Promise<{ data: MyAcademicExamResultTerm[] }> {
+  const query = buildQuery({ student_profile_id: studentProfileId })
+
+  return apiFetch<{ data: MyAcademicExamResultTerm[] }>(`/academic-exam-marks/mine/terms${query}`, {
     headers: authHeaders(token),
   })
 }
 
 export function getMyAcademicExamResult(
-  params: { academicExamTermId: number; academicYearId: number },
+  params: { academicExamTermId: number; academicYearId: number; studentProfileId?: number },
   token: string,
 ): Promise<{ data: AcademicExamMarksheet | null }> {
-  const query = buildQuery({ academic_exam_term_id: params.academicExamTermId, academic_year_id: params.academicYearId })
+  const query = buildQuery({
+    academic_exam_term_id: params.academicExamTermId,
+    academic_year_id: params.academicYearId,
+    student_profile_id: params.studentProfileId,
+  })
 
   return apiFetch<{ data: AcademicExamMarksheet | null }>(`/academic-exam-marks/mine${query}`, {
     headers: authHeaders(token),
