@@ -1,56 +1,65 @@
 import type { AcademicQuestionType } from '@ttla/api-client'
 
-// Deliberately narrower than the full AcademicQuestion type: a canvas
-// item only ever needs enough to render itself and to reference the
-// bank question by id. chapter_name is optional (not rendered anywhere
-// in the canvas) specifically so both of this type's two real sources
-// satisfy it without reshaping: a full AcademicQuestion from the bank
-// search (which carries chapter_id + a nested chapter object instead)
-// and QuestionPaperItemResource's nested academic_question
-// (backend/app/Http/Resources/Api/V1/QuestionPaperItemResource.php),
-// which flattens just the chapter's name onto the item for a loaded
-// paper's own display needs.
+const MAX_INDENT_LEVEL = 5
+
+// A canvas item is self-contained — dragging a bank question onto the
+// canvas copies its content (question_type/question_text/options/marks)
+// in once; after that the item has no link back to the bank at all, so
+// every field below is this paper's own, freely editable copy (see
+// backend/database/migrations/2026_11_27_143843_embed_question_content_in_question_paper_items_and_add_indent_level).
 export interface CanvasQuestionSummary {
-  id: number
   question_type: AcademicQuestionType
   question_text: string
   options: string[] | null
   marks: number
-  chapter_name?: string
 }
 
 export interface CanvasItem {
   uid: string
   type: 'question' | 'heading' | 'text'
-  question?: CanvasQuestionSummary
   // Shared by 'heading' and 'text' — a heading differs from a plain
   // inserted text block only in how it renders (centered, bold,
   // underlined vs plain), not in what it stores.
   text?: string
-  // 'question' only — this paper's own override of the bank question's
-  // marks/number; undefined means "use the question's own marks / the
-  // usual running count" (see questionNumber in the printable paper and
-  // CanvasItemCard's own index+1 fallback).
-  marksOverride?: number
+  // 'question' only.
+  questionType?: AcademicQuestionType
+  questionText?: string
+  options?: string[] | null
+  marks?: number
   serialLabel?: string
+  // Every item type — a plain visual nesting depth (0 = normal item,
+  // 1+ = indented further right, like a nested <li>), independent of
+  // serial_label's own numbering.
+  indentLevel: number
 }
 
 export function addQuestionToCanvas(items: CanvasItem[], question: CanvasQuestionSummary): CanvasItem[] {
-  return [...items, { uid: crypto.randomUUID(), type: 'question', question }]
+  return [
+    ...items,
+    {
+      uid: crypto.randomUUID(),
+      type: 'question',
+      questionType: question.question_type,
+      questionText: question.question_text,
+      options: question.options,
+      marks: question.marks,
+      indentLevel: 0,
+    },
+  ]
 }
 
 export function addHeadingToCanvas(items: CanvasItem[], headingText: string): CanvasItem[] {
   const trimmed = headingText.trim()
   if (!trimmed) return items
 
-  return [...items, { uid: crypto.randomUUID(), type: 'heading', text: trimmed }]
+  return [...items, { uid: crypto.randomUUID(), type: 'heading', text: trimmed, indentLevel: 0 }]
 }
 
 export function addTextToCanvas(items: CanvasItem[], text: string): CanvasItem[] {
   const trimmed = text.trim()
   if (!trimmed) return items
 
-  return [...items, { uid: crypto.randomUUID(), type: 'text', text: trimmed }]
+  return [...items, { uid: crypto.randomUUID(), type: 'text', text: trimmed, indentLevel: 0 }]
 }
 
 export function removeCanvasItem(items: CanvasItem[], uid: string): CanvasItem[] {
@@ -75,18 +84,41 @@ export function reorderCanvasItems(items: CanvasItem[], activeUid: string, overU
   return copy
 }
 
-// Empty string clears back to "use the bank question's own marks" —
-// callers pass the raw <input> value, so parsing happens once, here.
-export function setQuestionMarksOverride(items: CanvasItem[], uid: string, rawValue: string): CanvasItem[] {
-  const trimmed = rawValue.trim()
-  const marksOverride = trimmed === '' ? undefined : Number(trimmed)
+function updateItem(items: CanvasItem[], uid: string, patch: Partial<CanvasItem>): CanvasItem[] {
+  return items.map((item) => (item.uid === uid ? { ...item, ...patch } : item))
+}
 
-  return items.map((item) => (item.uid === uid ? { ...item, marksOverride } : item))
+export function setQuestionText(items: CanvasItem[], uid: string, questionText: string): CanvasItem[] {
+  return updateItem(items, uid, { questionText })
+}
+
+export function setQuestionOption(items: CanvasItem[], uid: string, optionIndex: number, value: string): CanvasItem[] {
+  return items.map((item) => {
+    if (item.uid !== uid) return item
+
+    const options = [...(item.options ?? ['', '', '', ''])]
+    options[optionIndex] = value
+    return { ...item, options }
+  })
+}
+
+// Empty string clears back to "no marks set" — callers pass the raw
+// <input> value, so parsing happens once, here.
+export function setQuestionMarks(items: CanvasItem[], uid: string, rawValue: string): CanvasItem[] {
+  const trimmed = rawValue.trim()
+  return updateItem(items, uid, { marks: trimmed === '' ? undefined : Number(trimmed) })
 }
 
 // Empty string clears back to "auto-number as usual".
 export function setQuestionSerialLabel(items: CanvasItem[], uid: string, rawValue: string): CanvasItem[] {
   const trimmed = rawValue.trim()
+  return updateItem(items, uid, { serialLabel: trimmed === '' ? undefined : trimmed })
+}
 
-  return items.map((item) => (item.uid === uid ? { ...item, serialLabel: trimmed === '' ? undefined : trimmed } : item))
+export function indentItem(items: CanvasItem[], uid: string): CanvasItem[] {
+  return items.map((item) => (item.uid === uid ? { ...item, indentLevel: Math.min(item.indentLevel + 1, MAX_INDENT_LEVEL) } : item))
+}
+
+export function outdentItem(items: CanvasItem[], uid: string): CanvasItem[] {
+  return items.map((item) => (item.uid === uid ? { ...item, indentLevel: Math.max(item.indentLevel - 1, 0) } : item))
 }

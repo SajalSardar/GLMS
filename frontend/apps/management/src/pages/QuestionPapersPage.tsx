@@ -73,13 +73,17 @@ function PrintableQuestionPaper({ paper }: { paper: QuestionPaper }) {
 
       <div className="mt-6 flex flex-col gap-3">
         {items.map((item) => {
+          // Every item's own indent_level pushes it right, like a nested
+          // <li> — a sub-question under a main one, say.
+          const indentStyle = { marginLeft: `${item.indent_level * 1.5}rem` }
+
           // Section headings are always centered — a real exam paper's
           // headings (গদ্য, ব্যাকরণ, ...) read that way regardless of
           // subject/medium, unlike the Time/Marks labels and option
           // lettering above, which do switch with it.
           if (item.item_type === 'heading') {
             return (
-              <h2 key={item.id} className="mt-4 text-center text-base font-semibold underline">
+              <h2 key={item.id} style={indentStyle} className="mt-4 text-center text-base font-semibold underline">
                 {item.text_content}
               </h2>
             )
@@ -89,28 +93,26 @@ function PrintableQuestionPaper({ paper }: { paper: QuestionPaper }) {
           // paper text, never numbered alongside the real questions.
           if (item.item_type === 'text') {
             return (
-              <p key={item.id} className="text-sm">
+              <p key={item.id} style={indentStyle} className="text-sm">
                 {item.text_content}
               </p>
             )
           }
 
           questionNumber += 1
-          const question = item.academic_question
           const displayNumber = item.serial_label ?? String(questionNumber)
-          const displayMarks = item.marks_override ?? question?.marks
 
           return (
-            <div key={item.id} className="flex justify-between gap-4">
+            <div key={item.id} style={indentStyle} className="flex justify-between gap-4">
               <div className="flex-1">
                 <p className="font-medium">{displayNumber}.</p>
                 <div
                   className="rich-question-text"
-                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(question?.question_text ?? '') }}
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(item.question_text ?? '') }}
                 />
-                {question?.question_type === 'mcq' && question.options && (
+                {item.question_type === 'mcq' && item.options && (
                   <ol className="mt-1 ml-5 list-none">
-                    {question.options.map((option, index) => (
+                    {item.options.map((option, index) => (
                       <li key={index}>
                         {optionLetter(index, english)}) {option}
                       </li>
@@ -118,7 +120,7 @@ function PrintableQuestionPaper({ paper }: { paper: QuestionPaper }) {
                   </ol>
                 )}
               </div>
-              <span className="shrink-0 text-sm">{displayMarks}</span>
+              <span className="shrink-0 text-sm">{item.marks}</span>
             </div>
           )
         })}

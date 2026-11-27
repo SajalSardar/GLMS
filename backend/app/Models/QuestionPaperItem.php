@@ -12,20 +12,25 @@ class QuestionPaperItem extends Model
     protected $fillable = [
         'question_paper_id',
         'item_type',
-        'academic_question_id',
-        'marks_override',
+        'question_type',
+        'question_text',
+        'options',
+        'marks',
         'serial_label',
+        'indent_level',
         'text_content',
         'order_index',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'options' => 'array',
+        ];
+    }
+
     public function questionPaper(): BelongsTo
     {
         return $this->belongsTo(QuestionPaper::class);
-    }
-
-    public function academicQuestion(): BelongsTo
-    {
-        return $this->belongsTo(AcademicQuestion::class)->withTrashed();
     }
 }

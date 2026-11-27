@@ -3423,24 +3423,24 @@ export function deleteAcademicQuestion(id: number, token: string): Promise<void>
 
 export type QuestionPaperItemType = 'question' | 'heading' | 'text'
 
+// A 'question' item is a fully self-contained copy of a bank question's
+// content (question_type/question_text/options/marks), not a reference
+// to it — copied in once when dragged onto the canvas, then freely
+// editable for this paper alone without touching the bank question it
+// started from. indent_level is a plain visual nesting depth, shared by
+// every item type (0 = normal, 1+ = indented further right, like a
+// nested <li>) and independent of serial_label's own numbering.
 export interface QuestionPaperItem {
   id: number
   item_type: QuestionPaperItemType
   order_index: number
-  text_content: string | null
-  // Null means "use the bank question's own marks / the usual 1, 2, 3...
-  // count" — set only when a teacher overrode one for this paper.
-  marks_override: number | null
+  indent_level: number
+  question_type: AcademicQuestionType | null
+  question_text: string | null
+  options: string[] | null
+  marks: number | null
   serial_label: string | null
-  academic_question?: {
-    id: number
-    question_type: AcademicQuestionType
-    question_text: string
-    options: string[] | null
-    marks: number
-    chapter_number: number
-    chapter_name: string
-  } | null
+  text_content: string | null
 }
 
 // The shape sent to create/update — a plain input, not the richer
@@ -3448,9 +3448,12 @@ export interface QuestionPaperItem {
 // is implied by array position).
 export interface QuestionPaperItemInput {
   type: QuestionPaperItemType
-  academic_question_id?: number | null
-  marks_override?: number | null
+  question_type?: AcademicQuestionType | null
+  question_text?: string | null
+  options?: string[] | null
+  marks?: number | null
   serial_label?: string | null
+  indent_level?: number
   text_content?: string | null
 }
 

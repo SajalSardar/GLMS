@@ -16,20 +16,18 @@ class QuestionPaperItemResource extends JsonResource
             'id' => $this->id,
             'item_type' => $this->item_type,
             'order_index' => $this->order_index,
-            'text_content' => $this->text_content,
-            // Both null means "use the bank question's own value / the
-            // usual 1, 2, 3... count" — set only when a teacher overrode
-            // one for this paper specifically.
-            'marks_override' => $this->marks_override,
+            'indent_level' => $this->indent_level,
+            // A 'question' item is now a fully self-contained copy —
+            // question_type/question_text/options/marks were copied in
+            // from the bank question at insert time and may since have
+            // been edited for this paper only; there is no longer a
+            // academic_questions row backing it to read from.
+            'question_type' => $this->question_type,
+            'question_text' => $this->question_text,
+            'options' => $this->options,
+            'marks' => $this->marks,
             'serial_label' => $this->serial_label,
-            'academic_question' => $this->whenLoaded('academicQuestion', fn () => $this->academicQuestion === null ? null : [
-                'id' => $this->academicQuestion->id,
-                'question_type' => $this->academicQuestion->question_type,
-                'question_text' => $this->academicQuestion->question_text,
-                'options' => $this->academicQuestion->options,
-                'marks' => $this->academicQuestion->marks,
-                'chapter_name' => $this->academicQuestion->chapter?->name,
-            ]),
+            'text_content' => $this->text_content,
         ];
     }
 }

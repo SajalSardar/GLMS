@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\DB;
 
 class QuestionPaperController extends Controller
 {
-    private const WITH = ['teacher', 'school', 'schoolClass', 'subject', 'items.academicQuestion.chapter'];
+    private const WITH = ['teacher', 'school', 'schoolClass', 'subject', 'items'];
 
     public function index(): AnonymousResourceCollection
     {
@@ -102,7 +102,7 @@ class QuestionPaperController extends Controller
     }
 
     /**
-     * @param  array<int, array{type: string, academic_question_id?: int|null, text_content?: string|null, marks_override?: int|null, serial_label?: string|null}>  $items
+     * @param  array<int, array{type: string, question_type?: string|null, question_text?: string|null, options?: array<int, string>|null, marks?: int|null, serial_label?: string|null, indent_level?: int|null, text_content?: string|null}>  $items
      */
     private function replaceItems(QuestionPaper $paper, array $items): void
     {
@@ -112,9 +112,12 @@ class QuestionPaperController extends Controller
             QuestionPaperItem::create([
                 'question_paper_id' => $paper->id,
                 'item_type' => $item['type'],
-                'academic_question_id' => $isQuestion ? $item['academic_question_id'] : null,
-                'marks_override' => $isQuestion ? ($item['marks_override'] ?? null) : null,
+                'question_type' => $isQuestion ? $item['question_type'] : null,
+                'question_text' => $isQuestion ? $item['question_text'] : null,
+                'options' => $isQuestion ? ($item['options'] ?? null) : null,
+                'marks' => $isQuestion ? $item['marks'] : null,
                 'serial_label' => $isQuestion ? ($item['serial_label'] ?? null) : null,
+                'indent_level' => $item['indent_level'] ?? 0,
                 'text_content' => $isQuestion ? null : $item['text_content'],
                 'order_index' => $index,
             ]);

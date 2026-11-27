@@ -23,15 +23,20 @@ import {
 } from '@ttla/api-client'
 import { useAuth } from '@ttla/auth'
 import { getCommonStrings } from '@ttla/i18n'
+import RichTextEditor from '../components/RichTextEditor'
 import { useToast, ToastViewport } from '../components/Toast'
 import {
   addHeadingToCanvas,
   addQuestionToCanvas,
   addTextToCanvas,
+  indentItem,
+  outdentItem,
   removeCanvasItem,
   reorderCanvasItems,
-  setQuestionMarksOverride,
+  setQuestionMarks,
+  setQuestionOption,
   setQuestionSerialLabel,
+  setQuestionText,
   type CanvasItem,
 } from './questionBuilderCanvas'
 
@@ -43,10 +48,13 @@ const buttonPrimary =
   'inline-flex h-11 cursor-pointer items-center gap-1.5 rounded-md bg-primary-500 px-4 text-sm font-medium text-white transition-colors hover:bg-primary-400 disabled:cursor-not-allowed disabled:opacity-60'
 const buttonNeutral =
   'inline-flex h-11 cursor-pointer items-center gap-1.5 rounded-md border border-gray-200 px-4 text-sm font-medium text-gray-600 transition-colors hover:border-primary-500'
+const iconButton =
+  'flex h-7 w-7 cursor-pointer items-center justify-center rounded text-gray-500 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-30'
 
-// Question text is authored as rich HTML in the management portal's
-// editor — Tailwind's preflight strips default list styling, so bullet/
-// numbered lists need their own markers restored for display here too.
+// Question text is authored as rich HTML — Tailwind's preflight strips
+// default list styling, so bullet/numbered lists need their own markers
+// restored for display here (the bank card's read-only preview; the
+// canvas's own copy is edited live through RichTextEditor instead).
 const richQuestionTextStyle = `
   .rich-question-text p { margin: 0 0 0.35em; }
   .rich-question-text p:last-child { margin-bottom: 0; }
@@ -82,9 +90,9 @@ function BankQuestionCard({ question }: { question: AcademicQuestion }) {
 // A small, unobtrusive remove button shared by every canvas item card —
 // stopping pointerdown here is required: the card's own pointerdown is
 // dnd-kit's drag-activation listener (spread via {...listeners} on the
-// card), so without stopping it first, every click on this button is
-// captured as a (zero-distance) drag-and-drop instead of reaching
-// onClick, and the button silently never removes anything.
+// card), so without stopping it first, every click on this button (or
+// any editable field inside the card) is captured as a (zero-distance)
+// drag-and-drop instead of reaching its own handler.
 function RemoveButton({ onRemove, className }: { onRemove: () => void; className?: string }) {
   return (
     <button
@@ -98,27 +106,54 @@ function RemoveButton({ onRemove, className }: { onRemove: () => void; className
   )
 }
 
+function IndentControls({ onIndent, onOutdent, indentLevel }: { onIndent: () => void; onOutdent: () => void; indentLevel: number }) {
+  return (
+    <div className="flex items-center" onPointerDown={(event) => event.stopPropagation()}>
+      <button
+        type="button"
+        onClick={onOutdent}
+        disabled={indentLevel === 0}
+        aria-label={t['teacher.questionBuilder.outdent']}
+        className={iconButton}
+      >
+        <span className="material-symbols-outlined !text-[18px]">format_indent_decrease</span>
+      </button>
+      <button type="button" onClick={onIndent} aria-label={t['teacher.questionBuilder.indent']} className={iconButton}>
+        <span className="material-symbols-outlined !text-[18px]">format_indent_increase</span>
+      </button>
+    </div>
+  )
+}
+
 function CanvasItemCard({
   item,
   index,
   onRemove,
   onMarksChange,
   onSerialChange,
+  onQuestionTextChange,
+  onOptionChange,
+  onIndent,
+  onOutdent,
 }: {
   item: CanvasItem
   index: number
   onRemove: () => void
   onMarksChange: (value: string) => void
   onSerialChange: (value: string) => void
+  onQuestionTextChange: (html: string) => void
+  onOptionChange: (optionIndex: number, value: string) => void
+  onIndent: () => void
+  onOutdent: () => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.uid })
-  const style = { transform: CSS.Transform.toString(transform), transition }
+  const style = { transform: CSS.Transform.toString(transform), transition, marginLeft: `${item.indentLevel * 1.5}rem` }
 
   // Headings always render centered — a real exam paper's section
   // headings (গদ্য, ব্যাকরণ, ...) are centered, never left-aligned — so
-  // the remove button is overlaid via absolute positioning rather than
-  // sharing a flex row with the heading text, which would pull the text
-  // off-center toward whichever side has more room.
+  // the remove/indent controls are overlaid via absolute positioning
+  // rather than sharing a flex row with the heading text, which would
+  // pull the text off-center toward whichever side has more room.
   if (item.type === 'heading') {
     return (
       <div
@@ -129,7 +164,10 @@ function CanvasItemCard({
         className={`relative flex items-center justify-center rounded-md bg-gray-100 px-3 py-2 ${isDragging ? 'opacity-50' : ''}`}
       >
         <span className="text-center text-sm font-semibold text-gray-700">{item.text}</span>
-        <RemoveButton onRemove={onRemove} className="absolute right-3" />
+        <div className="absolute right-3 flex items-center gap-1">
+          <IndentControls indentLevel={item.indentLevel} onIndent={onIndent} onOutdent={onOutdent} />
+          <RemoveButton onRemove={onRemove} />
+        </div>
       </div>
     )
   }
@@ -147,7 +185,10 @@ function CanvasItemCard({
         className={`flex items-start justify-between gap-3 rounded-md border border-gray-200 bg-white p-3 text-sm text-gray-700 ${isDragging ? 'opacity-50' : ''}`}
       >
         <p>{item.text}</p>
-        <RemoveButton onRemove={onRemove} className="shrink-0" />
+        <div className="flex shrink-0 items-center gap-1">
+          <IndentControls indentLevel={item.indentLevel} onIndent={onIndent} onOutdent={onOutdent} />
+          <RemoveButton onRemove={onRemove} />
+        </div>
       </div>
     )
   }
@@ -158,36 +199,55 @@ function CanvasItemCard({
       style={style}
       {...attributes}
       {...listeners}
-      className={`flex items-start justify-between gap-3 rounded-md border border-gray-200 bg-white p-3 text-sm ${isDragging ? 'opacity-50' : ''}`}
+      className={`flex flex-col gap-2 rounded-md border border-gray-200 bg-white p-3 text-sm ${isDragging ? 'opacity-50' : ''}`}
     >
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2" onPointerDown={(event) => event.stopPropagation()}>
           <input
             type="text"
             value={item.serialLabel ?? String(index + 1)}
-            onPointerDown={(event) => event.stopPropagation()}
             onChange={(event) => onSerialChange(event.target.value)}
             className="w-14 rounded border border-gray-200 px-1.5 py-0.5 text-sm font-medium outline-none focus:border-primary-500"
           />
           <span className="font-medium">.</span>
+          <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500 uppercase">
+            {item.questionType === 'mcq' ? t['teacher.questionBuilder.mcqLabel'] : t['teacher.questionBuilder.cqLabel']}
+          </span>
         </div>
-        <div
-          className="rich-question-text mt-1"
-          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(item.question?.question_text ?? '') }}
-        />
-        <div className="mt-1 flex items-center gap-1.5 text-xs text-gray-400">
-          <input
-            type="number"
-            min={0}
-            value={item.marksOverride ?? item.question?.marks ?? ''}
-            onPointerDown={(event) => event.stopPropagation()}
-            onChange={(event) => onMarksChange(event.target.value)}
-            className="w-16 rounded border border-gray-200 px-1.5 py-0.5 text-xs outline-none focus:border-primary-500"
-          />
-          <span>{t['teacher.questionBuilder.marksFilter']}</span>
+        <div className="flex items-center gap-1">
+          <IndentControls indentLevel={item.indentLevel} onIndent={onIndent} onOutdent={onOutdent} />
+          <RemoveButton onRemove={onRemove} />
         </div>
       </div>
-      <RemoveButton onRemove={onRemove} className="shrink-0" />
+
+      <div onPointerDown={(event) => event.stopPropagation()}>
+        <RichTextEditor value={item.questionText ?? ''} onChange={onQuestionTextChange} />
+      </div>
+
+      {item.questionType === 'mcq' && (
+        <div className="grid grid-cols-2 gap-2" onPointerDown={(event) => event.stopPropagation()}>
+          {[0, 1, 2, 3].map((optionIndex) => (
+            <input
+              key={optionIndex}
+              value={item.options?.[optionIndex] ?? ''}
+              onChange={(event) => onOptionChange(optionIndex, event.target.value)}
+              placeholder={`${t['teacher.questionBuilder.optionPlaceholder']} ${optionIndex + 1}`}
+              className="rounded border border-gray-200 px-2 py-1 text-sm outline-none focus:border-primary-500"
+            />
+          ))}
+        </div>
+      )}
+
+      <div className="flex items-center gap-1.5 text-xs text-gray-400" onPointerDown={(event) => event.stopPropagation()}>
+        <input
+          type="number"
+          min={0}
+          value={item.marks ?? ''}
+          onChange={(event) => onMarksChange(event.target.value)}
+          className="w-16 rounded border border-gray-200 px-1.5 py-0.5 text-xs outline-none focus:border-primary-500"
+        />
+        <span>{t['teacher.questionBuilder.marksFilter']}</span>
+      </div>
     </div>
   )
 }
@@ -197,11 +257,19 @@ function CanvasDropZone({
   onRemove,
   onMarksChange,
   onSerialChange,
+  onQuestionTextChange,
+  onOptionChange,
+  onIndent,
+  onOutdent,
 }: {
   items: CanvasItem[]
   onRemove: (uid: string) => void
   onMarksChange: (uid: string, value: string) => void
   onSerialChange: (uid: string, value: string) => void
+  onQuestionTextChange: (uid: string, html: string) => void
+  onOptionChange: (uid: string, optionIndex: number, value: string) => void
+  onIndent: (uid: string) => void
+  onOutdent: (uid: string) => void
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: 'canvas' })
 
@@ -223,6 +291,10 @@ function CanvasDropZone({
             onRemove={() => onRemove(item.uid)}
             onMarksChange={(value) => onMarksChange(item.uid, value)}
             onSerialChange={(value) => onSerialChange(item.uid, value)}
+            onQuestionTextChange={(html) => onQuestionTextChange(item.uid, html)}
+            onOptionChange={(optionIndex, value) => onOptionChange(item.uid, optionIndex, value)}
+            onIndent={() => onIndent(item.uid)}
+            onOutdent={() => onOutdent(item.uid)}
           />
         ))}
       </SortableContext>
@@ -332,11 +404,11 @@ export default function QuestionBuilderPage() {
   // Edit mode: populate every field (including the canvas) from the
   // existing paper, then jump straight to Step 2 — re-opening an existing
   // paper is almost always to adjust its questions, not its details;
-  // Back still reaches Step 1 to change them. QuestionPaperItemResource's
-  // nested academic_question already matches CanvasQuestionSummary
-  // exactly — no reshaping needed beyond wrapping each item with a fresh
-  // client-side uid. version_id isn't stored on the paper itself (see
-  // QuestionPaperPayload), so versionId keeps whatever Step 1's own
+  // Back still reaches Step 1 to change them. Each 'question' item is
+  // already a self-contained copy (question_type/question_text/options/
+  // marks — see QuestionPaperItemResource), so no bank lookup is needed
+  // to populate the canvas. version_id isn't stored on the paper itself
+  // (see QuestionPaperPayload), so versionId keeps whatever Step 1's own
   // mount effect already defaulted it to.
   useEffect(() => {
     if (!token || !paperId) return
@@ -354,10 +426,13 @@ export default function QuestionBuilderPage() {
           (paper.items ?? []).map((item) => ({
             uid: crypto.randomUUID(),
             type: item.item_type,
-            question: item.academic_question ?? undefined,
             text: item.text_content ?? undefined,
-            marksOverride: item.marks_override ?? undefined,
+            questionType: item.question_type ?? undefined,
+            questionText: item.question_text ?? undefined,
+            options: item.options ?? undefined,
+            marks: item.marks ?? undefined,
             serialLabel: item.serial_label ?? undefined,
+            indentLevel: item.indent_level,
           })),
         )
         setStep(2)
@@ -403,6 +478,9 @@ export default function QuestionBuilderPage() {
       // drop zone or one of its existing sortable items both report
       // `over`, and either way the question is appended to the end;
       // reordering happens as a separate, later drag (the branch below).
+      // This copies the bank question's content into a brand-new,
+      // independent canvas item — editing it afterward never touches the
+      // bank question it came from.
       const isOverCanvas = over.id === 'canvas' || items.some((item) => item.uid === over.id)
       if (!isOverCanvas) return
 
@@ -425,10 +503,7 @@ export default function QuestionBuilderPage() {
     setAddingText(false)
   }
 
-  const computedFullMarks = items.reduce(
-    (sum, item) => sum + (item.type === 'question' ? (item.marksOverride ?? item.question?.marks ?? 0) : 0),
-    0,
-  )
+  const computedFullMarks = items.reduce((sum, item) => sum + (item.type === 'question' ? (item.marks ?? 0) : 0), 0)
 
   const detailsComplete = Boolean(schoolClassId && versionId && subjectId)
 
@@ -448,11 +523,14 @@ export default function QuestionBuilderPage() {
         item.type === 'question'
           ? {
               type: 'question' as const,
-              academic_question_id: item.question?.id,
-              marks_override: item.marksOverride ?? null,
+              question_type: item.questionType,
+              question_text: item.questionText,
+              options: item.questionType === 'mcq' ? (item.options ?? null) : null,
+              marks: item.marks ?? null,
               serial_label: item.serialLabel ?? null,
+              indent_level: item.indentLevel,
             }
-          : { type: item.type, text_content: item.text },
+          : { type: item.type, text_content: item.text, indent_level: item.indentLevel },
       ),
     }
 
@@ -647,8 +725,12 @@ export default function QuestionBuilderPage() {
                 <CanvasDropZone
                   items={items}
                   onRemove={(uid) => setItems((prev) => removeCanvasItem(prev, uid))}
-                  onMarksChange={(uid, value) => setItems((prev) => setQuestionMarksOverride(prev, uid, value))}
+                  onMarksChange={(uid, value) => setItems((prev) => setQuestionMarks(prev, uid, value))}
                   onSerialChange={(uid, value) => setItems((prev) => setQuestionSerialLabel(prev, uid, value))}
+                  onQuestionTextChange={(uid, html) => setItems((prev) => setQuestionText(prev, uid, html))}
+                  onOptionChange={(uid, optionIndex, value) => setItems((prev) => setQuestionOption(prev, uid, optionIndex, value))}
+                  onIndent={(uid) => setItems((prev) => indentItem(prev, uid))}
+                  onOutdent={(uid) => setItems((prev) => outdentItem(prev, uid))}
                 />
 
                 <div className="flex flex-wrap gap-2">
