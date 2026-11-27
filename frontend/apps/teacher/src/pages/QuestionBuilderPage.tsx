@@ -496,7 +496,7 @@ export default function QuestionBuilderPage() {
           </div>
 
           <DndContext onDragEnd={handleDragEnd}>
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-[2fr_3fr]">
               <div className="flex flex-col gap-3 rounded-md bg-white p-4 shadow-sm">
                 <h2 className="text-sm font-semibold text-primary-800">{t['teacher.questionBuilder.bankTitle']}</h2>
 
@@ -514,9 +514,6 @@ export default function QuestionBuilderPage() {
                     value={filterMarks}
                     onChange={(event) => setFilterMarks(event.target.value)}
                   />
-                  <button type="button" onClick={loadBank} disabled={loadingBank} className={buttonPrimary}>
-                    {t['teacher.questionBuilder.loadQuestions']}
-                  </button>
                 </div>
 
                 <div className="flex flex-col gap-1.5 rounded-md border border-gray-200 p-3">
@@ -541,6 +538,10 @@ export default function QuestionBuilderPage() {
                     </div>
                   )}
                 </div>
+
+                <button type="button" onClick={loadBank} disabled={loadingBank} className={buttonPrimary}>
+                  {t['teacher.questionBuilder.loadQuestions']}
+                </button>
 
                 <div className="flex flex-col gap-2">
                   {loadingBank && <p className="text-sm text-gray-500">{t['teacher.questionBuilder.loading']}</p>}
