@@ -686,9 +686,6 @@ export default function QuestionBuilderPage() {
                     value={filterMarks}
                     onChange={(event) => setFilterMarks(event.target.value)}
                   />
-                  <button type="button" onClick={loadBank} disabled={loadingBank} className={buttonPrimary}>
-                    {t['teacher.questionBuilder.loadQuestions']}
-                  </button>
                 </div>
 
                 <div className="flex flex-col gap-1.5 rounded-md border border-gray-200 p-3">
@@ -713,6 +710,10 @@ export default function QuestionBuilderPage() {
                     </div>
                   )}
                 </div>
+
+                <button type="button" onClick={loadBank} disabled={loadingBank} className={buttonPrimary}>
+                  {t['teacher.questionBuilder.loadQuestions']}
+                </button>
               </div>
             )}
           </div>
