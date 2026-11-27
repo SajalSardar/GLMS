@@ -477,7 +477,8 @@
   "management.nav.classes": "ক্লাস সমূহ",
   "management.nav.holidays": "ছুটির ক্যালেন্ডার",
   "management.nav.schoolSetup": "স্কুল সেটআপ",
-  "management.nav.attendance": "উপস্থিতি প্রতিবেদন",
+  "management.nav.attendanceReport": "উপস্থিতি প্রতিবেদন",
+  "management.nav.studentReport": "শিক্ষার্থী প্রতিবেদন",
   "management.nav.publishResults": "ফলাফল প্রকাশ",
   "management.nav.promoteStudents": "শিক্ষার্থী উত্তরণ",
   "management.nav.teacherLeaveApplications": "শিক্ষক ছুটি",
@@ -728,7 +729,7 @@
   "management.kioskDevices.done": "সম্পন্ন",
   "management.kioskDevices.nameRequired": "ডিভাইসের নাম আবশ্যক।",
 
-  "management.nav.teacherAttendance": "শিক্ষক উপস্থিতি",
+  "management.nav.teacherReport": "শিক্ষক প্রতিবেদন",
   "management.teacherAttendance.title": "শিক্ষক উপস্থিতি প্রতিবেদন",
   "management.teacherAttendance.colEmployeeId": "কর্মচারী আইডি",
   "management.teacherAttendance.colTeacher": "শিক্ষকের নাম",

@@ -101,20 +101,23 @@ const examControlBaseNavItems: SidebarItem[] = [
 
 // Report-only (see AttendanceReportPage's own comment) — visible to
 // STUDENT_AND_ATTENDANCE_VIEWERS, the same role set as studentsNavItem
-// above, since recording itself stays in the teacher portal.
-const attendanceNavItem: SidebarItem = { to: '/dashboard/attendance', label: t['management.nav.attendance'], icon: 'fact_check' }
+// above, since recording itself stays in the teacher portal. Nested as
+// the first child of the Attendance Report group (see attendanceReportItem
+// in the component below) rather than top-level.
+const studentReportNavItem: SidebarItem = { to: '/dashboard/attendance', label: t['management.nav.studentReport'], icon: 'fact_check' }
 
-// Same placement/visibility reasoning as attendanceNavItem above —
+// Same placement/visibility reasoning as studentReportNavItem above —
 // school_admin/national_admin only; a school_admin's device is scoped to
 // their own school automatically (see KioskDevicesPage.tsx), national_admin
 // picks which school.
 const kioskDevicesNavItem: SidebarItem = { to: '/dashboard/kiosk-devices', label: t['management.nav.kioskDevices'], icon: 'point_of_sale' }
 
-// Same placement/visibility reasoning as attendanceNavItem above — a
-// monthly grid of every teacher's attendance at a school, mirroring
-// attendanceNavItem's student-side report but driven by kiosk-device
-// punches instead of a class teacher's manual entry.
-const teacherAttendanceNavItem: SidebarItem = { to: '/dashboard/teacher-attendance', label: t['management.nav.teacherAttendance'], icon: 'badge' }
+// A monthly grid of every teacher's attendance at a school, mirroring
+// studentReportNavItem's student-side report but driven by kiosk-device
+// punches instead of a class teacher's manual entry. Nested as the
+// second child of the Attendance Report group — school_admin/
+// national_admin only, unlike studentReportNavItem's broader visibility.
+const teacherReportNavItem: SidebarItem = { to: '/dashboard/teacher-attendance', label: t['management.nav.teacherReport'], icon: 'badge' }
 
 // Nested as the first two children of Exam Control (see examControlItem
 // in the component below) rather than top-level — school_admin/
@@ -423,6 +426,19 @@ function DashboardLayout() {
     children: [...(isNationalAdmin || isSchoolAdmin ? [publishResultsNavItem, promoteStudentsNavItem] : []), ...examControlBaseNavItems],
   }
 
+  // Student Report/Teacher Report grouped under one Attendance Report
+  // menu — Student Report keeps its broader STUDENT_AND_ATTENDANCE_VIEWERS
+  // visibility (district_officer/auditor included), Teacher Report stays
+  // school_admin/national_admin only, same as before the two were nested.
+  const attendanceReportItem: SidebarItem = {
+    label: t['management.nav.attendanceReport'],
+    icon: 'summarize',
+    children: [
+      ...(canViewStudentsAndAttendance ? [studentReportNavItem] : []),
+      ...(isNationalAdmin || isSchoolAdmin ? [teacherReportNavItem] : []),
+    ],
+  }
+
   const navItems = [
     ...baseNavItems,
     ...(canViewTeachers ? [teachersNavItem] : []),
@@ -433,8 +449,8 @@ function DashboardLayout() {
     // control config resources, and holidays (see ALL_MANAGEMENT_ROLES).
     classMaterialsNavItem,
     examControlItem,
-    ...(canViewStudentsAndAttendance ? [attendanceNavItem] : []),
-    ...(isNationalAdmin || isSchoolAdmin ? [kioskDevicesNavItem, teacherAttendanceNavItem] : []),
+    ...(canViewStudentsAndAttendance || isNationalAdmin || isSchoolAdmin ? [attendanceReportItem] : []),
+    ...(isNationalAdmin || isSchoolAdmin ? [kioskDevicesNavItem] : []),
     ...(canViewTeachers ? [routineNavItem] : []),
     ...(isSchoolAdmin ? [teacherLeaveApplicationsNavItem, questionPapersNavItem] : []),
     ...(isNationalAdmin ? [teachersOnLeaveNavItem, questionBankNavItem] : []),

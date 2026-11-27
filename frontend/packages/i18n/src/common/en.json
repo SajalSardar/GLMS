@@ -478,7 +478,8 @@
   "management.nav.academicYears": "Academic Years",
   "management.nav.holidays": "Holiday Calendar",
   "management.nav.schoolSetup": "School Setup",
-  "management.nav.attendance": "Attendance Reports",
+  "management.nav.attendanceReport": "Attendance Report",
+  "management.nav.studentReport": "Student Report",
   "management.nav.publishResults": "Publish Results",
   "management.nav.promoteStudents": "Promote Students",
   "management.nav.teacherLeaveApplications": "Teacher Leave",
@@ -728,7 +729,7 @@
   "management.kioskDevices.done": "Done",
   "management.kioskDevices.nameRequired": "Device name is required.",
 
-  "management.nav.teacherAttendance": "Teacher Attendance",
+  "management.nav.teacherReport": "Teacher Report",
   "management.teacherAttendance.title": "Teacher Attendance Report",
   "management.teacherAttendance.colEmployeeId": "Employee ID",
   "management.teacherAttendance.colTeacher": "Teacher Name",
