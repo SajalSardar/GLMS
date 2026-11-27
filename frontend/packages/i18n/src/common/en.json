@@ -55,6 +55,12 @@
   "student.nav.notifications": "Notifications",
   "student.nav.noNotifications": "No notifications yet",
 
+  "student.selectChild.title": "Which child would you like to view?",
+  "student.selectChild.loading": "Loading your children...",
+  "student.selectChild.empty": "No children are linked to your account yet. Please contact your school.",
+  "student.selectChild.roll": "Roll",
+  "student.guardian.switchChild": "Switch child",
+
   "student.profile.title": "My Profile",
   "student.profile.subtitle": "View and update your own account details.",
   "student.profile.accountInfo": "Account Information",

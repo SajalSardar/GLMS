@@ -55,6 +55,12 @@
   "student.nav.notifications": "বিজ্ঞপ্তি",
   "student.nav.noNotifications": "এখনও কোনো বিজ্ঞপ্তি নেই",
 
+  "student.selectChild.title": "কোন সন্তানের তথ্য দেখতে চান?",
+  "student.selectChild.loading": "আপনার সন্তানদের তথ্য লোড হচ্ছে...",
+  "student.selectChild.empty": "আপনার অ্যাকাউন্টের সাথে এখনও কোনো সন্তান যুক্ত নেই। অনুগ্রহ করে স্কুলের সাথে যোগাযোগ করুন।",
+  "student.selectChild.roll": "রোল",
+  "student.guardian.switchChild": "সন্তান পরিবর্তন করুন",
+
   "student.profile.title": "আমার প্রোফাইল",
   "student.profile.subtitle": "তোমার নিজের অ্যাকাউন্টের তথ্য দেখো ও পরিবর্তন করো।",
   "student.profile.accountInfo": "অ্যাকাউন্টের তথ্য",

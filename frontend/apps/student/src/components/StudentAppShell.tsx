@@ -3,6 +3,7 @@ import { useAuth } from '@ttla/auth'
 import type { Locale } from '@ttla/i18n'
 import { AppShell, type SidebarItem } from '@ttla/ui'
 import { useLocale } from '../lib/locale'
+import GuardianChildSwitcher from './GuardianChildSwitcher'
 
 function LanguageSwitcher({
   locale,
@@ -95,7 +96,10 @@ export default function StudentAppShell() {
       logoutLabel={t['student.nav.logout']}
       mainClassName="flex-1"
       headerExtra={
-        <LanguageSwitcher locale={locale} setLocale={setLocale} ariaLabel={t['student.nav.languageSwitcher']} />
+        <div className="flex items-center gap-2">
+          {role === 'parent_guardian' && <GuardianChildSwitcher label={t['student.guardian.switchChild']} />}
+          <LanguageSwitcher locale={locale} setLocale={setLocale} ariaLabel={t['student.nav.languageSwitcher']} />
+        </div>
       }
     />
   )

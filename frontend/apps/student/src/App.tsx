@@ -1,10 +1,12 @@
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { AuthProvider, useAuth } from '@ttla/auth'
 import { LocaleProvider } from './lib/locale'
+import { GuardianChildProvider } from './lib/guardianChild'
 import SiteShell from './components/SiteShell'
 import StudentAppShell from './components/StudentAppShell'
 import LandingLogin from './pages/LandingLogin'
 import LoginPage from './pages/LoginPage'
+import SelectChildPage from './pages/SelectChildPage'
 import BooksPage from './pages/BooksPage'
 import BookDetailPage from './pages/BookDetailPage'
 import VideoLecturePage from './pages/VideoLecturePage'
@@ -67,35 +69,38 @@ function App() {
   return (
     <LocaleProvider>
       <AuthProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route element={<SiteShell />}>
-              <Route index element={<LandingLogin />} />
-              <Route path="login" element={<LoginPage />} />
-              <Route path="*" element={<NotFoundPage />} />
-            </Route>
-            <Route element={<StudentAreaShell />}>
-              <Route element={<RequireAuth />}>
-                <Route path="dashboard" element={<DashboardHomePage />} />
-                <Route path="class-materials" element={<DashboardClassMaterialsPage />} />
-                <Route path="class-routine" element={<DashboardClassRoutinePage />} />
-                <Route path="class-exams" element={<DashboardClassExamsPage />} />
-                <Route path="leave-application" element={<DashboardLeaveApplicationPage />} />
-                <Route path="holidays" element={<DashboardHolidayCalendarPage />} />
-                <Route path="attendance" element={<DashboardAttendancePage />} />
-                <Route path="results" element={<DashboardResultsPage />} />
-                <Route path="profile" element={<DashboardMyProfilePage />} />
+        <GuardianChildProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route element={<SiteShell />}>
+                <Route index element={<LandingLogin />} />
+                <Route path="login" element={<LoginPage />} />
+                <Route path="*" element={<NotFoundPage />} />
               </Route>
-              <Route path="books" element={<BooksRoute />} />
-              <Route path="books/:id" element={<BookDetailPage />} />
-              <Route path="video-lecture" element={<VideoLectureRoute />} />
-              <Route path="video-lecture/:classId/:subjectId/:chapterId?" element={<VideoPlaylistPage />} />
-              <Route path="exams" element={<ExamsRoute />} />
-              <Route path="exams/:id" element={<ExamRunnerPage />} />
-              <Route path="exams/:id/certificate" element={<CertificatePage />} />
-            </Route>
-          </Routes>
-        </BrowserRouter>
+              <Route element={<StudentAreaShell />}>
+                <Route element={<RequireAuth />}>
+                  <Route path="select-child" element={<SelectChildPage />} />
+                  <Route path="dashboard" element={<DashboardHomePage />} />
+                  <Route path="class-materials" element={<DashboardClassMaterialsPage />} />
+                  <Route path="class-routine" element={<DashboardClassRoutinePage />} />
+                  <Route path="class-exams" element={<DashboardClassExamsPage />} />
+                  <Route path="leave-application" element={<DashboardLeaveApplicationPage />} />
+                  <Route path="holidays" element={<DashboardHolidayCalendarPage />} />
+                  <Route path="attendance" element={<DashboardAttendancePage />} />
+                  <Route path="results" element={<DashboardResultsPage />} />
+                  <Route path="profile" element={<DashboardMyProfilePage />} />
+                </Route>
+                <Route path="books" element={<BooksRoute />} />
+                <Route path="books/:id" element={<BookDetailPage />} />
+                <Route path="video-lecture" element={<VideoLectureRoute />} />
+                <Route path="video-lecture/:classId/:subjectId/:chapterId?" element={<VideoPlaylistPage />} />
+                <Route path="exams" element={<ExamsRoute />} />
+                <Route path="exams/:id" element={<ExamRunnerPage />} />
+                <Route path="exams/:id/certificate" element={<CertificatePage />} />
+              </Route>
+            </Routes>
+          </BrowserRouter>
+        </GuardianChildProvider>
       </AuthProvider>
     </LocaleProvider>
   )
