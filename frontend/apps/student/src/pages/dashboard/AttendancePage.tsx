@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getMyAttendance, type AttendanceStatus, type MyAttendance } from '@ttla/api-client'
 import { useAuth } from '@ttla/auth'
+import { useActiveStudentProfile } from '../../lib/useActiveStudentProfile'
 import { useLocale } from '../../lib/locale'
 
 function InfoAlert({ message }: { message: string }) {
@@ -47,6 +48,7 @@ const STATUS_BOX: Record<AttendanceStatus, string> = {
 // canonical order.
 export default function AttendancePage() {
   const { token } = useAuth()
+  const { studentProfileId, isGuardian } = useActiveStudentProfile()
   const { t } = useLocale()
 
   const now = new Date()
@@ -56,11 +58,11 @@ export default function AttendancePage() {
   const [attendance, setAttendance] = useState<MyAttendance | null>(null)
 
   useEffect(() => {
-    if (!token) return
+    if (!token || (isGuardian && !studentProfileId)) return
     let active = true
     setLoading(true)
 
-    getMyAttendance({ year, month }, token)
+    getMyAttendance({ year, month, studentProfileId: studentProfileId ?? undefined }, token)
       .then((result) => {
         if (active) setAttendance(result.data)
       })
@@ -74,7 +76,7 @@ export default function AttendancePage() {
     return () => {
       active = false
     }
-  }, [token, year, month])
+  }, [token, year, month, studentProfileId, isGuardian])
 
   function goToPreviousMonth() {
     if (month === 1) {

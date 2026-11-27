@@ -6,6 +6,7 @@ import {
   type MyAcademicExamResultTerm,
 } from '@ttla/api-client'
 import { useAuth } from '@ttla/auth'
+import { useActiveStudentProfile } from '../../lib/useActiveStudentProfile'
 import { useLocale } from '../../lib/locale'
 
 // List-then-detail, same single-page pattern used elsewhere in this app
@@ -13,6 +14,7 @@ import { useLocale } from '../../lib/locale'
 // marksheet in place, with a Back link to return.
 export default function ResultsPage() {
   const { token } = useAuth()
+  const { studentProfileId, isGuardian } = useActiveStudentProfile()
   const { t } = useLocale()
 
   const [loadingTerms, setLoadingTerms] = useState(true)
@@ -23,11 +25,11 @@ export default function ResultsPage() {
   const [marksheet, setMarksheet] = useState<AcademicExamMarksheet | null>(null)
 
   useEffect(() => {
-    if (!token) return
+    if (!token || (isGuardian && !studentProfileId)) return
     let active = true
     setLoadingTerms(true)
 
-    listMyAcademicExamResultTerms(token)
+    listMyAcademicExamResultTerms(token, studentProfileId ?? undefined)
       .then((result) => {
         if (active) setTerms(result.data)
       })
@@ -41,10 +43,10 @@ export default function ResultsPage() {
     return () => {
       active = false
     }
-  }, [token])
+  }, [token, studentProfileId, isGuardian])
 
   useEffect(() => {
-    if (!token || !selectedTerm) {
+    if (!token || !selectedTerm || (isGuardian && !studentProfileId)) {
       setMarksheet(null)
       return
     }
@@ -52,7 +54,14 @@ export default function ResultsPage() {
     let active = true
     setLoadingMarksheet(true)
 
-    getMyAcademicExamResult({ academicExamTermId: selectedTerm.academic_exam_term_id, academicYearId: selectedTerm.academic_year_id }, token)
+    getMyAcademicExamResult(
+      {
+        academicExamTermId: selectedTerm.academic_exam_term_id,
+        academicYearId: selectedTerm.academic_year_id,
+        studentProfileId: studentProfileId ?? undefined,
+      },
+      token,
+    )
       .then((result) => {
         if (active) setMarksheet(result.data)
       })
@@ -66,7 +75,7 @@ export default function ResultsPage() {
     return () => {
       active = false
     }
-  }, [token, selectedTerm])
+  }, [token, selectedTerm, studentProfileId, isGuardian])
 
   return (
     <section className="px-4 py-6 lg:px-6">

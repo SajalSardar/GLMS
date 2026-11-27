@@ -3,6 +3,7 @@ import { getChapterMaterialDownloadLink, listMyChapterMaterials, type ChapterMat
 import { useAuth } from '@ttla/auth'
 import Pagination from './components/Pagination'
 import SearchableSelect from './components/SearchableSelect'
+import { useActiveStudentProfile } from '../../lib/useActiveStudentProfile'
 import { useLocale } from '../../lib/locale'
 
 const PAGE_SIZE = 10
@@ -52,6 +53,7 @@ function InfoAlert({ message }: { message: string }) {
 export default function ClassMaterialsPage() {
   const { t } = useLocale()
   const { token } = useAuth()
+  const { studentProfileId, isGuardian } = useActiveStudentProfile()
 
   const [loading, setLoading] = useState(true)
   const [materials, setMaterials] = useState<ChapterMaterial[]>([])
@@ -60,7 +62,7 @@ export default function ClassMaterialsPage() {
   const [materialLinkError, setMaterialLinkError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!token) return
+    if (!token || (isGuardian && !studentProfileId)) return
 
     let active = true
     setLoading(true)
@@ -70,7 +72,7 @@ export default function ClassMaterialsPage() {
     // mine()), already ordered newest-first — there is no class picker
     // here because there is nothing to pick: a material only ever shows
     // up when it exactly matches this student's own class.
-    listMyChapterMaterials(token)
+    listMyChapterMaterials(token, studentProfileId ?? undefined)
       .then((result) => {
         if (active) setMaterials(result.data)
       })
@@ -84,7 +86,7 @@ export default function ClassMaterialsPage() {
     return () => {
       active = false
     }
-  }, [token])
+  }, [token, studentProfileId, isGuardian])
 
   async function handleMaterialOpen(material: ChapterMaterial, action: 'preview' | 'download') {
     if (!token) return

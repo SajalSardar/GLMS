@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { getSchool, listMyClassRoutines, type ClassRoutine, type School } from '@ttla/api-client'
 import { useAuth } from '@ttla/auth'
 import type { CommonStrings } from '@ttla/i18n'
+import { useActiveStudentProfile } from '../../lib/useActiveStudentProfile'
 import { useLocale } from '../../lib/locale'
 
 const DAY_ORDER = ['saturday', 'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday']
@@ -93,18 +94,19 @@ function buildColumns(routines: ClassRoutine[]): { columns: Column[]; periodTime
 export default function ClassRoutinePage() {
   const { t } = useLocale()
   const { token } = useAuth()
+  const { studentProfileId, isGuardian } = useActiveStudentProfile()
 
   const [loading, setLoading] = useState(true)
   const [routines, setRoutines] = useState<ClassRoutine[]>([])
   const [school, setSchool] = useState<School | null>(null)
 
   useEffect(() => {
-    if (!token) return
+    if (!token || (isGuardian && !studentProfileId)) return
 
     let active = true
     setLoading(true)
 
-    listMyClassRoutines(token)
+    listMyClassRoutines(token, studentProfileId ?? undefined)
       .then((result) => {
         if (active) setRoutines(result.data)
       })
@@ -118,7 +120,7 @@ export default function ClassRoutinePage() {
     return () => {
       active = false
     }
-  }, [token])
+  }, [token, studentProfileId, isGuardian])
 
   useEffect(() => {
     const schoolId = routines[0]?.school_id

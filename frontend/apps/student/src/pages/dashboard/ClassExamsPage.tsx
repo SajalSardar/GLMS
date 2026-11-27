@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@ttla/auth'
 import { ownStudentDashboard } from '../../lib/resolveContent'
+import { useActiveStudentProfile } from '../../lib/useActiveStudentProfile'
 import { useLocale } from '../../lib/locale'
 import Pagination from './components/Pagination'
 
@@ -48,7 +49,8 @@ function InfoAlert({ message }: { message: string }) {
 
 export default function ClassExamsPage() {
   const { t } = useLocale()
-  const { token, userId } = useAuth()
+  const { token } = useAuth()
+  const { studentProfileId, isGuardian } = useActiveStudentProfile()
   const navigate = useNavigate()
 
   const [loading, setLoading] = useState(true)
@@ -59,12 +61,12 @@ export default function ClassExamsPage() {
   const [takenPage, setTakenPage] = useState(1)
 
   useEffect(() => {
-    if (!token || !userId) return
+    if (!token || !studentProfileId) return
 
     let active = true
     setLoading(true)
 
-    ownStudentDashboard(userId, token)
+    ownStudentDashboard(studentProfileId, token)
       .then((dashboard) => {
         if (!active) return
 
@@ -115,7 +117,7 @@ export default function ClassExamsPage() {
     return () => {
       active = false
     }
-  }, [token, userId])
+  }, [token, studentProfileId])
 
   const untakenTotalPages = Math.max(1, Math.ceil(untakenExams.length / PAGE_SIZE))
   const untakenCurrentPage = Math.min(untakenPage, untakenTotalPages)
@@ -133,9 +135,12 @@ export default function ClassExamsPage() {
 
       {!loading && noClass && <InfoAlert message={t['student.classExams.noClass']} />}
 
-      {!loading && !noClass && untakenExams.length === 0 && <InfoAlert message={t['student.classExams.empty']} />}
+      {/* A guardian can see which exams their child HAS taken (below),
+         but never the "not yet attempted, start now" list/button — that
+         action belongs to the student alone. */}
+      {!loading && !noClass && !isGuardian && untakenExams.length === 0 && <InfoAlert message={t['student.classExams.empty']} />}
 
-      {!loading && !noClass && untakenExams.length > 0 && (
+      {!loading && !noClass && !isGuardian && untakenExams.length > 0 && (
         <>
           <div className="mt-6 overflow-x-auto rounded-md bg-white shadow-sm">
             <table className="w-full min-w-[32rem] text-sm">

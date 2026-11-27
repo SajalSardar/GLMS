@@ -10,6 +10,7 @@ import {
   type MyAttendanceDay,
 } from '@ttla/api-client'
 import { useAuth } from '@ttla/auth'
+import { useActiveStudentProfile } from '../../lib/useActiveStudentProfile'
 import { useLocale } from '../../lib/locale'
 
 interface QuickLink {
@@ -167,6 +168,7 @@ function MaterialsNotice({ count }: { count: number }) {
 export default function DashboardHomePage() {
   const { t } = useLocale()
   const { name, token } = useAuth()
+  const { studentProfileId, isGuardian } = useActiveStudentProfile()
 
   const [myMaterials, setMyMaterials] = useState<ChapterMaterial[]>([])
   const [summary, setSummary] = useState<DashboardSummary | null>(null)
@@ -174,7 +176,7 @@ export default function DashboardHomePage() {
   const [attendancePresentPercent, setAttendancePresentPercent] = useState<number | null>(null)
 
   useEffect(() => {
-    if (!token) return
+    if (!token || (isGuardian && !studentProfileId)) return
 
     let active = true
     const now = new Date()
@@ -183,7 +185,7 @@ export default function DashboardHomePage() {
     // shift/section/class/class_version tuple (ChapterMaterialController::
     // mine()) — an empty result here just means nothing new for their
     // exact class, not a loading/error state worth showing its own UI for.
-    listMyChapterMaterials(token)
+    listMyChapterMaterials(token, studentProfileId ?? undefined)
       .then((result) => {
         if (active) setMyMaterials(result.data)
       })
@@ -195,7 +197,7 @@ export default function DashboardHomePage() {
       if (active) setSummary(result.data)
     })
 
-    getMyAttendance({ year: now.getFullYear(), month: now.getMonth() + 1 }, token).then((result) => {
+    getMyAttendance({ year: now.getFullYear(), month: now.getMonth() + 1, studentProfileId: studentProfileId ?? undefined }, token).then((result) => {
       if (!active || !result.data) return
       setAttendanceDays(result.data.days)
       const { present, absent, leave } = result.data.summary
@@ -206,7 +208,7 @@ export default function DashboardHomePage() {
     return () => {
       active = false
     }
-  }, [token])
+  }, [token, studentProfileId, isGuardian])
 
   const quickLinks: QuickLink[] = [
     { to: '/books', title: t['student.dashboard.booksTitle'], desc: t['student.dashboard.booksDesc'] },

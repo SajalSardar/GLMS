@@ -67,10 +67,13 @@ export function ownClassId(userId: number, token: string): Promise<number | null
 
 // The student's own profile id never changes within a session, so this
 // lookup (unlike the dashboard rollup below) is safe to cache per userId.
+// Exported for useActiveStudentProfile() — the only thing that resolves
+// "my own profile id" directly now; everything else reads it (or a
+// guardian's selected child's id) through that hook instead.
 let ownStudentProfileIdPromise: Promise<number | null> | null = null
 let ownStudentProfileIdForUserId: number | null = null
 
-function ownStudentProfileId(userId: number, token: string): Promise<number | null> {
+export function ownStudentProfileId(userId: number, token: string): Promise<number | null> {
   if (!ownStudentProfileIdPromise || ownStudentProfileIdForUserId !== userId) {
     ownStudentProfileIdForUserId = userId
     ownStudentProfileIdPromise = listStudentProfiles({ userId, perPage: 1 }, token).then(
@@ -81,25 +84,23 @@ function ownStudentProfileId(userId: number, token: string): Promise<number | nu
   return ownStudentProfileIdPromise
 }
 
-// The logged-in student's own dashboard rollup (StudentDashboardBuilder),
-// which already scopes every exam to their own class_version_id/
+// The dashboard rollup (StudentDashboardBuilder) for a given student
+// profile — already scopes every exam to its class_version_id/
 // academic_year_id, excludes practice exams, and carries each exam's own
 // attempts_used/max_attempts/passed — exactly what ClassExamsPage needs to
-// show "exams I haven't attempted yet" without a second request per exam
-// to check attempt status.
+// show "exams not yet attempted" without a second request per exam. Takes
+// the profile id directly (resolved by the caller via
+// useActiveStudentProfile(), which handles both "my own profile" and "my
+// linked child's profile" for a guardian session) rather than a userId.
 //
-// Deliberately NOT cached across calls (unlike ownClassId() above): those
-// attempts_used/best_score/passed fields change the moment a student
-// submits an exam, so caching this would show a just-finished exam as
-// still "untaken" when ClassExamsPage is revisited right after — exactly
-// what happened clicking the score card's "go to class exam page" link
-// before this was fixed. Only the profile-id lookup above stays cached,
-// since that part genuinely never changes.
-export async function ownStudentDashboard(userId: number, token: string): Promise<StudentDashboard | null> {
-  const profileId = await ownStudentProfileId(userId, token)
-  if (!profileId) return null
+// Deliberately NOT cached across calls: those attempts_used/best_score/
+// passed fields change the moment a student submits an exam, so caching
+// this would show a just-finished exam as still "untaken" when
+// ClassExamsPage is revisited right after.
+export async function ownStudentDashboard(studentProfileId: number | null, token: string): Promise<StudentDashboard | null> {
+  if (!studentProfileId) return null
 
-  const result = await getStudentDashboard(profileId, token)
+  const result = await getStudentDashboard(studentProfileId, token)
   return result.data
 }
 

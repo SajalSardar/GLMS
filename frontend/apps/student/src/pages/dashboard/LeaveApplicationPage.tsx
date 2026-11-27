@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { ApiError, createLeaveApplication, listMyLeaveApplications, type StudentLeaveApplication, type StudentLeaveApplicationStatus } from '@ttla/api-client'
 import { useAuth } from '@ttla/auth'
+import { useActiveStudentProfile } from '../../lib/useActiveStudentProfile'
 import { useLocale } from '../../lib/locale'
 import DatePickerField from './components/DatePickerField'
 import Pagination from './components/Pagination'
@@ -50,6 +51,7 @@ function InfoAlert({ message, tone = 'info' }: { message: string; tone?: 'info' 
 export default function LeaveApplicationPage() {
   const { t } = useLocale()
   const { token } = useAuth()
+  const { studentProfileId, isGuardian } = useActiveStudentProfile()
 
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
@@ -63,11 +65,11 @@ export default function LeaveApplicationPage() {
   const [page, setPage] = useState(1)
 
   function loadApplications() {
-    if (!token) return
+    if (!token || (isGuardian && !studentProfileId)) return
 
     setLoading(true)
 
-    listMyLeaveApplications(token)
+    listMyLeaveApplications(token, studentProfileId ?? undefined)
       .then((result) => setApplications(result.data))
       .catch(() => setApplications([]))
       .finally(() => setLoading(false))
@@ -75,10 +77,11 @@ export default function LeaveApplicationPage() {
 
   // `loadApplications` isn't in the dependency array on purpose — it's a
   // plain inline function (new identity every render), not a dependency
-  // itself; token is the only thing this effect actually needs to react to.
+  // itself; token/studentProfileId/isGuardian are what this effect
+  // actually needs to react to.
   useEffect(() => {
     loadApplications()
-  }, [token])
+  }, [token, studentProfileId, isGuardian])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -134,6 +137,11 @@ export default function LeaveApplicationPage() {
     <section className="px-4 py-6 lg:px-6">
       <h1 className="text-2xl font-bold text-primary-800">{t['student.leaveApplication.title']}</h1>
 
+      {/* A guardian may view the leave history below, but submitting a
+         new application is a student-only action — the backend's own
+         store() endpoint already enforces this (StudentUser-only), this
+         is just the matching UI guard. */}
+      {!isGuardian && (
       <div className="mt-4 max-w-xl rounded-md bg-white p-5 shadow-sm">
         <h2 className="text-sm font-semibold text-primary-800">{t['student.leaveApplication.formTitle']}</h2>
 
@@ -190,6 +198,7 @@ export default function LeaveApplicationPage() {
           </button>
         </form>
       </div>
+      )}
 
       <h2 className="mt-10 text-lg font-semibold text-primary-800">{t['student.leaveApplication.historyTitle']}</h2>
 

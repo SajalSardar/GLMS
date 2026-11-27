@@ -18,6 +18,7 @@ import {
   subjectsForClass,
   type ChapterWithBook,
 } from '../../lib/resolveContent'
+import { useActiveStudentProfile } from '../../lib/useActiveStudentProfile'
 import { useLocale } from '../../lib/locale'
 import Pagination from './components/Pagination'
 import SearchableSelect from './components/SearchableSelect'
@@ -123,6 +124,7 @@ function chapterLabel(entry: ChapterWithBook): string {
 // branches, since the two contexts intentionally look nothing alike.
 export default function ExamsPage() {
   const { token, userId } = useAuth()
+  const { studentProfileId, isGuardian } = useActiveStudentProfile()
   const { t } = useLocale()
   const navigate = useNavigate()
   const location = useLocation()
@@ -173,7 +175,7 @@ export default function ExamsPage() {
   const [pastAttemptsPage, setPastAttemptsPage] = useState(1)
 
   useEffect(() => {
-    if (!token) {
+    if (!token || (isGuardian && !studentProfileId)) {
       setPastAttempts([])
       return
     }
@@ -184,7 +186,7 @@ export default function ExamsPage() {
     // submitting a new practice exam should show up here on the very next
     // visit to this page, same reasoning as ClassExamsPage's dashboard
     // fetch.
-    listMyExamAttempts({ perPage: 50 }, token)
+    listMyExamAttempts({ perPage: 50, studentProfileId: studentProfileId ?? undefined }, token)
       .then((result) => {
         if (active) setPastAttempts(result.data)
       })
@@ -195,7 +197,7 @@ export default function ExamsPage() {
     return () => {
       active = false
     }
-  }, [token])
+  }, [token, studentProfileId, isGuardian])
 
   useEffect(() => {
     allClasses()
@@ -349,6 +351,13 @@ export default function ExamsPage() {
 
       {sessionEndedMessage && <WarningAlert message={t['student.exams.sessionEnded']} />}
 
+      {/* A guardian may view their child's past practice-exam scores
+         (below), but starting a new attempt is a student-only action —
+         the backend already blocks it (parent_guardian has no
+         exam_attempts.create), this just keeps the UI from offering an
+         action that would fail. */}
+      {!isGuardian && (
+      <>
       <div className="mt-4 flex flex-wrap gap-3">
         {ownClassLocked ? (
           <span className="inline-flex h-11 items-center rounded-md bg-primary-50 px-3 text-sm font-semibold text-primary-700">
@@ -433,6 +442,8 @@ export default function ExamsPage() {
             {submitting ? t['student.practiceExam.submitting'] : t['student.practiceExam.submit']}
           </button>
         </>
+      )}
+      </>
       )}
 
       {pastAttempts.length > 0 && (
