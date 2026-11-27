@@ -112,7 +112,7 @@ function PrintableQuestionPaper({ paper }: { paper: QuestionPaper }) {
                     dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(item.question_text ?? '') }}
                   />
                   {item.question_type === 'mcq' && item.options && (
-                    <ol className="mt-1 ml-5 list-none">
+                    <ol className="mt-1 ml-5 grid grid-cols-2 gap-x-4 list-none">
                       {item.options.map((option, index) => (
                         <li key={index}>
                           {optionLetter(index, english)}) {option}
