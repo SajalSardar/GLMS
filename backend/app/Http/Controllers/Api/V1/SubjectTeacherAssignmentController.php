@@ -67,6 +67,7 @@ class SubjectTeacherAssignmentController extends Controller
 
         $this->assertSubjectConfiguredForSection($section, $subjectId);
         $this->assertTeacherBelongsToSchool($teacherId, $section->school_id);
+        $this->assertNoExistingAssignment($section, $subjectId);
 
         $attributes = [
             'subject_id' => $subjectId,
@@ -135,6 +136,22 @@ class SubjectTeacherAssignmentController extends Controller
         if (TeacherUser::where('id', $teacherId)->where('school_id', $schoolId)->doesntExist()) {
             throw ValidationException::withMessages([
                 'teacher_id' => ['The selected teacher does not belong to this section\'s school.'],
+            ]);
+        }
+    }
+
+    /**
+     * A second teacher can never be assigned to a subject a section
+     * already has a (live, non-trashed) assignment for — the table's own
+     * unique(section_id, subject_id) index already guarantees this at the
+     * DB layer, but without this check a conflicting submission would
+     * surface as a raw 500 (QueryException) instead of a clean 422.
+     */
+    private function assertNoExistingAssignment(Section $section, int $subjectId): void
+    {
+        if (SubjectTeacherAssignment::where('section_id', $section->id)->where('subject_id', $subjectId)->exists()) {
+            throw ValidationException::withMessages([
+                'subject_id' => ['A teacher is already assigned to this subject for this section.'],
             ]);
         }
     }
