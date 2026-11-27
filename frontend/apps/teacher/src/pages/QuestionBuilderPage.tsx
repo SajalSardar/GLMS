@@ -725,7 +725,7 @@ export default function QuestionBuilderPage() {
                   )}
                 </div>
 
-                <button type="button" onClick={loadBank} disabled={loadingBank} className={buttonPrimary}>
+                <button type="button" onClick={loadBank} disabled={loadingBank} className={`${buttonPrimary} self-start`}>
                   {t['teacher.questionBuilder.loadQuestions']}
                 </button>
               </div>
@@ -824,7 +824,7 @@ export default function QuestionBuilderPage() {
                   type="button"
                   onClick={handleSave}
                   disabled={saving || !schoolClassId || !subjectId || items.length === 0}
-                  className={buttonPrimary}
+                  className={`${buttonPrimary} self-start`}
                 >
                   {saving
                     ? isEditing
