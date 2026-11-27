@@ -39,7 +39,7 @@ const selectClass =
 const buttonPrimary =
   'inline-flex h-11 cursor-pointer items-center gap-1.5 rounded-md bg-primary-500 px-4 text-sm font-medium text-white transition-colors hover:bg-primary-400 disabled:cursor-not-allowed disabled:opacity-60'
 const buttonNeutral =
-  'inline-flex h-11 cursor-pointer items-center rounded-md border border-gray-200 px-4 text-sm font-medium text-gray-600 transition-colors hover:border-primary-500'
+  'inline-flex h-11 cursor-pointer items-center gap-1.5 rounded-md border border-gray-200 px-4 text-sm font-medium text-gray-600 transition-colors hover:border-primary-500'
 
 // Question text is authored as rich HTML in the management portal's
 // editor — Tailwind's preflight strips default list styling, so bullet/
@@ -166,13 +166,26 @@ export default function QuestionBuilderPage() {
   const isEditing = Boolean(paperId)
   const [loadingPaper, setLoadingPaper] = useState(isEditing)
 
+  // Two-step flow: Step 1 collects the paper's own details (title, class,
+  // version, subject, time/marks, instructions); Step 2 is the question
+  // bank search + drag-and-drop canvas, filtered by that SAME class/
+  // version/subject rather than a separate, independent set of bank
+  // filters — a teacher building a paper never wants bank questions from
+  // a different class/subject than the paper itself.
+  const [step, setStep] = useState<1 | 2>(1)
+
   const [classes, setClasses] = useState<SchoolClass[]>([])
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [versions, setVersions] = useState<Version[]>([])
 
-  const [filterClassId, setFilterClassId] = useState('')
-  const [filterVersionId, setFilterVersionId] = useState('')
-  const [filterSubjectId, setFilterSubjectId] = useState('')
+  const [title, setTitle] = useState('')
+  const [schoolClassId, setSchoolClassId] = useState('')
+  const [versionId, setVersionId] = useState('')
+  const [subjectId, setSubjectId] = useState('')
+  const [timeDuration, setTimeDuration] = useState('')
+  const [fullMarks, setFullMarks] = useState('')
+  const [instructions, setInstructions] = useState('')
+
   const [filterType, setFilterType] = useState('')
   const [filterMarks, setFilterMarks] = useState('')
   const [chapters, setChapters] = useState<Chapter[]>([])
@@ -180,12 +193,6 @@ export default function QuestionBuilderPage() {
   const [bankQuestions, setBankQuestions] = useState<AcademicQuestion[]>([])
   const [loadingBank, setLoadingBank] = useState(false)
 
-  const [title, setTitle] = useState('')
-  const [schoolClassId, setSchoolClassId] = useState('')
-  const [subjectId, setSubjectId] = useState('')
-  const [timeDuration, setTimeDuration] = useState('')
-  const [fullMarks, setFullMarks] = useState('')
-  const [instructions, setInstructions] = useState('')
   const [items, setItems] = useState<CanvasItem[]>([])
   const [headingDraft, setHeadingDraft] = useState('')
   const [addingHeading, setAddingHeading] = useState(false)
@@ -196,12 +203,12 @@ export default function QuestionBuilderPage() {
     listSubjects({ perPage: 200 }).then((result) => setSubjects(result.data)).catch(() => setSubjects([]))
 
     // Defaults to Bangla (falling back to whatever version sorts first)
-    // so the bank's version filter starts on the medium most schools use,
-    // while staying a normal, changeable <select> — not locked to it.
+    // so Step 1 starts on the medium most schools use, while staying a
+    // normal, changeable <select> — not locked to it.
     listVersions({ perPage: 10 })
       .then((result) => {
         setVersions(result.data)
-        setFilterVersionId((previous) => previous || String(result.data.find((version) => version.name === 'Bangla')?.id ?? result.data[0]?.id ?? ''))
+        setVersionId((previous) => previous || String(result.data.find((version) => version.name === 'Bangla')?.id ?? result.data[0]?.id ?? ''))
       })
       .catch(() => setVersions([]))
   }, [])
@@ -216,14 +223,14 @@ export default function QuestionBuilderPage() {
   useEffect(() => {
     setSelectedChapterIds(new Set())
 
-    if (!filterClassId || !filterVersionId || !filterSubjectId) {
+    if (!schoolClassId || !versionId || !subjectId) {
       setChapters([])
       return
     }
 
     let active = true
 
-    listChapters({ classId: Number(filterClassId), versionId: Number(filterVersionId), subjectId: Number(filterSubjectId) })
+    listChapters({ classId: Number(schoolClassId), versionId: Number(versionId), subjectId: Number(subjectId) })
       .then((result) => {
         if (active) setChapters(result.data)
       })
@@ -234,7 +241,7 @@ export default function QuestionBuilderPage() {
     return () => {
       active = false
     }
-  }, [filterClassId, filterVersionId, filterSubjectId])
+  }, [schoolClassId, versionId, subjectId])
 
   function toggleChapter(chapterId: number) {
     setSelectedChapterIds((previous) => {
@@ -249,9 +256,14 @@ export default function QuestionBuilderPage() {
   }
 
   // Edit mode: populate every field (including the canvas) from the
-  // existing paper. QuestionPaperItemResource's nested academic_question
-  // already matches CanvasQuestionSummary exactly — no reshaping needed
-  // beyond wrapping each item with a fresh client-side uid.
+  // existing paper, then jump straight to Step 2 — re-opening an existing
+  // paper is almost always to adjust its questions, not its details;
+  // Back still reaches Step 1 to change them. QuestionPaperItemResource's
+  // nested academic_question already matches CanvasQuestionSummary
+  // exactly — no reshaping needed beyond wrapping each item with a fresh
+  // client-side uid. version_id isn't stored on the paper itself (see
+  // QuestionPaperPayload), so versionId keeps whatever Step 1's own
+  // mount effect already defaulted it to.
   useEffect(() => {
     if (!token || !paperId) return
 
@@ -272,6 +284,7 @@ export default function QuestionBuilderPage() {
             headingText: item.heading_text ?? undefined,
           })),
         )
+        setStep(2)
       })
       .catch(() => showToast({ type: 'error', message: t['teacher.questionBuilder.saveError'] }))
       .finally(() => setLoadingPaper(false))
@@ -282,9 +295,9 @@ export default function QuestionBuilderPage() {
 
     listAcademicQuestions(
       {
-        schoolClassId: filterClassId ? Number(filterClassId) : undefined,
-        versionId: filterVersionId ? Number(filterVersionId) : undefined,
-        subjectId: filterSubjectId ? Number(filterSubjectId) : undefined,
+        schoolClassId: schoolClassId ? Number(schoolClassId) : undefined,
+        versionId: versionId ? Number(versionId) : undefined,
+        subjectId: subjectId ? Number(subjectId) : undefined,
         questionType: (filterType || undefined) as AcademicQuestionType | undefined,
         marks: filterMarks ? Number(filterMarks) : undefined,
       },
@@ -335,6 +348,8 @@ export default function QuestionBuilderPage() {
     0,
   )
 
+  const detailsComplete = Boolean(schoolClassId && versionId && subjectId)
+
   async function handleSave() {
     if (!token || !schoolClassId || !subjectId || items.length === 0) return
 
@@ -370,6 +385,7 @@ export default function QuestionBuilderPage() {
       setFullMarks('')
       setInstructions('')
       setItems([])
+      setStep(1)
     } catch (caught) {
       showToast({ type: 'error', message: caught instanceof ApiError ? caught.message : t['teacher.questionBuilder.saveError'] })
     } finally {
@@ -381,6 +397,9 @@ export default function QuestionBuilderPage() {
     return <p className="px-4 py-6 text-sm text-gray-500 lg:px-6">{t['teacher.questionBuilder.loading']}</p>
   }
 
+  const selectedClassName = classes.find((schoolClass) => String(schoolClass.id) === schoolClassId)?.name
+  const selectedSubjectName = subjects.find((subject) => String(subject.id) === subjectId)?.name
+
   return (
     <section className="flex flex-col gap-4 px-4 py-6 lg:px-6">
       <style>{richQuestionTextStyle}</style>
@@ -388,193 +407,204 @@ export default function QuestionBuilderPage() {
         {isEditing ? t['teacher.questionBuilder.editTitle'] : t['teacher.questionBuilder.title']}
       </h1>
 
-      <DndContext onDragEnd={handleDragEnd}>
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <div className="flex flex-col gap-3 rounded-md bg-white p-4 shadow-sm">
-            <h2 className="text-sm font-semibold text-primary-800">{t['teacher.questionBuilder.bankTitle']}</h2>
+      {step === 1 && (
+        <div className="mx-auto flex w-full max-w-xl flex-col gap-3 rounded-md bg-white p-5 shadow-sm">
+          <h2 className="text-sm font-semibold text-primary-800">{t['teacher.questionBuilder.detailsStepTitle']}</h2>
 
-            <div className="flex flex-wrap gap-2">
-              <select className={selectClass} value={filterClassId} onChange={(event) => setFilterClassId(event.target.value)}>
-                <option value="">{t['teacher.questionBuilder.selectClass']}</option>
-                {classes.map((schoolClass) => (
-                  <option key={schoolClass.id} value={schoolClass.id}>
-                    {schoolClass.name}
-                  </option>
-                ))}
-              </select>
-              <select className={selectClass} value={filterVersionId} onChange={(event) => setFilterVersionId(event.target.value)}>
-                <option value="">{t['teacher.questionBuilder.selectVersion']}</option>
-                {versions.map((version) => (
-                  <option key={version.id} value={version.id}>
-                    {version.name}
-                  </option>
-                ))}
-              </select>
-              <select className={selectClass} value={filterSubjectId} onChange={(event) => setFilterSubjectId(event.target.value)}>
-                <option value="">{t['teacher.questionBuilder.selectSubject']}</option>
-                {subjects.map((subject) => (
-                  <option key={subject.id} value={subject.id}>
-                    {subject.name}
-                  </option>
-                ))}
-              </select>
-              <select className={selectClass} value={filterType} onChange={(event) => setFilterType(event.target.value)}>
-                <option value="">{t['teacher.questionBuilder.allTypes']}</option>
-                <option value="cq">{t['teacher.questionBuilder.cqLabel']}</option>
-                <option value="mcq">{t['teacher.questionBuilder.mcqLabel']}</option>
-              </select>
-              <input
-                type="number"
-                min={1}
-                placeholder={t['teacher.questionBuilder.marksFilter']}
-                className={`${selectClass} w-28`}
-                value={filterMarks}
-                onChange={(event) => setFilterMarks(event.target.value)}
-              />
-              <button type="button" onClick={loadBank} disabled={loadingBank} className={buttonPrimary}>
-                {t['teacher.questionBuilder.loadQuestions']}
-              </button>
-            </div>
+          <input
+            className={selectClass}
+            placeholder={t['teacher.questionBuilder.titleLabel']}
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+          />
 
-            {filterClassId && filterVersionId && filterSubjectId && (
-              <div className="flex flex-col gap-1.5 rounded-md border border-gray-200 p-3">
-                <span className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
-                  {t['teacher.questionBuilder.chaptersLabel']}
-                </span>
-                {chapters.length === 0 ? (
-                  <p className="text-sm text-gray-400">{t['teacher.questionBuilder.noChapters']}</p>
-                ) : (
-                  <div className="flex max-h-32 flex-col gap-1 overflow-y-auto">
-                    {chapters.map((chapter) => (
-                      <label key={chapter.id} className="flex cursor-pointer items-center gap-2 text-sm text-gray-700">
-                        <input
-                          type="checkbox"
-                          checked={selectedChapterIds.has(chapter.id)}
-                          onChange={() => toggleChapter(chapter.id)}
-                          className="h-4 w-4 cursor-pointer accent-primary-500"
-                        />
-                        {chapter.name}
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div className="flex flex-col gap-2">
-              {loadingBank && <p className="text-sm text-gray-500">{t['teacher.questionBuilder.loading']}</p>}
-              {!loadingBank && bankQuestions.length === 0 && (
-                <p className="text-sm text-gray-500">{t['teacher.questionBuilder.empty']}</p>
-              )}
-              {bankQuestions.map((question) => (
-                <BankQuestionCard key={question.id} question={question} />
+          <div className="flex gap-2">
+            <select className={selectClass} value={schoolClassId} onChange={(event) => setSchoolClassId(event.target.value)}>
+              <option value="">{t['teacher.questionBuilder.selectClass']}</option>
+              {classes.map((schoolClass) => (
+                <option key={schoolClass.id} value={schoolClass.id}>
+                  {schoolClass.name}
+                </option>
               ))}
-            </div>
+            </select>
+            <select className={selectClass} value={versionId} onChange={(event) => setVersionId(event.target.value)}>
+              <option value="">{t['teacher.questionBuilder.selectVersion']}</option>
+              {versions.map((version) => (
+                <option key={version.id} value={version.id}>
+                  {version.name}
+                </option>
+              ))}
+            </select>
           </div>
 
-          <div className="flex flex-col gap-3 rounded-md bg-white p-4 shadow-sm">
-            <h2 className="text-sm font-semibold text-primary-800">{t['teacher.questionBuilder.paperTitle']}</h2>
+          <select className={selectClass} value={subjectId} onChange={(event) => setSubjectId(event.target.value)}>
+            <option value="">{t['teacher.questionBuilder.selectSubject']}</option>
+            {subjects.map((subject) => (
+              <option key={subject.id} value={subject.id}>
+                {subject.name}
+              </option>
+            ))}
+          </select>
 
+          <div className="flex gap-2">
             <input
+              type="number"
+              min={1}
+              placeholder={t['teacher.questionBuilder.timeDuration']}
               className={selectClass}
-              placeholder={t['teacher.questionBuilder.titleLabel']}
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
+              value={timeDuration}
+              onChange={(event) => setTimeDuration(event.target.value)}
             />
-
-            <div className="flex gap-2">
-              <select className={selectClass} value={schoolClassId} onChange={(event) => setSchoolClassId(event.target.value)}>
-                <option value="">{t['teacher.questionBuilder.selectClass']}</option>
-                {classes.map((schoolClass) => (
-                  <option key={schoolClass.id} value={schoolClass.id}>
-                    {schoolClass.name}
-                  </option>
-                ))}
-              </select>
-              <select className={selectClass} value={subjectId} onChange={(event) => setSubjectId(event.target.value)}>
-                <option value="">{t['teacher.questionBuilder.selectSubject']}</option>
-                {subjects.map((subject) => (
-                  <option key={subject.id} value={subject.id}>
-                    {subject.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex gap-2">
-              <input
-                type="number"
-                min={1}
-                placeholder={t['teacher.questionBuilder.timeDuration']}
-                className={selectClass}
-                value={timeDuration}
-                onChange={(event) => setTimeDuration(event.target.value)}
-              />
-              <input
-                type="number"
-                min={1}
-                placeholder={t['teacher.questionBuilder.fullMarks']}
-                className={selectClass}
-                value={fullMarks}
-                onChange={(event) => setFullMarks(event.target.value)}
-              />
-            </div>
-
-            <textarea
-              className={`${selectClass} h-auto py-2`}
-              rows={2}
-              placeholder={t['teacher.questionBuilder.instructions']}
-              value={instructions}
-              onChange={(event) => setInstructions(event.target.value)}
+            <input
+              type="number"
+              min={1}
+              placeholder={t['teacher.questionBuilder.fullMarks']}
+              className={selectClass}
+              value={fullMarks}
+              onChange={(event) => setFullMarks(event.target.value)}
             />
+          </div>
 
-            <CanvasDropZone items={items} onRemove={(uid) => setItems((prev) => removeCanvasItem(prev, uid))} />
+          <textarea
+            className={`${selectClass} h-auto py-2`}
+            rows={2}
+            placeholder={t['teacher.questionBuilder.instructions']}
+            value={instructions}
+            onChange={(event) => setInstructions(event.target.value)}
+          />
 
-            {addingHeading ? (
-              <div className="flex gap-2">
-                <input
-                  className={selectClass}
-                  placeholder={t['teacher.questionBuilder.headingPlaceholder']}
-                  value={headingDraft}
-                  onChange={(event) => setHeadingDraft(event.target.value)}
-                />
-                <button type="button" onClick={confirmHeading} className={buttonPrimary}>
-                  {t['teacher.questionBuilder.addHeading']}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAddingHeading(false)
-                    setHeadingDraft('')
-                  }}
-                  className={buttonNeutral}
-                >
-                  {t['teacher.questionBuilder.cancelHeading']}
-                </button>
-              </div>
-            ) : (
-              <button type="button" onClick={() => setAddingHeading(true)} className={buttonNeutral}>
-                {t['teacher.questionBuilder.insertHeading']}
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={saving || !schoolClassId || !subjectId || items.length === 0}
-              className={buttonPrimary}
-            >
-              {saving
-                ? isEditing
-                  ? t['teacher.questionBuilder.updating']
-                  : t['teacher.questionBuilder.saving']
-                : isEditing
-                  ? t['teacher.questionBuilder.update']
-                  : t['teacher.questionBuilder.save']}
+          <div className="flex justify-end">
+            <button type="button" onClick={() => setStep(2)} disabled={!detailsComplete} className={buttonPrimary}>
+              {t['teacher.questionBuilder.next']}
             </button>
           </div>
         </div>
-      </DndContext>
+      )}
+
+      {step === 2 && (
+        <>
+          <div className="flex flex-wrap items-center gap-3">
+            <button type="button" onClick={() => setStep(1)} className={buttonNeutral}>
+              <span className="material-symbols-outlined !text-[18px] leading-none">arrow_back</span>
+              {t['teacher.questionBuilder.back']}
+            </button>
+            <p className="text-sm text-gray-500">
+              {title || t['teacher.questionBuilder.titleLabel']}
+              {selectedClassName && ` · ${selectedClassName}`}
+              {selectedSubjectName && ` · ${selectedSubjectName}`}
+            </p>
+          </div>
+
+          <DndContext onDragEnd={handleDragEnd}>
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <div className="flex flex-col gap-3 rounded-md bg-white p-4 shadow-sm">
+                <h2 className="text-sm font-semibold text-primary-800">{t['teacher.questionBuilder.bankTitle']}</h2>
+
+                <div className="flex flex-wrap gap-2">
+                  <select className={selectClass} value={filterType} onChange={(event) => setFilterType(event.target.value)}>
+                    <option value="">{t['teacher.questionBuilder.allTypes']}</option>
+                    <option value="cq">{t['teacher.questionBuilder.cqLabel']}</option>
+                    <option value="mcq">{t['teacher.questionBuilder.mcqLabel']}</option>
+                  </select>
+                  <input
+                    type="number"
+                    min={1}
+                    placeholder={t['teacher.questionBuilder.marksFilter']}
+                    className={`${selectClass} w-28`}
+                    value={filterMarks}
+                    onChange={(event) => setFilterMarks(event.target.value)}
+                  />
+                  <button type="button" onClick={loadBank} disabled={loadingBank} className={buttonPrimary}>
+                    {t['teacher.questionBuilder.loadQuestions']}
+                  </button>
+                </div>
+
+                <div className="flex flex-col gap-1.5 rounded-md border border-gray-200 p-3">
+                  <span className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
+                    {t['teacher.questionBuilder.chaptersLabel']}
+                  </span>
+                  {chapters.length === 0 ? (
+                    <p className="text-sm text-gray-400">{t['teacher.questionBuilder.noChapters']}</p>
+                  ) : (
+                    <div className="flex max-h-32 flex-col gap-1 overflow-y-auto">
+                      {chapters.map((chapter) => (
+                        <label key={chapter.id} className="flex cursor-pointer items-center gap-2 text-sm text-gray-700">
+                          <input
+                            type="checkbox"
+                            checked={selectedChapterIds.has(chapter.id)}
+                            onChange={() => toggleChapter(chapter.id)}
+                            className="h-4 w-4 cursor-pointer accent-primary-500"
+                          />
+                          {chapter.name}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  {loadingBank && <p className="text-sm text-gray-500">{t['teacher.questionBuilder.loading']}</p>}
+                  {!loadingBank && bankQuestions.length === 0 && (
+                    <p className="text-sm text-gray-500">{t['teacher.questionBuilder.empty']}</p>
+                  )}
+                  {bankQuestions.map((question) => (
+                    <BankQuestionCard key={question.id} question={question} />
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 rounded-md bg-white p-4 shadow-sm">
+                <h2 className="text-sm font-semibold text-primary-800">{t['teacher.questionBuilder.paperTitle']}</h2>
+
+                <CanvasDropZone items={items} onRemove={(uid) => setItems((prev) => removeCanvasItem(prev, uid))} />
+
+                {addingHeading ? (
+                  <div className="flex gap-2">
+                    <input
+                      className={selectClass}
+                      placeholder={t['teacher.questionBuilder.headingPlaceholder']}
+                      value={headingDraft}
+                      onChange={(event) => setHeadingDraft(event.target.value)}
+                    />
+                    <button type="button" onClick={confirmHeading} className={buttonPrimary}>
+                      {t['teacher.questionBuilder.addHeading']}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAddingHeading(false)
+                        setHeadingDraft('')
+                      }}
+                      className={buttonNeutral}
+                    >
+                      {t['teacher.questionBuilder.cancelHeading']}
+                    </button>
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => setAddingHeading(true)} className={buttonNeutral}>
+                    {t['teacher.questionBuilder.insertHeading']}
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saving || !schoolClassId || !subjectId || items.length === 0}
+                  className={buttonPrimary}
+                >
+                  {saving
+                    ? isEditing
+                      ? t['teacher.questionBuilder.updating']
+                      : t['teacher.questionBuilder.saving']
+                    : isEditing
+                      ? t['teacher.questionBuilder.update']
+                      : t['teacher.questionBuilder.save']}
+                </button>
+              </div>
+            </div>
+          </DndContext>
+        </>
+      )}
 
       <ToastViewport toast={toast} />
     </section>
