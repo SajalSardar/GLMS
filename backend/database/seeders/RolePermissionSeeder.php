@@ -142,6 +142,7 @@ class RolePermissionSeeder extends Seeder
                 'academic_exam_terms.view', 'academic_grade_configures.view', 'academic_subject_mark_configures.view',
                 'versions.view', 'class_versions.view', 'shifts.view', 'sections.view',
                 'student_profiles.view', 'guardians.view', 'attendances.view',
+                'academic_exam_marks.view', 'student_leave_applications.view',
             ],
 
             'it_admin' => [

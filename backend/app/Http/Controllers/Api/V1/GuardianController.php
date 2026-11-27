@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\StoreGuardianRequest;
 use App\Http\Requests\Api\V1\UpdateGuardianRequest;
 use App\Http\Resources\Api\V1\GuardianResource;
+use App\Http\Resources\Api\V1\StudentProfileResource;
 use App\Models\Guardian;
+use App\Models\GuardianUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -29,6 +31,28 @@ class GuardianController extends Controller
             ->paginate($request->integer('per_page', 15));
 
         return GuardianResource::collection($guardians);
+    }
+
+    /**
+     * Every child linked to the signed-in guardian — the Student Portal's
+     * post-login child picker (and the data source for its "switch
+     * child" control) reads this. Deliberately not filtered/paginated:
+     * a guardian's own linked-children list is always small.
+     */
+    public function myChildren(Request $request): AnonymousResourceCollection
+    {
+        $actor = $request->user();
+        abort_unless($actor instanceof GuardianUser, 403);
+
+        $guardian = $actor->profile;
+
+        if ($guardian === null) {
+            return StudentProfileResource::collection(collect());
+        }
+
+        return StudentProfileResource::collection(
+            $guardian->students()->with(['user', 'schoolClass', 'section'])->get()
+        );
     }
 
     /**

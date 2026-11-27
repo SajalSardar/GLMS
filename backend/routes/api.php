@@ -288,6 +288,7 @@ Route::prefix('v1')->group(function (): void {
         Route::apiResource('academic-questions', AcademicQuestionController::class)->only(['index', 'store', 'update', 'destroy']);
         Route::apiResource('question-papers', QuestionPaperController::class)->only(['index', 'show', 'store', 'update', 'destroy']);
 
+        Route::get('/guardians/me/children', [GuardianController::class, 'myChildren']);
         Route::apiResource('guardians', GuardianController::class);
 
         Route::get('/dashboard/summary', [DashboardController::class, 'summary']);

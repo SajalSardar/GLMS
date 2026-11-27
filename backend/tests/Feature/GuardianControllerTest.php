@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\Guardian;
 use App\Models\GuardianUser;
+use App\Models\StudentProfile;
+use App\Models\StudentUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\CreatesAuthorizedActors;
 use Tests\TestCase;
@@ -224,5 +226,48 @@ class GuardianControllerTest extends TestCase
             'present_address' => 'Present Address',
             'deleted_at' => null,
         ]);
+    }
+
+    public function test_my_children_returns_every_student_linked_to_the_guardian(): void
+    {
+        $guardianUser = GuardianUser::factory()->create();
+        $guardian = Guardian::create(['user_id' => $guardianUser->id, 'name' => 'Guardian', 'phone' => '0100000030']);
+
+        $childA = StudentUser::factory()->create();
+        $profileA = StudentProfile::create(['user_id' => $childA->id, 'roll_number' => '1']);
+
+        $childB = StudentUser::factory()->create();
+        $profileB = StudentProfile::create(['user_id' => $childB->id, 'roll_number' => '2']);
+
+        $guardian->students()->attach($profileA->id, ['relation' => 'father', 'is_primary' => true]);
+        $guardian->students()->attach($profileB->id, ['relation' => 'father', 'is_primary' => false]);
+
+        $response = $this->actingAs($guardianUser, 'sanctum')
+            ->getJson('/api/v1/guardians/me/children')
+            ->assertOk();
+
+        $response->assertJsonCount(2, 'data');
+        $ids = collect($response->json('data'))->pluck('id');
+        $this->assertTrue($ids->contains($profileA->id));
+        $this->assertTrue($ids->contains($profileB->id));
+    }
+
+    public function test_my_children_is_empty_for_a_guardian_with_no_profile(): void
+    {
+        $guardianUser = GuardianUser::factory()->create();
+
+        $this->actingAs($guardianUser, 'sanctum')
+            ->getJson('/api/v1/guardians/me/children')
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+    }
+
+    public function test_my_children_is_forbidden_for_a_non_guardian_actor(): void
+    {
+        $actor = $this->actorWithPermissions([]);
+
+        $this->actingAs($actor, 'sanctum')
+            ->getJson('/api/v1/guardians/me/children')
+            ->assertForbidden();
     }
 }
