@@ -11,11 +11,13 @@ import {
   listAcademicQuestions,
   listClasses,
   listSubjects,
+  listVersions,
   updateQuestionPaper,
   type AcademicQuestion,
   type AcademicQuestionType,
   type SchoolClass,
   type Subject,
+  type Version,
 } from '@ttla/api-client'
 import { useAuth } from '@ttla/auth'
 import { getCommonStrings } from '@ttla/i18n'
@@ -164,8 +166,10 @@ export default function QuestionBuilderPage() {
 
   const [classes, setClasses] = useState<SchoolClass[]>([])
   const [subjects, setSubjects] = useState<Subject[]>([])
+  const [versions, setVersions] = useState<Version[]>([])
 
   const [filterClassId, setFilterClassId] = useState('')
+  const [filterVersionId, setFilterVersionId] = useState('')
   const [filterSubjectId, setFilterSubjectId] = useState('')
   const [filterType, setFilterType] = useState('')
   const [filterMarks, setFilterMarks] = useState('')
@@ -186,6 +190,16 @@ export default function QuestionBuilderPage() {
   useEffect(() => {
     listClasses({ perPage: 500 }).then((result) => setClasses(result.data)).catch(() => setClasses([]))
     listSubjects({ perPage: 200 }).then((result) => setSubjects(result.data)).catch(() => setSubjects([]))
+
+    // Defaults to Bangla (falling back to whatever version sorts first)
+    // so the bank's version filter starts on the medium most schools use,
+    // while staying a normal, changeable <select> — not locked to it.
+    listVersions({ perPage: 10 })
+      .then((result) => {
+        setVersions(result.data)
+        setFilterVersionId((previous) => previous || String(result.data.find((version) => version.name === 'Bangla')?.id ?? result.data[0]?.id ?? ''))
+      })
+      .catch(() => setVersions([]))
   }, [])
 
   // Edit mode: populate every field (including the canvas) from the
@@ -223,6 +237,7 @@ export default function QuestionBuilderPage() {
     listAcademicQuestions(
       {
         schoolClassId: filterClassId ? Number(filterClassId) : undefined,
+        versionId: filterVersionId ? Number(filterVersionId) : undefined,
         subjectId: filterSubjectId ? Number(filterSubjectId) : undefined,
         questionType: (filterType || undefined) as AcademicQuestionType | undefined,
         marks: filterMarks ? Number(filterMarks) : undefined,
@@ -330,6 +345,14 @@ export default function QuestionBuilderPage() {
                 {classes.map((schoolClass) => (
                   <option key={schoolClass.id} value={schoolClass.id}>
                     {schoolClass.name}
+                  </option>
+                ))}
+              </select>
+              <select className={selectClass} value={filterVersionId} onChange={(event) => setFilterVersionId(event.target.value)}>
+                <option value="">{t['teacher.questionBuilder.selectVersion']}</option>
+                {versions.map((version) => (
+                  <option key={version.id} value={version.id}>
+                    {version.bn_name ?? version.name}
                   </option>
                 ))}
               </select>

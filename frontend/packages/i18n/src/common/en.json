@@ -1288,6 +1288,7 @@
   "teacher.nav.myQuestionPapers": "My Question Papers",
   "teacher.questionBuilder.title": "Question Builder",
   "teacher.questionBuilder.selectClass": "Select class",
+  "teacher.questionBuilder.selectVersion": "Select version",
   "teacher.questionBuilder.selectSubject": "Select subject",
   "teacher.questionBuilder.selectType": "Select type",
   "teacher.questionBuilder.allTypes": "All types",

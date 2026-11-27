@@ -1288,6 +1288,7 @@
   "teacher.nav.myQuestionPapers": "আমার প্রশ্নপত্র সমূহ",
   "teacher.questionBuilder.title": "প্রশ্নপত্র তৈরি করুন",
   "teacher.questionBuilder.selectClass": "শ্রেণি নির্বাচন করুন",
+  "teacher.questionBuilder.selectVersion": "ভার্সন নির্বাচন করুন",
   "teacher.questionBuilder.selectSubject": "বিষয় নির্বাচন করুন",
   "teacher.questionBuilder.selectType": "ধরন নির্বাচন করুন",
   "teacher.questionBuilder.allTypes": "সকল ধরন",
