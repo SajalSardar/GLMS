@@ -333,7 +333,8 @@
   "landing.hero.illustrationCaption1": "On the right path",
   "landing.hero.illustrationCaption2": "to the right future",
 
-  "landing.login.title": "Sign in to your account",
+  "landing.login.brandFull": "Teacher Training & Learning Analytics Platform",
+  "landing.login.portalName": "Student Portal",
   "landing.login.subtitle": "Use the student ID your school gave you",
   "landing.login.studentId": "Student ID",
   "landing.login.studentIdPlaceholder": "e.g. STU-10234",

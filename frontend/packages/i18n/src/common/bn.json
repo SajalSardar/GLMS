@@ -333,7 +333,8 @@
   "landing.hero.illustrationCaption1": "শেখার সঠিক পথে",
   "landing.hero.illustrationCaption2": "সঠিক ভবিষ্যৎ",
 
-  "landing.login.title": "তোমার অ্যাকাউন্টে প্রবেশ করো",
+  "landing.login.brandFull": "টিচার ট্রেইনিং অ্যান্ড লার্নিং অ্যানালিটিক্স প্ল্যাটফর্ম",
+  "landing.login.portalName": "শিক্ষার্থী পোর্টাল",
   "landing.login.subtitle": "স্কুল থেকে পাওয়া স্টুডেন্ট আইডি দিয়ে লগইন করো",
   "landing.login.studentId": "স্টুডেন্ট আইডি",
   "landing.login.studentIdPlaceholder": "যেমনঃ STU-10234",

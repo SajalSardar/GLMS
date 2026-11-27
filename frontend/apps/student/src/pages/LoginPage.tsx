@@ -86,8 +86,12 @@ function LoginCard() {
       onSubmit={handleSubmit}
       noValidate
     >
-      <p className="m-0 text-[1.2rem] font-semibold font-display">{t['landing.login.title']}</p>
-      <p className="mt-[0.35rem] mb-5 text-[0.9rem] text-[color:var(--color-muted)]">{t['landing.login.subtitle']}</p>
+      <img className="mx-auto h-16 w-16 object-contain" src="/logo.webp" alt="" aria-hidden="true" />
+      <p className="m-0 mt-3 text-center text-[0.78rem] text-[color:var(--color-muted)]">{t['landing.login.brandFull']}</p>
+      <h1 className="mt-[0.3rem] text-center text-[1.45rem] font-bold font-display text-[color:var(--color-primary-dark)]">
+        {t['landing.login.portalName']}
+      </h1>
+      <p className="mt-[0.5rem] mb-5 text-center text-[0.9rem] text-[color:var(--color-muted)]">{t['landing.login.subtitle']}</p>
 
       <label className="mt-[0.9rem] mb-[0.4rem] block text-[0.85rem] font-medium" htmlFor={studentIdFieldId}>
         {t['landing.login.studentId']}

@@ -1,0 +1,74 @@
+.tch-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  padding: 2rem 1.25rem;
+  background:
+    radial-gradient(circle at 15% 15%, var(--color-primary-50), transparent 45%),
+    radial-gradient(circle at 85% 85%, var(--color-primary-50), transparent 45%),
+    #fff;
+}
+
+.tch-card {
+  width: 100%;
+  max-width: 26rem;
+  background: #fff;
+  border: 1px solid var(--color-primary-100);
+  border-radius: 1.1rem;
+  box-shadow: 0 22px 48px -28px rgba(4, 106, 56, 0.4);
+  padding: 2rem 1.75rem 1.75rem;
+  text-align: center;
+  position: relative;
+}
+
+.tch-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  border-radius: 1.1rem 1.1rem 0 0;
+  background: linear-gradient(90deg, var(--color-primary-500), var(--color-danger-500));
+}
+
+.tch-card__seal {
+  width: 4rem;
+  height: 4rem;
+  object-fit: contain;
+  margin: 0 auto 0.75rem;
+}
+
+.tch-card__brand {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--color-gray-500);
+}
+
+.tch-card__portal {
+  margin: 0.3rem 0 0;
+  font-size: 1.45rem;
+  font-weight: 700;
+  color: var(--color-primary-700);
+}
+
+.tch-card__subtitle {
+  margin: 0.5rem 0 1.5rem;
+  font-size: 0.88rem;
+  color: var(--color-gray-500);
+}
+
+.tch-card__help {
+  margin: 1.1rem 0 0;
+  font-size: 0.78rem;
+  color: var(--color-gray-500);
+  text-align: center;
+}
+
+.tch-page__footer {
+  font-size: 0.78rem;
+  color: var(--color-gray-500);
+  text-align: center;
+  max-width: 26rem;
+}

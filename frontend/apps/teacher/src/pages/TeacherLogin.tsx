@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ApiError, teacherLogin } from '@ttla/api-client'
 import { useAuth } from '@ttla/auth'
 import { getCommonStrings } from '@ttla/i18n'
+import './TeacherLogin.css'
 
 const t = getCommonStrings('en')
 const currentYear = new Date().getFullYear()
@@ -66,13 +67,14 @@ export default function TeacherLogin() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-gray-50 px-4 py-10">
-      <div className="w-full max-w-sm rounded-lg bg-white p-7 shadow-sm">
-        <p className="text-center text-xs font-medium text-gray-500">{t['teacher.login.brandFull']}</p>
-        <h1 className="mt-1 text-center text-xl font-bold text-primary-700">{t['teacher.login.portalName']}</h1>
-        <p className="mt-1 text-center text-sm text-gray-500">{t['teacher.login.subtitle']}</p>
+    <div className="tch-page">
+      <div className="tch-card">
+        <img className="tch-card__seal" src="/logo.webp" alt="" aria-hidden="true" />
+        <p className="tch-card__brand">{t['teacher.login.brandFull']}</p>
+        <h1 className="tch-card__portal">{t['teacher.login.portalName']}</h1>
+        <p className="tch-card__subtitle">{t['teacher.login.subtitle']}</p>
 
-        <form className="mt-6 flex flex-col gap-4" onSubmit={handleSubmit} noValidate>
+        <form className="flex flex-col gap-4 text-left" onSubmit={handleSubmit} noValidate>
           <label className="flex flex-col gap-1.5 text-sm" htmlFor={loginFieldId}>
             <span className="font-medium text-gray-700">{t['teacher.login.loginLabel']}</span>
             <input
@@ -126,10 +128,10 @@ export default function TeacherLogin() {
           </button>
         </form>
 
-        <p className="mt-5 text-center text-xs text-gray-400">{t['teacher.login.helpNote']}</p>
+        <p className="tch-card__help">{t['teacher.login.helpNote']}</p>
       </div>
 
-      <p className="text-xs text-gray-400">
+      <p className="tch-page__footer">
         {t['teacher.login.footerNote']} © {currentYear} {t['teacher.login.brandFull']}
       </p>
     </div>
