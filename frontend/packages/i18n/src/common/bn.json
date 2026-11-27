@@ -341,7 +341,9 @@
 
   "landing.login.brandFull": "টিচার ট্রেইনিং অ্যান্ড লার্নিং অ্যানালিটিক্স প্ল্যাটফর্ম",
   "landing.login.portalName": "শিক্ষার্থী পোর্টাল",
+  "landing.login.portalNameGuardian": "অভিভাবক পোর্টাল",
   "landing.login.subtitle": "স্কুল থেকে পাওয়া স্টুডেন্ট আইডি দিয়ে লগইন করো",
+  "landing.login.subtitleGuardian": "আপনার ফোন নম্বর বা ইমেইল দিয়ে লগইন করুন",
   "landing.login.modeStudent": "শিক্ষার্থী",
   "landing.login.modeGuardian": "অভিভাবক",
   "landing.login.studentId": "স্টুডেন্ট আইডি",

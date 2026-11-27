@@ -341,7 +341,9 @@
 
   "landing.login.brandFull": "Teacher Training & Learning Analytics Platform",
   "landing.login.portalName": "Student Portal",
+  "landing.login.portalNameGuardian": "Guardian Portal",
   "landing.login.subtitle": "Use the student ID your school gave you",
+  "landing.login.subtitleGuardian": "Log in with your phone number or email",
   "landing.login.modeStudent": "Student",
   "landing.login.modeGuardian": "Guardian",
   "landing.login.studentId": "Student ID",

@@ -104,9 +104,11 @@ function LoginCard() {
       <img className="mx-auto h-16 w-16 object-contain" src="/logo.webp" alt="" aria-hidden="true" />
       <p className="m-0 mt-3 text-center text-[0.78rem] text-[color:var(--color-muted)]">{t['landing.login.brandFull']}</p>
       <h1 className="mt-[0.3rem] text-center text-[1.45rem] font-bold font-display text-[color:var(--color-primary-dark)]">
-        {t['landing.login.portalName']}
+        {mode === 'guardian' ? t['landing.login.portalNameGuardian'] : t['landing.login.portalName']}
       </h1>
-      <p className="mt-[0.5rem] mb-5 text-center text-[0.9rem] text-[color:var(--color-muted)]">{t['landing.login.subtitle']}</p>
+      <p className="mt-[0.5rem] mb-5 text-center text-[0.9rem] text-[color:var(--color-muted)]">
+        {mode === 'guardian' ? t['landing.login.subtitleGuardian'] : t['landing.login.subtitle']}
+      </p>
 
       <div
         role="tablist"
