@@ -406,7 +406,7 @@ export default function QuestionBuilderPage() {
                 <option value="">{t['teacher.questionBuilder.selectVersion']}</option>
                 {versions.map((version) => (
                   <option key={version.id} value={version.id}>
-                    {version.bn_name ?? version.name}
+                    {version.name}
                   </option>
                 ))}
               </select>
@@ -436,24 +436,28 @@ export default function QuestionBuilderPage() {
               </button>
             </div>
 
-            {chapters.length > 0 && (
+            {filterClassId && filterVersionId && filterSubjectId && (
               <div className="flex flex-col gap-1.5 rounded-md border border-gray-200 p-3">
                 <span className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
                   {t['teacher.questionBuilder.chaptersLabel']}
                 </span>
-                <div className="flex max-h-32 flex-col gap-1 overflow-y-auto">
-                  {chapters.map((chapter) => (
-                    <label key={chapter.id} className="flex cursor-pointer items-center gap-2 text-sm text-gray-700">
-                      <input
-                        type="checkbox"
-                        checked={selectedChapterIds.has(chapter.id)}
-                        onChange={() => toggleChapter(chapter.id)}
-                        className="h-4 w-4 cursor-pointer accent-primary-500"
-                      />
-                      {chapter.bn_name ?? chapter.name}
-                    </label>
-                  ))}
-                </div>
+                {chapters.length === 0 ? (
+                  <p className="text-sm text-gray-400">{t['teacher.questionBuilder.noChapters']}</p>
+                ) : (
+                  <div className="flex max-h-32 flex-col gap-1 overflow-y-auto">
+                    {chapters.map((chapter) => (
+                      <label key={chapter.id} className="flex cursor-pointer items-center gap-2 text-sm text-gray-700">
+                        <input
+                          type="checkbox"
+                          checked={selectedChapterIds.has(chapter.id)}
+                          onChange={() => toggleChapter(chapter.id)}
+                          className="h-4 w-4 cursor-pointer accent-primary-500"
+                        />
+                        {chapter.name}
+                      </label>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 

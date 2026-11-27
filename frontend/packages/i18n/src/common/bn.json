@@ -1291,6 +1291,7 @@
   "teacher.questionBuilder.selectVersion": "ভার্সন নির্বাচন করুন",
   "teacher.questionBuilder.selectSubject": "বিষয় নির্বাচন করুন",
   "teacher.questionBuilder.chaptersLabel": "অধ্যায়সমূহ",
+  "teacher.questionBuilder.noChapters": "এই শ্রেণি/ভার্সন/বিষয়ের জন্য এখনও কোনো অধ্যায় তৈরি করা হয়নি।",
   "teacher.questionBuilder.selectType": "ধরন নির্বাচন করুন",
   "teacher.questionBuilder.allTypes": "সকল ধরন",
   "teacher.questionBuilder.cqLabel": "সৃজনশীল",

@@ -1291,6 +1291,7 @@
   "teacher.questionBuilder.selectVersion": "Select version",
   "teacher.questionBuilder.selectSubject": "Select subject",
   "teacher.questionBuilder.chaptersLabel": "Chapters",
+  "teacher.questionBuilder.noChapters": "No chapters configured for this class/version/subject yet.",
   "teacher.questionBuilder.selectType": "Select type",
   "teacher.questionBuilder.allTypes": "All types",
   "teacher.questionBuilder.cqLabel": "CQ",
