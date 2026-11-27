@@ -9,12 +9,14 @@ import {
   createQuestionPaper,
   getQuestionPaper,
   listAcademicQuestions,
+  listChapters,
   listClasses,
   listSubjects,
   listVersions,
   updateQuestionPaper,
   type AcademicQuestion,
   type AcademicQuestionType,
+  type Chapter,
   type SchoolClass,
   type Subject,
   type Version,
@@ -173,6 +175,8 @@ export default function QuestionBuilderPage() {
   const [filterSubjectId, setFilterSubjectId] = useState('')
   const [filterType, setFilterType] = useState('')
   const [filterMarks, setFilterMarks] = useState('')
+  const [chapters, setChapters] = useState<Chapter[]>([])
+  const [selectedChapterIds, setSelectedChapterIds] = useState<Set<number>>(new Set())
   const [bankQuestions, setBankQuestions] = useState<AcademicQuestion[]>([])
   const [loadingBank, setLoadingBank] = useState(false)
 
@@ -201,6 +205,48 @@ export default function QuestionBuilderPage() {
       })
       .catch(() => setVersions([]))
   }, [])
+
+  // Narrows the bank by chapter once Class/Version/Subject are all picked
+  // — same (class, version, subject) -> chapter cascade the management
+  // portal's Question Bank page uses for its own chapter picker. Checking
+  // none means "every chapter" (see loadBank()'s filter below); the
+  // checked set is cleared whenever the cascade's own inputs change,
+  // since a chapter checked under one subject has no meaning under
+  // another.
+  useEffect(() => {
+    setSelectedChapterIds(new Set())
+
+    if (!filterClassId || !filterVersionId || !filterSubjectId) {
+      setChapters([])
+      return
+    }
+
+    let active = true
+
+    listChapters({ classId: Number(filterClassId), versionId: Number(filterVersionId), subjectId: Number(filterSubjectId) })
+      .then((result) => {
+        if (active) setChapters(result.data)
+      })
+      .catch(() => {
+        if (active) setChapters([])
+      })
+
+    return () => {
+      active = false
+    }
+  }, [filterClassId, filterVersionId, filterSubjectId])
+
+  function toggleChapter(chapterId: number) {
+    setSelectedChapterIds((previous) => {
+      const next = new Set(previous)
+      if (next.has(chapterId)) {
+        next.delete(chapterId)
+      } else {
+        next.add(chapterId)
+      }
+      return next
+    })
+  }
 
   // Edit mode: populate every field (including the canvas) from the
   // existing paper. QuestionPaperItemResource's nested academic_question
@@ -244,7 +290,15 @@ export default function QuestionBuilderPage() {
       },
       token ?? undefined,
     )
-      .then((result) => setBankQuestions(result.data))
+      .then((result) =>
+        setBankQuestions(
+          // No chapter checked means "every chapter" (the pre-checkbox
+          // behavior); the bank's own filters already narrowed the API
+          // response, so this is a plain client-side narrow-further, not
+          // a second fetch.
+          selectedChapterIds.size === 0 ? result.data : result.data.filter((question) => selectedChapterIds.has(question.chapter_id)),
+        ),
+      )
       .catch(() => setBankQuestions([]))
       .finally(() => setLoadingBank(false))
   }
@@ -381,6 +435,27 @@ export default function QuestionBuilderPage() {
                 {t['teacher.questionBuilder.loadQuestions']}
               </button>
             </div>
+
+            {chapters.length > 0 && (
+              <div className="flex flex-col gap-1.5 rounded-md border border-gray-200 p-3">
+                <span className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
+                  {t['teacher.questionBuilder.chaptersLabel']}
+                </span>
+                <div className="flex max-h-32 flex-col gap-1 overflow-y-auto">
+                  {chapters.map((chapter) => (
+                    <label key={chapter.id} className="flex cursor-pointer items-center gap-2 text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={selectedChapterIds.has(chapter.id)}
+                        onChange={() => toggleChapter(chapter.id)}
+                        className="h-4 w-4 cursor-pointer accent-primary-500"
+                      />
+                      {chapter.bn_name ?? chapter.name}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="flex flex-col gap-2">
               {loadingBank && <p className="text-sm text-gray-500">{t['teacher.questionBuilder.loading']}</p>}

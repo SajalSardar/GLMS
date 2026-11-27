@@ -1290,6 +1290,7 @@
   "teacher.questionBuilder.selectClass": "Select class",
   "teacher.questionBuilder.selectVersion": "Select version",
   "teacher.questionBuilder.selectSubject": "Select subject",
+  "teacher.questionBuilder.chaptersLabel": "Chapters",
   "teacher.questionBuilder.selectType": "Select type",
   "teacher.questionBuilder.allTypes": "All types",
   "teacher.questionBuilder.cqLabel": "CQ",
