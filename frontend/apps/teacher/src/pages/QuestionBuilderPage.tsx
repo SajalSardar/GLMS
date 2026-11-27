@@ -202,7 +202,11 @@ function CanvasItemCard({
       className={`flex flex-col gap-2 rounded-md border border-gray-200 bg-white p-3 text-sm ${isDragging ? 'opacity-50' : ''}`}
     >
       <div className="flex items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2" onPointerDown={(event) => event.stopPropagation()}>
+        <div
+          className="flex min-w-0 items-center gap-2"
+          onPointerDown={(event) => event.stopPropagation()}
+          onKeyDown={(event) => event.stopPropagation()}
+        >
           <input
             type="text"
             value={item.serialLabel ?? String(index + 1)}
@@ -230,12 +234,22 @@ function CanvasItemCard({
         </div>
       </div>
 
-      <div onPointerDown={(event) => event.stopPropagation()}>
+      {/* dnd-kit's keyboard sensor activates a drag on Space/Enter for
+         ANY keydown that bubbles up to this card's {...listeners}, since
+         this card never wires up setActivatorNodeRef to scope that check
+         to a dedicated handle — stopping propagation here is required or
+         typing a space into the question text editor gets eaten as a
+         drag-activation key instead of reaching the editor. */}
+      <div onPointerDown={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
         <RichTextEditor value={item.questionText ?? ''} onChange={onQuestionTextChange} />
       </div>
 
       {item.questionType === 'mcq' && (
-        <div className="grid grid-cols-2 gap-2" onPointerDown={(event) => event.stopPropagation()}>
+        <div
+          className="grid grid-cols-2 gap-2"
+          onPointerDown={(event) => event.stopPropagation()}
+          onKeyDown={(event) => event.stopPropagation()}
+        >
           {[0, 1, 2, 3].map((optionIndex) => (
             <input
               key={optionIndex}
@@ -275,7 +289,7 @@ function CanvasDropZone({
   return (
     <div
       ref={setNodeRef}
-      className={`flex min-h-[200px] flex-col gap-2 rounded-md border-2 border-dashed p-4 transition-colors ${
+      className={`flex max-h-[32rem] min-h-[200px] flex-col gap-2 overflow-y-auto rounded-md border-2 border-dashed p-4 transition-colors ${
         isOver ? 'border-primary-500 bg-primary-50' : 'border-gray-200'
       }`}
     >
