@@ -89,15 +89,15 @@ const classMaterialsNavItem: SidebarItem = {
 // (see RolePermissionSeeder); everyone else's .view-only grant renders
 // read-only via each page's own GeoCrudTable permission props. Placed
 // right after Class Materials, per the explicit request to move it there.
-const examControlNavItem: SidebarItem = {
-  label: t['management.nav.examControl'],
-  icon: 'rule',
-  children: [
-    { to: '/dashboard/exam-control/academic-exam-terms', label: t['management.systemSetup.academicExamTerms'], icon: 'event_note' },
-    { to: '/dashboard/exam-control/academic-grade-configures', label: t['management.systemSetup.academicGradeConfigures'], icon: 'grade' },
-    { to: '/dashboard/exam-control/academic-subject-mark-configures', label: t['management.systemSetup.academicSubjectMarkConfigures'], icon: 'checklist' },
-  ],
-}
+// Publish Results/Promote Students (school_admin/national_admin only) are
+// prepended to this list inside the component, per the explicit request
+// to nest them under Exam Control as its first two items — see
+// examControlItem below.
+const examControlBaseNavItems: SidebarItem[] = [
+  { to: '/dashboard/exam-control/academic-exam-terms', label: t['management.systemSetup.academicExamTerms'], icon: 'event_note' },
+  { to: '/dashboard/exam-control/academic-grade-configures', label: t['management.systemSetup.academicGradeConfigures'], icon: 'grade' },
+  { to: '/dashboard/exam-control/academic-subject-mark-configures', label: t['management.systemSetup.academicSubjectMarkConfigures'], icon: 'checklist' },
+]
 
 // Report-only (see AttendanceReportPage's own comment) — visible to
 // STUDENT_AND_ATTENDANCE_VIEWERS, the same role set as studentsNavItem
@@ -116,13 +116,14 @@ const kioskDevicesNavItem: SidebarItem = { to: '/dashboard/kiosk-devices', label
 // punches instead of a class teacher's manual entry.
 const teacherAttendanceNavItem: SidebarItem = { to: '/dashboard/teacher-attendance', label: t['management.nav.teacherAttendance'], icon: 'badge' }
 
-// Same placement/visibility reasoning as attendanceNavItem above —
-// school_admin/national_admin only; recording stays in the teacher
-// portal, this page only reports status and fires the publish action.
+// Nested as the first two children of Exam Control (see examControlItem
+// in the component below) rather than top-level — school_admin/
+// national_admin only; recording stays in the teacher portal, this page
+// only reports status and fires the publish action.
 const publishResultsNavItem: SidebarItem = { to: '/dashboard/publish-results', label: t['management.nav.publishResults'], icon: 'campaign' }
 
-// Same placement/visibility reasoning as attendanceNavItem/publishResultsNavItem
-// above — school_admin/national_admin only.
+// Same placement/visibility reasoning as publishResultsNavItem above —
+// school_admin/national_admin only.
 const promoteStudentsNavItem: SidebarItem = { to: '/dashboard/promote-students', label: t['management.nav.promoteStudents'], icon: 'move_up' }
 
 // A collapsible group (same shape as systemSetupItem below) rather than
@@ -412,20 +413,28 @@ function DashboardLayout() {
   const canViewSystemSetup = role !== null && SYSTEM_SETUP_VIEWERS.includes(role)
   const canViewUsersRoles = role !== null && USERS_ROLES_VIEWERS.includes(role)
 
+  // Publish Results/Promote Students nest under Exam Control as its first
+  // two children for school_admin/national_admin — everyone else (who
+  // still reaches Exam Control for its always-visible base items below)
+  // sees just those three.
+  const examControlItem: SidebarItem = {
+    label: t['management.nav.examControl'],
+    icon: 'rule',
+    children: [...(isNationalAdmin || isSchoolAdmin ? [publishResultsNavItem, promoteStudentsNavItem] : []), ...examControlBaseNavItems],
+  }
+
   const navItems = [
     ...baseNavItems,
     ...(canViewTeachers ? [teachersNavItem] : []),
     ...(canViewStudentsAndAttendance ? [studentsNavItem] : []),
-    // classMaterialsNavItem/examControlNavItem/holidaysNavItem are always
+    // classMaterialsNavItem/examControlItem/holidaysNavItem are always
     // shown — every management-portal-eligible role holds .view on all of
     // books/chapters/chapter_videos/chapter_materials, the three exam
     // control config resources, and holidays (see ALL_MANAGEMENT_ROLES).
     classMaterialsNavItem,
-    examControlNavItem,
+    examControlItem,
     ...(canViewStudentsAndAttendance ? [attendanceNavItem] : []),
-    ...(isNationalAdmin || isSchoolAdmin
-      ? [kioskDevicesNavItem, teacherAttendanceNavItem, publishResultsNavItem, promoteStudentsNavItem]
-      : []),
+    ...(isNationalAdmin || isSchoolAdmin ? [kioskDevicesNavItem, teacherAttendanceNavItem] : []),
     ...(canViewTeachers ? [routineNavItem] : []),
     ...(isSchoolAdmin ? [teacherLeaveApplicationsNavItem, questionPapersNavItem] : []),
     ...(isNationalAdmin ? [teachersOnLeaveNavItem, questionBankNavItem] : []),
