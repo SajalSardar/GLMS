@@ -103,22 +103,24 @@ function PrintableQuestionPaper({ paper }: { paper: QuestionPaper }) {
           const displayNumber = item.serial_label ?? String(questionNumber)
 
           return (
-            <div key={item.id} style={indentStyle} className="flex justify-between gap-4">
-              <div className="flex-1">
-                <p className="font-medium">{displayNumber}.</p>
-                <div
-                  className="rich-question-text"
-                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(item.question_text ?? '') }}
-                />
-                {item.question_type === 'mcq' && item.options && (
-                  <ol className="mt-1 ml-5 list-none">
-                    {item.options.map((option, index) => (
-                      <li key={index}>
-                        {optionLetter(index, english)}) {option}
-                      </li>
-                    ))}
-                  </ol>
-                )}
+            <div key={item.id} style={indentStyle} className="flex items-start justify-between gap-4">
+              <div className="flex flex-1 items-start gap-1.5">
+                <span className="shrink-0 font-medium">{displayNumber}.</span>
+                <div className="flex-1">
+                  <div
+                    className="rich-question-text"
+                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(item.question_text ?? '') }}
+                  />
+                  {item.question_type === 'mcq' && item.options && (
+                    <ol className="mt-1 ml-5 list-none">
+                      {item.options.map((option, index) => (
+                        <li key={index}>
+                          {optionLetter(index, english)}) {option}
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </div>
               </div>
               <span className="shrink-0 text-sm">{item.marks}</span>
             </div>
