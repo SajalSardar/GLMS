@@ -6,6 +6,7 @@ use App\Models\Attendance;
 use App\Models\ClassVersion;
 use App\Models\District;
 use App\Models\Division;
+use App\Models\Guardian;
 use App\Models\Holiday;
 use App\Models\School;
 use App\Models\SchoolClass;
@@ -233,6 +234,53 @@ class AttendanceControllerTest extends TestCase
 
         $day23 = collect($response->json('data.days'))->firstWhere('date', '2026-11-23');
         $this->assertSame('absent', $day23['status']);
+    }
+
+    public function test_a_guardian_can_view_their_linked_childs_monthly_attendance(): void
+    {
+        $classTeacher = $this->teacherActorWithPermissions(['attendances.view', 'attendances.update'], $this->school->id, $this->school->district_id);
+        $this->section->update(['class_teacher_id' => $classTeacher->id]);
+
+        $student = $this->studentInSection();
+        $profile = $student->profile;
+
+        $this->actingAs($classTeacher, 'sanctum')->postJson('/api/v1/attendances/record', [
+            'section_id' => $this->section->id,
+            'date' => '2026-11-23',
+            'records' => [['student_profile_id' => $profile->id, 'status' => 'absent']],
+        ])->assertOk();
+
+        $guardianUser = $this->guardianActorWithPermissions(['attendances.view'], $this->school->id, $this->school->district_id);
+        $guardian = Guardian::create(['user_id' => $guardianUser->id, 'name' => 'Guardian', 'phone' => '01700000001']);
+        $guardian->students()->attach($profile->id, ['relation' => 'father', 'is_primary' => true]);
+
+        $this->actingAs($guardianUser, 'sanctum')
+            ->getJson("/api/v1/attendances/mine?year=2026&month=11&student_profile_id={$profile->id}")
+            ->assertOk()
+            ->assertJsonPath('data.summary.absent', 1);
+    }
+
+    public function test_mine_requires_student_profile_id_for_a_guardian(): void
+    {
+        $guardianUser = $this->guardianActorWithPermissions(['attendances.view'], $this->school->id, $this->school->district_id);
+
+        $this->actingAs($guardianUser, 'sanctum')
+            ->getJson('/api/v1/attendances/mine')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('student_profile_id');
+    }
+
+    public function test_mine_rejects_a_guardian_requesting_a_child_not_linked_to_them(): void
+    {
+        $student = $this->studentInSection();
+        $profile = $student->profile;
+
+        $guardianUser = $this->guardianActorWithPermissions(['attendances.view'], $this->school->id, $this->school->district_id);
+        Guardian::create(['user_id' => $guardianUser->id, 'name' => 'Guardian', 'phone' => '01700000002']);
+
+        $this->actingAs($guardianUser, 'sanctum')
+            ->getJson("/api/v1/attendances/mine?student_profile_id={$profile->id}")
+            ->assertForbidden();
     }
 
     public function test_a_school_admin_can_view_reports_for_any_section_in_their_school_without_an_assignment(): void

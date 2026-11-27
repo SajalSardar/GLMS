@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\ClassVersion;
 use App\Models\District;
 use App\Models\Division;
+use App\Models\Guardian;
 use App\Models\School;
 use App\Models\SchoolClass;
 use App\Models\Section;
@@ -137,6 +138,55 @@ class StudentLeaveApplicationControllerTest extends TestCase
             ->assertOk()
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.reason', 'A');
+    }
+
+    public function test_a_guardian_can_view_their_linked_childs_leave_applications_but_cannot_submit_one(): void
+    {
+        $student = $this->studentInSection();
+        $profile = $student->profile;
+
+        $this->actingAs($student, 'sanctum')->postJson('/api/v1/student-leave-applications', [
+            'from_date' => '2026-12-01', 'to_date' => '2026-12-02', 'reason' => 'Sick',
+        ])->assertCreated();
+
+        $guardianUser = $this->guardianActorWithPermissions(['student_leave_applications.view'], $this->school->id, $this->school->district_id);
+        $guardian = Guardian::create(['user_id' => $guardianUser->id, 'name' => 'Guardian', 'phone' => '01700000001']);
+        $guardian->students()->attach($profile->id, ['relation' => 'father', 'is_primary' => true]);
+
+        $this->actingAs($guardianUser, 'sanctum')
+            ->getJson("/api/v1/student-leave-applications/mine?student_profile_id={$profile->id}")
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.reason', 'Sick');
+
+        // Read-only: a guardian must never be able to submit one, even
+        // for their own linked child.
+        $this->actingAs($guardianUser, 'sanctum')->postJson('/api/v1/student-leave-applications', [
+            'from_date' => '2026-12-05', 'to_date' => '2026-12-06', 'reason' => 'Guardian attempt',
+        ])->assertForbidden();
+    }
+
+    public function test_mine_requires_student_profile_id_for_a_guardian(): void
+    {
+        $guardianUser = $this->guardianActorWithPermissions(['student_leave_applications.view'], $this->school->id, $this->school->district_id);
+
+        $this->actingAs($guardianUser, 'sanctum')
+            ->getJson('/api/v1/student-leave-applications/mine')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('student_profile_id');
+    }
+
+    public function test_mine_rejects_a_guardian_requesting_a_child_not_linked_to_them(): void
+    {
+        $student = $this->studentInSection();
+        $profile = $student->profile;
+
+        $guardianUser = $this->guardianActorWithPermissions(['student_leave_applications.view'], $this->school->id, $this->school->district_id);
+        Guardian::create(['user_id' => $guardianUser->id, 'name' => 'Guardian', 'phone' => '01700000002']);
+
+        $this->actingAs($guardianUser, 'sanctum')
+            ->getJson("/api/v1/student-leave-applications/mine?student_profile_id={$profile->id}")
+            ->assertForbidden();
     }
 
     public function test_the_class_teacher_of_the_section_can_review_the_application(): void

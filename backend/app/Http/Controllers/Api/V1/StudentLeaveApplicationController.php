@@ -8,8 +8,8 @@ use App\Http\Requests\Api\V1\StoreStudentLeaveApplicationRequest;
 use App\Http\Resources\Api\V1\StudentLeaveApplicationResource;
 use App\Models\AcademicYear;
 use App\Models\StudentLeaveApplication;
-use App\Models\StudentUser;
 use App\Models\TeacherUser;
+use App\Support\TargetStudentProfileResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -17,6 +17,8 @@ use Illuminate\Validation\ValidationException;
 
 class StudentLeaveApplicationController extends Controller
 {
+    public function __construct(private readonly TargetStudentProfileResolver $targetStudentProfileResolver) {}
+
     // schoolClass was missing here despite StudentLeaveApplicationResource
     // always referencing it — `class` silently came back empty on every
     // response (whenLoaded() omits an unloaded relation rather than
@@ -103,14 +105,14 @@ class StudentLeaveApplicationController extends Controller
     }
 
     /**
-     * This student's own leave applications, most recent first.
+     * This student's own leave applications, most recent first. A
+     * guardian may also call this (read-only history) for one of their
+     * linked children — submitting a new application (store() above)
+     * stays student-only.
      */
     public function mine(Request $request): AnonymousResourceCollection
     {
-        $actor = $request->user();
-        abort_unless($actor instanceof StudentUser, 403);
-
-        $profile = $actor->profile;
+        $profile = $this->targetStudentProfileResolver->resolve($request);
 
         if ($profile === null) {
             return StudentLeaveApplicationResource::collection(collect());

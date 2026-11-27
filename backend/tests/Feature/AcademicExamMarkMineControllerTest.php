@@ -10,6 +10,7 @@ use App\Models\AcademicYear;
 use App\Models\ClassVersion;
 use App\Models\District;
 use App\Models\Division;
+use App\Models\Guardian;
 use App\Models\School;
 use App\Models\SchoolClass;
 use App\Models\Section;
@@ -239,6 +240,43 @@ class AcademicExamMarkMineControllerTest extends TestCase
 
         $this->actingAs($teacher, 'sanctum')
             ->getJson("/api/v1/academic-exam-marks/mine?academic_exam_term_id={$this->publishedTerm->id}&academic_year_id={$this->year->id}")
+            ->assertForbidden();
+    }
+
+    public function test_a_guardian_can_view_their_linked_childs_marksheet_and_terms(): void
+    {
+        $guardianUser = $this->guardianActorWithPermissions(['academic_exam_marks.view'], $this->school->id, $this->school->district_id);
+        $guardian = Guardian::create(['user_id' => $guardianUser->id, 'name' => 'Guardian', 'phone' => '01700000001']);
+        $guardian->students()->attach($this->profile->id, ['relation' => 'father', 'is_primary' => true]);
+
+        $this->actingAs($guardianUser, 'sanctum')
+            ->getJson("/api/v1/academic-exam-marks/mine/terms?student_profile_id={$this->profile->id}")
+            ->assertOk()
+            ->assertJsonCount(1, 'data');
+
+        $this->actingAs($guardianUser, 'sanctum')
+            ->getJson("/api/v1/academic-exam-marks/mine?academic_exam_term_id={$this->publishedTerm->id}&academic_year_id={$this->year->id}&student_profile_id={$this->profile->id}")
+            ->assertOk()
+            ->assertJsonPath('data.subjects.0.cq', 90);
+    }
+
+    public function test_mine_requires_student_profile_id_for_a_guardian(): void
+    {
+        $guardianUser = $this->guardianActorWithPermissions(['academic_exam_marks.view'], $this->school->id, $this->school->district_id);
+
+        $this->actingAs($guardianUser, 'sanctum')
+            ->getJson("/api/v1/academic-exam-marks/mine?academic_exam_term_id={$this->publishedTerm->id}&academic_year_id={$this->year->id}")
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('student_profile_id');
+    }
+
+    public function test_mine_rejects_a_guardian_requesting_a_child_not_linked_to_them(): void
+    {
+        $guardianUser = $this->guardianActorWithPermissions(['academic_exam_marks.view'], $this->school->id, $this->school->district_id);
+        Guardian::create(['user_id' => $guardianUser->id, 'name' => 'Guardian', 'phone' => '01700000002']);
+
+        $this->actingAs($guardianUser, 'sanctum')
+            ->getJson("/api/v1/academic-exam-marks/mine?academic_exam_term_id={$this->publishedTerm->id}&academic_year_id={$this->year->id}&student_profile_id={$this->profile->id}")
             ->assertForbidden();
     }
 }

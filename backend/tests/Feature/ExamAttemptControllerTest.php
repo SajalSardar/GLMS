@@ -280,6 +280,52 @@ class ExamAttemptControllerTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_a_guardian_can_view_their_linked_childs_practice_exam_history(): void
+    {
+        $practiceExam = Exam::create(['class_version_id' => $this->version->id, 'subject_id' => $this->subject->id, 'academic_year_id' => $this->academicYear->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Practice-xyz', 'selection_mode' => 'manual', 'status' => 'published', 'is_practice' => true, 'passing_score_percent' => 40]);
+        $question = Question::create(['chapter_id' => $this->chapter->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'question_type' => 'mcq_single', 'question_text' => 'Q', 'marks' => 5]);
+        $practiceExam->questions()->attach($question->id, ['order_index' => 0]);
+
+        $student = $this->eligibleStudent();
+        $attemptId = $this->actingAs($student, 'sanctum')->postJson("/api/v1/exams/{$practiceExam->id}/attempts")->json('data.id');
+        $this->actingAs($student, 'sanctum')->postJson("/api/v1/exam-attempts/{$attemptId}/submit")->assertOk();
+
+        $studentProfile = StudentProfile::where('user_id', $student->id)->first();
+        $guardianUser = $this->guardianActorWithPermissions([], $this->school->id, $this->school->district_id);
+        $guardian = Guardian::create(['user_id' => $guardianUser->id, 'name' => 'Guardian', 'phone' => '01700000001']);
+        $guardian->students()->attach($studentProfile->id, ['relation' => 'father', 'is_primary' => true]);
+
+        $response = $this->actingAs($guardianUser, 'sanctum')
+            ->getJson("/api/v1/my-exam-attempts?student_profile_id={$studentProfile->id}")
+            ->assertOk();
+
+        $response->assertJsonCount(1, 'data');
+        $response->assertJsonPath('data.0.exam_id', $practiceExam->id);
+    }
+
+    public function test_mine_requires_student_profile_id_for_a_guardian(): void
+    {
+        $guardianUser = $this->guardianActorWithPermissions([], $this->school->id, $this->school->district_id);
+
+        $this->actingAs($guardianUser, 'sanctum')
+            ->getJson('/api/v1/my-exam-attempts')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('student_profile_id');
+    }
+
+    public function test_mine_rejects_a_guardian_requesting_a_child_not_linked_to_them(): void
+    {
+        $student = $this->eligibleStudent();
+        $studentProfile = StudentProfile::where('user_id', $student->id)->first();
+
+        $guardianUser = $this->guardianActorWithPermissions([], $this->school->id, $this->school->district_id);
+        Guardian::create(['user_id' => $guardianUser->id, 'name' => 'Guardian', 'phone' => '01700000002']);
+
+        $this->actingAs($guardianUser, 'sanctum')
+            ->getJson("/api/v1/my-exam-attempts?student_profile_id={$studentProfile->id}")
+            ->assertForbidden();
+    }
+
     public function test_eligible_random_question_ids_pools_chapters_across_class_versions_when_narrowed(): void
     {
         $otherSchool = School::create(['division_id' => $this->school->division_id, 'district_id' => $this->school->district_id, 'upazila_id' => $this->school->upazila_id, 'name' => 'Other School']);

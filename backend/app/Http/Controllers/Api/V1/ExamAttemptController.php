@@ -11,7 +11,7 @@ use App\Models\ExamAttempt;
 use App\Models\ExamAttemptAnswer;
 use App\Models\ExamAttemptQuestion;
 use App\Models\Question;
-use App\Models\StudentUser;
+use App\Support\TargetStudentProfileResolver;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,6 +21,8 @@ use Illuminate\Validation\ValidationException;
 
 class ExamAttemptController extends Controller
 {
+    public function __construct(private readonly TargetStudentProfileResolver $targetStudentProfileResolver) {}
+
     /**
      * Shared eager-load list — Task 4's saveAnswer()/submit() reuse this
      * by the same name so the response shape stays consistent.
@@ -119,18 +121,24 @@ class ExamAttemptController extends Controller
      * precedent as ExamAttemptPolicy::view(). Unlike index() above, this
      * is never exposed for an exam_id the caller doesn't already know, so
      * there's no ExamAttemptPolicy check to apply; the user_id filter IS
-     * the authorization. Still must confirm the actor is a StudentUser
-     * first — exam_attempts.user_id is student-only (see migration
-     * 2026_11_12_100200), so a teacher/management token sharing this same
-     * app's auth would otherwise see whichever student happens to have
-     * the same numeric id.
+     * the authorization. A guardian may also call this, for one of their
+     * linked children — exam_attempts.user_id is a StudentUser id, so
+     * once TargetStudentProfileResolver resolves the (student's own, or
+     * the guardian's chosen child's) profile, the filter reads through
+     * profile->user_id rather than the caller's own id directly.
      */
     public function mine(Request $request): AnonymousResourceCollection
     {
-        abort_unless($request->user() instanceof StudentUser, 403);
+        $profile = $this->targetStudentProfileResolver->resolve($request);
+
+        if ($profile === null || $profile->user_id === null) {
+            return ExamAttemptResource::collection(
+                ExamAttempt::query()->whereRaw('1 = 0')->paginate($request->integer('per_page', 15))
+            );
+        }
 
         $attempts = ExamAttempt::query()
-            ->where('user_id', $request->user()->id)
+            ->where('user_id', $profile->user_id)
             ->where('status', 'submitted')
             ->whereHas('exam', fn ($query) => $query->where('is_practice', true))
             ->with(['exam.subject'])

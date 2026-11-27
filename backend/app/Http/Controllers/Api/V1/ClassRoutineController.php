@@ -13,8 +13,8 @@ use App\Models\School;
 use App\Models\SchoolClass;
 use App\Models\Scopes\TenantScope;
 use App\Models\Section;
-use App\Models\StudentUser;
 use App\Models\TeacherUser;
+use App\Support\TargetStudentProfileResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -24,6 +24,8 @@ use Illuminate\Validation\ValidationException;
 
 class ClassRoutineController extends Controller
 {
+    public function __construct(private readonly TargetStudentProfileResolver $targetStudentProfileResolver) {}
+
     /**
      * Display a listing of the resource.
      */
@@ -100,9 +102,7 @@ class ClassRoutineController extends Controller
             return ClassRoutineResource::collection($routines);
         }
 
-        abort_unless($actor instanceof StudentUser, 403);
-
-        $profile = $actor->profile;
+        $profile = $this->targetStudentProfileResolver->resolve($request);
 
         if ($profile === null || $profile->section_id === null) {
             return ClassRoutineResource::collection(collect());

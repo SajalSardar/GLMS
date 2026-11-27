@@ -11,17 +11,20 @@ use App\Models\AcademicSubjectMarkConfigure;
 use App\Models\AcademicYear;
 use App\Models\Section;
 use App\Models\StudentProfile;
-use App\Models\StudentUser;
 use App\Models\Subject;
 use App\Models\SubjectTeacherAssignment;
 use App\Models\TeacherUser;
 use App\Support\MarksheetBuilder;
+use App\Support\TargetStudentProfileResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class AcademicExamMarkController extends Controller
 {
-    public function __construct(private readonly MarksheetBuilder $marksheetBuilder) {}
+    public function __construct(
+        private readonly MarksheetBuilder $marksheetBuilder,
+        private readonly TargetStudentProfileResolver $targetStudentProfileResolver,
+    ) {}
 
     /**
      * Every (section, subject) combination this teacher may touch for
@@ -289,10 +292,7 @@ class AcademicExamMarkController extends Controller
      */
     public function mineTerms(Request $request): JsonResponse
     {
-        $student = $request->user();
-        abort_unless($student instanceof StudentUser, 403);
-
-        $profile = $student->profile;
+        $profile = $this->targetStudentProfileResolver->resolve($request);
 
         if ($profile === null) {
             return response()->json(['data' => []]);
@@ -330,10 +330,7 @@ class AcademicExamMarkController extends Controller
      */
     public function mine(Request $request): JsonResponse
     {
-        $student = $request->user();
-        abort_unless($student instanceof StudentUser, 403);
-
-        $profile = $student->profile;
+        $profile = $this->targetStudentProfileResolver->resolve($request);
 
         if ($profile === null) {
             return response()->json(['data' => null]);

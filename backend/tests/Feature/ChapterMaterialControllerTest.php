@@ -9,6 +9,7 @@ use App\Models\ClassVersion;
 use App\Models\ContentAccessLog;
 use App\Models\District;
 use App\Models\Division;
+use App\Models\Guardian;
 use App\Models\School;
 use App\Models\SchoolClass;
 use App\Models\Section;
@@ -689,6 +690,61 @@ class ChapterMaterialControllerTest extends TestCase
 
         $this->actingAs($teacher, 'sanctum')
             ->getJson('/api/v1/chapter-materials/mine')
+            ->assertForbidden();
+    }
+
+    public function test_a_guardian_can_view_their_linked_childs_materials(): void
+    {
+        $classVersionId = $this->chapterA->book->class_version_id;
+        $classId = $this->chapterA->book->classVersion->class_id;
+        $subjectId = $this->chapterA->book->subject_id;
+        $shift = Shift::create(['class_version_id' => $classVersionId, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'name' => 'Shift', 'start_time' => '08:00', 'end_time' => '13:00', 'days_of_week' => ['saturday']]);
+        $teacher = $this->teacherActorWithPermissions(['chapter_materials.create'], $this->schoolA->id, $this->schoolA->district_id);
+        $section = Section::create(['shift_id' => $shift->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id, 'name' => 'Section A']);
+        SubjectTeacherAssignment::create(['section_id' => $section->id, 'subject_id' => $subjectId, 'teacher_id' => $teacher->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id]);
+
+        $file = UploadedFile::fake()->create('chapter1.pdf', 100, 'application/pdf');
+        $materialId = $this->actingAs($teacher, 'sanctum')
+            ->post('/api/v1/chapter-materials', ['chapter_id' => $this->chapterA->id, 'section_id' => $section->id, 'type' => 'primary', 'file' => $file])
+            ->json('data.id');
+
+        $student = $this->studentActorWithPermissions([], $this->schoolA->id, $this->schoolA->district_id);
+        $profile = StudentProfile::create([
+            'user_id' => $student->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id,
+            'section_id' => $section->id, 'shift_id' => $shift->id, 'class_version_id' => $classVersionId, 'class_id' => $classId,
+        ]);
+
+        $guardianUser = $this->guardianActorWithPermissions(['chapter_materials.view'], $this->schoolA->id, $this->schoolA->district_id);
+        $guardian = Guardian::create(['user_id' => $guardianUser->id, 'name' => 'Guardian', 'phone' => '01700000001']);
+        $guardian->students()->attach($profile->id, ['relation' => 'father', 'is_primary' => true]);
+
+        $this->actingAs($guardianUser, 'sanctum')
+            ->getJson("/api/v1/chapter-materials/mine?student_profile_id={$profile->id}")
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $materialId);
+    }
+
+    public function test_mine_requires_student_profile_id_for_a_guardian(): void
+    {
+        $guardianUser = $this->guardianActorWithPermissions(['chapter_materials.view'], $this->schoolA->id, $this->schoolA->district_id);
+
+        $this->actingAs($guardianUser, 'sanctum')
+            ->getJson('/api/v1/chapter-materials/mine')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('student_profile_id');
+    }
+
+    public function test_mine_rejects_a_guardian_requesting_a_child_not_linked_to_them(): void
+    {
+        $student = $this->studentActorWithPermissions([], $this->schoolA->id, $this->schoolA->district_id);
+        $profile = StudentProfile::create(['user_id' => $student->id, 'school_id' => $this->schoolA->id, 'district_id' => $this->schoolA->district_id]);
+
+        $guardianUser = $this->guardianActorWithPermissions(['chapter_materials.view'], $this->schoolA->id, $this->schoolA->district_id);
+        Guardian::create(['user_id' => $guardianUser->id, 'name' => 'Guardian', 'phone' => '01700000002']);
+
+        $this->actingAs($guardianUser, 'sanctum')
+            ->getJson("/api/v1/chapter-materials/mine?student_profile_id={$profile->id}")
             ->assertForbidden();
     }
 

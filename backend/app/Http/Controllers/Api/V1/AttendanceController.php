@@ -8,9 +8,9 @@ use App\Models\Attendance;
 use App\Models\Holiday;
 use App\Models\Section;
 use App\Models\StudentProfile;
-use App\Models\StudentUser;
 use App\Models\TeacherLeaveApplication;
 use App\Models\TeacherUser;
+use App\Support\TargetStudentProfileResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -18,6 +18,8 @@ use Illuminate\Validation\ValidationException;
 
 class AttendanceController extends Controller
 {
+    public function __construct(private readonly TargetStudentProfileResolver $targetStudentProfileResolver) {}
+
     /**
      * Sections this teacher may touch attendance for — the ones they're
      * the class teacher of (can_record: true), any they hold an approved
@@ -269,14 +271,12 @@ class AttendanceController extends Controller
 
     /**
      * This student's own monthly attendance — the source data for the
-     * student portal's calendar view.
+     * student portal's calendar view. A guardian may also call this, for
+     * one of their linked children (see TargetStudentProfileResolver).
      */
     public function mine(Request $request): JsonResponse
     {
-        $student = $request->user();
-        abort_unless($student instanceof StudentUser, 403);
-
-        $profile = $student->profile;
+        $profile = $this->targetStudentProfileResolver->resolve($request);
 
         if ($profile === null) {
             return response()->json(['data' => null]);

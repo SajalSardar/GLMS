@@ -6,6 +6,7 @@ use App\Models\ClassSchool;
 use App\Models\ClassVersion;
 use App\Models\District;
 use App\Models\Division;
+use App\Models\Guardian;
 use App\Models\School;
 use App\Models\SchoolClass;
 use App\Models\Section;
@@ -280,6 +281,58 @@ class ClassRoutineControllerTest extends TestCase
 
         $this->actingAs($staff, 'sanctum')
             ->getJson('/api/v1/class-routines/mine')
+            ->assertForbidden();
+    }
+
+    public function test_a_guardian_can_view_their_linked_childs_routine_via_student_profile_id(): void
+    {
+        $version = ClassVersion::create(['class_id' => $this->class->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'version_id' => Version::where('name', 'Bangla')->value('id')]);
+        $shift = Shift::create(['class_version_id' => $version->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Day Shift', 'start_time' => '08:00', 'end_time' => '13:00', 'days_of_week' => ['sunday']]);
+        $section = Section::create(['shift_id' => $shift->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id, 'name' => 'Main']);
+
+        $teacher = $this->teacherActorWithPermissions(['class_routines.create'], $this->school->id, $this->school->district_id);
+        $routineId = $this->actingAs($teacher, 'sanctum')->postJson('/api/v1/class-routines', [
+            'class_id' => $this->class->id, 'school_id' => $this->school->id, 'section_id' => $section->id,
+            'subject_id' => $this->subject->id, 'day_of_week' => 'sunday', 'period_no' => 1,
+        ])->json('data.id');
+
+        $student = $this->studentActorWithPermissions([], $this->school->id, $this->school->district_id);
+        $profile = StudentProfile::create([
+            'user_id' => $student->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id,
+            'class_id' => $this->class->id, 'section_id' => $section->id, 'shift_id' => $shift->id, 'class_version_id' => $version->id,
+        ]);
+
+        $guardianUser = $this->guardianActorWithPermissions(['class_routines.view'], $this->school->id, $this->school->district_id);
+        $guardian = Guardian::create(['user_id' => $guardianUser->id, 'name' => 'Guardian', 'phone' => '01700000001']);
+        $guardian->students()->attach($profile->id, ['relation' => 'father', 'is_primary' => true]);
+
+        $this->actingAs($guardianUser, 'sanctum')
+            ->getJson("/api/v1/class-routines/mine?student_profile_id={$profile->id}")
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $routineId);
+    }
+
+    public function test_mine_requires_student_profile_id_for_a_guardian(): void
+    {
+        $guardianUser = $this->guardianActorWithPermissions(['class_routines.view'], $this->school->id, $this->school->district_id);
+
+        $this->actingAs($guardianUser, 'sanctum')
+            ->getJson('/api/v1/class-routines/mine')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('student_profile_id');
+    }
+
+    public function test_mine_rejects_a_guardian_requesting_a_child_not_linked_to_them(): void
+    {
+        $student = $this->studentActorWithPermissions([], $this->school->id, $this->school->district_id);
+        $profile = StudentProfile::create(['user_id' => $student->id, 'school_id' => $this->school->id, 'district_id' => $this->school->district_id]);
+
+        $guardianUser = $this->guardianActorWithPermissions(['class_routines.view'], $this->school->id, $this->school->district_id);
+        Guardian::create(['user_id' => $guardianUser->id, 'name' => 'Guardian', 'phone' => '01700000002']);
+
+        $this->actingAs($guardianUser, 'sanctum')
+            ->getJson("/api/v1/class-routines/mine?student_profile_id={$profile->id}")
             ->assertForbidden();
     }
 

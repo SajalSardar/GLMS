@@ -10,10 +10,12 @@ use App\Models\Chapter;
 use App\Models\ChapterMaterial;
 use App\Models\ContentAccessLog;
 use App\Models\Section;
+use App\Models\StudentProfile;
 use App\Models\StudentUser;
 use App\Models\Subject;
 use App\Models\SubjectTeacherAssignment;
 use App\Models\TeacherUser;
+use App\Support\TargetStudentProfileResolver;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -27,6 +29,8 @@ use Illuminate\Validation\ValidationException;
 
 class ChapterMaterialController extends Controller
 {
+    public function __construct(private readonly TargetStudentProfileResolver $targetStudentProfileResolver) {}
+
     /**
      * A logged-in student sees ONLY materials that exactly match their
      * own school/district/shift/section/class/class_version — a material
@@ -49,7 +53,7 @@ class ChapterMaterialController extends Controller
             ->when($actor?->school_id, fn ($query, $schoolId) => $query->whereHas('chapter.book.classVersion', fn ($q) => $q->where('school_id', $schoolId)))
             ->when(
                 $actor instanceof StudentUser,
-                fn ($query) => $this->scopeToStudentsOwnProfile($query, $actor),
+                fn ($query) => $this->scopeToProfile($query, $actor->profile),
                 fn ($query) => $query->whereNull('section_id'),
             )
             ->orderBy('chapter_id')
@@ -64,10 +68,8 @@ class ChapterMaterialController extends Controller
      * @param  Builder<ChapterMaterial>  $query
      * @return Builder<ChapterMaterial>
      */
-    private function scopeToStudentsOwnProfile($query, StudentUser $student)
+    private function scopeToProfile($query, ?StudentProfile $profile)
     {
-        $profile = $student->profile;
-
         if ($profile === null || $profile->section_id === null) {
             // Nothing can match an unassigned student's scope, so show
             // nothing — not every unscoped material, which would defeat
@@ -102,16 +104,15 @@ class ChapterMaterialController extends Controller
      */
     public function mine(Request $request): AnonymousResourceCollection
     {
-        $actor = $request->user();
-        abort_unless($actor instanceof StudentUser, 403);
+        $profile = $this->targetStudentProfileResolver->resolve($request);
 
-        $materials = $this->scopeToStudentsOwnProfile(
+        $materials = $this->scopeToProfile(
             // chapter.book.subject eager-loaded (not just chapter) so
             // ClassMaterialsPage.tsx can show/filter by which book/
             // chapter/subject each material belongs to without a second
             // request per material.
             ChapterMaterial::query()->with('chapter.book.subject')->where('status', 'active'),
-            $actor,
+            $profile,
         )->orderByDesc('created_at')->get();
 
         return ChapterMaterialResource::collection($materials);
