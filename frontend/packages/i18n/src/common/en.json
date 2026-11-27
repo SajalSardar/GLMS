@@ -592,6 +592,8 @@
   "management.fields.allChapters": "All chapters",
   "management.fields.order": "Order",
   "management.fields.teacher": "Teacher",
+  "management.fields.classTeacher": "Primary Teacher",
+  "management.fields.noClassTeacher": "Not assigned",
   "management.fields.startDate": "Start date",
   "management.fields.endDate": "End date",
   "management.fields.isCurrent": "Current academic year",

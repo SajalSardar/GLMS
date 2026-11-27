@@ -6,11 +6,13 @@ import {
   listSchools,
   listShifts,
   listSections,
+  listTeacherUsers,
   updateSection,
   type School,
   type SchoolClass,
   type Section,
   type Shift,
+  type TeacherUser,
 } from '@ttla/api-client'
 import { useAuth } from '@ttla/auth'
 import { getCommonStrings } from '@ttla/i18n'
@@ -28,6 +30,7 @@ const initialValues = {
   code: '',
   capacity: '',
   is_active: 'true',
+  class_teacher_id: '',
 }
 
 const requiredFields = ['shift_id', 'name']
@@ -40,6 +43,7 @@ function toPayload(values: Record<string, string>) {
     code: values.code || null,
     capacity: values.capacity ? Number(values.capacity) : null,
     is_active: values.is_active === 'true',
+    class_teacher_id: values.class_teacher_id ? Number(values.class_teacher_id) : null,
   }
 }
 
@@ -79,6 +83,22 @@ function ActiveBadge({ isActive }: { isActive: boolean }) {
   )
 }
 
+// A section with no Primary Teacher can't record attendance or review
+// leave applications for anyone (see AttendancePolicy::recordSection()/
+// StudentLeaveApplicationPolicy::review(), both keyed on
+// class_teacher_id) — flagged in amber rather than the plain "—" every
+// other empty field gets, so a gap here reads as something to fix, not
+// just an unset optional field.
+function PrimaryTeacherCell({ name }: { name: string | undefined | null }) {
+  if (name) return <span>{name}</span>
+
+  return (
+    <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700">
+      {t['management.fields.noClassTeacher']}
+    </span>
+  )
+}
+
 function DetailRow({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-4 border-b border-gray-100 py-2 last:border-0">
@@ -102,6 +122,7 @@ function SectionDetails({ section, schools }: { section: Section; schools: Schoo
         label={t['management.fields.shift']}
         value={section.shift ? shiftLabel(section.shift) : section.shift_id}
       />
+      <DetailRow label={t['management.fields.classTeacher']} value={<PrimaryTeacherCell name={section.class_teacher?.name} />} />
       <DetailRow label={t['management.fields.isActive']} value={<ActiveBadge isActive={section.is_active} />} />
     </div>
   )
@@ -112,6 +133,7 @@ export default function SectionsPage() {
   const [shifts, setShifts] = useState<Shift[]>([])
   const [schools, setSchools] = useState<School[]>([])
   const [classes, setClasses] = useState<SchoolClass[]>([])
+  const [teachers, setTeachers] = useState<TeacherUser[]>([])
 
   useEffect(() => {
     listShifts({ perPage: 200 })
@@ -125,7 +147,13 @@ export default function SectionsPage() {
     listClasses({ perPage: 200 })
       .then((result) => setClasses(result.data))
       .catch(() => setClasses([]))
-  }, [])
+
+    if (token) {
+      listTeacherUsers({ perPage: 500 }, token)
+        .then((result) => setTeachers(result.data))
+        .catch(() => setTeachers([]))
+    }
+  }, [token])
 
   const shiftOptions = shifts.map((shift) => ({ value: String(shift.id), label: shiftLabel(shift) }))
 
@@ -154,6 +182,11 @@ export default function SectionsPage() {
       render: (row) => (row.shift ? shiftLabel(row.shift) : row.shift_id),
     },
     {
+      key: 'class_teacher',
+      label: t['management.fields.classTeacher'],
+      render: (row) => <PrimaryTeacherCell name={row.class_teacher?.name} />,
+    },
+    {
       key: 'is_active',
       label: t['management.fields.isActive'],
       render: (row) => <ActiveBadge isActive={row.is_active} />,
@@ -173,9 +206,21 @@ export default function SectionsPage() {
         code: row.code ?? '',
         capacity: row.capacity != null ? String(row.capacity) : '',
         is_active: String(row.is_active),
+        class_teacher_id: row.class_teacher_id != null ? String(row.class_teacher_id) : '',
       })}
       renderFields={(values, onChange, fieldErrors) => {
         const selectedShift = shifts.find((shift) => String(shift.id) === values.shift_id)
+
+        // Scoped to the selected shift's own school — the backend
+        // (SectionController::assertTeacherBelongsToSchool()) already
+        // rejects a cross-school pick server-side; this just keeps the
+        // same pick from ever being offered in the first place.
+        const teacherOptions = [
+          { value: '', label: t['management.fields.noClassTeacher'] },
+          ...teachers
+            .filter((teacher) => !selectedShift || teacher.school?.id === selectedShift.school_id)
+            .map((teacher) => ({ value: String(teacher.id), label: teacher.name })),
+        ]
 
         return (
         <>
@@ -203,6 +248,18 @@ export default function SectionsPage() {
               className={`${inputClass} cursor-not-allowed opacity-60`}
               value={versionLabel(selectedShift)}
               disabled
+            />
+          </GeoField>
+
+          <GeoField label={t['management.fields.classTeacher']} error={fieldErrors.class_teacher_id}>
+            <SearchableSelect
+              value={values.class_teacher_id}
+              onChange={(next) => onChange('class_teacher_id', next)}
+              placeholder={t['management.fields.noClassTeacher']}
+              searchPlaceholder={t['management.table.search']}
+              noMatchesLabel={t['management.table.noMatches']}
+              options={teacherOptions}
+              className={!selectedShift ? `${inputClass} cursor-not-allowed opacity-60` : undefined}
             />
           </GeoField>
 

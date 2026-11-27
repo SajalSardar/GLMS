@@ -1731,6 +1731,10 @@ export interface Section {
   default_classroom_id: number | null
   is_active: boolean
   shift?: Shift | null
+  // Deliberately minimal (id/name only, not the full TeacherUser shape) —
+  // SectionResource omits email/phone here since a section may be listed
+  // on a publicly readable route.
+  class_teacher?: { id: number; name: string } | null
 }
 
 export interface SectionPayload {
@@ -1740,6 +1744,7 @@ export interface SectionPayload {
   code?: string | null
   capacity?: number | null
   is_active?: boolean
+  class_teacher_id?: number | null
 }
 
 export function listSections(
